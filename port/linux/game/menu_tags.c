@@ -37,6 +37,8 @@ no screen pauses the game (a network game's clock runs on).
 #include "rasterizer/xbox/rasterizer_xbox_hardware_bitmaps.h"
 
 #include "halo_menus.h"
+#include "mcc_ui.h"
+#include "mcc_cache.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -1626,6 +1628,9 @@ static void pause_patch(struct cache_file_tag_instance *instances)
 	long patched_list = NONE, added = 0, buttons = 0, screen;
 	boolean box_redrawn = FALSE;
 
+	/* MCC supplies its own Settings and game-options buttons. */
+	if (mcc_cache_tags_loaded())
+		return;
 	if (collection == NONE || quit_function == NONE)
 		return;
 	screens = tag_get('Soul', collection);
@@ -1707,12 +1712,16 @@ void menu_tags_loaded(
 
 	boolean game_map = strcmp(map_name, "ui") != 0;
 
+	/* MCC multiplayer uses the same trusted native Settings screens. */
+	if (mcc_ui_settings_needed(map_name))
+		goto mcc_settings;
 	/* (ui.map, and a multiplayer map: its pause menu's SETTINGS) */
 	if ((game_map && tag_loaded('Soul', MULTIPLAYER_COLLECTION) == NONE) ||
 		strcmp(config_string("display.menus"), "pc"))
 	{
 		return;
 	}
+mcc_settings:
 	menus = halo_menus_load();
 	if (!menus)
 		return;
@@ -1877,6 +1886,11 @@ char const *pc_menus_root_name(
 boolean pc_menu_tag(
 	long tag_index)
 {
+	/* MCC's independently generated pause widgets use stock widget behavior. */
+	{
+		extern boolean mcc_pause_owns(long);
+		if (mcc_pause_owns(tag_index)) return FALSE;
+	}
 	return menu_tags.loaded && tag_index != NONE &&
 		DATUM_INDEX_TO_ABSOLUTE_INDEX(tag_index) >= menu_tags.original_count;
 }

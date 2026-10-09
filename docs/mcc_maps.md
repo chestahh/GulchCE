@@ -56,6 +56,60 @@ can detect that a network host selected a different map version; it is not
 a recomputation or authentication of the map's contents. Network support
 uses GulchCE's game protocol, not the MCC game client or its matchmaking.
 
+### In-game pause menus
+
+MCC maps use a generated, stock-style pause menu for campaign, cooperative
+and multiplayer games. The full, half and quarter viewport layouts follow
+the local player arrangement. They use separate MCC-owned widgets, strings,
+panels and selection highlights; the default pause route does not open the
+map's embedded pause or Settings widgets. Loaded font tags are referenced
+without changing their contents.
+
+| Context | Available actions |
+| --- | --- |
+| Local campaign | Resume Game, Revert to Saved, Restart Level, Save and Quit. |
+| Cooperative host | Resume Game, Revert to Saved, Restart Level, Leave Game. |
+| Cooperative client | Resume and Leave Game. |
+| Local multiplayer | Resume, Restart Game and Leave Game. |
+| Multiplayer host | Resume, Restart Game, End Game and Leave Game; Choose Team in team games. |
+| Multiplayer client | Resume and Leave Game; Choose Team in team games. |
+
+Multiplayer additionally offers **Settings** when `display.menus=pc` and
+there is one local player. It opens the trusted native player Settings
+screen for the initiating controller. Split-screen players use Settings
+from the main menu, since the native editor needs a full viewport.
+Campaign and cooperative pause menus do not offer Settings. Restart,
+revert and leaving/end-game actions use confirmation
+dialogs with Cancel selected initially. B returns from a confirmation to
+the pause screen; Start closes the current player's menu and its navigation
+history. At the main pause screen, either resumes play. Resume and team
+selection also close only the initiating player's menu, preserving other
+local players' screens. Each pause layout uses the native A/B button-icon
+tokens in its footer, drawing the map's HUD button glyphs beside Select/Back.
+Only local campaign pauses
+the simulation; network games continue while a menu is open.
+
+Save and Quit preserves the last valid local campaign checkpoint. Revert
+requires a valid checkpoint, and cooperative restart/revert remain
+host-controlled. A network restart retains the selected map, variant,
+options and players through the native lobby/countdown route. End Game is
+host-only and ends the round. Team changes remain subject to authenticated
+player identity, host authority and balance checks.
+
+The MCC Settings route uses the initiating controller's profile and widget
+history. It does not replace another active profile editor. Its ownership
+ends on native Save/Cancel, menu closure, replacement editing or map unload,
+so a later native editor cannot be closed by stale MCC state.
+
+Campaign layouts display the scenario's current mission objectives through
+the native objective-text callback. Owned objective and confirmation text
+boxes wrap their instance copies using the current font's metrics and clip
+to their bounds. The map's objective data, custom HUD
+and embedded widgets remain present. Scripts that explicitly open embedded
+widgets can still use the MCC callback adapter described below. The new
+pause labels and confirmation text are currently English; localization of
+these generated strings is not implemented.
+
 ## Repository architecture and isolation
 
 GulchCE is authoritative for this work. `source/` contains the reconstructed
@@ -78,10 +132,14 @@ are not an MCC implementation dependency. The independent components are:
 | `port/linux/game/mcc_cache_format.c` | Portable little-endian version-13 reader and file-range audit. |
 | `port/linux/game/mcc_cache.c` | MCC path admission, read-only file lifetime, conversion and streaming dispatch. |
 | `port/linux/game/mcc_main.c` | MCC load-failure recovery through the native main-menu lifecycle. |
+| `port/linux/game/mcc_ui.c` and `mcc_ui_network.inl` | MCC in-map widget actions, settings routing, checkpoint/quit behavior and synchronized network restarts. |
+| `port/linux/game/mcc_pause.c` and `mcc_pause_runtime.c` | Generated stock-style pause layouts, objective display, independent UI art and atomic publication/lifetime of the appended tags. |
+| `port/linux/game/mcc_ui_teams.c` | Authenticated team-only requests during MCC multiplayer rounds, with host balance checks and normal respawn replication. |
 | `port/linux/src/mcc_memory.c` | Separate 64 MiB linked tag window; never replaces an existing allocation. |
 | `port/linux/game/mcc_geometry.c` | New model descriptors, model vertex/index conversion, external BSP vertex streams and node palettes. |
 | `port/linux/game/mcc_audio.c` | MCC sound decoding, resampling and Xbox ADPCM encoding into an MCC virtual stream. |
 | `port/linux/game/mcc_bitmaps.c` | MCC pixel layout, BC7 decoding and shader/HUD channel normalization into an MCC virtual stream. |
+| `port/linux/game/mcc_texture_cache.c` and `port/linux/src/mcc_texture_bridge.c` | Direct bindings of checked MCC pixel allocations and lazy GPU textures, independent of the Xbox/CE staging cache. |
 | `port/linux/game/mcc_tags.c` | MCC metadata, shader-type, HUD placement and widget normalization. |
 | `port/linux/game/mcc_hud.c` | MCC bitmap/placement scaling, including nested weapon and grenade HUD items. |
 | `port/linux/game/mcc_scripts.c` | Name-based MCC function/global linking and supported MCC native functions. |
@@ -100,6 +158,15 @@ the new modules. For other levels those MCC checks do not select a loader.
 The new code does not call the Custom Edition parser, converter, allocator,
 script adapter, bitmap converter, sound encoder or behavior table. MCC
 conversion writes only MCC-owned allocations, and unload releases them.
+
+The pause builder appends its definitions and art to a copy of the live
+tag index only after construction succeeds. It preserves the existing tag
+records and restores the original index on unload. Its action IDs use the
+separate `0x7000` range and require exact ownership of a generated widget;
+an embedded map widget cannot acquire those permissions by copying an ID.
+Allocation or graphics-resource failure releases the partial construction
+without publishing it. Xbox and Custom Edition pause selection remains on
+the existing route.
 
 Maps with two through four grenade definitions are supported. The original
 unit datum and player-action layouts are retained; the extra two counts
@@ -161,6 +228,21 @@ that require different channel layouts gets separate MCC-owned tag and
 pixel copies, with the relevant consumer's reference redirected. The tag
 index can grow into a separate checked allocation for those copies.
 
+MCC textures bind their immutable converted allocations directly through an
+MCC-owned hardware-header registry. Exact registered header identity grants
+access to the pixels; a copied descriptor or arbitrary physical-address word
+does not. GPU textures upload lazily and remain owned until MCC unload,
+which unbinds and deletes them before freeing their source pixels. This
+avoids another pixel copy and allocation in the Xbox/CE texture staging
+cache, whose capacity and policy remain unchanged. BC7 decoding retains
+the full decoded texels; there is no additional lossy recompression or
+resolution reduction. Host memory and GPU texture capacity still bound
+the maps the machine can render. The same owned pixels remain available
+to CPU object-lighting samples. Two-dimensional DXT resources preserve
+their complete 2-by-2 and 1-by-1 source mip blocks for those samples, while
+the GPU descriptor retains its native mip limit. Unload clears only CPU
+base pointers that still name the MCC-owned allocation.
+
 The audio adapter accepts embedded PCM16, Xbox ADPCM and Ogg Vorbis
 permutations. It uses independent bounds checks and codec state. Mono
 output uses the game's 22,050 Hz format; stereo output follows the admitted
@@ -208,9 +290,15 @@ the active syntax fits the existing interpreter's 19,001-node limit.
 - Reusing stock schemas and gameplay/render systems does not implement
   every MCC engine extension. MCC-only object behaviors, new shader
   semantics and UI callbacks require separate
-  semantic work and representative maps. MCC widget callback indices
-  are cleared because they do not name Xbox callbacks; native menus
-  supply navigation. HUD placement normalization and overlay handling
+  semantic work and representative maps. Embedded MCC widget event bytes
+  are preserved: compatible callback IDs use the existing engine functions,
+  while identified MCC-specific actions dispatch through the MCC adapter.
+  This remains relevant to script-opened custom interfaces; the default
+  pause menus use the separately generated definitions above. Unsupported
+  embedded callbacks fail without performing the event's close/open actions.
+  Native Settings is available only in MCC multiplayer with
+  `display.menus=pc` and one local player.
+  HUD placement normalization and overlay handling
   still require visual comparison against the map's intended appearance.
 - No claim is made here of complete campaign/gameplay fidelity or
   synchronization under all conditions, performance parity, or tested
@@ -240,11 +328,18 @@ models and BSP, malformed vertex ranges/indices/nodes/normals, and partial
 GPU allocation failure cleanup and local/global 64-node palettes. The harness uses the real engine vertex
 compressor and mocked GPU buffers; it verifies that no buffers remain after
 disposal. This establishes conversion and ownership behavior, not visual
-correctness. Eleven media tests pass for independent Xbox ADPCM decoding,
+correctness. Thirteen media tests pass for independent Xbox ADPCM decoding,
 mono/stereo encoding and resampling, BC7 known-color decoding, DXT edge
 clipping, channel transforms, independent bitmap-tag copies, HUD scaling,
 Morton/cube/mip packing, row padding and MCC multiplayer text normalization,
-and virtual sound-stream bounds. Live Mercury
+virtual sound-stream bounds, exact owned pixel access above the legacy
+texture-cache budget, and complete tiny DXT mip chains sampled using the
+actual native CPU address function. Seven additional texture-bridge tests compile the
+actual bridge and native descriptor/size routines with a mocked GPU. They
+cover exact identity, copied-header rejection, upload failure/retry,
+unload/re-registration, P8 palette changes, 2D/linear/cube/volume descriptors,
+and repeated frames binding thirteen 2K ARGB mip chains (290,805,632 bytes)
+without pixel staging allocations or repeated uploads. Live Mercury
 audio conversion processed 4,676 permutations into 103,256,532 ADPCM bytes;
 this is a conversion-stage result, not a listening test. Its bitmap stage
 converts 1,268 original/copied resources into 522,484,864 bytes. The native
@@ -270,6 +365,101 @@ main-menu recovery functions. They check balanced time/collision state,
 nonmodal initial MCC rejection, preserved inactive Xbox/CE dispatch and
 later-BSP rollback, released MCC ownership, and UI recovery before any
 failed-map gameplay initialization.
+
+Twenty-nine UI tests compile the actual widget event dispatcher and MCC
+callback adapter. They cover mouse/controller confirmation, checkpoint
+revert/save, restart permissions, campaign/multiplayer/cooperative quit,
+red/blue team choice and balance feedback, New Game routing, trusted native
+Settings, unsupported events and isolation of non-MCC widgets. Generated
+actions also check exact widget ownership, stale or copied handles,
+multiplayer-only Settings and canonical map-name admission. Controller-local
+closing tests retain another player's active menu, dispose the initiating
+player's navigation history, and leave rejected team requests open. The
+team-ingress tests exercise the actual server settings handler and MCC
+adapter, including malformed lengths, wrong packet type, unjoined or wrong
+machines, altered identity fields, live-player matching, campaign rejection,
+balance rules and unchanged pregame/stock dispatch. These are action-routing
+tests; they do not by themselves establish that every custom menu renders
+or navigates correctly. The New Game lifetime
+case synchronously frees the active menu and checks that event dispatch
+does not navigate through or delete it again.
+
+The generated-pause suites and UI action suite pass 63 focused tests:
+fifteen builder, twelve runtime and thirty-six action tests. They compile the real
+builder and runtime with native tag/bitmap structures and a mocked graphics
+backend. Coverage includes all 256 selection contexts, 24 root layouts,
+viewport bounds, objective callback 18, UTF-16 strings, Cancel-first
+confirmations, mode-specific actions and Settings visibility. The actual
+native text-wrapping helper and MCC renderer hook are checked with variable
+font metrics, width boundaries, existing line breaks, clipping and ownership
+isolation. Guarded heap
+checks and injected allocation/art/graphics failures verify cleanup,
+deduplication, atomic publication, preservation of the original tag table,
+and restoration on unload. The combined MCC and existing cache-format suite
+passes 462 tests with four optional-fixture skips on the Windows x86
+toolchain, with the supplied Mercury fixture enabled.
+
+Native validation of the generated Mercury campaign menu confirmed the
+shortened stock labels, complete wrapped objective, separated panels and
+A/B footer. Revert produced the saved-game restore log, Restart returned
+to the level's beginning after the loading transition, and Save and Quit
+returned to `ui.map`. In Nitra multiplayer, Settings opened the native
+player Settings screen and Cancel returned to the pause menu; choosing
+Blue produced a team-1 log and respawn; End Game reached the postgame
+carnage report. Restart returned through the three-second lobby countdown
+and reloaded Nitra; Leave Game returned to the main menu. Nineteen focused
+restart tests cover the delayed host UI callback, retained settings,
+one-shot ownership, stale/disposed sessions and unchanged ordinary postgame
+behavior. These are bounded interaction checks; extended network and
+split-screen playtesting remains useful.
+
+After the Settings ownership correction, a further native Nitra check
+opened the correct profile, returned through Cancel and Escape, reopened
+Settings successfully, and used OK with no changes to return to the pause
+menu. Seven additional action tests cover controller identity, overlapping
+editors, cleanup, failed opens and replacement-editor ownership.
+
+The footer's native A/B glyphs were visually checked in Mercury singleplayer,
+Nitra multiplayer, and both host and client menus in a two-process Mercury
+co-op session. The glyph fix changes only the MCC-owned label and alignment;
+the existing icon renderer is unchanged. All 27 pause builder/runtime tests
+passed after the correction.
+
+A two-process local network co-op check displayed the same campaign layout
+on both machines, with only Resume and Leave on the client. The host's
+Revert restored the saved game and logged the co-op rewind. Restart carried
+both players through the lobby and reloaded Mercury's opening cinematic on
+both machines. The client then left to the main menu while the host kept
+playing; the host's Leave Game also returned to the main menu. Both test
+processes exited normally. These checks exercise the real renderer and
+transport, but do not substitute for extended Internet or multi-controller
+playtesting.
+
+Deferred team-change deaths have their own records keyed by full player and
+unit handles. Only the matching no-statistics death receives neutral kill
+attribution before network replication; this preserves native respawn and
+objective cleanup without a Slayer suicide penalty. Tests include ordinary
+deaths, recycled handles, client authority and unloading the map.
+
+The reported red/green Mercury cliff bands match the native allocation
+failure texture: `DEFAULT_BITMAP_PIXEL0/1` are transparent red and opaque
+green. The captured `stabbed.txt` identifies the 2K cliff normal map as a
+failed 22,369,664-byte allocation. Its source is a 5,592,432-byte BC7 mip
+chain, expanded to ARGB for the native renderer. About 189 MiB of the
+256 MiB staging cache was locked in that frame; its largest available
+contiguous span was only about 11 MiB. Repeated retries explain the
+associated stalls. The direct MCC binding above removes this staging
+constraint. The reported black cliff faces are consistent with a failed
+bump/lightmap sample, but the screenshots alone do not prove their cause.
+A bounded native comparison rendered twelve camera angles at the captured
+failure location. Both builds showed normal cliff textures in that fresh
+run: the intermittent baseline failure was not reproduced, so those frames
+are a regression check rather than a before/after reproduction. The fixed
+Debug renderer also completed Mercury -> Xbox UI -> Xbox A10 -> Nitra ->
+Mercury -> Xbox UI in one process without assertions, texture allocation
+failures or stale-resource errors. The later generated-pause interaction
+checks are described above; broader multiplayer and cooperative playtesting
+remains necessary.
 
 An independent script audit compared 748 live function calls, using 103
 distinct function names, against the Xbox definitions. It found no
@@ -359,6 +549,9 @@ Run the isolated tests with a C compiler and Python/pytest available:
 python -m pytest -q tools/test_mcc_cache_format.py
 python -m pytest -q tools/test_mcc_geometry.py
 python -m pytest -q tools/test_mcc_media.py tools/test_mcc_tag_validation.py
+python -m pytest -q tools/test_mcc_texture_bridge.py
+python -m pytest -q tools/test_mcc_ui.py tools/test_mcc_ui_teams.py tools/test_mcc_ui_network.py
+python -m pytest -q tools/test_mcc_pause.py tools/test_mcc_pause_runtime.py
 python -m pytest -q tools/test_mcc_maps.py
 python -m pytest -q tools/test_mcc_menu.py
 python -m pytest -q tools/test_mcc_saved_games.py
