@@ -918,7 +918,8 @@ enum
 	MAP_KIND_MULTIPLAYER,
 	MAP_KIND_CUSTOM_SINGLEPLAYER,
 	MAP_KIND_CUSTOM_MULTIPLAYER,
-	MAP_KIND_MCC,
+	MAP_KIND_MCC_SINGLEPLAYER,
+	MAP_KIND_MCC_MULTIPLAYER,
 	NUMBER_OF_MAP_KINDS
 };
 
@@ -930,7 +931,14 @@ short ui_widget_port_multiplayer_maps(char const *const **names, short *last_use
 
 static boolean map_kind_singleplayer(short kind)
 {
+	if (kind == MAP_KIND_MCC_SINGLEPLAYER)
+		return TRUE;
 	return kind == MAP_KIND_SINGLEPLAYER || kind == MAP_KIND_CUSTOM_SINGLEPLAYER;
+}
+
+static boolean map_kind_mcc(short kind)
+{
+	return kind == MAP_KIND_MCC_SINGLEPLAYER || kind == MAP_KIND_MCC_MULTIPLAYER;
 }
 
 /* The kind the chooser shows, kept to the multiplayer kinds unless
@@ -1084,6 +1092,7 @@ the stock unknown-map image without entering the CE picture provider. */
 static struct
 {
 	short first, chosen;
+	boolean campaign;
 } mcc_solo_list;
 
 static void mcc_map_description_show(struct widget_instance *description, short index)
@@ -1098,25 +1107,25 @@ static void mcc_map_description_show(struct widget_instance *description, short 
 
 static void mcc_solo_map_text(short row, wchar_t *text)
 {
-	ustrncpy(text, mcc_maps_name(mcc_maps_index(row, FALSE)), ROW_TEXT_LENGTH - 1);
+	ustrncpy(text, mcc_maps_name(mcc_maps_type_index(row, mcc_solo_list.campaign)), ROW_TEXT_LENGTH - 1);
 	text[ROW_TEXT_LENGTH - 1] = 0;
 }
 
 static void mcc_solo_list_update(struct widget_instance *list)
 {
 	struct widget_instance *description = list->parameters.list.extended_description;
-	short count = mcc_maps_count(FALSE);
+	short count = mcc_maps_type_count(mcc_solo_list.campaign);
 	short row = map_kind_rows_update(list, &mcc_solo_list.first, count, mcc_solo_map_text);
 
 	if (row != NONE)
 		mcc_solo_list.chosen = row;
-	mcc_map_description_show(description, mcc_maps_index(mcc_solo_list.chosen, FALSE));
+	mcc_map_description_show(description, mcc_maps_type_index(mcc_solo_list.chosen, mcc_solo_list.campaign));
 	profile_name_show(description);
 }
 
 static boolean mcc_solo_choose(short controller)
 {
-	short index = mcc_maps_index(mcc_solo_list.chosen, FALSE);
+	short index = mcc_maps_type_index(mcc_solo_list.chosen, mcc_solo_list.campaign);
 	char const *level_name = mcc_maps_level_name(index);
 	struct player_profile profile;
 
@@ -1157,8 +1166,10 @@ static short map_kind_count(short kind, short multiplayer_map_count)
 		return xbox_multiplayer_map_count(multiplayer_map_count);
 	case MAP_KIND_CUSTOM_SINGLEPLAYER:
 		return custom_edition_maps_count(TRUE);
-	case MAP_KIND_MCC:
-		return mcc_maps_count(FALSE);
+	case MAP_KIND_MCC_SINGLEPLAYER:
+		return mcc_maps_type_count(TRUE);
+	case MAP_KIND_MCC_MULTIPLAYER:
+		return mcc_maps_type_count(FALSE);
 	default:
 		return custom_edition_maps_count(FALSE);
 	}
@@ -1225,12 +1236,15 @@ static void level_list_update(struct widget_instance *list)
 
 	if (kind != level_list.kind)
 	{
-		if (kind == MAP_KIND_MCC)
+		if (map_kind_mcc(kind))
+		{
 			mcc_solo_list.first = mcc_solo_list.chosen = 0;
+			mcc_solo_list.campaign = kind == MAP_KIND_MCC_SINGLEPLAYER;
+		}
 		level_list.kind = kind;
 		level_list.first = level_list.chosen = 0;
 	}
-	if (kind == MAP_KIND_MCC)
+	if (map_kind_mcc(kind))
 	{
 		mcc_solo_list_update(list);
 		return;
@@ -1267,7 +1281,7 @@ static boolean level_choose(short controller)
 	short level = campaign.shown_level;
 	short count = map_kind_count(level_list.kind, level_list.map_count);
 
-	if (level_list.kind == MAP_KIND_MCC)
+	if (map_kind_mcc(level_list.kind))
 		return mcc_solo_choose(controller);
 
 	if (level_list.kind != MAP_KIND_SINGLEPLAYER && (level_list.chosen < 0 || level_list.chosen >= count))
@@ -2621,11 +2635,12 @@ static struct
 {
 	short first, chosen, step, level;
 	boolean multiplayer_only;
+	boolean campaign;
 } mcc_host_list;
 
 static void mcc_host_map_text(short row, wchar_t *text)
 {
-	ustrncpy(text, mcc_maps_name(mcc_maps_index(row, mcc_host_list.multiplayer_only)), ROW_TEXT_LENGTH - 1);
+	ustrncpy(text, mcc_maps_name(mcc_maps_type_index(row, mcc_host_list.campaign)), ROW_TEXT_LENGTH - 1);
 	text[ROW_TEXT_LENGTH - 1] = 0;
 }
 
@@ -2633,7 +2648,7 @@ static void mcc_host_list_update(struct widget_instance *list)
 {
 	struct widget_instance *description = list->parameters.list.extended_description;
 	short count = mcc_host_list.step == MAP_STEP_DIFFICULTIES ? NUMBER_OF_GAME_DIFFICULTY_LEVELS :
-		mcc_maps_count(mcc_host_list.multiplayer_only);
+		mcc_maps_type_count(mcc_host_list.campaign);
 	short row = map_kind_rows_update(list, &mcc_host_list.first, count,
 		mcc_host_list.step == MAP_STEP_DIFFICULTIES ? map_difficulty_text : mcc_host_map_text);
 	short shown;
@@ -2641,7 +2656,7 @@ static void mcc_host_list_update(struct widget_instance *list)
 	if (row != NONE)
 		mcc_host_list.chosen = row;
 	shown = mcc_host_list.step == MAP_STEP_DIFFICULTIES ? mcc_host_list.level :
-		mcc_maps_index(mcc_host_list.chosen, mcc_host_list.multiplayer_only);
+		mcc_maps_type_index(mcc_host_list.chosen, mcc_host_list.campaign);
 	visible_set(named(description, "mp_map_right_item", 0), shown != NONE);
 	mcc_map_description_show(description, shown);
 	profile_name_show(description);
@@ -2650,7 +2665,7 @@ static void mcc_host_list_update(struct widget_instance *list)
 static boolean mcc_host_list_choose(struct widget_instance *list, boolean *widget_deleted)
 {
 	short index = mcc_host_list.step == MAP_STEP_DIFFICULTIES ? mcc_host_list.level :
-		mcc_maps_index(mcc_host_list.chosen, mcc_host_list.multiplayer_only);
+		mcc_maps_type_index(mcc_host_list.chosen, mcc_host_list.campaign);
 	char const *level_name = mcc_maps_level_name(index);
 
 	if (!level_name)
@@ -2709,16 +2724,17 @@ static void map_list_update(struct widget_instance *list)
 
 	if (kind != map_list.kind)
 	{
-		if (kind == MAP_KIND_MCC)
+		if (map_kind_mcc(kind))
 		{
 			csmemset(&mcc_host_list, 0, sizeof(mcc_host_list));
 			mcc_host_list.multiplayer_only = !map_list.hosting;
+			mcc_host_list.campaign = kind == MAP_KIND_MCC_SINGLEPLAYER;
 		}
 		map_list.kind = kind;
 		map_list.step = MAP_STEP_MAPS;
 		map_list.first = map_list.chosen = 0;
 	}
-	if (kind == MAP_KIND_MCC)
+	if (map_kind_mcc(kind))
 	{
 		mcc_host_list_update(list);
 		return;
@@ -2754,7 +2770,7 @@ static boolean map_list_choose(struct widget_instance *list, boolean *widget_del
 {
 	short chosen = map_list.chosen;
 
-	if (map_list.kind == MAP_KIND_MCC)
+	if (map_kind_mcc(map_list.kind))
 		return mcc_host_list_choose(list, widget_deleted);
 
 	if (chosen >= map_step_count())
@@ -2785,15 +2801,15 @@ static boolean map_list_choose(struct widget_instance *list, boolean *widget_del
 level, else out of the Map screen */
 static boolean map_list_back(struct widget_instance *list, boolean *widget_deleted)
 {
-	if (map_list.kind == MAP_KIND_MCC && mcc_host_list.step == MAP_STEP_DIFFICULTIES)
+	if (map_kind_mcc(map_list.kind) && mcc_host_list.step == MAP_STEP_DIFFICULTIES)
 	{
-		short row, count = mcc_maps_count(mcc_host_list.multiplayer_only);
+		short row, count = mcc_maps_type_count(mcc_host_list.campaign);
 
 		mcc_host_list.step = MAP_STEP_MAPS;
 		mcc_host_list.chosen = 0;
 		for (row = 0; row < count; row++)
 		{
-			if (mcc_maps_index(row, mcc_host_list.multiplayer_only) == mcc_host_list.level)
+			if (mcc_maps_type_index(row, mcc_host_list.campaign) == mcc_host_list.level)
 				mcc_host_list.chosen = row;
 		}
 		mcc_host_list.first = map_kind_first(mcc_host_list.chosen, count);
