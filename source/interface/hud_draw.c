@@ -91,6 +91,7 @@ symbols in this file:
 #include "bitmaps/bitmap_utilities.h"
 #include "cache/texture_cache.h"
 #include "mcc_cache.h"
+#include "mcc_hud_draw.h"
 #include "effects/particles.h"
 #include "game/game.h"
 #include "game/players.h"
@@ -2033,6 +2034,9 @@ void hud_draw_numbers(
 			digit_scale = TEST_FLAG(numbers->placement.multiplayer_scaling_flags, _hud_use_high_resolution_scale_bit) ||
 				TEST_FLAG(bitmap_group->flags, _bitmap_group_half_hud_scale_bit) ?
 				scale*0.5f : scale;
+
+			if (mcc_cache_tags_loaded())
+				digit_scale *= mcc_hud_canvas_scale();
 
 			if (TEST_FLAG(numbers->number_flags, _hud_number_show_trailing_m_bit))
 			{
