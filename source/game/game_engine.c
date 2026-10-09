@@ -4925,6 +4925,12 @@ void game_engine_player_killed(
 	if (!game_engine)
 		return;
 
+	/* MCC team-change respawns carry neutral attribution to the netcode. */
+	{
+		extern void mcc_ui_team_respawn_death(long *, long *, long, boolean *);
+		mcc_ui_team_respawn_death(&killing_player_index, &killing_object_index, dead_player_index, &friendly_fire);
+	}
+
 	/* the distributed netcode: a client's copy of a death has the host's
 	killer (port/linux/game/network_distributed.c) */
 	network_distributed_player_killed(&killing_player_index, &killing_object_index, dead_player_index,
