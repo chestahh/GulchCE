@@ -90,6 +90,7 @@ symbols in this file:
 #include "bitmaps/bitmaps_inlines.h"
 #include "bitmaps/bitmap_utilities.h"
 #include "cache/texture_cache.h"
+#include "mcc_cache.h"
 #include "effects/particles.h"
 #include "game/game.h"
 #include "game/players.h"
@@ -727,6 +728,12 @@ static void hud_draw_multitexture_overlay(
 			}
 
 			parameters.map_offset[map_index] = &texture_offset[map_index];
+			if (mcc_cache_tags_loaded())
+			{
+				boolean mcc_linear = TEST_FLAG(parameters.map[map_index]->flags, _bitmap_linear_bit);
+				parameters.map_texture_scale[map_index].i = mcc_linear ? (real)parameters.map[map_index]->width : 1.0f;
+				parameters.map_texture_scale[map_index].j = mcc_linear ? (real)parameters.map[map_index]->height : 1.0f;
+			}
 			parameters.map_scale[map_index].i = scale_x;
 			parameters.map_scale[map_index].j = scale_y;
 			parameters.map_wrapped[map_index] = (boolean)overlay->map_clamp[map_index];
@@ -780,6 +787,8 @@ static void hud_draw_multitexture_overlay(
 	reticle added its whole square) */
 	parameters.alpha_weighted = custom_edition_cache_tags_loaded() &&
 		parameters.framebuffer_blend_function == _shader_framebuffer_blend_function_add;
+	if (mcc_cache_tags_loaded())
+		parameters.alpha_weighted = parameters.framebuffer_blend_function == _shader_framebuffer_blend_function_add;
 
 	for (function_index = 0;
 		function_index < overlay->functions.count;

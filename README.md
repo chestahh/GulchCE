@@ -18,6 +18,13 @@ operate. The maps of the European (PAL) version were made for a slower
 console. The port changes them to play as the North American (NTSC) maps do,
 so players of the two versions can play together.
 
+Halo 1 MCC custom maps use the separate `mcc_maps` directory and the
+**MCC SINGLEPLAYER** and **MCC MULTIPLAYER** menu options. Maps appear in
+the appropriate category automatically. This experimental adapter targets
+modern version-13 maps.
+See [MCC map support](docs/mcc_maps.md) for installation, supported formats,
+validation results and remaining compatibility limits.
+
 Halo is a trademark of Microsoft. GulchCE is a fan project, not made or
 endorsed by Microsoft, Bungie or 343 Industries, and includes none of the
 game's content.
