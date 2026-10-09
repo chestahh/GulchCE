@@ -1712,7 +1712,7 @@ void menu_tags_loaded(
 
 	boolean game_map = strcmp(map_name, "ui") != 0;
 
-	/* MCC campaign widgets also open the trusted native Settings screens. */
+	/* MCC multiplayer uses the same trusted native Settings screens. */
 	if (mcc_ui_settings_needed(map_name))
 		goto mcc_settings;
 	/* (ui.map, and a multiplayer map: its pause menu's SETTINGS) */
@@ -1886,6 +1886,11 @@ char const *pc_menus_root_name(
 boolean pc_menu_tag(
 	long tag_index)
 {
+	/* MCC's independently generated pause widgets use stock widget behavior. */
+	{
+		extern boolean mcc_pause_owns(long);
+		if (mcc_pause_owns(tag_index)) return FALSE;
+	}
 	return menu_tags.loaded && tag_index != NONE &&
 		DATUM_INDEX_TO_ABSOLUTE_INDEX(tag_index) >= menu_tags.original_count;
 }
