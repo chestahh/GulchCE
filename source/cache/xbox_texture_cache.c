@@ -121,6 +121,7 @@ symbols in this file:
 #include "text/draw_string.h"
 #include <xtl.h>
 #include "custom_edition_cache.h" /* port: port/linux/game/custom_edition_cache.c */
+#include "mcc_cache.h"
 
 /* ---------- constants */
 
@@ -753,6 +754,11 @@ static boolean texture_cache_bitmap_valid(
 		bitmap->mipmap_count>=0 &&
 		bitmap->mipmap_count<=floor_log2(MAX(bitmap->width, MAX(bitmap->height, bitmap->depth))) &&
 		bitmap->pixels_size>=0;
+
+	/* Only MCC-owned normalized resources take this admission path. Their
+	linear rows have already been padded by the MCC bitmap adapter. */
+	if (mcc_cache_tags_loaded() && mcc_cache_bitmap_valid(bitmap))
+		return TRUE;
 
 	if (valid)
 	{

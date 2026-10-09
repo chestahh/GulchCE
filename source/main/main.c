@@ -393,6 +393,8 @@ symbols in this file:
 #include "text/font_group.h"
 #include "tag_files/files.h"
 #include "custom_edition_cache.h" /* port: custom_edition_level_name */
+#include "mcc_cache.h"
+#include "mcc_main.h"
 
 #if defined(HALO_WINDOWS) || defined(HALO_ANDROID) || defined(__linux__)
 #define HALO_NATIVE_BUILD_INFO 1
@@ -1259,6 +1261,9 @@ short main_get_solo_level_from_name(
 	char lower_name[128] = { 0 };
 	short level;
 
+	if (mcc_level_name(name))
+		return NONE;
+
 	/* port: a Custom Edition map (custom_maps\a30) is never one of the
 	campaign's levels, whatever its name holds
 	(port/linux/game/custom_edition_cache.c) */
@@ -1451,6 +1456,8 @@ static void main_new_map(
 	}
 	else
 	{
+		if (mcc_main_load_failed(options->map_name))
+			return;
 		error(_error_immediate, "game_load() failed.");
 	}
 

@@ -12,5 +12,6 @@
 		<string text="MULTIPLAYER"/>
 		<string text="CUSTOM SINGLEPLAYER"/>
 		<string text="CUSTOM MULTIPLAYER"/>
+		<string text="MCC MAPS"/>
 	</strings>
 </menus>
