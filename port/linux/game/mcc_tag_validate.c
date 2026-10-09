@@ -3,6 +3,7 @@
  * the Xbox validator state nor any Custom Edition validation mode is used. */
 #include "mcc_tag_validate.h"
 #include "mcc_runtime.h"
+#include "mcc_syntax.h"
 #include "tag_schema.h"
 
 #include <stdint.h>
@@ -342,6 +343,14 @@ static void mcc_fields(struct mcc_validation_context *context, byte *address,
             } else if (field->type == _tag_schema_data || field->type == _tag_schema_file_data) {
                 if (stage == 0) {
                     struct tag_data *data = (struct tag_data *)member;
+                    long maximum = field->maximum;
+                    /* The shared scenario schema describes Xbox/CE's 19001
+                     * slots. MCC's separately validated syntax arena keeps
+                     * its own complete span through this later schema pass. */
+                    if (field->type == _tag_schema_data && schema->name &&
+                        !strcmp(schema->name, "scenario") && field->name &&
+                        !strcmp(field->name, "hs_syntax_data"))
+                        maximum = MCC_SYNTAX_MAXIMUM_DATA_BYTES;
                     data->definition = NULL;
                     if (data->size < 0) { mcc_problem(context, 1, "negative data size"); break; }
                     if (field->type == _tag_schema_file_data) {
@@ -355,8 +364,8 @@ static void mcc_fields(struct mcc_validation_context *context, byte *address,
                             mcc_problem(context, 1, "data leaves loaded bytes and owned geometry");
                         }
                     }
-                    if (field->maximum > 0 && data->size > field->maximum) {
-                        data->size = field->maximum; mcc_problem(context, 0, "data reduced to engine capacity");
+                    if (maximum > 0 && data->size > maximum) {
+                        data->size = maximum; mcc_problem(context, 0, "data reduced to engine capacity");
                     }
                     if (!data->size && field->type == _tag_schema_data) data->address = NULL;
                 }
