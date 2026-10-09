@@ -2952,6 +2952,11 @@ void ui_widgets_close_all(
 		if (widget_globals.widget_stack[local_player_index])
 			dispose_widget_stack(&widget_globals.widget_stack[local_player_index]);
 	}
+	/* Release only an editor opened by MCC after its widgets are gone. */
+	{
+		extern void mcc_ui_settings_close(short);
+		mcc_ui_settings_close(NONE);
+	}
 
 	return;
 }
@@ -2978,6 +2983,10 @@ void ui_widgets_close_all_for_local_player(
 			if (widget_globals.widget_stack[widget_index])
 				dispose_widget_stack(&widget_globals.widget_stack[widget_index]);
 		}
+	}
+	{
+		extern void mcc_ui_settings_close(short);
+		mcc_ui_settings_close(local_player_index);
 	}
 
 	return;
