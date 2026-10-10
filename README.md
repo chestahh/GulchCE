@@ -8,7 +8,8 @@ The decompilation is of the Xbox build 2342. (`cachebeta.exe`, SHA-256
 
 ## Download
 
-There are no release or debug builds available just yet.
+Release & debug builds are available in the Releases section of the repository.
+The release builds are for playing; the debug builds stop at the first failed assertion and log it.
 
 ## Game data
 
