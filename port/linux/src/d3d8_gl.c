@@ -5496,6 +5496,89 @@ void WINAPI D3DDevice_End(void)
 	gl_check_errors("immediate draw");
 }
 
+/* The optional desktop shadow pass selects shaders directly, preserving the
+engine's shader caches. Restore constants through the normal dirty tracking. */
+#ifndef HALO_GLES
+void d3d8_gl_shadow_state(int restore)
+{
+	static DWORD states[D3DRS_MAX];
+	static struct vertex_shader_object *shader, *program;
+	static unsigned long address;
+	static float constants[XGPU_VERTEX_CONSTANT_COUNT][4];
+	static float attributes[XGPU_VERTEX_ATTRIBUTE_COUNT][4];
+
+	if (!restore)
+	{
+		memcpy(states, D3D__RenderState, sizeof(states));
+		shader = device.vertex_shader;
+		program = device.program_slots[0];
+		address = device.program_address;
+		memcpy(constants, device.constants, sizeof(constants));
+		memcpy(attributes, device.attributes, sizeof(attributes));
+	}
+	else
+	{
+		memcpy(D3D__RenderState, states, sizeof(states));
+		device.vertex_shader = shader;
+		device.program_slots[0] = program;
+		device.program_address = address;
+		constants_store(0, constants, XGPU_VERTEX_CONSTANT_COUNT);
+		memcpy(device.attributes, attributes, sizeof(attributes));
+	}
+}
+#endif
+
+/* port/linux/game/stencil_shadows.c: shadow volumes into the stencil buffer
+in one draw, both faces at once (two-sided stencil): "depth fail" (zfail
+TRUE: back faces count up where hidden, front faces down) or "depth pass"
+(front faces count up where seen, back faces down). The state is the game's
+as set (cull mode none, stencil on), only the faces' operations are this
+draw's own, and put back after. */
+void d3d8_gl_draw_shadow_volume(const float *positions, unsigned long vertex_count, int zfail)
+{
+#ifdef HALO_GLES
+	(void)positions;
+	(void)vertex_count;
+	(void)zfail;
+#else
+	struct vertex_array_entry *volume_array;
+	struct vertex_layout layout;
+	unsigned long offset;
+
+	if (!vertex_count || vertex_count > STREAM_BUFFER_SIZE / (3 * sizeof(float)) ||
+		!positions || !prepare_draw(TRUE))
+		return;
+	offset = stream_upload(positions, vertex_count * 3 * sizeof(float));
+	memset(&layout, 0, sizeof(layout));
+	layout_attribute(&layout, 0, 0, 3, GL_FLOAT, GL_FALSE, FALSE, 0);
+	volume_array = vertex_array_get(&layout);
+	if (!volume_array)
+		return;
+	state_vertex_array(volume_array);
+	state_vertex_buffer(0, device.stream_buffer, offset, (GLsizei)(3 * sizeof(float)));
+	glFrontFace(GL_CCW);
+	if (zfail)
+	{
+		glStencilOpSeparate(GL_FRONT, GL_KEEP, GL_DECR_WRAP, GL_KEEP);
+		glStencilOpSeparate(GL_BACK, GL_KEEP, GL_INCR_WRAP, GL_KEEP);
+	}
+	else
+	{
+		glStencilOpSeparate(GL_FRONT, GL_KEEP, GL_KEEP, GL_INCR_WRAP);
+		glStencilOpSeparate(GL_BACK, GL_KEEP, GL_KEEP, GL_DECR_WRAP);
+	}
+	glDrawArrays(GL_TRIANGLES, 0, (GLsizei)vertex_count);
+	/* (as the state cache has them) */
+	/* A cleared state cache uses -1, not a valid GL winding. */
+	if (gl_state.front_face == GL_CW || gl_state.front_face == GL_CCW)
+		glFrontFace(gl_state.front_face);
+	glStencilOp(gl_state.stencil_operations[0] ? gl_state.stencil_operations[0] : GL_KEEP,
+		gl_state.stencil_operations[1] ? gl_state.stencil_operations[1] : GL_KEEP,
+		gl_state.stencil_operations[2] ? gl_state.stencil_operations[2] : GL_KEEP);
+	gl_check_errors("shadow volume draw");
+#endif
+}
+
 static void set_attribute(INT reg, float a, float b, float c, float d)
 {
 	BOOL emit = FALSE;

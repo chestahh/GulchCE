@@ -165,6 +165,7 @@ context has the extension, never required (gl_functions.c). On ES 3.0 and
 	X(glDepthFunc) \
 	X(glStencilFunc) \
 	X(glStencilOp) \
+	X(glStencilOpSeparate) \
 	X(glStencilMask) \
 	X(glBlendFunc) \
 	X(glBlendEquation) \
@@ -400,6 +401,7 @@ pointers, sees the declarations without these aliases */
 #define glDepthFunc halo_glDepthFunc
 #define glStencilFunc halo_glStencilFunc
 #define glStencilOp halo_glStencilOp
+#define glStencilOpSeparate halo_glStencilOpSeparate
 #define glStencilMask halo_glStencilMask
 #define glBlendFunc halo_glBlendFunc
 #define glBlendEquation halo_glBlendEquation

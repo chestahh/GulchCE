@@ -60,6 +60,7 @@ void object_bounds_cache_update(long object_index, real_point3d const *center, r
 /* port: port/linux/game/first_person_legs.c's */
 void first_person_legs_reset(void);
 #include "third_person.h" /* port: port/linux/game/third_person.c */
+#include "stencil_shadows.h" /* port: port/linux/game/stencil_shadows.c */
 
 /* ---------- constants */
 
@@ -1082,6 +1083,8 @@ void objects_initialize_for_new_map(
 	first_person_legs_reset();
 	/* port: reset the shoulder camera across map loads. */
 	third_person_reset();
+	/* port: discard the previous map's optional shadow geometry. */
+	stencil_shadows_reset();
 	
 	data_make_valid(object_header_data);
 	object_name_list_clear();
@@ -1103,6 +1106,8 @@ void objects_initialize_for_new_map(
 void objects_dispose_from_old_map(
 	void)
 {
+	/* port: release optional shadow allocations before tags disappear. */
+	stencil_shadows_reset();
 	damage_dispose_from_old_map();
 	widgets_dispose_from_old_map();
 	object_types_dispose_from_old_map();

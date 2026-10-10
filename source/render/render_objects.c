@@ -378,6 +378,13 @@ boolean first_person_legs_wanted(long object_index);
 real_matrix4x3 const *first_person_legs_node_matrices(long object_index, real_matrix4x3 const *nodes);
 /* port: port/linux/game/shield_color.c */
 real_rgb_color const *shield_color_colors(long unit_index, real_rgb_color const *colors);
+/* port: the objects drawn this frame (port/linux/game/stencil_shadows.c) */
+short render_objects_rendered(
+	long const **object_indices)
+{
+	*object_indices = render_object_globals.rendered_object_indices;
+	return render_object_globals.rendered_object_count;
+}
 
 void render_object_shadows(
 	void)
