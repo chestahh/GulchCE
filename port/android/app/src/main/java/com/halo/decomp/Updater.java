@@ -29,9 +29,7 @@ import java.util.zip.ZipInputStream;
 /**
  * The app's self-updater, as the desktop games' (port/linux/src/updater.c).
  *
- * A build of the main branch made by GitHub Actions knows its build number
- * (BuildConfig.HALO_BUILD_NUMBER, the workflow's run number, which names its
- * release: build-number); other builds have none and never look. When
+ * Only matching GulchCE version-tag builds check for updates. When
  * update.auto in config.toml is true (the default), the game asks GitHub for
  * the latest release when it starts, on a thread of its own, and if it is
  * newer asks the player whether to update:
@@ -47,7 +45,7 @@ import java.util.zip.ZipInputStream;
  * app must keep for Android to install a new version over it.
  */
 final class Updater {
-    private static final String REPOSITORY = "OpenCommunityEdition/OpenCE";
+    private static final String REPOSITORY = "chestahh/GulchCE";
     private static final String USER_AGENT = "halo-ce-universal-updater";
     private static final int TIMEOUT_MILLISECONDS = 20000;
 
@@ -58,12 +56,12 @@ final class Updater {
     static void start(Activity activity) {
         File config = configFile(activity);
 
-        if (BuildConfig.HALO_BUILD_NUMBER <= 0 || config == null || !autoUpdate(config))
+        if (!BuildConfig.GULCHCE_RELEASE || config == null || !autoUpdate(config))
             return;
         new Thread(() -> {
-            int latest = latestRelease();
+            String latest = latestRelease();
 
-            if (latest > BuildConfig.HALO_BUILD_NUMBER)
+            if (ReleaseVersion.code(latest) > ReleaseVersion.code(BuildConfig.VERSION_NAME))
                 activity.runOnUiThread(() -> ask(activity, latest));
         }, "update check").start();
     }
@@ -175,8 +173,8 @@ final class Updater {
         return connection;
     }
 
-    /** the build number of GitHub's latest release, 0 if there is none */
-    private static int latestRelease() {
+    /** GitHub's latest stable version tag, null if there is none */
+    private static String latestRelease() {
         try {
             HttpURLConnection connection = open("https://api.github.com/repos/" + REPOSITORY + "/releases/latest");
 
@@ -184,25 +182,25 @@ final class Updater {
             try (InputStream stream = connection.getInputStream()) {
                 String tag = new JSONObject(new String(readAll(stream), StandardCharsets.UTF_8)).optString("tag_name");
 
-                return tag.startsWith("build-") ? Integer.parseInt(tag.substring(6)) : 0;
+                return ReleaseVersion.code(tag) >= 0 ? tag : null;
             } finally {
                 connection.disconnect();
             }
         } catch (Exception e) {
             android.util.Log.i("halo", "update: could not check for a new version: " + e);
-            return 0;
+            return null;
         }
     }
 
     /* ---------- the player's answer */
 
-    private static void ask(Activity activity, int latest) {
+    private static void ask(Activity activity, String latest) {
         if (activity.isFinishing())
             return;
         new AlertDialog.Builder(activity)
-            .setTitle("Halo: new version")
-            .setMessage("A new version of Halo was detected (build " + latest + "; this is build "
-                + BuildConfig.HALO_BUILD_NUMBER + ").\n\nDo you want to update? The game will close and start "
+            .setTitle("GulchCE: new version")
+            .setMessage("A new version of GulchCE was detected (" + latest + "; this is "
+                + BuildConfig.VERSION_NAME + ").\n\nDo you want to update? The game will close and start "
                 + "the new version.")
             .setCancelable(false)
             .setPositiveButton("Yes", (dialog, which) -> update(activity, latest))
@@ -213,7 +211,7 @@ final class Updater {
 
     private static void confirmNever(Activity activity) {
         new AlertDialog.Builder(activity)
-            .setTitle("Halo: new version")
+            .setTitle("GulchCE: new version")
             .setMessage("Stop asking about new versions?\n\nTo ask again, set auto = true in the [update] section "
                 + "of config.toml.")
             .setCancelable(false)
@@ -229,7 +227,7 @@ final class Updater {
 
     /* ---------- updating */
 
-    private static void update(Activity activity, int latest) {
+    private static void update(Activity activity, String latest) {
         String asset = "halo-android-" + (BuildConfig.DEBUG ? "debug" : "release") + ".zip";
         File directory = new File(activity.getCacheDir(), UpdateProvider.DIRECTORY);
         LinearLayout layout = new LinearLayout(activity);
@@ -240,12 +238,12 @@ final class Updater {
 
         layout.setOrientation(LinearLayout.VERTICAL);
         layout.setPadding(padding, padding / 2, padding, 0);
-        status.setText("Downloading build " + latest + "...");
+        status.setText("Downloading " + latest + "...");
         bar.setMax(1000);
         layout.addView(status);
         layout.addView(bar);
         AlertDialog progress = new AlertDialog.Builder(activity)
-            .setTitle("Halo: new version")
+            .setTitle("GulchCE: new version")
             .setView(layout)
             .setCancelable(false)
             .show();
@@ -256,10 +254,10 @@ final class Updater {
                 File zip = new File(directory, "update.zip");
                 File apk = new File(directory, UpdateProvider.APK);
 
-                download("https://github.com/" + REPOSITORY + "/releases/download/build-" + latest + "/" + asset, zip,
+                download("https://github.com/" + REPOSITORY + "/releases/download/" + latest + "/" + asset, zip,
                     (received, total) -> activity.runOnUiThread(() -> {
                         bar.setProgress(total > 0 ? (int) (received * 1000 / total) : 0);
-                        status.setText("Downloading build " + latest + "... (" + (received >> 20) + " of "
+                        status.setText("Downloading " + latest + "... (" + (received >> 20) + " of "
                             + (total >> 20) + " MB)");
                     }));
                 extractApk(zip, apk);
@@ -273,7 +271,7 @@ final class Updater {
                 activity.runOnUiThread(() -> {
                     progress.dismiss();
                     new AlertDialog.Builder(activity)
-                        .setTitle("Halo: new version")
+                        .setTitle("GulchCE: new version")
                         .setMessage("The update failed:\n\n" + e.getMessage())
                         .setPositiveButton("OK", null)
                         .show();

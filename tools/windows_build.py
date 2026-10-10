@@ -22,6 +22,7 @@ from .linux_build import (LINUX_PROFILE, MINIUPNPC_DIR, OPTIMISATION, WINDOWS_PR
                           march_flag, miniupnpc_sources, pgo_mode, compile_launcher, game_defines_and_includes,
                           game_sources, musl_math_cflags, musl_math_sources, opus_cflags, opus_sources, pgo_profile,
                           profile_use_flags, xdk_headers)
+from .release_version import updater_defines
 from .embed_assets import hud_assets_build, hud_configure_inputs
 from .ninja_syntax import Writer
 
@@ -61,17 +62,6 @@ ZLIB_SOURCES = ("adler32.c", "crc32.c", "inffast.c", "inflate.c", "inftrees.c", 
 # (its names prefixed, and the one Z_PREFIX leaves, its error messages, which
 # the game's zlib names the same)
 ZLIB_DEFINES = ("-DZ_PREFIX", "-Dz_errmsg=z_port_errmsg")
-
-
-def updater_defines(release: bool) -> str:
-    """the self-updater's build (port/linux/src/updater.c): its number, from
-    HALO_BUILD_NUMBER (tools/ci_build.py gives it for builds of main; none
-    elsewhere, which never look for updates), and its configuration"""
-    number = os.environ.get("HALO_BUILD_NUMBER", "0")
-    if not number.isdigit():
-        number = "0"
-    flavor = "release" if release else "debug"
-    return f'-DHALO_BUILD_NUMBER={number} -DHALO_BUILD_FLAVOR=\\"{flavor}\\"'
 
 WINDOWS_ABI_FLAGS = [
     "--target=i686-pc-windows-msvc",
@@ -144,7 +134,7 @@ def _load_config() -> Dict[str, Any]:
 
 def windows_configure_inputs() -> List[Path]:
     """Files whose change must re-run configure.py."""
-    return [Path(__file__), PORT_CONFIG, PORT_DIR / "src", LINUX_DIR / "src", LINUX_DIR / "game", *hud_configure_inputs()]
+    return [Path("VERSION"), Path("tools/release_version.py"), Path(__file__), PORT_CONFIG, PORT_DIR / "src", LINUX_DIR / "src", LINUX_DIR / "game", *hud_configure_inputs()]
 
 
 def _quote(path: Any) -> str:

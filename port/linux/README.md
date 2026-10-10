@@ -403,8 +403,7 @@ Mesa. To stop this, set the environment variable `mesa_glthread=false`.
 
 ## Updates
 
-The builds from GitHub Actions (refer to the main [README](../../README.md#download))
-can update themselves. At start-up, the game asks GitHub for the latest
+Official GulchCE version-tag releases can update themselves. At start-up, the game asks GitHub for the latest
 release. The game does not wait for the answer. If the latest release is not
 newer, the game does nothing.
 
@@ -424,8 +423,9 @@ the distribution (`src/posix_update.c`, with Mbed TLS); on Windows, the
 certificate store of Windows (WinHTTP). The folder of the executable must
 let the game write to it.
 
-Builds that you make yourself have no build number. They do not look for
-updates.
+Local and branch builds do not look for updates. Official GulchCE version-tag
+builds check only GulchCE releases. See [release instructions](../../docs/RELEASING.md)
+for versioning and migration from the old OpenCE updater.
 
 ## Frame rate
 

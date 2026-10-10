@@ -4,9 +4,8 @@ UPDATER.C
 The desktop ports' self-updater (Linux and Windows; the Android app updates
 itself in Java, port/android).
 
-A build of the main branch made by GitHub Actions knows its build number
-(HALO_BUILD_NUMBER, the workflow's run number, which names its release:
-build-<number>); other builds have none and never look for updates. When
+Only matching GulchCE version-tag builds check for updates. VERSION owns
+the version, and legacy build-number tags are ignored. When
 update.auto in config.toml is true (the default), the game asks GitHub for
 the latest release when it starts, on a thread of its own: the game starts
 meanwhile, and nothing happens if the release is not newer or cannot be
@@ -39,14 +38,18 @@ update.h's: posix_update.c on Linux, win32_update.c on Windows.
 #include <string.h>
 
 /* (given for this file by the build: tools/linux_build.py, windows_build.py) */
-#ifndef HALO_BUILD_NUMBER
-#define HALO_BUILD_NUMBER 0
+#include "release_version.h"
+#ifndef GULCHCE_VERSION
+#define GULCHCE_VERSION "v0.1"
+#endif
+#ifndef GULCHCE_RELEASE
+#define GULCHCE_RELEASE 0
 #endif
 #ifndef HALO_BUILD_FLAVOR
 #define HALO_BUILD_FLAVOR "release"
 #endif
 
-#define UPDATE_REPOSITORY "OpenCommunityEdition/OpenCE"
+#define UPDATE_REPOSITORY "chestahh/GulchCE"
 #ifdef _WIN32
 #define UPDATE_PLATFORM "windows"
 #define PATH_SEPARATOR "\\"
@@ -67,7 +70,7 @@ enum
 };
 
 static SDL_AtomicInt updater_state;
-static long updater_latest_build;
+static char updater_latest_tag[32];
 static char updater_directory[1024];
 static char updater_executable[1024];
 
@@ -306,7 +309,7 @@ done:
 
 /* ---------- checking */
 
-/* the build number of GitHub's latest release, 0 if there is none */
+/* Validated GulchCE version, -1 if unavailable or not a stable version tag. */
 static long updater_latest_release(void)
 {
 	char path[1200];
@@ -314,29 +317,35 @@ static long updater_latest_release(void)
 	size_t size = 0;
 	char *text;
 	const char *tag;
-	long build = 0;
+	long version = -1;
 
 	updater_path(path, sizeof(path), "update-check.json");
 	if (!update_download("https://api.github.com/repos/" UPDATE_REPOSITORY "/releases/latest", path, NULL, NULL,
 		error, sizeof(error)))
 	{
 		platform_log("update: could not check for a new version: %s", error);
-		return 0;
+		return -1;
 	}
 	text = SDL_LoadFile(path, &size);
 	update_delete_file(path);
 	if (!text)
-		return 0;
-	/* "tag_name": "build-<number>" */
+		return -1;
 	tag = strstr(text, "\"tag_name\"");
-	if (tag)
+	if (tag && (tag = strchr(tag + 10, ':')) != NULL)
 	{
-		tag = strchr(tag + 10, '"');
-		if (tag && !strncmp(tag, "\"build-", 7))
-			build = strtol(tag + 7, NULL, 10);
+		const char *end;
+		++tag;
+		while (*tag == ' ' || *tag == '\t' || *tag == '\r' || *tag == '\n') ++tag;
+		if (*tag++ == '"' && (end = strchr(tag, '"')) != NULL &&
+			(size_t)(end - tag) < sizeof(updater_latest_tag))
+		{
+			memcpy(updater_latest_tag, tag, end - tag);
+			updater_latest_tag[end - tag] = 0;
+			version = gulchce_version_code(updater_latest_tag);
+		}
 	}
 	SDL_free(text);
-	return build;
+	return version;
 }
 
 static int SDLCALL updater_check_thread(void *context)
@@ -344,16 +353,15 @@ static int SDLCALL updater_check_thread(void *context)
 	long latest = updater_latest_release();
 
 	(void)context;
-	if (latest > HALO_BUILD_NUMBER)
+	if (latest > gulchce_version_code(GULCHCE_VERSION))
 	{
-		platform_log("update: build %ld is available (this is build %d)", latest, HALO_BUILD_NUMBER);
-		updater_latest_build = latest;
+		platform_log("update: GulchCE %s is available (this is %s)", updater_latest_tag, GULCHCE_VERSION);
 		SDL_SetAtomicInt(&updater_state, _updater_available);
 	}
 	else
 	{
-		if (latest)
-			platform_log("update: this is the latest build (%d)", HALO_BUILD_NUMBER);
+		if (latest >= 0)
+			platform_log("update: current GulchCE version is %s", GULCHCE_VERSION);
 		SDL_SetAtomicInt(&updater_state, _updater_handled);
 	}
 	return 0;
@@ -409,7 +417,7 @@ static int updater_download_zip(const char *zip_path, char *error, size_t error_
 	memset(&download, 0, sizeof(download));
 	download.lock = SDL_CreateMutex();
 	snprintf(download.url, sizeof(download.url),
-		"https://github.com/" UPDATE_REPOSITORY "/releases/download/build-%ld/" UPDATE_ASSET, updater_latest_build);
+		"https://github.com/" UPDATE_REPOSITORY "/releases/download/%s/" UPDATE_ASSET, updater_latest_tag);
 	snprintf(download.zip_path, sizeof(download.zip_path), "%s", zip_path);
 	thread = SDL_CreateThread(updater_download_thread, "update download", &download);
 	if (!thread)
@@ -446,7 +454,7 @@ static int updater_download_zip(const char *zip_path, char *error, size_t error_
 			SDL_SetRenderScale(renderer, 2.0f, 2.0f);
 			SDL_RenderDebugText(renderer, 10.0f, 10.0f, "Downloading the new version...");
 			SDL_SetRenderScale(renderer, 1.0f, 1.0f);
-			snprintf(line, sizeof(line), "build %ld  (%llu of %llu MB)", updater_latest_build, received >> 20,
+			snprintf(line, sizeof(line), "%s  (%llu of %llu MB)", updater_latest_tag, received >> 20,
 				total >> 20);
 			SDL_RenderDebugText(renderer, 20.0f, 70.0f, line);
 			SDL_SetRenderDrawColor(renderer, 60, 66, 72, 255);
@@ -479,7 +487,7 @@ static void updater_update(void)
 
 	updater_path(partial, sizeof(partial), UPDATE_DIRECTORY);
 	updater_partial_path(zip_path, sizeof(zip_path), UPDATE_ASSET);
-	platform_log("update: downloading build %ld (" UPDATE_ASSET ")", updater_latest_build);
+	platform_log("update: downloading %s (" UPDATE_ASSET ")", updater_latest_tag);
 	if (!update_make_directory(partial))
 	{
 		snprintf(error, sizeof(error), "could not make %s (is the game's folder read-only?)", partial);
@@ -505,7 +513,7 @@ static void updater_update(void)
 		if (index == name_count)
 		{
 			update_delete_file(partial);
-			platform_log("update: starting build %ld", updater_latest_build);
+			platform_log("update: starting %s", updater_latest_tag);
 			if (update_launch(updater_executable))
 				exit(EXIT_SUCCESS);
 			snprintf(error, sizeof(error), "the new version is in place, but could not be started: start it again");
@@ -557,9 +565,9 @@ void updater_start(void)
 		return;
 	*slash = 0;
 	updater_clean_up();
-	/* (not for builds without a number, the player's no, or runs nobody is
+	/* (not for untagged development builds, the player's no, or runs nobody is
 	watching, but for a test with its answer) */
-	if (HALO_BUILD_NUMBER <= 0 || !config_boolean("update.auto") ||
+	if (!GULCHCE_RELEASE || !config_boolean("update.auto") ||
 		(!config_string("debug.update_answer")[0] && (config_boolean("debug.hidden_window") ||
 			config_real("debug.exit_after") > 0.0 || config_string("debug.network_test")[0])))
 	{
@@ -614,11 +622,11 @@ void updater_poll(SDL_Window *window)
 	if (fullscreen)
 		SDL_SetWindowFullscreen(window, false);
 	snprintf(message, sizeof(message),
-		"A new version of Halo was detected (build %ld; this is build %d).\n\n"
+		"A new version of GulchCE was detected (%s; this is %s).\n\n"
 		"Do you want to update? The game will close and start the new version.",
-		updater_latest_build, HALO_BUILD_NUMBER);
+		updater_latest_tag, GULCHCE_VERSION);
 	{
-		SDL_MessageBoxData question = { SDL_MESSAGEBOX_INFORMATION, window, "Halo: new version", message,
+		SDL_MessageBoxData question = { SDL_MESSAGEBOX_INFORMATION, window, "GulchCE: new version", message,
 			3, question_buttons, NULL };
 
 		if (!SDL_ShowMessageBox(&question, &answer))
@@ -626,7 +634,7 @@ void updater_poll(SDL_Window *window)
 	}
 	if (answer == 2)
 	{
-		SDL_MessageBoxData confirm = { SDL_MESSAGEBOX_WARNING, window, "Halo: new version",
+		SDL_MessageBoxData confirm = { SDL_MESSAGEBOX_WARNING, window, "GulchCE: new version",
 			"Stop asking about new versions?\n\n"
 			"To ask again, set auto = true in the [update] section of config.toml.",
 			2, confirm_buttons, NULL };

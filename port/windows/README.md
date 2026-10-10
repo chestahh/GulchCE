@@ -155,8 +155,8 @@ python tools/symbolize_crash.py debug.txt halo.exe
 Give the `halo.exe` of the build that crashed, with its `halo.pdb` next to
 it. The tool needs `llvm-symbolizer` (LLVM).
 
-Builds without a build number (a local build, or a build of a branch other
-than main) send no crash reports. To test the crash reports with such a
+Local and branch builds send no crash reports; official GulchCE version-tag
+builds retain crash reporting. To test the crash reports with such a
 build, set the `HALO_CRASH_REPORTS_ANY_BUILD` environment variable.
 
 The crash reports also include the crashes of `abort()` and of an invalid

@@ -43,8 +43,11 @@ here, so they are reported too.
 #include "port_config.h"
 
 /* (tools/windows_build.py gives them, as to updater.c) */
-#ifndef HALO_BUILD_NUMBER
-#define HALO_BUILD_NUMBER 0
+#ifndef GULCHCE_VERSION
+#define GULCHCE_VERSION "v0.1"
+#endif
+#ifndef GULCHCE_RELEASE
+#define GULCHCE_RELEASE 0
 #endif
 #ifndef HALO_BUILD_FLAVOR
 #define HALO_BUILD_FLAVOR "release"
@@ -643,8 +646,8 @@ static void crash_reporter(DWORD process_id, DWORD thread_id, ULONG_PTR exceptio
 		return;
 	}
 	GetSystemTime(&now);
-	_snwprintf(name, MAX_PATH, L"%04u%02u%02u-%02u%02u%02u-%lu-build%d-%hs", now.wYear, now.wMonth, now.wDay,
-		now.wHour, now.wMinute, now.wSecond, (unsigned long)process_id, HALO_BUILD_NUMBER, HALO_BUILD_FLAVOR);
+	_snwprintf(name, MAX_PATH, L"%04u%02u%02u-%02u%02u%02u-%lu-%hs-%hs", now.wYear, now.wMonth, now.wDay,
+		now.wHour, now.wMinute, now.wSecond, (unsigned long)process_id, GULCHCE_VERSION, HALO_BUILD_FLAVOR);
 	name[MAX_PATH - 1] = 0;
 	if (!crash_path(dump, PATH_SIZE, folder, name, L".dmp") || !crash_path(log, PATH_SIZE, folder, name, L".log"))
 	{
@@ -731,7 +734,7 @@ static void crash_uploader(void)
 
 static int crash_reports_enabled(void)
 {
-	return HALO_BUILD_NUMBER > 0 || GetEnvironmentVariableW(L"HALO_CRASH_REPORTS_ANY_BUILD", NULL, 0) > 0;
+	return GULCHCE_RELEASE || GetEnvironmentVariableW(L"HALO_CRASH_REPORTS_ANY_BUILD", NULL, 0) > 0;
 }
 
 /* starts this executable again with the option and its arguments, with no
@@ -823,7 +826,7 @@ static LONG WINAPI crash_filter(EXCEPTION_POINTERS *exception)
 	dumped = crash_reports_enabled() && crash_dump(exception);
 	/* (where halo.exe is: tools/symbolize_crash.py finds the lines of the
 	addresses below from it and halo.pdb) */
-	crash_line("crash: halo.exe at %p, build %d (%s)", (void *)GetModuleHandleW(NULL), HALO_BUILD_NUMBER,
+	crash_line("crash: halo.exe at %p, version %s (%s)", (void *)GetModuleHandleW(NULL), GULCHCE_VERSION,
 		HALO_BUILD_FLAVOR);
 	crash_line("crash: exception %08lx at %p (accessing %p), eip %08lx ebp %08lx esp %08lx",
 		record->ExceptionCode, record->ExceptionAddress,

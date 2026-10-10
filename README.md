@@ -8,7 +8,9 @@ The decompilation is of the Xbox build 2342. (`cachebeta.exe`, SHA-256
 
 ## Download
 
-There are no release or debug builds available just yet.
+Published packages are available on the [GulchCE releases page](https://github.com/chestahh/GulchCE/releases).
+See [GulchCE versioning and releases](docs/RELEASING.md) for the new `v0.1`
+version scheme and migration from the old updater.
 
 ## Game data
 

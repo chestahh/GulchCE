@@ -13,6 +13,7 @@ import sys
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
+from .release_version import updater_defines
 from .embed_assets import hud_assets_build, hud_configure_inputs
 from .ninja_syntax import Writer
 
@@ -140,17 +141,6 @@ MINIUPNPC_DEFINES = ["-DMINIUPNP_STATICLIB", "-DMINIUPNPC_SET_SOCKET_TIMEOUT", "
 def miniupnpc_sources() -> List[Path]:
     """miniupnpc's library sources (port/third_party/miniupnpc/src)"""
     return sorted((MINIUPNPC_DIR / "src").glob("*.c"))
-
-
-def updater_defines(release: bool) -> str:
-    """the self-updater's build (port/linux/src/updater.c): its number, from
-    HALO_BUILD_NUMBER (tools/ci_build.py gives it for builds of main; none
-    elsewhere, which never look for updates), and its configuration"""
-    number = os.environ.get("HALO_BUILD_NUMBER", "0")
-    if not number.isdigit():
-        number = "0"
-    flavor = "release" if release else "debug"
-    return f'-DHALO_BUILD_NUMBER={number} -DHALO_BUILD_FLAVOR=\\"{flavor}\\"'
 
 PLATFORM_FLAGS = [
     "-std=gnu11",
@@ -385,7 +375,7 @@ def linux_configure_inputs() -> List[Path]:
     # (the folders of the game's sources, so that adding or removing one
     # re-runs it)
     game_folders = sorted({source.parent for source in game_sources(_load_port_config())})
-    return [PORT_CONFIG, Path(__file__), PORT_DIR / "src", PORT_DIR / "game", XDK_INCLUDE, *game_folders,
+    return [Path("VERSION"), Path("tools/release_version.py"), PORT_CONFIG, Path(__file__), PORT_DIR / "src", PORT_DIR / "game", XDK_INCLUDE, *game_folders,
             *hud_configure_inputs()]
 
 

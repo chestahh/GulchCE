@@ -15,12 +15,11 @@ name: Build
 # - Windows, whose minutes cost twice Linux's, builds only Windows;
 # - artifacts are kept for three days.
 #
-# A successful build of main is also published as a GitHub release, the
-# newest marked latest, so that
-# https://github.com/<repository>/releases/latest/download/<file> always
-# gives the latest build; the last five are kept.
+# Stable v* tags matching VERSION publish releases; branch builds remain artifacts.
 on:
   push:
+    branches: ["**"]
+    tags: ["v*"]
     paths-ignore:
       - "**.md"
   workflow_dispatch:
@@ -78,7 +77,7 @@ jobs:
 
       - name: Test
         run: |
-          python -m pytest -q tools/test_linux_port.py tools/test_host_watch_hash.py tools/test_touch_menu.py tools/harness
+          python -m pytest -q tools/test_linux_port.py tools/test_host_watch_hash.py tools/test_touch_menu.py tools/test_release_version.py tools/harness
           python tools/test_light_storage.py
 
       - name: Compile cache
@@ -159,7 +158,9 @@ jobs:
 
       # the touch controls' layout and gyroscope maths (the runner's JDK)
       - name: Test the touch layout
-        run: python3 tools/test_touch_layout.py
+        run: |
+          python3 tools/test_touch_layout.py
+          python3 tools/test_release_version_java.py
 
       - name: Compile cache
         run: ccache --show-stats
@@ -248,13 +249,9 @@ jobs:
           retention-days: 3
 
   release:
-    # The six builds (and the Windows builds' PDBs) as a release, tagged
-    # build-<run number> and marked latest
-    # (every file keeps its name from release to release, for the README's
-    # latest/download links); then all but the newest five build-* releases
-    # go, tags and all. Only for main, and only when every platform built.
+    # Publish only explicitly tagged GulchCE versions, never workflow counters.
     needs: [linux, android, windows]
-    if: ${{ github.ref == 'refs/heads/main' }}
+    if: ${{ github.repository == 'chestahh/GulchCE' && startsWith(github.ref, 'refs/tags/v') }}
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     permissions:
@@ -265,6 +262,9 @@ jobs:
       GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
     steps:
+      - uses: actions/checkout@v4
+      - name: Validate release version
+        run: python tools/release_version.py
       - uses: actions/download-artifact@v4
         with:
           pattern: halo-*
@@ -286,12 +286,12 @@ jobs:
           COMMIT_URL: ${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
-          tag="build-$GITHUB_RUN_NUMBER"
+          tag="$GITHUB_REF_NAME"
           subject="$(printf '%s' "${MESSAGE:-manual run}" | head -n 1)"
           printf '%s\n\nCommit: %s\nBuild: %s\n\nThe release builds are for playing; the debug builds stop at the first failed assertion and log it.\n' \
             "$subject" "$COMMIT_URL" "$RUN_URL" > notes.md
           gh release create "$tag" release/*.zip --target "$GITHUB_SHA" --latest \
-            --title "Build $GITHUB_RUN_NUMBER (${GITHUB_SHA:0:7})" --notes-file notes.md
+            --title "GulchCE $tag" --notes-file notes.md
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
 
       # The Windows builds' executables and PDBs to Sentry, which turns the
@@ -324,18 +324,10 @@ jobs:
             artifacts/halo-windows-release artifacts/halo-windows-release-symbols \
             artifacts/halo-windows-debug artifacts/halo-windows-debug-symbols
 
-      - name: Keep the last five
-        run: |
-          gh release list --limit 100 --json tagName,createdAt \
-            --jq '[.[] | select(.tagName | startswith("build-"))] | sort_by(.createdAt) | reverse | .[5:] | .[].tagName' |
-          while read -r tag; do
-            gh release delete "$tag" --cleanup-tag --yes
-          done
-
   notify:
     # A Discord embed for the run, to the DISCORD_WEBHOOK secret (nothing
     # without it): green when every platform built, red when one did not,
-    # with each platform's result, this run's release (main only), and links
+    # with each platform's result, this run's release (version tags only), and links
     # to the latest release's builds.
     needs: [linux, android, windows, release]
     if: ${{ !cancelled() }}

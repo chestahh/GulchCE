@@ -255,7 +255,7 @@ drop it, and when it hosts, its players leave.
 
 ## Updates
 
-The app from GitHub Actions can update itself, as on Linux (refer to
+The app from an official GulchCE version-tag release can update itself, as on Linux (refer to
 "Updates" in [port/linux/README.md](../linux/README.md#updates)). When you
 select "Yes":
 
