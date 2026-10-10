@@ -1941,7 +1941,10 @@ void menu_tags_loaded(
 	if (mcc_cache_tags_loaded())
 	{
 		if (mcc_ui_settings_needed(map_name))
+		{
+			campaign = FALSE;
 			goto mcc_settings;
+		}
 		return;
 	}
 	/* (ui.map, and a multiplayer map: its pause menu's SETTINGS; a
