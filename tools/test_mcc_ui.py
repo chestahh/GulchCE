@@ -41,6 +41,12 @@ def ui_tool(tmp_path_factory):
 #include <stdio.h>
 #include <string.h>
 #include <wchar.h>
+#ifdef _WIN32
+#define csstrcasecmp _stricmp
+#else
+#include <strings.h>
+#define csstrcasecmp strcasecmp
+#endif
 typedef unsigned char boolean;
 typedef unsigned short word;
 #define TRUE 1
@@ -112,7 +118,7 @@ static boolean mcc_pause_owns(long tag){return pause_owned&&tag==300;}
 static void *tag_get(long group,long index){(void)group;return index==100?owned:unowned;}
 static char *tag_get_name(long index){(void)index;return (char *)widget_tag_name;}
 static boolean mcc_cache_contains(void const *p,long size){return p==owned && size<=sizeof(owned);}
-static char const *config_string(char const *name){(void)name;return pc_menus?"pc":"xbox";}
+static char const *config_string(char const *name){(void)name;return pc_menus==2?"PC":pc_menus?"pc":"xbox";}
 static short game_connection(void){return connection;}
 static void display_error_text_deferred(wchar_t const *text,short controller){assert(controller>=0&&controller<4);message_count++;message=text;}
 static void *global_network_game_server_get(void){return connection==_game_connection_network_server?&game:NULL;}
@@ -260,7 +266,8 @@ int main(int argc,char **argv){
         fire(&widget,0,&action);CHECK(team_sent==2&&sent_player.team_index==0,19);
         game.variant.universal_variant.teams=FALSE;CHECK(!fire(&widget,0,&action)&&message_count==1,20);return 0;
     }
-    if(!strcmp(argv[1],"settings")){
+    if(!strcmp(argv[1],"settings")||!strcmp(argv[1],"settings-uppercase")){
+        if(!strcmp(argv[1],"settings-uppercase"))pc_menus=2;
         campaign=FALSE;scenario.type=1;
         action.function=137;action.flags=136;action.widget_tag.index=300;
         CHECK(fire(&widget,0,&action)&&settings_open==1&&profile_begin==1,21);
@@ -559,7 +566,7 @@ int main(int argc,char **argv){
 
 
 @pytest.mark.parametrize("case", ["metadata", "confirmation", "client-denial", "no-checkpoint", "restart",
-                                 "quit", "team", "team-balance", "settings", "save", "new-game", "isolation", "unsupported", "script",
+                                 "quit", "team", "team-balance", "settings", "settings-uppercase", "save", "new-game", "isolation", "unsupported", "script",
                                  "trusted-pause", "trusted-teams", "trusted-end", "trusted-settings", "trusted-isolation", "settings-namespace",
                                  "split-resume", "split-team", "split-team-denied", "split-quit", "split-quit-sync", "local-quit",
                                  "network-stale-solo", "campaign-stale-catalog", "settings-no-scenario",

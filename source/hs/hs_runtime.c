@@ -1054,7 +1054,7 @@ void render_debug_trigger_volumes(
 {
 	if (debug_trigger_volumes)
 	{
-		real_matrix4x3 matrix;
+		real_matrix4x3 matrix = { 0 };
 		short volume_index;
 		struct scenario *scenario = global_scenario_get();
 
@@ -1099,10 +1099,6 @@ void render_debug_trigger_volumes(
 				matrix4x3_transform_vector(&matrix, &local_extent, &world_extent);
 				break;
 
-			/* matrix is left unassigned only by this default arm. Not reached unassigned: the
-			 * arm's assertion failure calls system_exit, which does not return in January
-			 * (0x47c960 jumps to halt_and_catch_fire 0x4f21c0, which loops or calls exit).
-			 * Source-policy approval pending (2026-09-27 audit). */
 			default:
 				match_assert(
 					"c:\\halo\\SOURCE\\hs\\hs_runtime.c",
@@ -1667,13 +1663,7 @@ static long hs_long_to_boolean(
 {
 	long result;
 
-	/* BUG: only the low byte of this uninitialised long is written, and the whole long is returned; its
-	   upper three bytes are indeterminate. January homes result in the argument slot, so they are bits 8-31
-	   of n; where hs_string_to_boolean inlines this function they come from its 'push ecx' slot, which holds
-	   hs_cast's table index 254 (0x000000fe), so they are zero there. No January consumer reads a boolean
-	   cell beyond its low byte, but hs_return and the pass-through forms copy the whole long into hs thread
-	   stacks and hs globals, so these bytes reach the saved-game CRC and the save files
-	   (game_state_write_to_persistent_storage, game_state_write_to_file, game_state_write_core). */
+	result = 0;
 	*(boolean *)&result = n==0;
 
 	return result;
@@ -1684,12 +1674,7 @@ static long hs_short_to_boolean(
 {
 	long result;
 
-	/* BUG: only the low byte of this uninitialised long is written, and the whole long is returned; its
-	   upper three bytes are indeterminate. January homes result in the argument slot, so they are bits 8-31
-	   of s. No January consumer reads a boolean cell beyond its low byte, but hs_return and the pass-through
-	   forms copy the whole long into hs thread stacks and hs globals, so these bytes reach the saved-game CRC
-	   and the save files (game_state_write_to_persistent_storage, game_state_write_to_file,
-	   game_state_write_core). */
+	result = 0;
 	*(boolean *)&result = (short)s==0;
 
 	return result;
@@ -1742,12 +1727,7 @@ static long hs_real_to_short(
 {
 	long result;
 
-	/* BUG: only the low word of this uninitialised long is written, and the whole long is returned; its
-	   upper word is indeterminate. January homes result in the argument slot, so it is the upper word of r's
-	   bit pattern. No January consumer reads a short cell beyond its low word, but hs_return and the
-	   pass-through forms copy the whole long into hs thread stacks and hs globals, so these bytes reach the
-	   saved-game CRC and the save files (game_state_write_to_persistent_storage, game_state_write_to_file,
-	   game_state_write_core). */
+	result = 0;
 	*(short *)&result = (short)*(real *)&r;
 
 	return result;
@@ -1764,12 +1744,7 @@ static long hs_long_to_short(
 {
 	long result;
 
-	/* BUG: only the low word of this uninitialised long is written, and the whole long is returned; its
-	   upper word is indeterminate. January homes result in the argument slot, so it is the upper word of l
-	   (January returns l unchanged). No January consumer reads a short cell beyond its low word, but
-	   hs_return and the pass-through forms copy the whole long into hs thread stacks and hs globals, so these
-	   bytes reach the saved-game CRC and the save files (game_state_write_to_persistent_storage,
-	   game_state_write_to_file, game_state_write_core). */
+	result = 0;
 	*(short *)&result = (short)l;
 
 	return result;
@@ -2021,13 +1996,7 @@ void hs_evaluate_equality(
 		if (function_index==_hs_function_not_equal)
 			equal = !equal;
 
-		/* BUG: only the low byte of this uninitialised long is written, and the whole long is passed to
-		   hs_return; its upper three bytes are indeterminate. January reuses the function_index argument
-		   slot, which parameter_types has just filled with the argument type twice, so the long is
-		   (type<<16)|equal. No January consumer reads a boolean cell beyond its low byte, but hs_return and
-		   the pass-through forms copy the whole long into hs thread stacks and hs globals, so these bytes
-		   reach the saved-game CRC and the save files (game_state_write_to_persistent_storage,
-		   game_state_write_to_file, game_state_write_core). */
+		result_long = 0;
 		*(boolean *)&result_long = equal;
 		hs_return(thread_index, result_long);
 	}
@@ -2073,13 +2042,7 @@ void hs_evaluate_inequality(
 			break;
 		}
 
-		/* BUG: only the low byte of this uninitialised long is written, and the whole long is passed to
-		   hs_return; its upper three bytes are indeterminate. January reuses the function_index argument
-		   slot, where it has just spilled value1, so they are bits 8-31 of value1's bit pattern. No January
-		   consumer reads a boolean cell beyond its low byte, but hs_return and the pass-through forms copy
-		   the whole long into hs thread stacks and hs globals, so these bytes reach the saved-game CRC and
-		   the save files (game_state_write_to_persistent_storage, game_state_write_to_file,
-		   game_state_write_core). */
+		result_long = 0;
 		*(boolean *)&result_long = comparison;
 		hs_return(thread_index, result_long);
 	}
@@ -2129,13 +2092,7 @@ void hs_evaluate_logical(
 	}
 	else
 	{
-		/* BUG: only the low byte of this uninitialised long is written, and the whole long is passed to
-		   hs_return; its upper three bytes are indeterminate. January reuses the initialize argument slot,
-		   so they are the upper bytes of the dword hs_thread_main pushed for initialize (stack residue from
-		   hs_thread_main's frame). No January consumer reads a boolean cell beyond its low byte, but
-		   hs_return and the pass-through forms copy the whole long into hs thread stacks and hs globals, so
-		   these bytes reach the saved-game CRC and the save files (game_state_write_to_persistent_storage,
-		   game_state_write_to_file, game_state_write_core). */
+		result_long = 0;
 		*(boolean *)&result_long = *result;
 
 		hs_return(thread_index, result_long);
