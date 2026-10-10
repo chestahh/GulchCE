@@ -41,6 +41,12 @@ def ui_tool(tmp_path_factory):
 #include <stdio.h>
 #include <string.h>
 #include <wchar.h>
+#ifdef _WIN32
+#define csstrcasecmp _stricmp
+#else
+#include <strings.h>
+#define csstrcasecmp strcasecmp
+#endif
 typedef unsigned char boolean;
 typedef unsigned short word;
 #define TRUE 1
@@ -112,7 +118,7 @@ static boolean mcc_pause_owns(long tag){return pause_owned&&tag==300;}
 static void *tag_get(long group,long index){(void)group;return index==100?owned:unowned;}
 static char *tag_get_name(long index){(void)index;return (char *)widget_tag_name;}
 static boolean mcc_cache_contains(void const *p,long size){return p==owned && size<=sizeof(owned);}
-static char const *config_string(char const *name){(void)name;return pc_menus?"pc":"xbox";}
+static char const *config_string(char const *name){(void)name;return pc_menus==2?"PC":pc_menus?"pc":"xbox";}
 static short game_connection(void){return connection;}
 static void display_error_text_deferred(wchar_t const *text,short controller){assert(controller>=0&&controller<4);message_count++;message=text;}
 static void *global_network_game_server_get(void){return connection==_game_connection_network_server?&game:NULL;}
@@ -260,7 +266,8 @@ int main(int argc,char **argv){
         fire(&widget,0,&action);CHECK(team_sent==2&&sent_player.team_index==0,19);
         game.variant.universal_variant.teams=FALSE;CHECK(!fire(&widget,0,&action)&&message_count==1,20);return 0;
     }
-    if(!strcmp(argv[1],"settings")){
+    if(!strcmp(argv[1],"settings")||!strcmp(argv[1],"settings-uppercase")){
+        if(!strcmp(argv[1],"settings-uppercase"))pc_menus=2;
         campaign=FALSE;scenario.type=1;
         action.function=137;action.flags=136;action.widget_tag.index=300;
         CHECK(fire(&widget,0,&action)&&settings_open==1&&profile_begin==1,21);
@@ -559,7 +566,7 @@ int main(int argc,char **argv){
 
 
 @pytest.mark.parametrize("case", ["metadata", "confirmation", "client-denial", "no-checkpoint", "restart",
-                                 "quit", "team", "team-balance", "settings", "save", "new-game", "isolation", "unsupported", "script",
+                                 "quit", "team", "team-balance", "settings", "settings-uppercase", "save", "new-game", "isolation", "unsupported", "script",
                                  "trusted-pause", "trusted-teams", "trusted-end", "trusted-settings", "trusted-isolation", "settings-namespace",
                                  "split-resume", "split-team", "split-team-denied", "split-quit", "split-quit-sync", "local-quit",
                                  "network-stale-solo", "campaign-stale-catalog", "settings-no-scenario",
@@ -568,3 +575,63 @@ int main(int argc,char **argv){
 def test_mcc_widget_events(ui_tool, case):
     result = subprocess.run([str(ui_tool), case], capture_output=True, text=True)
     assert result.returncode == 0, (case, result.returncode, result.stdout, result.stderr)
+
+
+def test_native_settings_admission_preserves_mcc_pause_ownership(tmp_path):
+    """Run the real pre-allocation route with stock, CE and MCC tag layouts.
+
+    Stop at the allocation boundary: this checks which maps reach the native
+    builder and whether its campaign patch is enabled, without loading assets.
+    """
+    compiler = shutil.which("clang")
+    if not compiler:
+        pytest.skip("clang is needed for native menu admission tests")
+    menu = (ROOT / "port/linux/game/menu_tags.c").read_text()
+    admission = function(menu, "menu_tags_loaded").split("menus = halo_menus_load();", 1)[0]
+    source = r'''
+#include <assert.h>
+#include <string.h>
+typedef int boolean;
+#define FALSE 0
+#define NONE (-1)
+#define MULTIPLAYER_COLLECTION "collection"
+static int mcc, wants_settings, pc=1, campaign_tag, multiplayer_tag;
+static int built, built_campaign;
+static int mcc_cache_tags_loaded(void){return mcc;}
+static int mcc_ui_settings_needed(char const *name){(void)name;return wants_settings;}
+static int single_player_campaign_map(void){return campaign_tag;}
+static long tag_loaded(long group,char const *name){(void)group;(void)name;return multiplayer_tag?1:NONE;}
+static int menus_pc_chosen(void){return pc;}
+''' + admission + r'''
+    built++;built_campaign=campaign;
+}
+static void check(char const *name,int expected,int expected_campaign)
+{
+    built=0;built_campaign=0;menu_tags_loaded(name);
+    assert(built==expected);assert(built_campaign==expected_campaign);
+}
+int main(void)
+{
+    /* Upstream's stock/CE campaign Settings and normal menu route remain. */
+    check("ui",1,0);
+    campaign_tag=1;check("a10",1,1);check("custom_maps\\a10",1,1);
+    campaign_tag=0;multiplayer_tag=1;check("bloodgulch",1,0);
+    pc=0;check("bloodgulch",0,0);check("ui",0,0);pc=1;
+    /* Even an MCC map carrying the native campaign widget must not get
+       that widget patched, nor get an extra set of campaign Settings tags. */
+    mcc=1;campaign_tag=1;multiplayer_tag=0;
+    check("mcc_maps\\a10",0,0);
+    /* MCC multiplayer retains native Settings without the campaign patch. */
+    wants_settings=1;check("mcc_maps\\dangercanyon",1,0);
+    wants_settings=0;pc=0;check("mcc_maps\\dangercanyon",0,0);
+    return 0;
+}
+'''
+    path = tmp_path / "admission.c"
+    path.write_text(source)
+    exe = tmp_path / ("admission.exe" if os.name == "nt" else "admission")
+    flags = ["--target=i686-pc-windows-msvc", "-fuse-ld=lld"] if os.name == "nt" else []
+    result = subprocess.run([compiler, *flags, str(path), "-o", str(exe)], capture_output=True, text=True)
+    assert result.returncode == 0, result.stderr
+    result = subprocess.run([str(exe)], capture_output=True, text=True)
+    assert result.returncode == 0, result.stderr
