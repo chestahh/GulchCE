@@ -2072,8 +2072,8 @@ void menu_tags_loaded(
 	boolean game_map = strcmp(map_name, "ui") != 0;
 	boolean campaign = game_map && single_player_campaign_map();
 
-	/* MCC owns its pause menus; only its multiplayer Settings route needs
-	these native screens. Do not patch embedded MCC campaign widgets. */
+	/* MCC owns its pause menus and uses these native Settings screens.
+	Do not patch embedded MCC campaign widgets. */
 	if (mcc_cache_tags_loaded())
 	{
 		if (mcc_ui_settings_needed(map_name))
@@ -2182,6 +2182,10 @@ mcc_settings:
 		pause_patch(instances);
 		if (campaign)
 			pause_campaign_patch(instances);
+		/* MCC owns the pause layout; reuse only upstream's in-game Settings
+		filter and profile-save behavior, without patching map widgets. */
+		if (mcc_cache_tags_loaded())
+			pause_settings_patch();
 		if (build.failed)
 			goto failed;
 		/* (those it made) */
