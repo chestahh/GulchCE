@@ -902,7 +902,7 @@ def _server_settings() -> list:
     game's)"""
     base = f"{MT}/server_settings"
     # Thirteen full-height rows: leave the selection artwork room to draw.
-    spec = {"screen": "server_settings_screen", "spacing": 28, "help_top": 414, "rows_top": 49,
+    spec = {"screen": "server_settings_screen", "spacing": 28, "help_top": 410, "rows_top": 49,
             "help_font": "ui\\small_ui", "button_top": 448,
             "background_bitmap": "bitmaps/gradient_big", "header_top": -10,
             "header": ("header_server_settings", f"{base}/header_server_settings")}
