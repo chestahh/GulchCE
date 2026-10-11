@@ -10,7 +10,80 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 
 
-@pytest.mark.parametrize("fault", [None, "zoom", "collision", "shoulder", "reticle", "doorway", "return", "frame_rate", "stairs"])
+@pytest.mark.parametrize("degrees", [0, 70, 120, 150])
+def test_real_fov_restoration(tmp_path, degrees):
+    from harness import function
+    compiler = shutil.which("clang") or shutil.which("cc")
+    if not compiler:
+        pytest.skip("a C compiler is required")
+    actual = (ROOT / "port/linux/game/view_fov.c").read_text()
+    code = r'''
+#include <math.h>
+#include <stddef.h>
+typedef float real;
+typedef int boolean;
+#define TRUE 1
+#define NONE -1
+#define MAXIMUM_LOCAL_PLAYERS 4
+#define _pi 3.14159265358979323846f
+#define PIN(v,a,b) fminf(fmaxf(v,a),b)
+#define TEST_FLAG(v,b) ((v)&(1u<<(b)))
+enum {_object_dead_bit=0,_director_perspective_first_person=0};
+struct unit_datum {struct {int parent_object_index;unsigned damage_flags;} object;struct {int current_weapon_index;} unit;int definition_index;};
+struct unit_definition {struct {real camera_field_of_view;} unit;};
+static struct unit_datum body={{NONE,0},{0},0};
+static struct unit_definition definition={{1.2f}};
+static int scripted,*director_camera_scripted=&scripted,active[4];
+static real reticle_scales[4],authored_vertical[4];
+static double setting=TEST_DEGREES;
+static unsigned long config_changes(void){return 0;}
+static double config_real(char const *n){(void)n;return setting;}
+static int cinematic_in_progress(void){return 0;}
+static int director_get_perspective(short p){(void)p;return 0;}
+static int director_inhibited_facing(short p){(void)p;return 0;}
+static long player_control_get_unit_index(short p){return p;}
+static struct unit_datum *unit_try_and_get(long p){(void)p;return &body;}
+static struct unit_definition *unit_definition_get(long p){(void)p;return &definition;}
+static long unit_inventory_get_weapon(long p,int slot){(void)p;(void)slot;return 1;}
+static real weapon_get_field_of_view(long w,real f,int z){(void)w;(void)f;(void)z;return .3f;}
+static real render_camera_get_adjusted_field_of_view_tangent(real f){return tanf(f/2);}
+static int third_person_active(short p){return p>=0&&p<4&&active[p];}
+''' + function(actual, "render_fov_adjust") + function(actual, "render_fov_vertical") + r'''
+#define CHECK(c) do{if(!(c))return __LINE__;}while(0)
+int main(void){
+ real native=2*atanf(.75f*tanf(.6f)), scoped=2*atanf(.75f*tanf(.15f));
+ real expected=setting?2*atanf(tanf(setting*_pi/360)*9/16):native;
+ real baseline=render_fov_vertical(0,native),scale=reticle_scales[0];
+ CHECK(fabsf(baseline-expected)<.00001f);
+ active[0]=1;CHECK(render_fov_vertical(0,native)==native&&reticle_scales[0]==1);
+ CHECK(fabsf(render_fov_vertical(1,native)-baseline)<.00001f);
+ active[0]=0;CHECK(render_fov_vertical(0,native)==baseline&&reticle_scales[0]==scale);
+ if(setting==0||setting>=120)CHECK(render_fov_vertical(0,scoped)==scoped);
+ CHECK(render_fov_vertical(0,native)==baseline);return 0;
+}
+'''
+    source = tmp_path / "fov.c"
+    source.write_text(code.replace("TEST_DEGREES", str(degrees)))
+    exe = tmp_path / ("fov.exe" if sys.platform == "win32" else "fov")
+    flags = ["--target=i686-pc-windows-msvc", "-fuse-ld=lld"] if sys.platform == "win32" else ["-lm"]
+    compiled = subprocess.run([compiler, str(source), *flags, "-o", str(exe)], capture_output=True, text=True)
+    assert compiled.returncode == 0, compiled.stderr
+    assert subprocess.run([str(exe)], timeout=10).returncode == 0
+
+
+def test_camera_reset_load_hooks():
+    """Checkpoint/core loads bypass objects_initialize_for_new_map."""
+    from harness import function
+    code = (ROOT / "source/saved games/game_state.c").read_text()
+    callbacks = re.search(r"after_load_procs\[\]\s*=\s*\{(.*?)\};", code, re.S).group(1)
+    assert re.search(r"\bthird_person_reset\s*,", callbacks)
+    for name in ("game_state_revert", "game_state_try_and_load_from_persistent_storage", "game_state_load_core"):
+        assert "game_state_call_after_load_procs();" in function(code, name)
+    objects = (ROOT / "source/objects/objects.c").read_text()
+    assert "third_person_reset();" in function(objects, "objects_initialize_for_new_map")
+
+
+@pytest.mark.parametrize("fault", [None, "zoom", "collision", "shoulder", "reticle", "doorway", "return", "frame_rate", "stairs", "held_respawn"])
 def test_shoulder_camera(tmp_path, fault):
     compiler = shutil.which("clang") or shutil.which("cc")
     if not compiler:
@@ -33,6 +106,8 @@ def test_shoulder_camera(tmp_path, fault):
         code = code.replace("(real)(1.0 - exp(-dt / seconds))", "dt / (seconds + dt)")
     elif fault == "stairs":
         code = code.replace("state->vertical_lag - vertical_step", "state->vertical_lag")
+    elif fault == "held_respawn":
+        code = code.replace("state->look_requires_release = (halo_keyboard_actions(local_player_index) & (1UL << HALO_KEYBOARD_FREE_LOOK)) != 0;", "state->look_requires_release = FALSE;")
     stub = r'''
 #include <math.h>
 #include <stddef.h>
@@ -74,6 +149,8 @@ struct render_camera {real_point3d position; real_vector3d forward,up; rectangle
 struct collision_result {real t; real_point3d point;};
 static struct {short local_player_index; struct render_camera camera; int frustum;} render;
 static struct unit_datum body={{NONE,0},{NONE,NONE,{1,0,0}}};
+static struct unit_datum second_body={{NONE,0},{NONE,NONE,{1,0,0}}};
+static int split_world, second_zoom=NONE;
 static unsigned long changes;
 static int enabled, cinematic, scripted, perspective, inhibited, zoom=NONE, unit_id=1;
 static int *director_camera_scripted=&scripted;
@@ -100,10 +177,10 @@ static int director_inhibited_facing(short p){(void)p;return inhibited;}
 static real player_control_get_field_of_view(short p){(void)p;return 1.2f;}
 static real render_camera_get_adjusted_field_of_view_tangent(real f){return tanf(f*.5f);}
 static real arctangent(real a,real b){return atan2f(a,b);}
-static int player_control_get_zoom_level(short p){(void)p;return zoom;}
-static long player_control_get_unit_index(short p){(void)p;return unit_id;}
-static struct unit_datum *unit_try_and_get(long i){(void)i;return &body;}
-static struct unit_datum *unit_get(long i){(void)i;return &body;}
+static int player_control_get_zoom_level(short p){return split_world&&p==1?second_zoom:zoom;}
+static long player_control_get_unit_index(short p){return split_world&&p==1?22:unit_id;}
+static struct unit_datum *unit_try_and_get(long i){return i==22?&second_body:&body;}
+static struct unit_datum *unit_get(long i){return unit_try_and_get(i);}
 static void unit_get_camera_position(long i,real_point3d *p){(void)i;*p=eye;}
 static void cross_product3d(real_vector3d const *a,real_vector3d const *b,real_vector3d *v){
  v->i=a->j*b->k-a->k*b->j;v->j=a->k*b->i-a->i*b->k;v->k=a->i*b->j-a->j*b->i;
@@ -121,7 +198,7 @@ static int collision_test_vector(unsigned long f,real_point3d const *p,real_vect
  (void)i;c->t=f==1024?.01f:prop;point_from_line3d(p,v,c->t,&c->point);return c->t<1;
 }
 static int render_camera_world_to_screen(struct render_camera const *c,int const *f,real_point3d const *p,real_point2d *s){
- (void)c;(void)f;s->x=350;s->y=260;return on_screen && p->x==10;
+ (void)c;(void)f;s->x=350+p->y;s->y=260;return on_screen && p->x==10;
 }
 '''
     checks = r'''
@@ -130,7 +207,8 @@ static struct render_camera fresh(void){struct render_camera c={{0,0,0},{1,0,0},
 static struct render_camera settle(short player){int i;struct render_camera c;for(i=0;i<180;i++){c=fresh();third_person_camera(player,&c);}return c;}
 int main(void){
  struct render_camera c=fresh();point2d p={320,240};
- int k,n,fps;real sides[3];real_euler_angles2d steep={0,DEGREES_TO_RADIANS(85)};
+ int k,n,fps,a,b,d,h,o;real sides[3];struct shoulder_camera_state other;
+ real_euler_angles2d steep={0,DEGREES_TO_RADIANS(85)};
  third_person_camera(0,&c);CHECK(!third_person_active(0)&&c.position.x==0);
  enabled=1;changes++;c=settle(0);
  CHECK(third_person_active(0)&&c.position.x<-.8f&&c.position.y<-.2f&&c.position.z>.1f);
@@ -240,6 +318,71 @@ int main(void){
   third_person_camera(0,&c);
  }
  CHECK(cameras[0].look_pitch==0&&cameras[0].look_yaw==0&&c.forward.k>.996f);
+ /* Every lifecycle exit clears orbit and requires a fresh press, even
+    when rendering observes the transition before gameplay input does. */
+ held=0;third_person_reset();c=settle(0);
+ for(k=0;k<10;k++){
+  held=1UL<<HALO_KEYBOARD_FREE_LOOK;CHECK(third_person_free_look_input(0,1,.2f));
+  switch(k){
+   case 0:body.object.damage_flags=1;break;
+   case 1:body.object.parent_object_index=2;break;
+   case 2:cinematic=1;break;
+   case 3:scripted=1;break;
+   case 4:inhibited=1;break;
+   case 5:enabled=0;changes++;break;
+   case 6:unit_id=NONE;break;
+   case 7:unit_id++;break; /* respawn without an intervening dead frame */
+   case 8:eye.x+=3;break; /* teleport */
+   case 9:third_person_reset();break; /* map/checkpoint callback */
+  }
+  c=fresh();third_person_camera(0,&c);
+  CHECK(!cameras[0].looking&&cameras[0].look_yaw==0&&cameras[0].look_pitch==0);
+  body.object.damage_flags=0;body.object.parent_object_index=NONE;
+  cinematic=scripted=inhibited=0;enabled=1;unit_id=1;changes++;
+  c=settle(0);CHECK(third_person_active(0));
+  CHECK(!third_person_free_look_input(0,1,0));
+  held=0;CHECK(!third_person_free_look_input(0,0,0));c=settle(0);
+ }
+ /* All corners of the supported settings ranges, both shoulders/modes. */
+ for(a=0;a<2;a++)for(b=0;b<2;b++)for(d=0;d<2;d++)for(h=0;h<2;h++)for(o=0;o<2;o++){
+  smooth=a;left_shoulder=b;setting_distance=d?2.0:.3;
+  setting_height=h?.6:-.2;setting_offset=o?.6:0;changes++;
+  third_person_reset();c=settle(0);CHECK(third_person_active(0));
+  CHECK(fabsf(c.position.x-eye.x+setting_distance)<.001f);
+  CHECK(fabsf(c.position.y-(b?setting_offset:-setting_offset))<.001f);
+  CHECK(fabsf(c.position.z-eye.z-setting_height)<.001f);
+  held=1UL<<HALO_KEYBOARD_FREE_LOOK;CHECK(third_person_free_look_input(0,3,3));
+  c=fresh();third_person_camera(0,&c);CHECK(isfinite(c.position.x)&&isfinite(c.forward.k));
+  held=0;c=settle(0);CHECK(c.forward.i==1&&c.forward.j==0);
+ }
+ /* Rendering/falling back in one viewport cannot alter another's state. */
+ eye.x=0;c=settle(0);c=settle(1);other=cameras[1];
+ held=1UL<<HALO_KEYBOARD_FREE_LOOK;CHECK(third_person_free_look_input(0,1,0));
+ wall=0;c=fresh();third_person_camera(0,&c);
+ CHECK(!third_person_active(0)&&third_person_active(1));
+ CHECK(memcmp(&other,&cameras[1],sizeof(other))==0);
+ wall=1;held=0;c=settle(0);render.local_player_index=1;
+ p.x=320;p.y=240;CHECK(third_person_reticle(&p,1)&&p.x==350&&p.y==260);
+ /* Two distinct local units: zoom, death, vehicle and reticle ownership. */
+ split_world=1;eye.y=2;c=settle(1);other=cameras[1];eye.y=0;c=settle(0);
+ CHECK(cameras[0].unit_index==1&&cameras[1].unit_index==22);
+ CHECK(memcmp(&other,&cameras[1],sizeof(other))==0);
+ render.local_player_index=1;p.x=320;p.y=240;
+ CHECK(third_person_reticle(&p,1)&&p.x==352); /* player one's target survived player zero */
+ held=1UL<<HALO_KEYBOARD_FREE_LOOK;CHECK(third_person_free_look_input(0,1,0));
+ c=fresh();third_person_camera(0,&c);render.local_player_index=0;
+ CHECK(!third_person_reticle(&p,1));render.local_player_index=1;CHECK(third_person_reticle(&p,1));
+ for(k=0;k<3;k++){
+  if(k==0)second_zoom=0;
+  if(k==1)second_body.object.damage_flags=1;
+  if(k==2)second_body.object.parent_object_index=4;
+  other=cameras[0];c=fresh();third_person_camera(1,&c);
+  CHECK(!third_person_active(1)&&third_person_active(0));
+  CHECK(memcmp(&other,&cameras[0],sizeof(other))==0);
+  second_zoom=NONE;second_body.object.damage_flags=0;second_body.object.parent_object_index=NONE;
+  c=settle(1);CHECK(third_person_active(1));
+ }
+ held=0;third_person_reset();CHECK(!third_person_active(0)&&!third_person_active(1));
  enabled=0;changes++;c=fresh();third_person_camera(1,&c);CHECK(!third_person_active(1));
  return 0;
 }

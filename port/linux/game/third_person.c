@@ -183,6 +183,8 @@ void third_person_camera(short local_player_index, struct render_camera *camera)
 	if (!state->initialized || state->unit_index != unit_index || magnitude3d(&offset) > 2.0f)
 	{
 		state->looking = FALSE;
+		/* A respawn or teleport must not restart a held orbit key. */
+		state->look_requires_release = (halo_keyboard_actions(local_player_index) & (1UL << HALO_KEYBOARD_FREE_LOOK)) != 0;
 		state->look_yaw = state->look_pitch = 0.0f;
 		state->distance = requested_distance;
 		state->height = requested_height;

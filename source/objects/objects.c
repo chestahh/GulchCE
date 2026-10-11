@@ -1075,7 +1075,7 @@ void objects_initialize_for_new_map(
 	/* port: the last map's waist and mesh forgotten
 	(port/linux/game/first_person_legs.c) */
 	first_person_legs_reset();
-	/* port: reset the shoulder camera across map loads and saved games. */
+	/* port: reset the shoulder camera across map loads. */
 	third_person_reset();
 	
 	data_make_valid(object_header_data);
