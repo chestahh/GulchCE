@@ -81,6 +81,7 @@ their handlers open opens.
 
 #include "halo_menus.h"
 #include "custom_edition_cache.h"
+#include "mcc_ui.h"
 #include "custom_edition_maps.h"
 #include "mcc_maps.h"
 #include "mcc_cache.h"
@@ -4284,7 +4285,9 @@ static boolean profile_settings_save(struct widget_instance *widget)
 		platform_log("menus: could not save the profile's changes");
 		return campaign_fail();
 	}
-	player_ui_begin_editing_profile(index);
+	/* Preserve MCC pause ownership when saving and reopening its profile. */
+	if (!mcc_ui_settings_profile_reopen(index))
+		player_ui_begin_editing_profile(index);
 	return TRUE;
 }
 
