@@ -420,8 +420,11 @@ Mesa. To stop this, set the environment variable `mesa_glthread=false`.
 ## Updates
 
 The builds from GitHub Actions (refer to the main [README](../../README.md#download))
-can update themselves. At start-up, the game asks GitHub for the latest
-release. The game does not wait for the answer. If the latest release is not
+can update themselves. GulchCE checks only releases from
+[`chestahh/GulchCE`](https://github.com/chestahh/GulchCE/releases), using its
+own Build workflow run numbers and `build-<number>` tags. OpenCE release
+numbers are not compared and OpenCE builds are not downloaded. At start-up,
+the game asks GitHub for the latest GulchCE release. The game does not wait for the answer. If the latest release is not
 newer, the game does nothing.
 
 If the latest release is newer, the game asks: "Do you want to update?"
