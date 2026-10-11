@@ -625,7 +625,18 @@ disables it. Receivers reject the reserved value and unknown flag bits.
 Pregame edits are host-only; late joiners receive the same record. Camera
 preferences are never written by receipt of a policy. Network version 31
 prevents older clients, which cannot enforce this rule, from joining.
-This rule does not yet change network projectile origins.
+Network version 32 additionally carries the current shoulder state in each
+player input and host relay. It is a state, never accumulated with earlier
+button presses. The host masks unknown input bits and Forced Off clears it.
+Scoped, dead and seated units retain stock firing. Each simulation computes
+the muzzle and cover correction from world markers; no client-supplied muzzle
+position is accepted. Damage still uses the existing validated hit reports.
+The relay rejects non-boolean shoulder values and truncated messages.
+
+Add `--combat` to the session runner below to exercise real bot firing on
+both peers, including 100 ms receive delay and 5 percent packet loss. Muzzle
+diagnostics identify shooters on each peer; this does not visually verify
+effects or exercise the public internet transport.
 
 `tools/camera_policy_sessions.py --binary build/windows/halo.exe --maps
 dist/halo-windows-release/maps --output build/camera-policy-sessions` runs

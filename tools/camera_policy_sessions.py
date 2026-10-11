@@ -14,7 +14,7 @@ import subprocess
 import time
 
 
-def run_case(binary, maps, output, name, policy, preferences, coop=False, late=False):
+def run_case(binary, maps, output, name, policy, preferences, coop=False, late=False, combat=False, latency=0):
     jobs = []
     results = []
     expected_policy = {"player_choice": 0, "forced_on": 1, "forced_off": 2}[policy]
@@ -39,6 +39,9 @@ def run_case(binary, maps, output, name, policy, preferences, coop=False, late=F
                        HALO_CAMERA_POLICY=policy if index == 0 else ("forced_off" if policy != "forced_off" else "forced_on"))
             if index and late:
                 time.sleep(20)
+            if combat:
+                env.update(HALO_TEST_INPUT=f"bot:{index}", HALO_NETWORK_LATENCY=str(latency),
+                           HALO_NETWORK_LOSS="0.05" if latency else "0")
             process = subprocess.Popen([str(folder / "halo.exe")], cwd=folder, env=env,
                                        creationflags=subprocess.CREATE_NO_WINDOW)
             jobs.append((role, folder, process))
@@ -48,7 +51,7 @@ def run_case(binary, maps, output, name, policy, preferences, coop=False, late=F
             for role, folder, process in jobs:
                 log = (folder / "halo.log").read_text(errors="replace") if (folder / "halo.log").exists() else ""
                 records = [line for line in log.splitlines() if "camera-policy" in line and "player 1:" in line]
-                ready.append(len(records) >= 5)
+                ready.append(len(records) >= (20 if combat else 5))
             if all(ready) or any(p.poll() is not None for _, _, p in jobs):
                 break
             time.sleep(.5)
@@ -67,9 +70,18 @@ def run_case(binary, maps, output, name, policy, preferences, coop=False, late=F
             preference_preserved = f"third_person = {'true' if preferences[index] else 'false'}" in saved
             camera_observed = (not expected[2] and all(v[3] == 0 for v in values)) or (expected[2] and (coop or any(v[3] == 1 for v in values)))
             passed = early_exit is None and len(values) >= 5 and all(v[:3] == expected for v in values) and preference_preserved and camera_observed
+            muzzle_players = sorted(set(int(p) for p in re.findall(r"network muzzle: player (\d+)", log)))
+            if combat and not coop:
+                # Player indices are assigned by join order, not machine order.
+                machines = {int(p): int(m) for line in records for p, m in
+                            re.findall(r"player (\d+):.*?\bm(\d+)(?= player | \|)", line)}
+                expected_shooters = sorted(p for p, m in machines.items()
+                                           if expected_policy == 1 or (expected_policy == 0 and preferences[m]))
+                passed = passed and muzzle_players == expected_shooters
             result = dict(case=name, role=role, passed=passed, samples=len(values), expected=expected,
                           observed=sorted(set(values)), preference_preserved=preference_preserved,
                           early_exit=early_exit)
+            result.update(muzzle_players=muzzle_players, combat=combat, latency=latency)
             results.append(result)
             print(json.dumps(result), flush=True)
     return results
@@ -80,6 +92,7 @@ def main():
     parser.add_argument("--binary", type=Path, required=True)
     parser.add_argument("--maps", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--combat", action="store_true", help="Fire bot weapons and check muzzle decisions on both peers")
     args = parser.parse_args()
     results = []
     for name, policy, preferences, coop, late in (
@@ -90,9 +103,11 @@ def main():
         ("coop", "forced_on", (0, 0), True, False),
     ):
         print("Starting " + name, flush=True)
-        results += run_case(args.binary.resolve(), args.maps.resolve(), args.output.resolve(), name, policy, preferences, coop, late)
+        results += run_case(args.binary.resolve(), args.maps.resolve(), args.output.resolve(), name, policy, preferences, coop, late, args.combat)
+    if args.combat:
+        results += run_case(args.binary.resolve(), args.maps.resolve(), args.output.resolve(), "latency", "forced_on", (0, 0), combat=True, latency=0.1)
     (args.output / "results.json").write_text(json.dumps(results, indent=2))
-    return 0 if len(results) == 10 and all(row["passed"] for row in results) else 1
+    return 0 if len(results) == (12 if args.combat else 10) and all(row["passed"] for row in results) else 1
 
 
 if __name__ == "__main__":

@@ -503,7 +503,14 @@ typedef struct {real i,j,k;} real_vector3d;
 enum {_game_connection_local=0,_object_dead_bit=0,_collision_test_for_projectiles_flags=1};
 enum {_weapon_trigger_uses_weapon_origin_bit=5,_weapon_trigger_projectiles_cannot_be_aimed_bit=11,
 _unit_fires_from_camera_bit=0,_trigger_charging=2,_trigger_charged=3,_trigger_spewing=6};
-struct unit_datum {struct {long parent_object_index;unsigned damage_flags;} object;struct {short current_weapon_index;real_vector3d aiming_vector;} unit;long definition_index;};
+struct unit_datum {struct {long parent_object_index;unsigned damage_flags;} object;struct {short current_weapon_index;real_vector3d aiming_vector;long player_index;short current_zoom_level;unsigned control_flags;} unit;long definition_index;};
+#define THIRD_PERSON_INPUT_BIT 16
+#define _third_person_forced_off 2
+static int policy;
+static short third_person_policy(void){return policy;}
+#define DATUM_INDEX_TO_ABSOLUTE_INDEX(n) (n)
+char const *config_string(char const *n){(void)n;return "";}
+void platform_log(char const *n,...){(void)n;}
 struct tag_block {long count;void *address;};
 struct weapon_trigger_definition {unsigned flags;real_point3d first_person_weapon_offset;struct tag_block firing_effects;real spew_time;};
 struct weapon_firing_effect_definition {struct {long index;} effects[3];};
@@ -578,6 +585,14 @@ int main(void){
  connection=1;origin=(real_point3d){0,0,0};forward=(real_vector3d){1,0,0};
  third_person_muzzle_shot(2,1,0,&origin,&forward);CHECK(origin.x==0&&forward.k==0);
  connection=2;third_person_muzzle_shot(2,1,0,&origin,&forward);CHECK(origin.x==0);
+ unit.unit.current_zoom_level=NONE;unit.unit.control_flags=1u<<16;
+ active=0;CHECK(third_person_muzzle_shot(2,1,0,&origin,&forward));CHECK(origin.x==1);
+ origin=(real_point3d){0,0,0};forward=(real_vector3d){1,0,0};
+ policy=2;CHECK(!third_person_muzzle_shot(2,1,0,&origin,&forward));CHECK(origin.x==0);
+ policy=0;unit.unit.current_zoom_level=0;CHECK(!third_person_muzzle_shot(2,1,0,&origin,&forward));
+ unit.unit.current_zoom_level=NONE;unit.unit.player_index=NONE;CHECK(!third_person_muzzle_shot(2,1,0,&origin,&forward));
+ unit.unit.player_index=0;unit.object.parent_object_index=7;CHECK(!third_person_muzzle_shot(2,1,0,&origin,&forward));
+ unit.object.parent_object_index=NONE;unit.unit.control_flags=0;CHECK(!third_person_muzzle_shot(2,1,0,&origin,&forward));
  connection=0;active=0;third_person_muzzle_shot(2,1,0,&origin,&forward);CHECK(origin.x==0);
  active=1;zoom=0;third_person_muzzle_shot(2,1,0,&origin,&forward);CHECK(origin.x==0);
  zoom=NONE;has_marker=0;third_person_muzzle_shot(2,1,0,&origin,&forward);CHECK(origin.x==0);

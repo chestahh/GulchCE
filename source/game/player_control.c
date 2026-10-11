@@ -820,6 +820,9 @@ static void handle_one_player_input(
 
 		action.desired_facing = player->desired_angles;
 		action.control_flags = player->control_flags;
+		/* port: replicate this tick's shoulder view, including collision fallback. */
+		SET_FLAG(action.control_flags, THIRD_PERSON_INPUT_BIT,
+			third_person_active(local_player_index) && third_person_enabled() && player->zoom_level == NONE);
 		action.desired_weapon_index = player->desired_weapon_index;
 		action.desired_grenade_index = player->desired_grenade_index;
 		action.desired_zoom_level = player->zoom_level;

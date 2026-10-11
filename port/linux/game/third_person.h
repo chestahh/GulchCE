@@ -10,6 +10,8 @@ enum third_person_match_policy
 /* Bits in network_game.cooperative_flags, shared by all match types. */
 #define THIRD_PERSON_POLICY_SHIFT 1
 #define THIRD_PERSON_POLICY_MASK 6
+/* Replicated with each input tick, not latched like a button press. */
+#define THIRD_PERSON_INPUT_BIT 16
 short third_person_host_policy(void);
 short third_person_policy(void);
 boolean third_person_enabled(void);

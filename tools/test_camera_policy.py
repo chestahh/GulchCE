@@ -133,7 +133,9 @@ def test_host_camera_menu_layout():
     for mode in (["op_coop_options", "op_voice_options"], ["op_game_type", "op_player_options", "op_item_options", "op_vehicle_options", "op_indicator_options", "op_team_options"]):
         positions = [rows[name] for name in common + mode]
         assert len(set(positions)) == len(positions)
-        assert max(positions) + 28 < 366
+        assert max(positions) + 28 < 410
+        assert all(b - a >= 28 for a, b in zip(sorted(positions), sorted(positions)[1:]))
+        assert all(int(root.find(f"widget[@name='{base}{name}']").attrib["height"]) >= 28 for name in common + mode)
     spinner = root.find(f"widget[@name='{base}camera_policy_spinner']")
     assert spinner.attrib["strings"] == "PLAYER CHOICE|FORCED ON|FORCED OFF"
     spec = port_settings.SCREENS["video_settings/fov_viewmodels"]

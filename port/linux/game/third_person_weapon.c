@@ -1,5 +1,4 @@
-/* Offline muzzle-origin firing. Network games retain their agreed firing
-   rules until a host-authoritative shoulder-mode setting is implemented. */
+/* The host and predicting clients solve shots from the same world markers. */
 #include "cseries.h"
 #include "third_person.h"
 #include "game/game.h"
@@ -11,10 +10,13 @@
 #include "units/unit_definitions.h"
 #include "effects/effect_definitions.h"
 
+char const *config_string(char const *name);
+void platform_log(char const *format, ...);
+
 static boolean muzzle_player(short player, long unit_index)
 {
 	struct unit_datum *unit;
-	if (game_connection() != _game_connection_local || !third_person_active(player) ||
+	if (!third_person_active(player) ||
 		unit_index == NONE || player_control_get_unit_index(player) != unit_index ||
 		player_control_get_zoom_level(player) != NONE)
 		return FALSE;
@@ -129,6 +131,25 @@ boolean third_person_muzzle_shot(long weapon_index, long unit_index, short trigg
 {
 	short player;
 	real_point3d target;
+	struct unit_datum *unit;
+	if (game_connection() != _game_connection_local)
+	{
+		unit = unit_index != NONE ? unit_try_and_get(unit_index) : NULL;
+		if (!unit || unit->unit.player_index == NONE ||
+			unit->object.parent_object_index != NONE ||
+			TEST_FLAG(unit->object.damage_flags, _object_dead_bit) ||
+			unit->unit.current_zoom_level != NONE ||
+			third_person_policy() == _third_person_forced_off ||
+			!TEST_FLAG(unit->unit.control_flags, THIRD_PERSON_INPUT_BIT))
+			return FALSE;
+		if (!muzzle_aim(weapon_index, unit_index, trigger_index, origin, forward, &target))
+			return FALSE;
+		if (config_string("debug.network_test")[0])
+			platform_log("network muzzle: player %ld trigger %d origin %.4f %.4f %.4f",
+				(long)DATUM_INDEX_TO_ABSOLUTE_INDEX(unit->unit.player_index), (int)trigger_index,
+				origin->x, origin->y, origin->z);
+		return TRUE;
+	}
 	for (player = 0; player < MAXIMUM_LOCAL_PLAYERS; player++)
 		if (muzzle_player(player, unit_index))
 			return muzzle_aim(weapon_index, unit_index, trigger_index, origin, forward, &target);

@@ -2481,7 +2481,7 @@ static void trigger_create_projectiles(
 			origin= markers[marker_index].matrix.position;
 		}
 
-		/* port: offline shoulder shots leave the world muzzle. Custom
+		/* port: shoulder shots leave the world muzzle. Custom
 		   triggers that explicitly choose an origin or forbid aiming keep it. */
 		if (!TEST_FLAG(trigger_definition->flags, _weapon_trigger_uses_weapon_origin_bit) &&
 			!TEST_FLAG(trigger_definition->flags, _weapon_trigger_projectiles_cannot_be_aimed_bit))
