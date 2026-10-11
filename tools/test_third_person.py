@@ -10,7 +10,7 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 
 
-@pytest.mark.parametrize("fault", [None, "zoom", "collision", "shoulder", "reticle"])
+@pytest.mark.parametrize("fault", [None, "zoom", "collision", "shoulder", "reticle", "doorway", "return", "frame_rate", "stairs"])
 def test_shoulder_camera(tmp_path, fault):
     compiler = shutil.which("clang") or shutil.which("cc")
     if not compiler:
@@ -25,6 +25,14 @@ def test_shoulder_camera(tmp_path, fault):
         code = code.replace("+ state->side * right.", "- state->side * right.")
     elif fault == "reticle":
         code = code.replace("screen.x - center_x", "0")
+    elif fault == "doorway":
+        code = code.replace("state->clear_time >= 0.10f", "state->clear_time >= 0.0f")
+    elif fault == "return":
+        code = code.replace("smooth_camera ? MAX(0.0f, state->return_time - dt) : 0.0f", "0.0f")
+    elif fault == "frame_rate":
+        code = code.replace("(real)(1.0 - exp(-dt / seconds))", "dt / (seconds + dt)")
+    elif fault == "stairs":
+        code = code.replace("state->vertical_lag - vertical_step", "state->vertical_lag")
     stub = r'''
 #include <math.h>
 #include <stddef.h>
@@ -75,7 +83,8 @@ static real_point3d eye={0,0,0};
 static void third_person_muzzle_target(short p,real_point3d *t){(void)p;(void)t;}
 static int on_screen=1,left_shoulder;
 static double setting_distance=.85,setting_height=.12,setting_offset=.24;
-static real main_get_seconds_elapsed(void){return 1.0f/60;}
+static real frame_dt=1.0f/60;
+static real main_get_seconds_elapsed(void){return frame_dt;}
 double config_real(char const *name){
  if(strstr(name,"distance"))return setting_distance;
  if(strstr(name,"height"))return setting_height;
@@ -114,10 +123,11 @@ static int render_camera_world_to_screen(struct render_camera const *c,int const
 '''
     checks = r'''
 #define CHECK(c) do {if(!(c))return __LINE__;}while(0)
-static struct render_camera fresh(void){struct render_camera c={{0,0,0},{1,0,0},{0,0,1},{0,0,640,480}};return c;}
+static struct render_camera fresh(void){struct render_camera c={{0,0,0},{1,0,0},{0,0,1},{0,0,640,480}};c.position=eye;return c;}
 static struct render_camera settle(short player){int i;struct render_camera c;for(i=0;i<180;i++){c=fresh();third_person_camera(player,&c);}return c;}
 int main(void){
  struct render_camera c=fresh();point2d p={320,240};
+ int k,n,fps;real sides[3];real_euler_angles2d steep={0,DEGREES_TO_RADIANS(85)};
  third_person_camera(0,&c);CHECK(!third_person_active(0)&&c.position.x==0);
  enabled=1;changes++;c=settle(0);
  CHECK(third_person_active(0)&&c.position.x<-.8f&&c.position.y<-.2f&&c.position.z>.1f);
@@ -142,7 +152,7 @@ int main(void){
  setting_distance=1.5;setting_height=.3;setting_offset=.4;changes++;c=settle(1);
  CHECK(c.position.x < -1.49f && c.position.y>.39f && c.position.z>.29f);
  wall=.05;c=fresh();third_person_camera(1,&c);CHECK(!third_person_active(1));wall=1;
- c=fresh();third_person_camera(1,&c);CHECK(third_person_active(1)&&c.position.x>-.4f);
+ c=fresh();third_person_camera(1,&c);CHECK(!third_person_active(1)&&c.position.x==0);
  c=settle(1);CHECK(third_person_active(1));
  setting_distance=NAN;setting_height=100;setting_offset=-1;changes++;c=settle(1);
  CHECK(c.position.x>-.86f&&c.position.x<-.84f&&c.position.y>.23f&&c.position.y<.25f);
@@ -171,12 +181,60 @@ int main(void){
  CHECK(c.forward.j>0&&c.forward.j<.85f);c=settle(0);CHECK(c.forward.j==0);
  held=1UL<<HALO_KEYBOARD_FREE_LOOK;CHECK(third_person_free_look_input(0,1.0f,0));
  zoom=0;CHECK(!third_person_free_look_input(0,.5f,0));zoom=NONE;
- c=fresh();third_person_camera(0,&c);CHECK(c.forward.j==0);
+ c=settle(0);CHECK(c.forward.j==0);
+ CHECK(!third_person_free_look_input(0,1.0f,0));
+ held=0;CHECK(!third_person_free_look_input(0,0,0));held=1UL<<HALO_KEYBOARD_FREE_LOOK;
  CHECK(third_person_free_look_input(0,1.0f,0));unit_id=2;
  CHECK(!third_person_free_look_input(0,.5f,0));unit_id=1;held=0;
  third_person_reset();c=settle(1);
  third_person_camera(0,NULL);CHECK(!third_person_active(0)&&third_person_active(1));
  CHECK(!third_person_active(-1)&&!third_person_active(4));
+
+ /* Stay first person through the observer's zoom-out interpolation. */
+ held=0;c=settle(0);zoom=0;c=fresh();third_person_camera(0,&c);CHECK(!third_person_active(0));
+ zoom=NONE;c=fresh();third_person_camera(0,&c);CHECK(!third_person_active(0)&&c.position.x==0);
+ for(k=0;k<12;k++){c=fresh();third_person_camera(0,&c);}CHECK(third_person_active(0));
+ /* A single clear frame in a doorway must not restore third person. */
+ smooth=1;changes++;held=0;c=settle(0);
+ for(k=0;k<20;k++){
+  wall=k%2?1:0;c=fresh();third_person_camera(0,&c);CHECK(!third_person_active(0));
+ }
+ wall=1;for(k=0;k<8;k++){c=fresh();third_person_camera(0,&c);}
+ CHECK(third_person_active(0));c=settle(0);
+ /* Immediate inward safety, then a short pause before outward recovery. */
+ wall=.4f;c=fresh();third_person_camera(0,&c);sides[0]=c.position.x;
+ wall=1;c=fresh();third_person_camera(0,&c);CHECK(fabsf(c.position.x-sides[0])<.0001f);
+ c=settle(0);CHECK(c.position.x<sides[0]);
+ /* Small stair and slope changes are damped, with no lag in Sharp mode. */
+ eye.z=.1f;c=fresh();third_person_camera(0,&c);
+ CHECK(cameras[0].vertical_lag<0&&cameras[0].vertical_lag>=-.06f);
+ c=settle(0);CHECK(fabsf(cameras[0].vertical_lag)<.00001f);
+ for(k=0;k<20;k++){eye.z+=.01f;c=fresh();third_person_camera(0,&c);CHECK(cameras[0].vertical_lag>=-.06f);}
+ smooth=0;changes++;eye.z+=.1f;c=fresh();third_person_camera(0,&c);CHECK(cameras[0].vertical_lag==0);
+ smooth=1;changes++;eye.z+=3;c=fresh();third_person_camera(0,&c);CHECK(cameras[0].vertical_lag==0);
+ eye.z=0;c=settle(0);
+ /* Equal elapsed times give the same offset settling at 30/60/144 fps. */
+ for(n=0;n<3;n++){
+  fps=n==0?30:(n==1?60:144);frame_dt=1.0f/fps;
+  left_shoulder=0;changes++;c=settle(0);left_shoulder=1;changes++;
+  for(k=0;k<fps/2;k++){c=fresh();third_person_camera(0,&c);}
+  sides[n]=cameras[0].side;
+  held=1UL<<HALO_KEYBOARD_FREE_LOOK;CHECK(third_person_free_look_input(0,2.0f,.3f));
+  c=fresh();third_person_camera(0,&c);held=0;CHECK(!third_person_free_look_input(0,0,0));
+  for(k=0;k<(fps+3)/4;k++){c=fresh();third_person_camera(0,&c);}
+  CHECK(cameras[0].look_yaw==0&&cameras[0].look_pitch==0&&c.forward.j==0);
+ }
+ CHECK(fabsf(sides[0]-sides[1])<.0001f&&fabsf(sides[1]-sides[2])<.0001f);
+ frame_dt=1.0f/60;c=settle(0);
+ /* Releasing orbit while aiming steeply must not leave a pitch offset. */
+ held=1UL<<HALO_KEYBOARD_FREE_LOOK;CHECK(third_person_free_look_input(0,1,0));
+ c=fresh();vector3d_from_euler_angles2d(&c.forward,&steep);observer_up_from_forward(&c.forward,&c.up);
+ third_person_camera(0,&c);held=0;CHECK(!third_person_free_look_input(0,0,0));
+ for(k=0;k<20;k++){
+  c=fresh();vector3d_from_euler_angles2d(&c.forward,&steep);observer_up_from_forward(&c.forward,&c.up);
+  third_person_camera(0,&c);
+ }
+ CHECK(cameras[0].look_pitch==0&&cameras[0].look_yaw==0&&c.forward.k>.996f);
  enabled=0;changes++;c=fresh();third_person_camera(1,&c);CHECK(!third_person_active(1));
  return 0;
 }
