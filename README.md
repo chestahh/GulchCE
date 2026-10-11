@@ -1,7 +1,7 @@
 # GulchCE - an OpenCE fork focusing on bringing experimental features to OpenCE
 
 This project is a fork of [OpenCommunityEdition/OpenCE](https://github.com/OpenCommunityEdition/OpenCE) - the Halo: Combat Evolved decompilation project targeting Linux, 
-Windows and Android.
+Windows, Android and web browsers.
 
 The decompilation is of the Xbox build 2342. (`cachebeta.exe`, SHA-256
 `4cc87b45f721270392a96f1674ed2b5cd4a7bb4355faeab4531d1cf1884d9520`).
@@ -30,7 +30,10 @@ validation results and remaining compatibility limits.
 
 On Linux and Windows, the game puts `maps/` next to the executable. On
 Android, copy the disc image to the phone first. The app puts `maps/` in its
-data folder. Refer to [port/android/README.md](port/android/README.md).
+data folder. Refer to [port/android/README.md](port/android/README.md). On
+the web, the page copies `maps/` out of the disc image into the browser's
+storage for the site; nothing is uploaded. Refer to
+[port/web/README.md](port/web/README.md).
 
 ## Platforms
 
@@ -41,6 +44,7 @@ Each platform has its own instructions:
 | Linux (32-bit x86 executable, OpenGL 4.5, SDL3) | [port/linux/README.md](port/linux/README.md) |
 | Windows (32-bit x86 executable, OpenGL 4.5, SDL3) | [port/windows/README.md](port/windows/README.md) |
 | Android (arm64 app, OpenGL ES 3, SDL3) | [port/android/README.md](port/android/README.md) |
+| Web (WebAssembly, WebGL 2, SDL3; desktop Chrome, Edge and Firefox) | [port/web/README.md](port/web/README.md) |
 
 The Linux README also gives the controls, the settings and the multiplayer
 functions. These are almost the same on all platforms.
@@ -50,8 +54,13 @@ functions. These are almost the same on all platforms.
 The game can play system link games on a local network and on the internet:
 
 - A system link game can have up to 128 players on up to 128 machines.
-- Linux, Windows and Android machines can play in the same game.
-- An invite link lets a machine join a game on the internet. No server of
+- Linux, Windows and Android machines and browsers can play in the same
+  game. On a local network, the native builds play system link; browsers
+  play each other in rooms, over WebRTC
+  ([port/web/README.md](port/web/README.md)).
+- An invite link, or the server browser, lets a machine join a game on the
+  internet, browsers too: a native build takes a browser's WebRTC
+  ([port/linux/README.md](port/linux/README.md), "Browsers"). No server of
   this project is necessary.
 - The netcode is new. Each machine moves its own player at once,
   and the host makes the decisions for the game. Refer to
@@ -75,6 +84,7 @@ To build the game:
 | `ninja linux` | `build/linux/halo` |
 | `ninja windows` (on Windows) | `build/windows/halo.exe` and `SDL3.dll` |
 | `ninja android_apk` | `port/android/app/build/outputs/apk/debug/app-debug.apk` |
+| `ninja web` | `build/web/site/`, the web site (`python tools/web_serve.py` serves it) |
 
 If you enter `ninja` without a target, ninja builds the game for the
 computer that you use.
@@ -95,6 +105,7 @@ Give these options to `configure.py`:
 | `--pgo=off` | No profile-guided optimization. |
 | `--pgo=train` | Records a new optimization profile. Refer to "Optimization profiles". |
 | `--profile` | A profiling build. It records CPU times. Refer to "Profiling builds". |
+| `--web-emcc PATH` | The Emscripten `emcc` for `ninja web` (else the one on the PATH, or `~/emsdk`'s). |
 
 Without `--portable`, the Linux and Windows builds use all the instructions
 of the processor that builds them (`-march=native`). Such a build does not
