@@ -18,6 +18,9 @@ from xml.sax.saxutils import quoteattr
 PE = "main_menu/settings_select/player_setup/player_profile_edit"
 YES_NO = [("YES", "true"), ("NO", "false")]
 ON_OFF = [("ON", "true"), ("OFF", "false")]
+# the multiplayer armor colors, in the profile's order (player_profile.c)
+SHIELD_COLORS = ["white", "black", "red", "blue", "gray", "yellow", "green", "pink", "purple", "cyan", "cobalt",
+                 "orange", "teal", "sage", "brown", "tan", "maroon", "salmon"]
 SENSITIVITIES = [(f"{value:g}", f"{value:g}") for value in (0.1, 0.15, 0.25, 0.4, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 2.5, 3, 4)]
 VOLUMES = [(str(step), f"{step / 10:g}") for step in range(11)]
 
@@ -83,6 +86,10 @@ SCREENS = {
              None),
             ("PER-PIXEL LIGHTING:", "display.per_pixel_lighting", ON_OFF,
              "Light models for each pixel, without the facets\nof the Xbox's lighting for each vertex.", None),
+            ("SHIELD GLOW:", "display.shield_glow", ON_OFF,
+             "Shields light their surroundings as they flare,\nin the shield's own color.", None),
+            ("GLOW INTENSITY:", "display.shield_glow_intensity", [("DEFAULT", "default"), ("LIGHT SHOW", "light_show")],
+             "Light Show: the shield glow three times as far,\nat full from a third of the flare.", None),
         ],
     },
     "mouse_settings": {
@@ -181,7 +188,8 @@ SCREENS = {
 # pending edits, Defaults, OK and Cancel as the other settings screens.
 _video = SCREENS["video_settings"]
 _graphics = {"display.high_res_hud", "display.high_res_text", "display.anti_aliasing",
-             "display.shadow_resolution", "display.per_pixel_lighting"}
+             "display.shadow_resolution", "display.per_pixel_lighting",
+             "display.shield_glow", "display.shield_glow_intensity"}
 SCREENS["video_settings/graphics"] = {
     "screen": "graphics_settings_screen", "header": _video["header"], "spacing": 30,
     "same_place": ["anti_aliasing_android"],
@@ -204,6 +212,10 @@ SCREENS["video_settings/fov_viewmodels"] = {
          "Draw first-person weapons, hands and attached\nvisuals. Gameplay and sound continue when off.", None),
         ("ARM SHIELDS:", "display.viewmodel_shield", ON_OFF,
          "The energy shield's flare on your first-person\narms too, as on your body.", None),
+        ("LEGS:", "display.first_person_legs", ON_OFF,
+         "Your legs in first person, seen looking down,\nmoving as you run. Your body as others see it.", None),
+        ("SHIELD COLOR:", "display.shield_color", [("DEFAULT", "default")] + [(c.upper(), c) for c in SHIELD_COLORS],
+         "Your shield's flare in an armor color, whatever\nyour armor. Only you see it. Default: its own.", None),
     ],
 }
 
@@ -697,6 +709,10 @@ def title_backdrop(width: float) -> str:
 # hold each number of buttons, one frame each (the Xbox's 2-button box is
 # 159 units high, and each button 35 more)
 PAUSE_BOX_BUTTONS = [3, 4]
+# the campaign pause box, tall enough for five rows at the PC version's pause
+# menu's pitch (30) with the prompts still under the last row: the stock box
+# is 159, and those rows need 36 more
+PAUSE_BOX_EXTRA_HEIGHTS = [195]
 
 
 def pause_box_height(buttons: int) -> int:
