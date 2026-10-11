@@ -19,11 +19,11 @@ def test_plasma_first_person_displacement(tmp_path, control):
     text = (ROOT / "source/rasterizer/xbox/rasterizer_xbox_plasma_energy.c").read_text()
     draw = function(text, "rasterizer_plasma_energy_draw")
     if control == "no-limit":
-        draw = draw.replace("offset_amount > 0.005f", "offset_amount > 1.0f")
+        draw = draw.replace("offset_amount > 0.0075f", "offset_amount > 1.0f")
     elif control == "world-limit":
         draw = draw.replace("group->geometry_flags & (1UL << 7)", "1")
     elif control == "overwrite-small":
-        draw = draw.replace("offset_amount > 0.005f", "1")
+        draw = draw.replace("offset_amount > 0.0075f", "1")
     types = "\n".join(structure(text, n) for n in [
         "plasma_runtime_parameters", "rasterizer_transparent_geometry_group_plasma",
         "shader_transparent_plasma_definition"])
@@ -69,7 +69,7 @@ int main(void){
     struct rasterizer_transparent_geometry_group_plasma group;
     real values[4]={0,.5f,0,0};
     struct plasma_runtime_parameters runtime={NULL,values};
-    real amounts[]={.03f,.01f,.005f,.0025f,0,-.01f};
+    real amounts[]={.03f,.01f,.0075f,.005f,0,-.01f};
     real saved;
     int i;
     memset(&tag,0,sizeof(tag));memset(&group,0,sizeof(group));
@@ -85,14 +85,14 @@ int main(void){
         CHECK(near(captured_offset,amounts[i]>0?amounts[i]*.25f:0));
         CHECK(near(captured_intensity,.5f));
         group.geometry_flags=128;rasterizer_plasma_energy_draw(&group);
-        CHECK(near(captured_offset,i<2?.00125f:amounts[i]>0?amounts[i]*.25f:0));
+        CHECK(near(captured_offset,i<2?.001875f:amounts[i]>0?amounts[i]*.25f:0));
         CHECK(near(captured_intensity,.5f)&&tag.plasma.offset_amount==saved);
         /* A later world draw of the same tag must retain its original shell. */
         group.geometry_flags=0;rasterizer_plasma_energy_draw(&group);
         CHECK(near(captured_offset,amounts[i]>0?amounts[i]*.25f:0));
     }
     group.geometry_flags=128;tag.plasma.offset_amount=.03f;
-    values[1]=1;rasterizer_plasma_energy_draw(&group);CHECK(near(captured_offset,.005f));
+    values[1]=1;rasterizer_plasma_energy_draw(&group);CHECK(near(captured_offset,.0075f));
     values[1]=0;rasterizer_plasma_energy_draw(&group);CHECK(captured_offset==0&&captured_intensity==0);
     group.runtime_parameters=NULL;rasterizer_plasma_energy_draw(&group);CHECK(captured_offset==0);
     CHECK(draws==21);
