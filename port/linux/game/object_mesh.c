@@ -25,6 +25,7 @@ asks: about 400 KB).
 #include "tag_files/tag_files.h"
 
 #include "object_mesh.h"
+#include "mcc_cache.h" /* MCC hardware parts may use a private node palette. */
 
 #include <xtl.h>
 #include <stdlib.h>
@@ -117,6 +118,8 @@ static boolean object_mesh_add_part(
 	long first_vertex = mesh->vertex_count;
 	long index_count;
 	long index;
+	byte const *mcc_nodes = NULL;
+	short mcc_node_count = mcc_cache_part_palette(vertex_buffer, &mcc_nodes);
 
 	/* (only what the game draws, opaque) */
 	if (TEST_FLAG(part->flags, _object_mesh_part_stripped_bit))
@@ -190,6 +193,14 @@ static boolean object_mesh_add_part(
 			node0 = in->nodes[0];
 			node1 = in->nodes[1];
 			weight = in->node_weights[0];
+		}
+		/* MCC's compressed hardware vertices index a part-local palette
+		when the full model exceeds the shader's node limit. Resolve it
+		before the common model-node bounds checks. Other maps return 0. */
+		if (mcc_node_count > 0)
+		{
+			node0 = VALID_INDEX(node0, mcc_node_count) ? mcc_nodes[node0] : NONE;
+			node1 = VALID_INDEX(node1, mcc_node_count) ? mcc_nodes[node1] : NONE;
 		}
 		/* (a part with its own node map, which this build's part doesn't
 		carry: held to the node its middle is on; a tree's trunk, a rock) */
