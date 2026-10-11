@@ -3521,6 +3521,8 @@ static boolean main_loop_iteration(
 		input_frame_begin();
 		input_update();
 		input_abstraction_update();
+		/* port: camera shortcuts obey the host's match policy. */
+		third_person_input_update();
 		profile_scope_exit(main_input_section)
 		profile_scope_enter(main_platform_events_section)
 		shell_idle();

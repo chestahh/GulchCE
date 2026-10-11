@@ -474,6 +474,7 @@ symbols in this file:
 
 #include "cache/cache_files.h"
 #include "interface/player_ui.h"
+#include "third_person.h" /* port: port/linux/game/third_person_policy.c */
 #include "tag_files/tag_files.h"
 
 /* port: internet play's Discord presence (port/linux/src/p2p.c), and the
@@ -1266,6 +1267,9 @@ struct network_game_server *network_game_server_create(
 				network_game_server_reject_connection_game_is_full);
 
 			network_game_invalidate(&server->game);
+			/* port: every match path, including quickstart and co-op, starts
+			with the host's camera rule. Subsequent rounds retain it. */
+			server->game.cooperative_flags |= third_person_host_policy() << THIRD_PERSON_POLICY_SHIFT;
 
 			server->game.difficulty = main_get_difficulty();
 			server->game.number_of_games_played = -1;
@@ -4112,6 +4116,19 @@ void network_game_server_port_set_cooperative_friendly_fire(
 	server->game.variant_options.friendly_fire = friendly_fire;
 	if (server->state == _network_game_server_state_pregame && !network_game_server_send_game_data_pregame(server))
 		network_event("network_game_server_port_set_cooperative_friendly_fire() failed to send updated game settings to clients");
+}
+
+/* port: update the authoritative pregame record, including late joiners. */
+void network_game_server_port_set_camera_policy(short policy)
+{
+	struct network_game_server *server = global_network_game_server_get();
+	if (!server || server->state != _network_game_server_state_pregame ||
+		policy < _third_person_player_choice || policy > _third_person_forced_off)
+		return;
+	server->game.cooperative_flags = (server->game.cooperative_flags & ~THIRD_PERSON_POLICY_MASK) |
+		(policy << THIRD_PERSON_POLICY_SHIFT);
+	if (!network_game_server_send_game_data_pregame(server))
+		network_event("failed to send updated camera policy to clients");
 }
 
 void network_game_server_port_set_cooperative_player_collisions(

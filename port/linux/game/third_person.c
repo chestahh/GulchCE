@@ -84,14 +84,12 @@ boolean third_person_active(short local_player_index)
 static boolean third_person_wanted(short local_player_index)
 {
 	static unsigned long read_at = (unsigned long)-1;
-	static boolean enabled;
 	long unit_index;
 	struct unit_datum *unit;
 
 	if (read_at != config_changes())
 	{
 		read_at = config_changes();
-		enabled = config_boolean("display.third_person") != 0;
 		smooth_camera = config_boolean("display.third_person_smooth") != 0;
 		requested_distance = camera_setting("display.third_person_distance", 0.3, 2.0, 0.85f);
 		requested_height = camera_setting("display.third_person_height", -0.2, 0.6, 0.12f);
@@ -99,7 +97,7 @@ static boolean third_person_wanted(short local_player_index)
 		if (config_boolean("display.third_person_left_shoulder"))
 			requested_side = -requested_side;
 	}
-	if (!enabled || cinematic_in_progress() || *director_camera_scripted ||
+	if (!third_person_enabled() || cinematic_in_progress() || *director_camera_scripted ||
 		director_get_perspective(local_player_index) != _director_perspective_first_person ||
 		director_inhibited_facing(local_player_index))
 		return FALSE;

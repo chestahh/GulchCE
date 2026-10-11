@@ -232,6 +232,9 @@ SCREENS["video_settings/fov_viewmodels"]["categories"] = [
     ("SHOULDER CAMERA:", "video_settings/shoulder_camera",
      "Choose the shoulder and camera position.\nV swaps shoulders while playing."),
 ]
+SCREENS["video_settings/fov_viewmodels"]["extra_help"] = [
+    "CONTROLLED BY HOST. Your personal camera\\npreference returns after leaving the match.",
+]
 SCREENS["video_settings/shoulder_camera"] = {
     "screen": "shoulder_camera_settings_screen", "header": _video["header"], "spacing": 30,
     "rows": [
@@ -445,7 +448,8 @@ def _setting_screen(folder: str, spec: dict) -> list:
     # (the help of the row whose label is string n is n + 1: the buttons' is 0)
     extra += _strings(f"{base}/help_strings",
                       [""] + [help_text.replace("\n", "\\n") for _, _, _, help_text, *_ in spec["rows"]] +
-                      [help_text.replace("\n", "\\n") for _, _, help_text in spec.get("categories", ())])
+                      [help_text.replace("\n", "\\n") for _, _, help_text in spec.get("categories", ())] +
+                      spec.get("extra_help", []))
     return _screen(folder, spec, rows, ["port settings help"], [], extra)
 
 
@@ -871,7 +875,7 @@ def _server_settings() -> list:
     game's)"""
     base = f"{MT}/server_settings"
     # (eleven rows: closer together, the help lower)
-    spec = {"screen": "server_settings_screen", "spacing": 26, "help_top": 366,
+    spec = {"screen": "server_settings_screen", "spacing": 24, "help_top": 366,
             "header": ("header_server_settings", f"{base}/header_server_settings")}
     rows, extra = [], []
     extra += _value_row(base, "server_name", 0, "ss edit server name")
@@ -918,6 +922,25 @@ def _server_settings() -> list:
     # which players from the server browser must type
     extra += _value_row(base, "password", 10 + len(COOP_SETUP_SCREENS), "ss edit server password")
     rows.append((f"{base}/op_password", None))
+    # Shared match rule: visible for LAN, internet and campaign co-op alike.
+    extra += _widget(f"{base}/op_camera_policy", [("width", 512), ("height", 24),
+                         ("flags", "pass_unhandled_to_focused_child"),
+                         ("bitmap", "bitmaps/option_bkds"), ("color", "#FF2896FF")],
+                     [f'<child widget="{base}/camera_policy_label"/>',
+                      f'<child widget="{base}/camera_policy_spinner" x="270" y="1"/>'])
+    extra += _widget(f"{base}/camera_policy_label", [("type", "text"), ("controller", 1),
+                         ("width", 260), ("height", 22), ("string_list", f"{base}/labels"),
+                         ("string_index", 13), ("font", "ui\\large_ui"), ("color", "#FF2896FF"),
+                         ("text_x", 13), ("text_y", 4)], [])
+    extra += _widget(f"{base}/camera_policy_spinner", [("type", "spinner"), ("left", 3), ("top", 2),
+                         ("width", 197), ("height", 20),
+                         ("flags", "pass_unhandled_to_focused_child left_right_tabs_items"),
+                         ("strings", "PLAYER CHOICE|FORCED ON|FORCED OFF"), ("font", "ui\\large_ui"),
+                         ("color", "#FF2896FF"), ("align", "center"), ("text_y", 1),
+                         ("header_bitmap", "bitmaps/arrow_sm_left"), ("footer_bitmap", "bitmaps/arrow_sm_right"),
+                         ("header_bounds", "7 -6 19 0"), ("footer_bounds", "7 200 19 206")],
+                     ['<on event="left_mouse" run="mouse spinner 1wide click"/>'])
+    rows.append((f"{base}/op_camera_policy", None))
     # co-op's options, in the place of the gametype's rows, which co-op hides
     # as multiplayer hides co-op's (menu_functions.c's server_settings_update):
     # rows opening their screens, as the gametype's options' do
@@ -934,7 +957,7 @@ def _server_settings() -> list:
                                                  ("string_list", f"{base}/labels"), ("string_index", 10 + index),
                                                  ("font", "ui\\large_ui"), ("color", "#FF2896FF"), ("text_x", 13),
                                                  ("text_y", 4)], [])
-        rows.append((f"{base}/op_{key}", None, 5 + index))
+        rows.append((f"{base}/op_{key}", None, 6 + index))
     # the gametype's options for this game (the gametype editor's screens,
     # editing a copy of the gametype chosen: "port setup edit")
     for index, (key, screen) in enumerate(SETUP_OPTION_SCREENS):
@@ -953,7 +976,7 @@ def _server_settings() -> list:
         extra += _widget(f"{base}/{key}_value", [("type", "text"), ("controller", 1), ("width", 280), ("height", 22),
                                                  ("font", "ui\\small_ui"), ("color", "#FF2896FF"), ("align", "center"),
                                                  ("text_y", 5), ("text_flags", "no_focus_test")], [])
-        rows.append((f"{base}/op_{key}", None, 5 + index))
+        rows.append((f"{base}/op_{key}", None, 6 + index))
     extra += _button(f"{base}/button_defaults", 3, [])
     extra += _widget(f"{base}/button_ok", [("type", "text"), ("width", 128), ("height", 24),
                                            ("bitmap", "bitmaps/text_button_background"), ("text", "START GAME"),
@@ -965,7 +988,7 @@ def _server_settings() -> list:
     extra += _strings(f"{base}/labels", ["GAME NAME:", "MAXIMUM PLAYERS:", "INVITE LINK:", "GAME TYPE:",
                                          "PLAYER OPTIONS:", "ITEM OPTIONS:", "VEHICLE OPTIONS:", "INDICATOR OPTIONS:",
                                          "TEAMPLAY OPTIONS:", "LISTING:",
-                                         *(f"{title}:" for _, title, _, _ in COOP_SETUP_SCREENS), "PASSWORD:"])
+                                         *(f"{title}:" for _, title, _, _ in COOP_SETUP_SCREENS), "PASSWORD:", "THIRD PERSON:"])
     extra += _strings(f"{base}/help_strings", [
         "",
         "The name the game shows in the lists of games.\\nEnter changes it.",
@@ -984,6 +1007,9 @@ def _server_settings() -> list:
         *(help_text for _, _, help_text, _ in COOP_SETUP_SCREENS),
         # (PASSWORD's)
         "Players from the Server Browser must type it to\\njoin (an invite link needs none). Enter sets it.",
+        "Each player chooses first or third person.\\nTheir camera toggle remains available.",
+        "Everyone uses third person on foot. Scoping and\\ntight spaces still use first person.",
+        "Third person is disabled for everyone.\\nNormal vehicle and cinematic cameras remain.",
     ])
     lines = _screen(base, spec, rows, ["server settings update"],
                     ['<on event="created" run="server settings init"/>'], extra)

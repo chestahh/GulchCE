@@ -1,6 +1,21 @@
 #ifndef THIRD_PERSON_H
 #define THIRD_PERSON_H
 
+enum third_person_match_policy
+{
+	_third_person_player_choice,
+	_third_person_forced_on,
+	_third_person_forced_off
+};
+/* Bits in network_game.cooperative_flags, shared by all match types. */
+#define THIRD_PERSON_POLICY_SHIFT 1
+#define THIRD_PERSON_POLICY_MASK 6
+short third_person_host_policy(void);
+short third_person_policy(void);
+boolean third_person_enabled(void);
+boolean third_person_match_flags_valid(unsigned long flags);
+void third_person_input_update(void);
+
 struct render_camera;
 union point2d;
 union real_point3d;

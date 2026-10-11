@@ -39,6 +39,7 @@ Called from the main loop every frame (main.c).
 */
 
 #include "cseries.h"
+#include "third_person.h"
 #include "main/main.h"
 #include "interface/player_ui.h"
 #include "interface/ui_widget.h"
@@ -334,7 +335,8 @@ static void network_test_log_players(
 		struct observer_result const *camera = observer_get_camera(0);
 
 		platform_log("network test: tick %ld%s | items %ld (+%ld -%ld !%ld x%ld) | %s to %ld | sent %ld received %ld corrected %ld"
-			" | hits %ld dealt %ld rejected %ld replayed %ld | local %ld camera (%.1f %.1f %.1f) respawn %ld",
+			" | hits %ld dealt %ld rejected %ld replayed %ld | local %ld camera (%.1f %.1f %.1f) respawn %ld"
+			" | camera-policy %d preference %d effective %d active %d",
 			game_time_get(), line, ground_items, creates, deletes, failures, removed,
 			game_engine_can_score() ? "playing" : "game over",
 			game_engine_running() ? (long)game_engine_get_variant()->universal_variant.score_to_win : 0L,
@@ -342,7 +344,9 @@ static void network_test_log_players(
 			sent_reports, dealt_reports, rejected_reports, replayed_events,
 			local_player_index == NONE ? -1L : (long)DATUM_INDEX_TO_ABSOLUTE_INDEX(local_player_index),
 			camera ? camera->position.x : 0.0f, camera ? camera->position.y : 0.0f, camera ? camera->position.z : 0.0f,
-			local_player_index == NONE ? 0L : (long)player_get(local_player_index)->respawn_timer);
+			local_player_index == NONE ? 0L : (long)player_get(local_player_index)->respawn_timer,
+			(int)third_person_policy(), config_boolean("display.third_person"),
+			(int)third_person_enabled(), (int)third_person_active(0));
 	}
 }
 

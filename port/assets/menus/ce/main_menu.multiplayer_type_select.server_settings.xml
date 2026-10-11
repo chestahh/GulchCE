@@ -15,18 +15,19 @@
 		<data input="server settings update"/>
 		<on event="created" run="server settings init"/>
 		<child widget="main_menu/multiplayer_type_select/server_settings/op_server_name" x="54" y="73"/>
-		<child widget="main_menu/multiplayer_type_select/server_settings/op_max_players" x="54" y="99"/>
-		<child widget="main_menu/multiplayer_type_select/server_settings/op_invite" x="54" y="125"/>
-		<child widget="main_menu/multiplayer_type_select/server_settings/op_listing" x="54" y="151"/>
-		<child widget="main_menu/multiplayer_type_select/server_settings/op_password" x="54" y="177"/>
-		<child widget="main_menu/multiplayer_type_select/server_settings/op_coop_options" x="54" y="203"/>
-		<child widget="main_menu/multiplayer_type_select/server_settings/op_voice_options" x="54" y="229"/>
-		<child widget="main_menu/multiplayer_type_select/server_settings/op_game_type" x="54" y="203"/>
-		<child widget="main_menu/multiplayer_type_select/server_settings/op_player_options" x="54" y="229"/>
-		<child widget="main_menu/multiplayer_type_select/server_settings/op_item_options" x="54" y="255"/>
-		<child widget="main_menu/multiplayer_type_select/server_settings/op_vehicle_options" x="54" y="281"/>
-		<child widget="main_menu/multiplayer_type_select/server_settings/op_indicator_options" x="54" y="307"/>
-		<child widget="main_menu/multiplayer_type_select/server_settings/op_team_options" x="54" y="333"/>
+		<child widget="main_menu/multiplayer_type_select/server_settings/op_max_players" x="54" y="97"/>
+		<child widget="main_menu/multiplayer_type_select/server_settings/op_invite" x="54" y="121"/>
+		<child widget="main_menu/multiplayer_type_select/server_settings/op_listing" x="54" y="145"/>
+		<child widget="main_menu/multiplayer_type_select/server_settings/op_password" x="54" y="169"/>
+		<child widget="main_menu/multiplayer_type_select/server_settings/op_camera_policy" x="54" y="193"/>
+		<child widget="main_menu/multiplayer_type_select/server_settings/op_coop_options" x="54" y="217"/>
+		<child widget="main_menu/multiplayer_type_select/server_settings/op_voice_options" x="54" y="241"/>
+		<child widget="main_menu/multiplayer_type_select/server_settings/op_game_type" x="54" y="217"/>
+		<child widget="main_menu/multiplayer_type_select/server_settings/op_player_options" x="54" y="241"/>
+		<child widget="main_menu/multiplayer_type_select/server_settings/op_item_options" x="54" y="265"/>
+		<child widget="main_menu/multiplayer_type_select/server_settings/op_vehicle_options" x="54" y="289"/>
+		<child widget="main_menu/multiplayer_type_select/server_settings/op_indicator_options" x="54" y="313"/>
+		<child widget="main_menu/multiplayer_type_select/server_settings/op_team_options" x="54" y="337"/>
 		<child widget="main_menu/multiplayer_type_select/server_settings/button_bar" y="414"/>
 	</widget>
 	<widget name="main_menu/multiplayer_type_select/server_settings/button_bar" type="column_list" width="640" height="28" flags="pass_unhandled_to_focused_child left_right_tabs_items">
@@ -89,6 +90,15 @@
 	<widget name="main_menu/multiplayer_type_select/server_settings/password_label" type="text" controller="1" width="230" height="22" string_list="main_menu/multiplayer_type_select/server_settings/labels" string_index="12" font="ui\large_ui" color="#FF2896FF" text_x="13" text_y="4">
 	</widget>
 	<widget name="main_menu/multiplayer_type_select/server_settings/password_value" type="text" controller="1" width="280" height="22" font="ui\small_ui" color="#FF2896FF" align="center" text_y="5" text_flags="no_focus_test">
+	</widget>
+	<widget name="main_menu/multiplayer_type_select/server_settings/op_camera_policy" width="512" height="24" flags="pass_unhandled_to_focused_child" bitmap="bitmaps/option_bkds" color="#FF2896FF">
+		<child widget="main_menu/multiplayer_type_select/server_settings/camera_policy_label"/>
+		<child widget="main_menu/multiplayer_type_select/server_settings/camera_policy_spinner" x="270" y="1"/>
+	</widget>
+	<widget name="main_menu/multiplayer_type_select/server_settings/camera_policy_label" type="text" controller="1" width="260" height="22" string_list="main_menu/multiplayer_type_select/server_settings/labels" string_index="13" font="ui\large_ui" color="#FF2896FF" text_x="13" text_y="4">
+	</widget>
+	<widget name="main_menu/multiplayer_type_select/server_settings/camera_policy_spinner" type="spinner" left="3" top="2" width="197" height="20" flags="pass_unhandled_to_focused_child left_right_tabs_items" strings="PLAYER CHOICE|FORCED ON|FORCED OFF" font="ui\large_ui" color="#FF2896FF" align="center" text_y="1" header_bitmap="bitmaps/arrow_sm_left" footer_bitmap="bitmaps/arrow_sm_right" header_bounds="7 -6 19 0" footer_bounds="7 200 19 206">
+		<on event="left_mouse" run="mouse spinner 1wide click"/>
 	</widget>
 	<widget name="main_menu/multiplayer_type_select/server_settings/op_coop_options" width="512" height="28" flags="pass_unhandled_to_focused_child" bitmap="bitmaps/option_bkds" color="#FF2896FF">
 		<on event="a" open="main_menu/multiplayer_type_select/server_settings/coop_options/coop_options_screen"/>
@@ -194,6 +204,7 @@
 		<string text="CO-OP OPTIONS:"/>
 		<string text="VOICE AND VOTING:"/>
 		<string text="PASSWORD:"/>
+		<string text="THIRD PERSON:"/>
 	</strings>
 	<strings name="main_menu/multiplayer_type_select/server_settings/help_strings">
 		<string text=""/>
@@ -211,6 +222,9 @@
 		<string text="Friendly fire, the enemies and player collisions,\nfor this game."/>
 		<string text="Voice chat and votes to kick a player, for this\ngame."/>
 		<string text="Players from the Server Browser must type it to\njoin (an invite link needs none). Enter sets it."/>
+		<string text="Each player chooses first or third person.\nTheir camera toggle remains available."/>
+		<string text="Everyone uses third person on foot. Scoping and\ntight spaces still use first person."/>
+		<string text="Third person is disabled for everyone.\nNormal vehicle and cinematic cameras remain."/>
 	</strings>
 	<widget name="main_menu/multiplayer_type_select/server_settings/coop_options/coop_options_screen" width="640" height="480" flags="pass_unhandled_to_focused_child" bitmap="bitmaps/gradient">
 		<child widget="main_menu/multiplayer_type_select/server_settings/coop_options/header_coop_options"/>

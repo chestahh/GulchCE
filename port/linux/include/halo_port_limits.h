@@ -67,7 +67,8 @@ in its game's advertisement's reserved bytes (network_server_message_handler.c),
 which hosts built before there was a version send as zeros: version 0.
 Raise it with any change to what the machines send each other. */
 /* MCC package names and resource fingerprints require matching peers. */
-#define HALO_PORT_NETWORK_VERSION 30
+/* Host camera policy is carried in the shared match settings. */
+#define HALO_PORT_NETWORK_VERSION 31
 /* ... the advertisement's reserved bytes: the version (a little-endian word),
 then flags */
 #define HALO_PORT_ADVERTISED_VERSION_OFFSET 0

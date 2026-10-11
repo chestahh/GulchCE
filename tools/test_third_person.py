@@ -153,6 +153,7 @@ static struct unit_datum second_body={{NONE,0},{NONE,NONE,{1,0,0}}};
 static int split_world, second_zoom=NONE;
 static unsigned long changes;
 static int enabled, cinematic, scripted, perspective, inhibited, zoom=NONE, unit_id=1;
+static int third_person_enabled(void){return enabled;}
 static int *director_camera_scripted=&scripted;
 static real wall=1, prop=1, soft_wall=1;
 static int smooth=1;

@@ -357,6 +357,9 @@ static const struct config_setting config_settings[] =
 	{ "network.address", _config_string, "\"\"", "HALO_NET_ADDRESS", _environment_value, _platform_all,
 		"This machine's IPv4 address for system link, for a machine on several\n"
 		"networks; empty chooses one." },
+	{ "network.camera_policy", _config_string, "\"player_choice\"", "HALO_CAMERA_POLICY", _environment_value, _platform_all,
+		"Host camera rule for new matches: player_choice, forced_on, or forced_off.\n"
+		"Applies to LAN, internet and co-op matches; scope and collision overrides remain." },
 	{ "network.broadcast", _config_string, "\"\"", "HALO_NET_BROADCAST", _environment_value, _platform_all,
 		"Comma-separated IPv4 addresses system link sends its announcements to\n"
 		"instead of the local network's broadcast address (for VPNs); empty for\n"

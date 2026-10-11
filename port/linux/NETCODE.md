@@ -618,6 +618,23 @@ Unity's Netcode for Entities, lightyear, netfox and the Ares source):
 
 ## Testing
 
+The host's third-person camera policy travels in the reliable game settings
+record (bits 1-2 of `network_game.cooperative_flags`), for every transport
+and game type. Zero allows player choice, one forces third person, and two
+disables it. Receivers reject the reserved value and unknown flag bits.
+Pregame edits are host-only; late joiners receive the same record. Camera
+preferences are never written by receipt of a policy. Network version 31
+prevents older clients, which cannot enforce this rule, from joining.
+This rule does not yet change network projectile origins.
+
+`tools/camera_policy_sessions.py --binary build/windows/halo.exe --maps
+dist/halo-windows-release/maps --output build/camera-policy-sessions` runs
+two headless Windows instances with isolated saves over loopback. It checks
+all policies, an opposing client host preference, a late join and co-op.
+The supplied map directory must contain ui, carousel, bloodgulch and a30.
+The policy, saved preference, effective setting and active shoulder view
+are included in `debug.network_test`'s per-second logs.
+
 `debug.network_test` (`port/linux/game/network_test.c`) hosts or joins a
 game without the menus (in a team game the joining player takes the other
 team), and `debug.test_input` plays controller 1 with a scripted bot (or,
