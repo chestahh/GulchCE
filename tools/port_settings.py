@@ -228,6 +228,27 @@ SCREENS["video_settings/fov_viewmodels"] = {
     ],
 }
 
+SCREENS["video_settings/fov_viewmodels"]["categories"] = [
+    ("SHOULDER CAMERA:", "video_settings/shoulder_camera",
+     "Choose the shoulder and camera position.\nV swaps shoulders while playing."),
+]
+SCREENS["video_settings/shoulder_camera"] = {
+    "screen": "shoulder_camera_settings_screen", "header": _video["header"], "spacing": 30,
+    "rows": [
+        ("LEFT SHOULDER:", "display.third_person_left_shoulder", ON_OFF,
+         "Off uses the right shoulder. V swaps in game.\nRemap it under Controls Setup > Actions.", None),
+        ("DISTANCE:", "display.third_person_distance",
+         [(f"{n / 100:.2f}", f"{n / 100:.2f}") for n in [30, 45, 60, 70, 85, 100, 125, 150, 175, 200]],
+         "Distance behind the eye, in world units.\nDefault 0.85. One world unit is about 3 metres.", None),
+        ("HEIGHT:", "display.third_person_height",
+         [(f"{n / 100:.2f}", f"{n / 100:.2f}") for n in [-20, -10, 0, 6, 12, 18, 24, 36, 48, 60]],
+         "Height along the camera's up direction.\nDefault 0.12 world units.", None),
+        ("LATERAL OFFSET:", "display.third_person_offset",
+         [(f"{n / 100:.2f}", f"{n / 100:.2f}") for n in [0, 6, 12, 18, 24, 30, 36, 48, 60]],
+         "Distance to the selected shoulder's side.\nDefault 0.24 world units.", None),
+    ],
+}
+
 # Controls Setup: the keyboard and mouse's actions, in groups (the order of
 # port/linux/game/menu_functions.c's table of them)
 CONTROL_GROUPS = ["MOVEMENT", "WEAPONS", "ACTIONS"]

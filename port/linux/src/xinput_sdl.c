@@ -421,7 +421,7 @@ static const char *const binding_settings[NUMBER_OF_HALO_KEYBOARD_ACTIONS] =
 	"controls.jump", "controls.crouch", "controls.fire", "controls.throw_grenade", "controls.melee",
 	"controls.reload", "controls.zoom", "controls.switch_weapon", "controls.switch_grenade", "controls.action",
 	"controls.flashlight", "controls.scoreboard", "controls.pause", "controls.screenshot",
-	"controls.push_to_talk",
+	"controls.push_to_talk", "controls.swap_shoulder",
 };
 
 static const struct
@@ -991,6 +991,15 @@ DWORD WINAPI XInputGetState(HANDLE device, PXINPUT_STATE state)
 		console_active = console_is_active();
 		held = console_active ? 0 : keyboard_bound_actions(&input);
 		keyboard_screenshot(held);
+		{
+			static BOOL shoulder_was_down;
+			BOOL down = (held & (1UL << HALO_KEYBOARD_SWAP_SHOULDER)) != 0;
+			if (down && !shoulder_was_down && !input.menus && !console_active &&
+				config_boolean("display.third_person"))
+				config_write_boolean("display.third_person_left_shoulder",
+					!config_boolean("display.third_person_left_shoulder"));
+			shoulder_was_down = down;
+		}
 		if (!console_active)
 		{
 			if (input.menus)

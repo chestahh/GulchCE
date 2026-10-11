@@ -57,6 +57,7 @@ OBJECTS.C
 void object_bounds_cache_update(long object_index, real_point3d const *center, real radius);
 /* port: port/linux/game/first_person_legs.c's */
 void first_person_legs_reset(void);
+#include "third_person.h" /* port: port/linux/game/third_person.c */
 
 /* ---------- constants */
 
@@ -1074,6 +1075,8 @@ void objects_initialize_for_new_map(
 	/* port: the last map's waist and mesh forgotten
 	(port/linux/game/first_person_legs.c) */
 	first_person_legs_reset();
+	/* port: reset the shoulder camera across map loads and saved games. */
+	third_person_reset();
 	
 	data_make_valid(object_header_data);
 	object_name_list_clear();

@@ -122,6 +122,14 @@ static const struct config_setting config_settings[] =
 		"In first person, point the view where the player aims now instead of\n"
 		"where the last tick left it: the view turns the frame the mouse moves,\n"
 		"not up to two ticks (66 ms) later." },
+	{ "display.third_person_left_shoulder", _config_boolean, "false", "HALO_THIRD_PERSON_LEFT_SHOULDER", _environment_value, _platform_all,
+		"Use the left shoulder. Swap shoulders with V (controls.swap_shoulder)." },
+	{ "display.third_person_distance", _config_real, "0.85", "HALO_THIRD_PERSON_DISTANCE", _environment_value, _platform_all,
+		"Shoulder camera distance behind the eye, in world units (0.3 to 2.0)." },
+	{ "display.third_person_height", _config_real, "0.12", "HALO_THIRD_PERSON_HEIGHT", _environment_value, _platform_all,
+		"Shoulder camera height along camera up, in world units (-0.2 to 0.6)." },
+	{ "display.third_person_offset", _config_real, "0.24", "HALO_THIRD_PERSON_OFFSET", _environment_value, _platform_all,
+		"Shoulder camera lateral offset, in world units (0.0 to 0.6)." },
 	{ "display.third_person", _config_boolean, "false", "HALO_THIRD_PERSON", _environment_value, _platform_all,
 		"On foot, use a right-shoulder camera. Zoom returns to first person.\n"
 		"The reticle follows the stock aim point; weapon behaviour is unchanged." },
@@ -280,6 +288,8 @@ static const struct config_setting config_settings[] =
 		"Showing the scores (the controller's Back)." },
 	{ "controls.pause", _config_string, "\"Escape\"", "HALO_KEY_PAUSE", _environment_value, _platform_all,
 		"The pause menu (the controller's Start)." },
+	{ "controls.swap_shoulder", _config_string, "\"V\"", "HALO_KEY_SWAP_SHOULDER", _environment_value, _platform_all,
+		"Swap third-person shoulders. Up to two keyboard or mouse bindings." },
 	{ "controls.screenshot", _config_string, "\"F10\"", "HALO_KEY_SCREENSHOT", _environment_value, _platform_all,
 		"Save a PNG screenshot beside maps/ (press once per capture)." },
 	{ "controls.push_to_talk", _config_string, "\"V\"", "HALO_KEY_PUSH_TO_TALK", _environment_value, _platform_all,

@@ -125,7 +125,8 @@ static real render_fov_adjust(short local_player_index, real native_vertical_fie
 
 real render_fov_vertical(short local_player_index, real native_vertical_field_of_view)
 {
-	real adjusted = render_fov_adjust(local_player_index, native_vertical_field_of_view);
+	real adjusted = third_person_active(local_player_index) ? native_vertical_field_of_view :
+		render_fov_adjust(local_player_index, native_vertical_field_of_view);
 
 	if (local_player_index >= 0 && local_player_index < MAXIMUM_LOCAL_PLAYERS)
 	{

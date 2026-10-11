@@ -38,6 +38,7 @@ enum halo_keyboard_action
 	/* (voice chat's, which the game itself does not read:
 	halo_push_to_talk_held) */
 	HALO_KEYBOARD_PUSH_TO_TALK,
+	HALO_KEYBOARD_SWAP_SHOULDER,
 	NUMBER_OF_HALO_KEYBOARD_ACTIONS
 };
 
