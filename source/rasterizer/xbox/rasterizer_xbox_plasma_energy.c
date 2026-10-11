@@ -173,12 +173,12 @@ void rasterizer_plasma_energy_draw(
 		intensity = 1.0f;
 		offset = 0.0f;
 		/* port: body shields can expand much farther than an arm's radius.
-		Limit only first-person plasma to the close-fitting 0.01-unit shell;
+		Limit only first-person plasma to the close-fitting 0.0075-unit shell;
 		keep smaller authored offsets and the shader's animation curve. Bit 7
 		is the first-person flag used by rasterizer_transparent_geometry.c. */
 		offset_amount = plasma->offset_amount;
-		if ((group->geometry_flags & (1UL << 7)) && offset_amount > 0.01f)
-			offset_amount = 0.01f;
+		if ((group->geometry_flags & (1UL << 7)) && offset_amount > 0.0075f)
+			offset_amount = 0.0075f;
 		runtime = group->runtime_parameters;
 		if (runtime)
 		{
