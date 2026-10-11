@@ -181,6 +181,7 @@ symbols in this file:
 /* ---------- headers */
 
 #include "cseries.h"
+#include "third_person.h" /* port: port/linux/game/third_person.c */
 #define limit2d limit2d_inline
 #include "game/game.h"
 #undef limit2d
@@ -1961,6 +1962,10 @@ static void player_control_modify_desired_angles(
 	struct player_control_unit_camera_info camera_info;
 	real pitch_minimum = -DEGREES_TO_RADIANS(85.5f);
 	real pitch_maximum = DEGREES_TO_RADIANS(85.5f);
+
+	/* port: orbit the shoulder camera while keeping gameplay aim fixed. */
+	if (third_person_free_look_input(local_player_index, delta_yaw, delta_pitch))
+		return;
 
 	match_assert(
 		"c:\\halo\\SOURCE\\game\\player_control.c",

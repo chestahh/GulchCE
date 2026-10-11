@@ -42,7 +42,7 @@ static boolean muzzle_position(long weapon_index, long unit_index, short trigger
 	return TRUE;
 }
 
-void third_person_muzzle_shot(long weapon_index, long unit_index, short trigger_index,
+boolean third_person_muzzle_shot(long weapon_index, long unit_index, short trigger_index,
 	real_point3d *origin, real_vector3d *forward)
 {
 	short player;
@@ -53,7 +53,7 @@ void third_person_muzzle_shot(long weapon_index, long unit_index, short trigger_
 		if (muzzle_player(player, unit_index))
 			break;
 	if (player == MAXIMUM_LOCAL_PLAYERS || !muzzle_position(weapon_index, unit_index, trigger_index, &muzzle))
-		return;
+		return FALSE;
 	/* Retain the aim-assist result; weapon spread is applied by the caller
 	   afterwards. Converge on its first hit, not an arbitrary fixed range. */
 	scale_vector3d(forward, 1000.0f, &ray);
@@ -65,7 +65,9 @@ void third_person_muzzle_shot(long weapon_index, long unit_index, short trigger_
 	{
 		*origin = muzzle;
 		*forward = ray;
+		return TRUE;
 	}
+	return FALSE;
 }
 
 void third_person_muzzle_target(short player, real_point3d *target)

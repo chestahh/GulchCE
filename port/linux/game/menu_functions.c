@@ -2100,7 +2100,9 @@ static struct
 	{ "controls.pause", L"PAUSE MENU", 2 },
 	{ "controls.screenshot", L"SCREENSHOT", 2 },
 	{ "controls.push_to_talk", L"PUSH TO TALK", 2 },
-	{ "controls.swap_shoulder", L"SWAP SHOULDER", 2 },
+	{ "controls.swap_shoulder", L"SWAP SHOULDER", 3 },
+	{ "controls.free_look", L"HOLD FREE LOOK", 3 },
+	{ "controls.toggle_perspective", L"TOGGLE PERSPECTIVE", 3 },
 };
 
 static struct

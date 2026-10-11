@@ -422,6 +422,7 @@ static const char *const binding_settings[NUMBER_OF_HALO_KEYBOARD_ACTIONS] =
 	"controls.reload", "controls.zoom", "controls.switch_weapon", "controls.switch_grenade", "controls.action",
 	"controls.flashlight", "controls.scoreboard", "controls.pause", "controls.screenshot",
 	"controls.push_to_talk", "controls.swap_shoulder",
+	"controls.free_look", "controls.toggle_perspective",
 };
 
 static const struct
@@ -999,6 +1000,13 @@ DWORD WINAPI XInputGetState(HANDLE device, PXINPUT_STATE state)
 				config_write_boolean("display.third_person_left_shoulder",
 					!config_boolean("display.third_person_left_shoulder"));
 			shoulder_was_down = down;
+		}
+		{
+			static BOOL perspective_was_down;
+			BOOL down = (held & (1UL << HALO_KEYBOARD_TOGGLE_PERSPECTIVE)) != 0;
+			if (down && !perspective_was_down && !input.menus && !console_active)
+				config_write_boolean("display.third_person", !config_boolean("display.third_person"));
+			perspective_was_down = down;
 		}
 		if (!console_active)
 		{

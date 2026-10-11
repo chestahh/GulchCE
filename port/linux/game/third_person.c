@@ -1,5 +1,5 @@
 /* Optional shoulder view. Only the rendered camera changes: the director,
-   player controls, projectile origins and network simulation stay stock. */
+   network simulation stays stock. Offline shots use the world muzzle. */
 #include "cseries.h"
 #include "third_person.h"
 #include "camera/director.h"
@@ -10,6 +10,8 @@
 #include "render/render.h"
 #include "render/render_cameras_internal.h"
 #include "main/main.h"
+#include "camera/observer.h"
+#include "halo_keyboard.h"
 
 int config_boolean(char const *name);
 unsigned long config_changes(void);
@@ -21,6 +23,8 @@ struct shoulder_camera_state
 	long unit_index;
 	real distance, height, side, boom;
 	real_point3d eye;
+	boolean looking;
+	real look_yaw, look_pitch;
 };
 static struct shoulder_camera_state cameras[MAXIMUM_LOCAL_PLAYERS];
 static boolean active[MAXIMUM_LOCAL_PLAYERS];
@@ -40,6 +44,8 @@ void third_person_reset(void)
 	for (index = 0; index < MAXIMUM_LOCAL_PLAYERS; index++)
 	{
 		cameras[index].initialized = FALSE;
+		cameras[index].looking = FALSE;
+		cameras[index].look_yaw = cameras[index].look_pitch = 0.0f;
 		active[index] = FALSE;
 	}
 }
@@ -82,11 +88,37 @@ static boolean third_person_wanted(short local_player_index)
 		unit->unit.current_zoom_level == NONE && unit->unit.desired_zoom_level == NONE;
 }
 
+boolean third_person_free_look_input(short local_player_index, real yaw, real pitch)
+{
+	struct shoulder_camera_state *state;
+	boolean held;
+	if (local_player_index < 0 || local_player_index >= MAXIMUM_LOCAL_PLAYERS)
+		return FALSE;
+	state = &cameras[local_player_index];
+	held = (halo_keyboard_actions(local_player_index) & (1UL << HALO_KEYBOARD_FREE_LOOK)) != 0;
+	if (!third_person_wanted(local_player_index) || !state->initialized ||
+		state->unit_index != player_control_get_unit_index(local_player_index))
+	{
+		state->looking = FALSE;
+		state->look_yaw = state->look_pitch = 0.0f;
+		return FALSE;
+	}
+	state->looking = held && (state->looking || third_person_active(local_player_index));
+	if (!state->looking)
+		return FALSE;
+	state->look_yaw += yaw;
+	while (state->look_yaw > _pi) state->look_yaw -= 2.0f * _pi;
+	while (state->look_yaw < -_pi) state->look_yaw += 2.0f * _pi;
+	state->look_pitch = PIN(state->look_pitch + pitch, -_pi, _pi);
+	return TRUE;
+}
+
 void third_person_camera(short local_player_index, struct render_camera *camera)
 {
 	long unit_index;
 	struct unit_datum *unit;
-	real_vector3d right, offset, ray;
+	real_vector3d right, offset, ray, saved_forward, saved_up;
+	real_euler_angles2d look_angles;
 	real_point3d origin;
 	struct collision_result collision;
 	real fraction, length;
@@ -103,6 +135,8 @@ void third_person_camera(short local_player_index, struct render_camera *camera)
 	if (!camera || !third_person_wanted(local_player_index))
 	{
 		state->initialized = FALSE;
+		state->looking = FALSE;
+		state->look_yaw = state->look_pitch = 0.0f;
 		return;
 	}
 	unit_index = player_control_get_unit_index(local_player_index);
@@ -111,6 +145,8 @@ void third_person_camera(short local_player_index, struct render_camera *camera)
 	vector_from_points3d(&state->eye, &camera->position, &offset);
 	if (!state->initialized || state->unit_index != unit_index || magnitude3d(&offset) > 2.0f)
 	{
+		state->looking = FALSE;
+		state->look_yaw = state->look_pitch = 0.0f;
 		state->distance = requested_distance;
 		state->height = requested_height;
 		state->side = requested_side;
@@ -120,6 +156,30 @@ void third_person_camera(short local_player_index, struct render_camera *camera)
 		was_active = FALSE;
 	}
 	state->eye = camera->position;
+	/* Input releases immediately even if gameplay is paused by a menu. */
+	if (!(halo_keyboard_actions(local_player_index) & (1UL << HALO_KEYBOARD_FREE_LOOK)))
+		state->looking = FALSE;
+	if (!state->looking)
+	{
+		blend = smooth_camera ? dt / (0.12f + dt) : 1.0f;
+		state->look_yaw *= 1.0f - blend;
+		state->look_pitch *= 1.0f - blend;
+		if (state->look_yaw * state->look_yaw + state->look_pitch * state->look_pitch < 0.000001f)
+			state->look_yaw = state->look_pitch = 0.0f;
+	}
+	saved_forward = camera->forward;
+	saved_up = camera->up;
+	if (state->looking || state->look_yaw != 0.0f || state->look_pitch != 0.0f)
+	{
+		euler_angles2d_from_vector3d(&look_angles, &camera->forward);
+		state->look_pitch = PIN(state->look_pitch,
+			-DEGREES_TO_RADIANS(80.0f) - look_angles.pitch,
+			DEGREES_TO_RADIANS(80.0f) - look_angles.pitch);
+		look_angles.yaw += state->look_yaw;
+		look_angles.pitch += state->look_pitch;
+		vector3d_from_euler_angles2d(&camera->forward, &look_angles);
+		observer_up_from_forward(&camera->forward, &camera->up);
+	}
 	blend = smooth_camera ? dt / (0.12f + dt) : 1.0f;
 	state->distance += (requested_distance - state->distance) * blend;
 	state->height += (requested_height - state->height) * blend;
@@ -159,7 +219,12 @@ void third_person_camera(short local_player_index, struct render_camera *camera)
 	/* Separate entry and exit thresholds prevent rapid perspective changes
 	   when a wall leaves just enough room for the player's body. */
 	if (hard_fraction * length < (was_active ? 0.10f : 0.14f))
+	{
+		/* Collision fallback must retain the player's first-person aim. */
+		camera->forward = saved_forward;
+		camera->up = saved_up;
 		return;
+	}
 	state->boom = MAX(state->boom, MIN(0.14f, hard_fraction * length));
 	point_from_line3d(&camera->position, &offset, state->boom / length, &camera->position);
 	active[local_player_index] = TRUE;
@@ -183,6 +248,10 @@ boolean third_person_reticle(point2d *point, real reticle_scale)
 
 	if (!third_person_active(render.local_player_index))
 		return TRUE;
+	if (cameras[render.local_player_index].looking ||
+		cameras[render.local_player_index].look_yaw != 0.0f ||
+		cameras[render.local_player_index].look_pitch != 0.0f)
+		return FALSE;
 	if (!render_camera_world_to_screen(&render.camera, &render.frustum,
 		&targets[render.local_player_index], &screen))
 		return FALSE;

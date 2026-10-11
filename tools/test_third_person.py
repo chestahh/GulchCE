@@ -34,6 +34,15 @@ typedef float real;
 typedef struct {real i,j,k;} real_vector3d;
 typedef struct {real x,y,z;} real_point3d;
 typedef struct {real x,y;} real_point2d;
+typedef struct {real yaw,pitch;} real_euler_angles2d;
+#define _pi 3.14159265358979323846f
+#define DEGREES_TO_RADIANS(d) ((d)*_pi/180.0f)
+#define HALO_KEYBOARD_FREE_LOOK 20
+static unsigned long held;
+static unsigned long halo_keyboard_actions(short p){return p==0?held:0;}
+static void euler_angles2d_from_vector3d(real_euler_angles2d *a,real_vector3d const *v){a->yaw=atan2f(v->j,v->i);a->pitch=asinf(v->k);}
+static void vector3d_from_euler_angles2d(real_vector3d *v,real_euler_angles2d const *a){v->i=cosf(a->yaw)*cosf(a->pitch);v->j=sinf(a->yaw)*cosf(a->pitch);v->k=sinf(a->pitch);}
+static void observer_up_from_forward(real_vector3d const *f,real_vector3d *u){real_euler_angles2d a;euler_angles2d_from_vector3d(&a,f);a.pitch+=_pi/2;vector3d_from_euler_angles2d(u,&a);}
 typedef struct {short x,y;} point2d;
 typedef struct {short x0,y0,x1,y1;} rectangle2d;
 #define TRUE 1
@@ -145,6 +154,27 @@ int main(void){
  left_shoulder=0;setting_offset=.24;changes++;c=fresh();third_person_camera(1,&c);CHECK(c.position.y<-.23f);
  third_person_reset();CHECK(!third_person_active(1));c=settle(1);
 
+ c=settle(0);held=1UL<<HALO_KEYBOARD_FREE_LOOK;
+ CHECK(third_person_free_look_input(0,1.0f,.2f));
+ CHECK(!third_person_free_look_input(1,1.0f,.2f));
+ c=fresh();third_person_camera(0,&c);CHECK(c.forward.j>.7f&&c.forward.k>.1f);
+ CHECK(body.unit.aiming_vector.i==1&&body.unit.aiming_vector.j==0);
+ CHECK(!third_person_reticle(&p,1));
+ wall=0;c=fresh();third_person_camera(0,&c);
+ CHECK(!third_person_active(0)&&c.forward.i==1&&c.forward.j==0&&c.up.k==1);
+ CHECK(third_person_free_look_input(0,.1f,0));wall=1;c=settle(0);
+ held=0;CHECK(!third_person_free_look_input(0,0,0));c=fresh();third_person_camera(0,&c);
+ CHECK(c.forward.i==1&&c.forward.j==0); /* sharp release */
+ smooth=1;changes++;c=settle(0);held=1UL<<HALO_KEYBOARD_FREE_LOOK;
+ CHECK(third_person_free_look_input(0,1.0f,0));c=fresh();third_person_camera(0,&c);
+ held=0;CHECK(!third_person_free_look_input(0,0,0));c=fresh();third_person_camera(0,&c);
+ CHECK(c.forward.j>0&&c.forward.j<.85f);c=settle(0);CHECK(c.forward.j==0);
+ held=1UL<<HALO_KEYBOARD_FREE_LOOK;CHECK(third_person_free_look_input(0,1.0f,0));
+ zoom=0;CHECK(!third_person_free_look_input(0,.5f,0));zoom=NONE;
+ c=fresh();third_person_camera(0,&c);CHECK(c.forward.j==0);
+ CHECK(third_person_free_look_input(0,1.0f,0));unit_id=2;
+ CHECK(!third_person_free_look_input(0,.5f,0));unit_id=1;held=0;
+ third_person_reset();c=settle(1);
  third_person_camera(0,NULL);CHECK(!third_person_active(0)&&third_person_active(1));
  CHECK(!third_person_active(-1)&&!third_person_active(4));
  enabled=0;changes++;c=fresh();third_person_camera(1,&c);CHECK(!third_person_active(1));
@@ -317,3 +347,56 @@ int main(void){
     compiled = subprocess.run([compiler, str(source), *flags, "-o", str(exe)], capture_output=True, text=True)
     assert compiled.returncode == 0, compiled.stderr
     assert subprocess.run([str(exe)], timeout=10).returncode == 0
+
+@pytest.mark.parametrize("fault", [False, True])
+def test_muzzle_bsp_repair_excludes_shooter(tmp_path, fault):
+    from harness import function
+    compiler = shutil.which("clang") or shutil.which("cc")
+    if not compiler:
+        pytest.skip("a C compiler is required")
+    actual = function((ROOT / "source/objects/objects.c").read_text(), "object_force_inside_bsp_ignoring")
+    if fault:
+        actual = actual.replace("&object->object.position, ignore_object_index,", "&object->object.position, NONE,")
+    code = r'''
+#include <stddef.h>
+typedef int boolean;
+typedef struct {float x,y,z;} real_point3d;
+#define TRUE 1
+#define FALSE 0
+#define NONE -1
+#define MAXIMUM_COLLISION_USER_STACK_DEPTH 8
+#define _collision_test_for_projectiles_flags 1
+#define match_assert(a,b,c) ((void)0)
+struct location {short cluster_index;};
+struct object_datum {struct {real_point3d position;struct location location;} object;};
+struct collision_result {real_point3d point;struct location location;};
+static struct object_datum projectile={{{1,0,-.2f},{0}}};
+static int global_current_collision_user_depth=1,global_current_collision_users[8],wall,translated;
+static struct object_datum *object_get(long i){(void)i;return &projectile;}
+static int collision_test_line(int flags,real_point3d const *a,real_point3d const *b,long ignore,struct collision_result *c){
+ (void)flags;(void)a;(void)b;
+ c->location.cluster_index=0;c->point=(real_point3d){.1f,0,0};
+ if(ignore!=7)return 1; /* the eye-to-barrel line crosses the shooter */
+ if(wall){c->point=(real_point3d){.5f,0,-.1f};return 1;}return 0;
+}
+static void object_translate(long i,real_point3d const *p,struct location const *l){(void)i;projectile.object.position=*p;projectile.object.location=*l;translated++;}
+static void object_compute_node_matrices(long i){(void)i;}
+''' + actual + r'''
+#define CHECK(c) do{if(!(c))return __LINE__;}while(0)
+int main(void){real_point3d eye={0,0,0};
+ CHECK(object_force_inside_bsp_ignoring(2,&eye,7));
+ CHECK(translated==0&&projectile.object.position.x==1);
+ wall=1;CHECK(object_force_inside_bsp_ignoring(2,&eye,7));
+ CHECK(translated==1&&projectile.object.position.x==.5f);
+ wall=0;CHECK(object_force_inside_bsp_ignoring(2,&eye,NONE));
+ CHECK(translated==2&&projectile.object.position.x==.1f);
+ CHECK(global_current_collision_user_depth==1);return 0;
+}
+'''
+    source = tmp_path / "repair.c"
+    source.write_text(code)
+    exe = tmp_path / ("repair.exe" if sys.platform == "win32" else "repair")
+    flags = ["--target=i686-pc-windows-msvc", "-fuse-ld=lld"] if sys.platform == "win32" else ["-lm"]
+    compiled = subprocess.run([compiler, str(source), *flags, "-o", str(exe)], capture_output=True, text=True)
+    assert compiled.returncode == 0, compiled.stderr
+    assert (subprocess.run([str(exe)], timeout=10).returncode != 0) == fault

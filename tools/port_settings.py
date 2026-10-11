@@ -253,7 +253,7 @@ SCREENS["video_settings/shoulder_camera"] = {
 
 # Controls Setup: the keyboard and mouse's actions, in groups (the order of
 # port/linux/game/menu_functions.c's table of them)
-CONTROL_GROUPS = ["MOVEMENT", "WEAPONS", "ACTIONS"]
+CONTROL_GROUPS = ["MOVEMENT", "WEAPONS", "ACTIONS", "CAMERA"]
 CONTROL_ROWS = 7
 
 # the settings whose rows have the wider spinner (a device's name)

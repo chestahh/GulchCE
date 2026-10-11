@@ -342,7 +342,9 @@ the setting for one start of the game. It has priority over the file.
 | `display.third_person_distance` | `0.85` | `HALO_THIRD_PERSON_DISTANCE` | Distance behind the eye, 0.3–2.0 world units. |
 | `display.third_person_height` | `0.12` | `HALO_THIRD_PERSON_HEIGHT` | Height along camera up, -0.2–0.6 world units. |
 | `display.third_person_offset` | `0.24` | `HALO_THIRD_PERSON_OFFSET` | Lateral distance toward the selected shoulder, 0–0.6 world units. |
-| `controls.swap_shoulder` | `"V"` | `HALO_KEY_SWAP_SHOULDER` | Swap shoulders in third person; remappable in Controls Setup > Actions. |
+| `controls.swap_shoulder` | `"V"` | `HALO_KEY_SWAP_SHOULDER` | Swap shoulders in third person; remappable in Controls Setup > Camera. |
+| `controls.free_look` | `"Left Alt"` | `HALO_KEY_FREE_LOOK` | Hold to orbit the shoulder camera with mouse or right stick while aim stays fixed. Release to return; follows Camera Motion Smooth/Sharp. Remappable in Controls Setup > Camera. |
+| `controls.toggle_perspective` | `"B"` | `HALO_KEY_TOGGLE_PERSPECTIVE` | Press once to toggle first/third person. Remappable in Controls Setup > Camera. Scoping and collision still force first person. |
 | `display.fov` | `0.0` | `HALO_FOV` | The first-person view's field of view on foot, in degrees across at 16:9, from 20 to 150. `0`: the stock view. Refer to "Field of view". |
 | `display.viewmodel_fov` | `0.0` | `HALO_VIEWMODEL_FOV` | The first-person weapon's and hands' field of view, in degrees across at 16:9, from 20 to 150. `0`: the weapon's stock view, also when `display.fov` widens the world. Refer to "Field of view". |
 | `display.viewmodel_visible` | `true` | `HALO_VIEWMODEL_VISIBLE` | `true`: the first-person weapon, hands and what is attached to them are drawn. `false`: they are not; firing, animation, sound and lights go on, and other players' models are drawn. |
