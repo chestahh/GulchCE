@@ -282,6 +282,7 @@ def test_offline_muzzle_origin(tmp_path):
     code = r'''
 #include <math.h>
 #include <stddef.h>
+#include <string.h>
 typedef float real;
 typedef int boolean;
 typedef struct {real x,y,z;} real_point3d;
@@ -293,11 +294,42 @@ typedef struct {real i,j,k;} real_vector3d;
 #define MAX(a,b) ((a)>(b)?(a):(b))
 #define TEST_FLAG(v,b) ((v)&(1u<<(b)))
 enum {_game_connection_local=0,_object_dead_bit=0,_collision_test_for_projectiles_flags=1};
-struct unit_datum {struct {long parent_object_index;unsigned damage_flags;} object;struct {short current_weapon_index;} unit;};
+enum {_weapon_trigger_uses_weapon_origin_bit=5,_weapon_trigger_projectiles_cannot_be_aimed_bit=11,
+_unit_fires_from_camera_bit=0,_trigger_charging=2,_trigger_charged=3,_trigger_spewing=6};
+struct unit_datum {struct {long parent_object_index;unsigned damage_flags;} object;struct {short current_weapon_index;real_vector3d aiming_vector;} unit;long definition_index;};
+struct tag_block {long count;void *address;};
+struct weapon_trigger_definition {unsigned flags;real_point3d first_person_weapon_offset;struct tag_block firing_effects;real spew_time;};
+struct weapon_firing_effect_definition {struct {long index;} effects[3];};
+struct effect_definition {struct tag_block locations;};
+#define EFFECT_DEFINITION_TAG 1
+static char effect_marker[32]="primary trigger1";
+static struct effect_definition effect={{1,effect_marker}};
+static struct weapon_firing_effect_definition firing={{{0},{-1},{-1}}};
+static void *tag_get(int group,long n){(void)group;(void)n;return &effect;}
+struct weapon_definition {struct {struct tag_block triggers;} weapon;};
+struct weapon_datum {long definition_index;struct {struct {int state;short firing_effect_index;} triggers[2];} weapon;};
+struct unit_definition {struct {unsigned flags;} unit;};
+static struct weapon_trigger_definition trigger_defs[2];
+static struct weapon_definition definition={{{2,trigger_defs}}};
+static struct weapon_datum weapon;
+static struct unit_definition unit_def={{1}};
+#define TAG_BLOCK_GET_ELEMENT(block,n,type) ((type *)(block)->address+(n))
+static struct weapon_datum *weapon_get(long n){(void)n;return &weapon;}
+static struct weapon_definition *weapon_definition_get(long n){(void)n;return &definition;}
+static struct unit_definition *unit_definition_get(long n){(void)n;return &unit_def;}
+static real_vector3d up_axis={0,0,1},left_axis={0,1,0};
+static real_vector3d const *global_up3d=&up_axis,*global_left3d=&left_axis;
+static void cross_product3d(real_vector3d const *a,real_vector3d const *b,real_vector3d *v){*v=(real_vector3d){a->j*b->k-a->k*b->j,a->k*b->i-a->i*b->k,a->i*b->j-a->j*b->i};}
+static real dot_product3d(real_vector3d const *a,real_vector3d const *b){return a->i*b->i+a->j*b->j+a->k*b->k;}
+static void unit_adjust_projectile_ray(long u,real_point3d *p,real_vector3d *v,real *speed,int adjust,int aim){(void)u;(void)aim;(void)v;*speed=0;if(adjust){p->y=0;p->z=0;}}
 struct object_marker {struct {real_point3d position;} matrix;};
 struct collision_result {real t;real_point3d point;};
-static struct unit_datum unit={{NONE,0},{0}};
+static struct unit_datum unit={{NONE,0},{0,{1,0,0}},0};
 static int connection,active=1,zoom=NONE,has_marker=1,blocked;
+static real target_distance=10, muzzle_side;
+static int scene;
+static real_point3d last_long_origin;
+static int marker_trigger;
 static short game_connection(void){return connection;}
 static boolean third_person_active(short p){return p==0&&active;}
 static long player_control_get_unit_index(short p){return p==0?1:NONE;}
@@ -306,7 +338,7 @@ static struct unit_datum *unit_try_and_get(long i){return i==1?&unit:NULL;}
 static struct unit_datum *unit_get(long i){return unit_try_and_get(i);}
 static long unit_inventory_get_weapon(long i,short n){(void)i;(void)n;return 2;}
 static int object_get_marker_by_name(long w,char const *n,struct object_marker *m,short count){
- (void)w;(void)n;(void)count;m->matrix.position=(real_point3d){1,0,-.2f};return has_marker;
+ (void)w;(void)count;marker_trigger=strstr(n,"secondary")!=NULL;m->matrix.position=(real_point3d){1,muzzle_side,marker_trigger?-.4f:(!strcmp(n,"primary trigger1")?-.3f:-.2f)};return has_marker;
 }
 static void unit_get_camera_position(long u,real_point3d *p){(void)u;*p=(real_point3d){0,0,0};}
 static void vector_from_points3d(real_point3d const *a,real_point3d const *b,real_vector3d *v){*v=(real_vector3d){b->x-a->x,b->y-a->y,b->z-a->z};}
@@ -316,7 +348,16 @@ static void scale_vector3d(real_vector3d const *v,real s,real_vector3d *o){*o=(r
 static void point_from_line3d(real_point3d const *p,real_vector3d const *v,real t,real_point3d *o){*o=(real_point3d){p->x+v->i*t,p->y+v->j*t,p->z+v->k*t};}
 static int collision_test_vector(unsigned long f,real_point3d const *p,real_vector3d const *v,long u,struct collision_result *c){
  (void)f;(void)u;
- if(magnitude3d(v)>100){c->t=.01f;point_from_line3d(p,v,c->t,&c->point);return 1;}
+ if(scene && v->i>0){
+  real plane=scene==2?.5f:1.5f;
+  real t=(plane-p->x)/v->i;
+  if(t>=0&&t<=1&&(scene==2||p->z+v->k*t<-.1f)){
+   c->t=t;point_from_line3d(p,v,t,&c->point);return 1;
+  }
+ }
+ if(magnitude3d(v)>100){last_long_origin=*p;
+ if(v->i>0 && target_distance>p->x){c->t=(target_distance-p->x)/v->i;point_from_line3d(p,v,c->t,&c->point);return 1;}
+ return 0;}
  if(blocked){c->t=.5f;point_from_line3d(p,v,.5f,&c->point);return 1;}
  return 0;
 }
@@ -335,7 +376,37 @@ int main(void){
  zoom=NONE;has_marker=0;third_person_muzzle_shot(2,1,0,&origin,&forward);CHECK(origin.x==0);
  has_marker=1;third_person_muzzle_shot(2,1,5,&origin,&forward);CHECK(origin.x==0);
  blocked=1;third_person_muzzle_shot(2,1,0,&origin,&forward);CHECK(origin.x>.48f&&origin.x<.5f);
- third_person_muzzle_target(0,&target);CHECK(target.x<10&&target.x>0);
+ blocked=0;third_person_muzzle_target(0,&target);CHECK(target.x==10);
+ CHECK(last_long_origin.z==-.2f&&marker_trigger==0);
+ weapon.weapon.triggers[0].state=_trigger_charged;third_person_muzzle_target(0,&target);
+ CHECK(last_long_origin.z==-.4f&&marker_trigger==1);
+ weapon.weapon.triggers[0].state=_trigger_charging;third_person_muzzle_target(0,&target);CHECK(marker_trigger==0);
+ weapon.weapon.triggers[0].state=0;
+ trigger_defs[0].first_person_weapon_offset.y=-.1f;third_person_muzzle_target(0,&target);
+ CHECK(fabsf(target.y+.1f)<.0001f);trigger_defs[0].first_person_weapon_offset.y=0;
+ target_distance=.5f;origin=(real_point3d){0,0,0};forward=(real_vector3d){1,0,0};
+ CHECK(third_person_muzzle_shot(2,1,0,&origin,&forward));CHECK(forward.i==1&&forward.k==0);
+ target_distance=10;
+ trigger_defs[0].firing_effects=(struct tag_block){1,&firing};
+ origin=(real_point3d){1,0,0};forward=(real_vector3d){1,0,0};
+ CHECK(third_person_muzzle_shot(2,1,0,&origin,&forward));CHECK(origin.z==-.3f);
+ strcpy(effect_marker,"smoke");origin=(real_point3d){1,0,0};forward=(real_vector3d){1,0,0};
+ CHECK(third_person_muzzle_shot(2,1,0,&origin,&forward));CHECK(origin.z==-.2f);
+ weapon.weapon.triggers[0].firing_effect_index=9;
+ third_person_muzzle_target(0,&target);CHECK(last_long_origin.z==-.2f);
+ weapon.weapon.triggers[0].firing_effect_index=0;trigger_defs[0].firing_effects.count=0;
+ scene=1;muzzle_side=.25f;
+ origin=(real_point3d){1,0,0};forward=(real_vector3d){1,0,0};
+ CHECK(third_person_muzzle_shot(2,1,0,&origin,&forward));
+ CHECK(origin.x==1&&origin.y==.25f);
+ third_person_muzzle_target(0,&target);CHECK(target.x==1.5f&&target.z<-.1f);
+ CHECK(fabsf((target.y-origin.y)*forward.i-(target.x-origin.x)*forward.j)<.0001f);
+ muzzle_side=-.25f;third_person_muzzle_target(0,&target);CHECK(target.x==1.5f&&target.y<0);
+ scene=2;origin=(real_point3d){1,0,0};forward=(real_vector3d){1,0,0};
+ CHECK(third_person_muzzle_shot(2,1,0,&origin,&forward));
+ CHECK(origin.x<.5f&&origin.x>.48f&&forward.i>0);
+ third_person_muzzle_target(0,&target);CHECK(fabsf(target.x-.5f)<.0001f);
+ scene=0;muzzle_side=0;
  connection=1;target=(real_point3d){10,0,0};third_person_muzzle_target(0,&target);CHECK(target.x==10);
  return 0;
 }

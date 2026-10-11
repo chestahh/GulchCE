@@ -360,14 +360,7 @@ struct animation_graph_first_person_weapon_animations
 };
 
 /* TU-local: weapon_trigger_definition.firing_effects element; no shared header declares it yet. */
-struct trigger_firing_effect
-{
-	short shots_lower_bound;
-	short shots_upper_bound;
-	long unused[8];
-	struct tag_reference effects[NUMBER_OF_TRIGGER_FIRING_EFFECTS];
-	struct tag_reference damage_effects[NUMBER_OF_TRIGGER_FIRING_EFFECTS];
-};
+/* port: firing-effect layout is shared in weapon_definitions.h. */
 
 /* ---------- prototypes */
 
@@ -2669,7 +2662,7 @@ static void weapon_trigger_fire(
 
 	if (trigger_definition->firing_effects.count>0)
 	{
-		struct trigger_firing_effect *firing_effect;
+		struct weapon_firing_effect_definition *firing_effect;
 		short effect_type;
 
 		if (trigger->firing_effect_shots_remaining<=0)
@@ -2688,7 +2681,7 @@ static void weapon_trigger_fire(
 
 			do
 			{
-				struct trigger_firing_effect *next_firing_effect;
+				struct weapon_firing_effect_definition *next_firing_effect;
 
 				if (trigger->firing_effects_used_flags==FLAG(trigger_definition->firing_effects.count)-1)
 				{
@@ -2705,7 +2698,7 @@ static void weapon_trigger_fire(
 				}
 				while (TEST_FLAG(trigger->firing_effects_used_flags, firing_effect_index));
 
-				next_firing_effect= TAG_BLOCK_GET_ELEMENT(&trigger_definition->firing_effects, firing_effect_index, struct trigger_firing_effect);
+				next_firing_effect= TAG_BLOCK_GET_ELEMENT(&trigger_definition->firing_effects, firing_effect_index, struct weapon_firing_effect_definition);
 				trigger->firing_effect_index= firing_effect_index;
 				SET_FLAG(trigger->firing_effects_used_flags, firing_effect_index, TRUE);
 				trigger->firing_effect_shots_remaining= random_range(next_firing_effect->shots_lower_bound, next_firing_effect->shots_upper_bound);
@@ -2714,7 +2707,7 @@ static void weapon_trigger_fire(
 		}
 
 		trigger->firing_effect_shots_remaining--;
-		firing_effect= TAG_BLOCK_GET_ELEMENT(&trigger_definition->firing_effects, trigger->firing_effect_index, struct trigger_firing_effect);
+		firing_effect= TAG_BLOCK_GET_ELEMENT(&trigger_definition->firing_effects, trigger->firing_effect_index, struct weapon_firing_effect_definition);
 
 		if (weapon_definition->weapon.age_misfire_start>0.0f &&
 			weapon_definition->weapon.age_misfire_start<1.0f &&
