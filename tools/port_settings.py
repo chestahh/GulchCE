@@ -235,6 +235,8 @@ SCREENS["video_settings/fov_viewmodels"]["categories"] = [
 SCREENS["video_settings/shoulder_camera"] = {
     "screen": "shoulder_camera_settings_screen", "header": _video["header"], "spacing": 30,
     "rows": [
+        ("CAMERA MOTION:", "display.third_person_smooth", [("SMOOTH", "true"), ("SHARP", "false")],
+         "Smooth eases recovery and shoulder changes.\nSharp moves immediately; collision stays active.", None),
         ("LEFT SHOULDER:", "display.third_person_left_shoulder", ON_OFF,
          "Off uses the right shoulder. V swaps in game.\nRemap it under Controls Setup > Actions.", None),
         ("DISTANCE:", "display.third_person_distance",

@@ -20,7 +20,7 @@ def test_shoulder_camera(tmp_path, fault):
     if fault == "zoom":
         code = code.replace("player_control_get_zoom_level(local_player_index) != NONE", "0")
     elif fault == "collision":
-        code = code.replace("state->boom < (was_active ? 0.20f : 0.28f)", "0")
+        code = code.replace("hard_fraction * length < (was_active ? 0.10f : 0.14f)", "0")
     elif fault == "shoulder":
         code = code.replace("+ state->side * right.", "- state->side * right.")
     elif fault == "reticle":
@@ -60,8 +60,10 @@ static struct unit_datum body={{NONE,0},{NONE,NONE,{1,0,0}}};
 static unsigned long changes;
 static int enabled, cinematic, scripted, perspective, inhibited, zoom=NONE, unit_id=1;
 static int *director_camera_scripted=&scripted;
-static real wall=1, prop=1;
+static real wall=1, prop=1, soft_wall=1;
+static int smooth=1;
 static real_point3d eye={0,0,0};
+static void third_person_muzzle_target(short p,real_point3d *t){(void)p;(void)t;}
 static int on_screen=1,left_shoulder;
 static double setting_distance=.85,setting_height=.12,setting_offset=.24;
 static real main_get_seconds_elapsed(void){return 1.0f/60;}
@@ -72,7 +74,7 @@ double config_real(char const *name){
 }
 static void vector_from_points3d(real_point3d const *a,real_point3d const *b,real_vector3d *v){v->i=b->x-a->x;v->j=b->y-a->y;v->k=b->z-a->z;}
 
-int config_boolean(char const *name){return strstr(name,"left_shoulder")?left_shoulder:enabled;}
+int config_boolean(char const *name){return strstr(name,"smooth")?smooth:(strstr(name,"left_shoulder")?left_shoulder:enabled);}
 unsigned long config_changes(void){return changes;}
 static int cinematic_in_progress(void){return cinematic;}
 static int director_get_perspective(short p){(void)p;return perspective;}
@@ -92,7 +94,7 @@ static void point_from_line3d(real_point3d const *p,real_vector3d const *v,real 
  o->x=p->x+v->i*s;o->y=p->y+v->j*s;o->z=p->z+v->k*s;
 }
 static int collision_test_pill_new(unsigned long f,real_point3d const *p,real_vector3d const *v,real r,long i,struct collision_result *c){
- (void)f;(void)p;(void)v;(void)r;(void)i;c->t=wall;return wall<1;
+ (void)f;(void)p;(void)v;(void)i;c->t=r>.08f?MIN(wall,soft_wall):wall;return c->t<1;
 }
 static int collision_test_vector(unsigned long f,real_point3d const *p,real_vector3d const *v,long i,struct collision_result *c){
  (void)i;c->t=f==1024?.01f:prop;point_from_line3d(p,v,c->t,&c->point);return c->t<1;
@@ -131,12 +133,16 @@ int main(void){
  setting_distance=1.5;setting_height=.3;setting_offset=.4;changes++;c=settle(1);
  CHECK(c.position.x < -1.49f && c.position.y>.39f && c.position.z>.29f);
  wall=.05;c=fresh();third_person_camera(1,&c);CHECK(!third_person_active(1));wall=1;
- c=fresh();third_person_camera(1,&c);CHECK(!third_person_active(1));
+ c=fresh();third_person_camera(1,&c);CHECK(third_person_active(1)&&c.position.x>-.4f);
  c=settle(1);CHECK(third_person_active(1));
  setting_distance=NAN;setting_height=100;setting_offset=-1;changes++;c=settle(1);
  CHECK(c.position.x>-.86f&&c.position.x<-.84f&&c.position.y>.23f&&c.position.y<.25f);
  setting_distance=.3;setting_height=0;setting_offset=0;changes++;c=settle(1);
  CHECK(third_person_active(1)&&c.position.x>-.301f&&c.position.x<-.299f);
+ soft_wall=0;c=settle(1);CHECK(third_person_active(1));soft_wall=1;
+ smooth=0;changes++;setting_distance=1.0;changes++;c=fresh();third_person_camera(1,&c);
+ CHECK(c.position.x < -.99f);
+ left_shoulder=0;setting_offset=.24;changes++;c=fresh();third_person_camera(1,&c);CHECK(c.position.y<-.23f);
  third_person_reset();CHECK(!third_person_active(1));c=settle(1);
 
  third_person_camera(0,NULL);CHECK(!third_person_active(0)&&third_person_active(1));
@@ -235,3 +241,79 @@ int main(void){
     assert compiled.returncode == 0, compiled.stderr
     ran = subprocess.run([str(exe)], timeout=10)
     assert (ran.returncode != 0) == bool(fault), ran.returncode
+
+
+def test_offline_muzzle_origin(tmp_path):
+    compiler = shutil.which("clang") or shutil.which("cc")
+    if not compiler:
+        pytest.skip("a C compiler is required")
+    actual = (ROOT / "port/linux/game/third_person_weapon.c").read_text()
+    actual = re.sub(r'^#include[^\n]*', '', actual, flags=re.M)
+    code = r'''
+#include <math.h>
+#include <stddef.h>
+typedef float real;
+typedef int boolean;
+typedef struct {real x,y,z;} real_point3d;
+typedef struct {real i,j,k;} real_vector3d;
+#define TRUE 1
+#define FALSE 0
+#define NONE -1
+#define MAXIMUM_LOCAL_PLAYERS 4
+#define MAX(a,b) ((a)>(b)?(a):(b))
+#define TEST_FLAG(v,b) ((v)&(1u<<(b)))
+enum {_game_connection_local=0,_object_dead_bit=0,_collision_test_for_projectiles_flags=1};
+struct unit_datum {struct {long parent_object_index;unsigned damage_flags;} object;struct {short current_weapon_index;} unit;};
+struct object_marker {struct {real_point3d position;} matrix;};
+struct collision_result {real t;real_point3d point;};
+static struct unit_datum unit={{NONE,0},{0}};
+static int connection,active=1,zoom=NONE,has_marker=1,blocked;
+static short game_connection(void){return connection;}
+static boolean third_person_active(short p){return p==0&&active;}
+static long player_control_get_unit_index(short p){return p==0?1:NONE;}
+static short player_control_get_zoom_level(short p){(void)p;return zoom;}
+static struct unit_datum *unit_try_and_get(long i){return i==1?&unit:NULL;}
+static struct unit_datum *unit_get(long i){return unit_try_and_get(i);}
+static long unit_inventory_get_weapon(long i,short n){(void)i;(void)n;return 2;}
+static int object_get_marker_by_name(long w,char const *n,struct object_marker *m,short count){
+ (void)w;(void)n;(void)count;m->matrix.position=(real_point3d){1,0,-.2f};return has_marker;
+}
+static void unit_get_camera_position(long u,real_point3d *p){(void)u;*p=(real_point3d){0,0,0};}
+static void vector_from_points3d(real_point3d const *a,real_point3d const *b,real_vector3d *v){*v=(real_vector3d){b->x-a->x,b->y-a->y,b->z-a->z};}
+static real magnitude3d(real_vector3d const *v){return sqrtf(v->i*v->i+v->j*v->j+v->k*v->k);}
+static real normalize3d(real_vector3d *v){real l=magnitude3d(v);if(l){v->i/=l;v->j/=l;v->k/=l;}return l;}
+static void scale_vector3d(real_vector3d const *v,real s,real_vector3d *o){*o=(real_vector3d){v->i*s,v->j*s,v->k*s};}
+static void point_from_line3d(real_point3d const *p,real_vector3d const *v,real t,real_point3d *o){*o=(real_point3d){p->x+v->i*t,p->y+v->j*t,p->z+v->k*t};}
+static int collision_test_vector(unsigned long f,real_point3d const *p,real_vector3d const *v,long u,struct collision_result *c){
+ (void)f;(void)u;
+ if(magnitude3d(v)>100){c->t=.01f;point_from_line3d(p,v,c->t,&c->point);return 1;}
+ if(blocked){c->t=.5f;point_from_line3d(p,v,.5f,&c->point);return 1;}
+ return 0;
+}
+''' + actual + r'''
+#define CHECK(c) do{if(!(c))return __LINE__;}while(0)
+int main(void){
+ real_point3d origin={0,0,0},target={10,0,0};real_vector3d forward={1,0,0};
+ third_person_muzzle_shot(2,1,0,&origin,&forward);
+ CHECK(origin.x==1&&origin.z==-.2f&&forward.k>0);
+ CHECK(fabsf(origin.z+forward.k*(9/forward.i))<.0001f);
+ connection=1;origin=(real_point3d){0,0,0};forward=(real_vector3d){1,0,0};
+ third_person_muzzle_shot(2,1,0,&origin,&forward);CHECK(origin.x==0&&forward.k==0);
+ connection=2;third_person_muzzle_shot(2,1,0,&origin,&forward);CHECK(origin.x==0);
+ connection=0;active=0;third_person_muzzle_shot(2,1,0,&origin,&forward);CHECK(origin.x==0);
+ active=1;zoom=0;third_person_muzzle_shot(2,1,0,&origin,&forward);CHECK(origin.x==0);
+ zoom=NONE;has_marker=0;third_person_muzzle_shot(2,1,0,&origin,&forward);CHECK(origin.x==0);
+ has_marker=1;third_person_muzzle_shot(2,1,5,&origin,&forward);CHECK(origin.x==0);
+ blocked=1;third_person_muzzle_shot(2,1,0,&origin,&forward);CHECK(origin.x>.48f&&origin.x<.5f);
+ third_person_muzzle_target(0,&target);CHECK(target.x<10&&target.x>0);
+ connection=1;target=(real_point3d){10,0,0};third_person_muzzle_target(0,&target);CHECK(target.x==10);
+ return 0;
+}
+'''
+    source = tmp_path / "muzzle.c"
+    source.write_text(code)
+    exe = tmp_path / ("muzzle.exe" if sys.platform == "win32" else "muzzle")
+    flags = ["--target=i686-pc-windows-msvc", "-fuse-ld=lld"] if sys.platform == "win32" else ["-lm"]
+    compiled = subprocess.run([compiler, str(source), *flags, "-o", str(exe)], capture_output=True, text=True)
+    assert compiled.returncode == 0, compiled.stderr
+    assert subprocess.run([str(exe)], timeout=10).returncode == 0

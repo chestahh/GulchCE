@@ -201,6 +201,7 @@ symbols in this file:
 /* ---------- headers */
 
 #include "cseries.h"
+#include "third_person.h" /* port: port/linux/game/third_person_weapon.c */
 #include "weapons.h"
 
 #include "equipment.h"
@@ -2485,6 +2486,12 @@ static void trigger_create_projectiles(
 		{
 			origin= markers[marker_index].matrix.position;
 		}
+
+		/* port: offline shoulder shots leave the world muzzle. Custom
+		   triggers that explicitly choose an origin or forbid aiming keep it. */
+		if (!TEST_FLAG(trigger_definition->flags, _weapon_trigger_uses_weapon_origin_bit) &&
+			!TEST_FLAG(trigger_definition->flags, _weapon_trigger_projectiles_cannot_be_aimed_bit))
+			third_person_muzzle_shot(weapon_index, owner_object_index, trigger_index, &origin, &forward);
 
 		if (trigger_index==0 && weapon->weapon.alternate_shots_loaded>0)
 		{

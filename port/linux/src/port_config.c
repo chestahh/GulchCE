@@ -122,6 +122,8 @@ static const struct config_setting config_settings[] =
 		"In first person, point the view where the player aims now instead of\n"
 		"where the last tick left it: the view turns the frame the mouse moves,\n"
 		"not up to two ticks (66 ms) later." },
+	{ "display.third_person_smooth", _config_boolean, "true", "HALO_THIRD_PERSON_SMOOTH", _environment_value, _platform_all,
+		"Smooth camera recovery and shoulder changes; false uses sharp movement." },
 	{ "display.third_person_left_shoulder", _config_boolean, "false", "HALO_THIRD_PERSON_LEFT_SHOULDER", _environment_value, _platform_all,
 		"Use the left shoulder. Swap shoulders with V (controls.swap_shoulder)." },
 	{ "display.third_person_distance", _config_real, "0.85", "HALO_THIRD_PERSON_DISTANCE", _environment_value, _platform_all,

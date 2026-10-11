@@ -24,6 +24,7 @@ struct shoulder_camera_state
 };
 static struct shoulder_camera_state cameras[MAXIMUM_LOCAL_PLAYERS];
 static boolean active[MAXIMUM_LOCAL_PLAYERS];
+static boolean smooth_camera = TRUE;
 static real requested_distance = 0.85f, requested_height = 0.12f, requested_side = 0.24f;
 
 /* Reject non-finite values as well as out-of-range settings. */
@@ -62,6 +63,7 @@ static boolean third_person_wanted(short local_player_index)
 	{
 		read_at = config_changes();
 		enabled = config_boolean("display.third_person") != 0;
+		smooth_camera = config_boolean("display.third_person_smooth") != 0;
 		requested_distance = camera_setting("display.third_person_distance", 0.3, 2.0, 0.85f);
 		requested_height = camera_setting("display.third_person_height", -0.2, 0.6, 0.12f);
 		requested_side = camera_setting("display.third_person_offset", 0.0, 0.6, 0.24f);
@@ -118,7 +120,7 @@ void third_person_camera(short local_player_index, struct render_camera *camera)
 		was_active = FALSE;
 	}
 	state->eye = camera->position;
-	blend = dt / (0.12f + dt);
+	blend = smooth_camera ? dt / (0.12f + dt) : 1.0f;
 	state->distance += (requested_distance - state->distance) * blend;
 	state->height += (requested_height - state->height) * blend;
 	state->side += (requested_side - state->side) * blend;
@@ -137,23 +139,28 @@ void third_person_camera(short local_player_index, struct render_camera *camera)
 		_collision_test_objects_sight_blocking_flags;
 	/* The sphere sweep covers the BSP; the ray also tests scenery,
 	   doors and vehicles, which the engine's pill test does not visit. */
-	if (collision_test_pill_new(flags, &camera->position, &offset, 0.10f, unit_index, &collision))
+	if (collision_test_pill_new(flags, &camera->position, &offset, 0.06f, unit_index, &collision))
 		fraction = PIN(collision.t - 0.02f / length, 0.0f, 1.0f);
 	if (collision_test_vector(flags, &camera->position, &offset, unit_index, &collision))
-		fraction = MIN(fraction, MAX(0.0f, collision.t - 0.10f / length));
+		fraction = MIN(fraction, MAX(0.0f, collision.t - 0.06f / length));
 	hard_fraction = fraction;
 	/* Start drawing inward before the hard collision limit. Safety always
 	   wins over smoothing; recovery is slower than pull-in. */
-	if (collision_test_pill_new(flags, &camera->position, &offset, 0.24f, unit_index, &collision))
+	if (collision_test_pill_new(flags, &camera->position, &offset, 0.10f, unit_index, &collision))
 		fraction = MIN(fraction, MAX(0.0f, collision.t - 0.02f / length));
+	/* A soft sweep can start inside a narrow doorway even when the hard
+	   sweep fits. It must not itself force a change to first person. */
+	if (hard_fraction * length >= 0.16f)
+		fraction = MAX(fraction, 0.16f / length);
 	wanted_boom = fraction * length;
-	blend = dt / ((wanted_boom < state->boom ? 0.06f : 0.25f) + dt);
+	blend = smooth_camera ? dt / ((wanted_boom < state->boom ? 0.06f : 0.25f) + dt) : 1.0f;
 	state->boom += (wanted_boom - state->boom) * blend;
 	state->boom = MIN(state->boom, hard_fraction * length);
 	/* Separate entry and exit thresholds prevent rapid perspective changes
 	   when a wall leaves just enough room for the player's body. */
-	if (state->boom < (was_active ? 0.20f : 0.28f))
+	if (hard_fraction * length < (was_active ? 0.10f : 0.14f))
 		return;
+	state->boom = MAX(state->boom, MIN(0.14f, hard_fraction * length));
 	point_from_line3d(&camera->position, &offset, state->boom / length, &camera->position);
 	active[local_player_index] = TRUE;
 
@@ -166,6 +173,7 @@ void third_person_camera(short local_player_index, struct render_camera *camera)
 	if (collision_test_vector(_collision_test_for_projectiles_flags, &origin, &ray,
 		unit_index, &collision))
 		targets[local_player_index] = collision.point;
+	third_person_muzzle_target(local_player_index, &targets[local_player_index]);
 }
 
 boolean third_person_reticle(point2d *point, real reticle_scale)
