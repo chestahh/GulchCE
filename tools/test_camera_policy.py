@@ -129,11 +129,11 @@ def test_host_camera_menu_layout():
     base = "main_menu/multiplayer_type_select/server_settings/"
     menu = root.find(f"widget[@name='{base}options_menu']")
     rows = {node.attrib["widget"].removeprefix(base): int(node.attrib["y"]) for node in menu.findall("child")}
-    common = ["op_server_name", "op_max_players", "op_invite", "op_listing", "op_password", "op_camera_policy"]
+    common = ["op_server_name", "op_max_players", "op_invite", "op_listing", "op_password", "op_camera_policy", "op_map_share_options"]
     for mode in (["op_coop_options", "op_voice_options"], ["op_game_type", "op_player_options", "op_item_options", "op_vehicle_options", "op_indicator_options", "op_team_options"]):
         positions = [rows[name] for name in common + mode]
         assert len(set(positions)) == len(positions)
-        assert max(positions) + 28 < 410
+        assert max(positions) + 28 < 414
         assert all(b - a >= 28 for a, b in zip(sorted(positions), sorted(positions)[1:]))
         assert all(int(root.find(f"widget[@name='{base}{name}']").attrib["height"]) >= 28 for name in common + mode)
     spinner = root.find(f"widget[@name='{base}camera_policy_spinner']")
