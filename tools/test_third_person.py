@@ -70,7 +70,7 @@ struct unit_datum {
  struct {long parent_object_index; unsigned damage_flags;} object;
  struct {int current_zoom_level, desired_zoom_level; real_vector3d aiming_vector;} unit;
 };
-struct render_camera {real_point3d position; real_vector3d forward,up; rectangle2d window_bounds;};
+struct render_camera {real_point3d position; real_vector3d forward,up; rectangle2d window_bounds;real vertical_field_of_view;};
 struct collision_result {real t; real_point3d point;};
 static struct {short local_player_index; struct render_camera camera; int frustum;} render;
 static struct unit_datum body={{NONE,0},{NONE,NONE,{1,0,0}}};
@@ -97,6 +97,9 @@ unsigned long config_changes(void){return changes;}
 static int cinematic_in_progress(void){return cinematic;}
 static int director_get_perspective(short p){(void)p;return perspective;}
 static int director_inhibited_facing(short p){(void)p;return inhibited;}
+static real player_control_get_field_of_view(short p){(void)p;return 1.2f;}
+static real render_camera_get_adjusted_field_of_view_tangent(real f){return tanf(f*.5f);}
+static real arctangent(real a,real b){return atan2f(a,b);}
 static int player_control_get_zoom_level(short p){(void)p;return zoom;}
 static long player_control_get_unit_index(short p){(void)p;return unit_id;}
 static struct unit_datum *unit_try_and_get(long i){(void)i;return &body;}
@@ -190,10 +193,12 @@ int main(void){
  third_person_camera(0,NULL);CHECK(!third_person_active(0)&&third_person_active(1));
  CHECK(!third_person_active(-1)&&!third_person_active(4));
 
- /* Stay first person through the observer's zoom-out interpolation. */
- held=0;c=settle(0);zoom=0;c=fresh();third_person_camera(0,&c);CHECK(!third_person_active(0));
- zoom=NONE;c=fresh();third_person_camera(0,&c);CHECK(!third_person_active(0)&&c.position.x==0);
+ /* Unscoping restores shoulder view and target FOV on the first frame. */
+ held=0;c=settle(0);zoom=0;c=fresh();c.vertical_field_of_view=.2f;third_person_camera(0,&c);CHECK(!third_person_active(0)&&c.vertical_field_of_view==.2f);
+ zoom=NONE;c=fresh();c.vertical_field_of_view=.2f;third_person_camera(0,&c);CHECK(third_person_active(0)&&c.position.x<0&&fabsf(c.vertical_field_of_view-2*atanf(.75f*tanf(.6f)))<.0001f);
  for(k=0;k<12;k++){c=fresh();third_person_camera(0,&c);}CHECK(third_person_active(0));
+ wall=0;c=fresh();c.vertical_field_of_view=.3f;third_person_camera(0,&c);
+ CHECK(!third_person_active(0)&&c.vertical_field_of_view==.3f);wall=1;
  /* A single clear frame in a doorway must not restore third person. */
  smooth=1;changes++;held=0;c=settle(0);
  for(k=0;k<20;k++){

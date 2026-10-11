@@ -27,7 +27,7 @@ struct shoulder_camera_state
 	boolean looking;
 	real look_yaw, look_pitch;
 	boolean look_requires_release, collision_blocked;
-	real clear_time, recovery_delay, vertical_lag, scope_recovery;
+	real clear_time, recovery_delay, vertical_lag;
 	real return_time, return_yaw, return_pitch;
 };
 static struct shoulder_camera_state cameras[MAXIMUM_LOCAL_PLAYERS];
@@ -67,7 +67,7 @@ void third_person_reset(void)
 		cameras[index].initialized = FALSE;
 		cameras[index].looking = FALSE;
 		cameras[index].look_requires_release = (halo_keyboard_actions(index) & (1UL << HALO_KEYBOARD_FREE_LOOK)) != 0;
-		cameras[index].return_time = cameras[index].scope_recovery = 0.0f;
+		cameras[index].return_time = 0.0f;
 		cameras[index].look_yaw = cameras[index].look_pitch = 0.0f;
 		active[index] = FALSE;
 	}
@@ -108,8 +108,6 @@ static boolean third_person_wanted(short local_player_index)
 	if (player_control_get_zoom_level(local_player_index) != NONE ||
 		(unit && (unit->unit.current_zoom_level != NONE || unit->unit.desired_zoom_level != NONE)))
 	{
-		/* The observer's stock zoom-out transition lasts 0.18 seconds. */
-		cameras[local_player_index].scope_recovery = 0.18f;
 		return FALSE;
 	}
 	return unit && unit->object.parent_object_index == NONE &&
@@ -180,14 +178,7 @@ void third_person_camera(short local_player_index, struct render_camera *camera)
 	unit_index = player_control_get_unit_index(local_player_index);
 	unit = unit_get(unit_index);
 	dt = PIN(main_get_seconds_elapsed(), 0.0f, 0.1f);
-	if (state->unit_index != unit_index)
-		state->scope_recovery = 0.0f;
-	if (state->scope_recovery > 0.0f)
-	{
-		state->scope_recovery = MAX(0.0f, state->scope_recovery - dt);
-		if (state->scope_recovery > 0.0f)
-			return;
-	}
+
 	vector_from_points3d(&state->eye, &camera->position, &offset);
 	if (!state->initialized || state->unit_index != unit_index || magnitude3d(&offset) > 2.0f)
 	{
@@ -318,6 +309,11 @@ void third_person_camera(short local_player_index, struct render_camera *camera)
 	state->boom = MAX(state->boom, MIN(0.14f, hard_fraction * length));
 	point_from_line3d(&camera->position, &offset, state->boom / length, &camera->position);
 	active[local_player_index] = TRUE;
+	/* Use the current unscoped target FOV, not the observer's remaining
+	   zoom interpolation. Collision fallback retains the stock camera. */
+	camera->vertical_field_of_view = 2.0f * arctangent(
+		0.75f * render_camera_get_adjusted_field_of_view_tangent(
+			player_control_get_field_of_view(local_player_index)), 1.0f);
 
 	/* Project the stock firing line, not a ray from the displaced camera.
 	   This indicates the nominal aim point; spread and projectile gravity
