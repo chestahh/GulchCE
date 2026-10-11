@@ -47,7 +47,7 @@ import java.util.zip.ZipInputStream;
  * app must keep for Android to install a new version over it.
  */
 final class Updater {
-    private static final String REPOSITORY = "OpenCommunityEdition/OpenCE";
+    private static final String REPOSITORY = "chestahh/GulchCE";
     private static final String USER_AGENT = "halo-ce-universal-updater";
     private static final int TIMEOUT_MILLISECONDS = 20000;
     /** the most a download (a release's zip, about 35 MB) or the app in it may be */
@@ -202,8 +202,8 @@ final class Updater {
         if (activity.isFinishing())
             return;
         new AlertDialog.Builder(activity)
-            .setTitle("Halo: new version")
-            .setMessage("A new version of Halo was detected (build " + latest + "; this is build "
+            .setTitle("GulchCE: new version")
+            .setMessage("A new version of GulchCE was detected (build " + latest + "; this is build "
                 + BuildConfig.HALO_BUILD_NUMBER + ").\n\nDo you want to update? The game will close and start "
                 + "the new version.")
             .setCancelable(false)
@@ -215,7 +215,7 @@ final class Updater {
 
     private static void confirmNever(Activity activity) {
         new AlertDialog.Builder(activity)
-            .setTitle("Halo: new version")
+            .setTitle("GulchCE: new version")
             .setMessage("Stop asking about new versions?\n\nTo ask again, set auto = true in the [update] section "
                 + "of config.toml.")
             .setCancelable(false)
@@ -247,7 +247,7 @@ final class Updater {
         layout.addView(status);
         layout.addView(bar);
         AlertDialog progress = new AlertDialog.Builder(activity)
-            .setTitle("Halo: new version")
+            .setTitle("GulchCE: new version")
             .setView(layout)
             .setCancelable(false)
             .show();
@@ -275,7 +275,7 @@ final class Updater {
                 activity.runOnUiThread(() -> {
                     progress.dismiss();
                     new AlertDialog.Builder(activity)
-                        .setTitle("Halo: new version")
+                        .setTitle("GulchCE: new version")
                         .setMessage("The update failed:\n\n" + e.getMessage())
                         .setPositiveButton("OK", null)
                         .show();

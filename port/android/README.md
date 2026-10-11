@@ -492,3 +492,10 @@ assembly of the port is necessary:
   log). This is slower, and a write shows one frame later, so moving
   geometry can glitch briefly. `debug.memory_watch = false` does the same
   on a device.
+
+### GulchCE updates
+
+The Android updater checks `chestahh/GulchCE` releases and compares GulchCE
+Build workflow numbers, just like the desktop updater. Release tags stay
+`build-<number>` and asset filenames stay unchanged. Successive Android
+releases must use the same signing key to install over each other.
