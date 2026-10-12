@@ -26,24 +26,38 @@ an example: its filename is `a10.map`, while its header names
 `mercury_falling`. The namespaces prevent it replacing either Xbox `a10`
 or Custom Edition `custom_maps\a10`.
 
-Some campaigns keep audio and textures in separate resource files. Install
-one package per immediate subdirectory; its levels use only the resources
-in that directory, with no fallback to root resources or another package:
+Some campaigns keep audio and textures in separate resource files. Keep each
+package's supplied files beside its levels. Install MCC's two standard sets once:
 
 ```text
+mcc_maps/_shared/singleplayer/bitmaps.map
+mcc_maps/_shared/multiplayer/bitmaps.map
+mcc_maps/_shared/multiplayer/sounds.map
 mcc_maps/solar_flare/m0.map
 mcc_maps/solar_flare/m1.map
 mcc_maps/solar_flare/sounds.map
 mcc_maps/solar_flare/bitmaps.map
-mcc_maps/combat_revolved/a10.map
-mcc_maps/combat_revolved/sounds.map
-mcc_maps/combat_revolved/bitmaps.map
 ```
 
-The package's resource files are optional for self-contained levels. Missing
-required resources report the expected path in `debug.txt`. Existing loose
-levels keep using root-level resource files. Nothing searches `maps` or
-`custom_maps`. A package level's identity is `mcc_maps\solar_flare\m0`;
+Copy the `singleplayer` file from MCC's `halo1/maps/bitmaps.map`. Copy the
+`multiplayer` files from MCC's `halo1/maps/custom_edition/`. Both must come
+from MCC; do not substitute a Custom Edition installation. These folder names
+are installation labels, not a restriction on the maps that can use them.
+`_shared` is not a level package and its nested resource folders are not menus.
+
+Selection is independent for bitmaps and sounds. A package resource is
+selected first, then a legacy `mcc_maps/bitmaps.map` or `sounds.map` if present.
+These explicit overrides are authoritative: unreadable, damaged or incompatible
+files fail rather than being silently replaced. If neither exists, every
+external reference of that type is checked against each installed shared set.
+A complete matching file is required; partial matches are never combined.
+Two complete but different matching files are ambiguous: put the intended file
+beside the level. Byte-identical matches are interchangeable.
+
+Self-contained levels do not open or fingerprint resources. Only required types
+are considered. Chosen paths and failures are logged in `debug.txt`. `loc.map`
+is unsupported. Nothing searches other packages, `maps` or `custom_maps`.
+A package level's identity is `mcc_maps\solar_flare\m0`;
 the folder name must be the same on every player's installation. The menu
 still lists individual levels in the same two categories, adding `[package]`
 to every level inside a package folder. Optional `.txt` descriptions remain beside
@@ -80,16 +94,24 @@ dependency on the Custom Edition setting or its resource directories.
 
 The loader opens source maps read-only. A rejected map reports the failing
 stage in `debug.txt` and returns a menu error. Matching the header checksum
-can detect that a network host selected a different map version. For packaged
-levels, the fingerprint also streams every byte of any sibling `sounds.map`
-and `bitmaps.map`, distinguishing absent and empty files. Both resources are
-included even if a particular level does not use them. This adds disk I/O at
-load/admission, not per frame. Package checkpoints use the same fingerprint;
-changing resources invalidates them. Loose levels retain their previous
-checksum behavior for compatibility. CRC32 is an accidental mismatch check, not
-security authentication; the level header checksum is still not
-a recomputation or authentication of the map's contents. Network support
-uses GulchCE's game protocol, not the MCC game client or its matchmaking.
+can detect that a network host selected a different map version. The MCC tag
+reader determines which external resource types are referenced. For both loose
+and packaged levels, the fingerprint streams every byte of the selected files
+for those types, using the same validated selection and open files as conversion.
+Unused files have no effect. Selected contents, not their shared/root/package location,
+determine identity. This adds disk I/O at load/admission, not per frame.
+Checkpoints use this fingerprint too: the new policy may invalidate earlier MCC
+saves; Xbox/Custom Edition save identities are unchanged. All network peers need
+GulchCE protocol 36, including for legacy maps. CRC32 detects accidental mismatches,
+not malicious forgery; the level header checksum still does not authenticate the
+map. Network support uses OpenCE's host-authoritative protocol, not MCC clients.
+
+MCC's `halo1/maps/bitmaps.map` stores individual texture entries. Its
+`halo1/maps/custom_edition` resources store grouped `__pixels` and
+`__permutations` entries. Custom packages may use either layout.
+The MCC reader supports both. Grouped reads require a unique exact tag-group name
+and the original requested offset entirely within its validated payload. Grouped
+slices are never relocated by guesswork. Bounds and name checks still apply.
 
 ### In-game pause menus
 
@@ -165,7 +187,7 @@ are not an MCC implementation dependency. The independent components are:
 
 | Component | Responsibility |
 | --- | --- |
-| `port/linux/game/mcc_package.c` | Validated package paths and resource-content fingerprints. |
+| `port/linux/game/mcc_package.c` | Validated package paths and explicit resource overrides. |
 | `port/linux/game/mcc_maps.c` | Catalog, display identities, names and descriptions. |
 | `port/linux/game/mcc_cache_format.c` | Portable little-endian version-13 reader and file-range audit. |
 | `port/linux/game/mcc_cache.c` | MCC path admission, read-only file lifetime, conversion and streaming dispatch. |
@@ -176,7 +198,7 @@ are not an MCC implementation dependency. The independent components are:
 | `port/linux/src/mcc_memory.c` | Separate 64 MiB linked tag window; never replaces an existing allocation. |
 | `port/linux/game/mcc_geometry.c` | New model descriptors, model vertex/index conversion, external BSP vertex streams and node palettes. |
 | `port/linux/game/mcc_audio.c` | MCC sound decoding, resampling and Xbox ADPCM encoding into an MCC virtual stream. |
-| `port/linux/game/mcc_resources.c` | MCC-only indexed sound/bitmap resource files, names, ranges and file lifetime. |
+| `port/linux/game/mcc_resources.c` | MCC-only resource selection, dependency fingerprints, indexed reads and file lifetime. |
 | `port/linux/game/mcc_vorbis.c` | Private namespaced Vorbis decoder, bounded Ogg validation and empty residue vector compatibility. |
 | `port/linux/game/mcc_bitmaps.c` | MCC pixel layout, BC7 decoding and shader/HUD channel normalization into an MCC virtual stream. |
 | `port/linux/game/mcc_texture_cache.c` and `port/linux/src/mcc_texture_bridge.c` | Direct bindings of checked MCC pixel allocations and lazy GPU textures, independent of the Xbox/CE staging cache. |
@@ -898,23 +920,105 @@ has a 33-pixel line. This affects only the console input/output, including
 wrapping and line spacing; it does not resize HUD text or modify font tags.
 Xbox/CE paths and MCC fonts at or below the nominal size remain unchanged.
 
-### B30 Evolved capacity limitation
+### Extended MCC object names (11 October 2026)
 
-The supplied `b30_evolved.map` gets past its reported missing functions
-with these adapters, but it is **not yet playable**. It contains 640 named
-objects and a 101-entry scenery palette. The native object-name table and
-co-op presence message support 512 names; the scenario palette schema
-supports 100 entries. Earlier conversion truncated the names, followed by
-`backpack_1_argl: this is not a valid object name` during script startup.
-The MCC validator now refuses the oversized name list explicitly instead
-of reporting a loaded map after discarding required script targets.
-This check applies to every MCC map: 512 names are allowed, while 513 or
-more are refused. It does not change Xbox or Custom Edition validation.
+MCC maps may now contain up to 32,767 named objects. Maps with 513 or more
+names use `mcc_object_names.c`; maps with at most 512 names retain the native
+table. Xbox and Custom Edition keep their existing limits, allocations and
+validation. This extends script names without increasing live-object
+capacity. The scenery palette is extended separately below. Counts above
+32,767 are refused explicitly; script targets are never dropped to fit.
 
-Supporting this map requires an MCC-owned name table with lifecycle,
-checkpoint and co-op synchronization support, plus an audit of palette
-consumers. Raising the shared Xbox/CE constants or dropping excess names
-is not a safe fix. The changes here do not claim that this map runs.
+The separate table follows creation, naming, deletion, restart and map
+unload. An MCC checkpoint stores the table in a checked unused part of the
+native save image, alongside the existing MCC state. Its length, checksum
+and object handles are validated before restoration. Checkpoints for smaller
+MCC maps retain their existing format. A save without enough unused memory
+is refused rather than overwriting engine allocations.
+
+Singleplayer uses the table locally. Network games use OpenCE's existing
+host-authoritative replication for units and items, and MCC-only bounded
+presence messages for named scenery and devices. The host sends chunks of
+512 names every half second. The client requires two distinct matching
+updates before creating or deleting an object; packet ranges, padding,
+map name count, BSP and timestamps are checked. These messages work in
+co-op and multiplayer and require network version 34 on every peer.
+
+B30 Evolved's 640-name list is now retained. A hidden Windows run verified
+simulation, creation/deletion of `help_boulder` (name index 529), checkpoint
+reversion restoring that name, and a return to the menu. Its 31-character
+cutscene flag names are also preserved by the MCC validator. This is not
+a complete playthrough. Its four script refusals were traced to writes to
+`f0`-`f4`, `sound_enable` and `map_reset`, and are now resolved:
+
+- MCC `f0`-`f5` references use private scenario real variables initialized
+  to zero. These script counters survive checkpoints without changing the
+  native renderer's debug controls. Appended names preserve the console's
+  separate 1 KiB text reserve.
+- `sound_enable` controls an MCC map-local mute, including music, carried
+  in the campaign snapshot's flag bit 3. It preserves player volume settings,
+  survives checkpoints, follows the host, and clears on map disposal.
+- `map_reset` uses the existing restart operation: a local reset in
+  singleplayer, and the MCC pause menu's reliable round restart in a network
+  game. A client cannot request it through this script function.
+
+B30 Evolved also exposed two rendering problems, handled only for MCC:
+
+- The CMT fluid-burst effect spans more than the native eight bitmap pages.
+  `mcc_sprites.c` submits each full batch through the existing renderer and
+  starts another with the remaining sprite budget. It retains the native
+  eight-group structure, shader, bitmap pages and first-person projection;
+  excess pages are not silently discarded.
+- A signed object function can produce an intermediate RGB color below zero.
+  MCC's object adapter preserves RGB extrapolation so the native object code
+  can apply darkening and its existing final clamp. This avoids the native
+  interpolation helper's premature assertion, without clamping the function
+  itself or changing Xbox/CE interpolation. HSV interpolation is unchanged.
+
+MCC scenery palettes also retain up to 32,767 entries. The original 100-entry
+limit is an authoring/schema limit: placement and synchronization already
+read the palette's dynamic tag block through checked signed-short indices.
+Only the MCC validator raises it; Xbox/CE schemas and live-object capacity
+remain unchanged. Oversized or out-of-bounds blocks are refused, and invalid
+placement indices retain the existing validation behavior. B30 Evolved's
+101st entry, referenced by scenery placement 1997/name 639, is no longer
+truncated. A hidden Windows test created this entry, and a two-instance
+co-op test verified its creation, deletion and recreation after a reliable
+scripted restart on both peers. A checkpoint retest restored this same
+name 639 and the private script counter, restarted the map and returned to
+the menu without assertions. An earlier timed probe missed its expected
+checkpoint values; the focused retest produced both explicit success markers.
+This does not claim a complete campaign playthrough.
+
+Validation (12 October 2026): the Windows x86 release build and 902 MCC tests
+passed, with two optional-fixture skips. Boundary fixtures exercise 511/512,
+640 and 32,767 names, rejected overflow, stale checkpoint handles, malformed
+network chunks, aliases, BSP changes and unchanged legacy dispatch. Sprite
+fixtures draw 65 bitmap pages without loss, retain first-person projection,
+handle allocation failure and retain Xbox/CE behavior. Palette fixtures
+cover 100/101/32,767 entries, overflow, out-of-range indices, overlapping
+blocks, truncated buffers and unchanged legacy truncation at 100.
+
+Two hidden Windows instances verified high-index creation/deletion in both
+co-op and the multiplayer game-engine path. The latter used B30 as a state
+replication probe; it has no multiplayer starts, so this is not a playable
+multiplayer-match test. The final co-op sequence also verified synchronized
+muting/unmuting, reliable scripted restart and name recreation afterward.
+A final singleplayer sequence restored name 529 and a private script counter
+from a checkpoint, resumed simulation after a scripted reset, returned to
+the menu and exited normally. A separate 140-second rendered B30 run passed
+both former renderer failure points, printed its delayed simulation marker,
+and exited normally without script refusals or assertion diagnostics.
+
+Android and web targets are unavailable in the local Windows build graph
+(`ninja android`/`ninja web` report unknown targets); hosted builds remain
+required. The broader legacy harness cannot run fully on this Windows
+setup: 351 tests passed, four skipped and 43 failed at compilation because
+of missing POSIX headers or incompatible harness typedefs. Those failures
+are not claimed as passing regression checks.
+
+The capacity refusal described in the dated October 10 checks below was
+the previous behavior, replaced by this extension.
 
 ### Checks for these changes (10 October 2026)
 
@@ -1157,3 +1261,136 @@ and a hidden native-renderer capture were used to compare the visor join and
 ammo layout. A separate bounded capture enabled the flashlight and verified
 its meter above the bottom visor. Regression cases cover split-screen seams,
 zoom inset preservation, controller mappings, and neutral Xbox/CE dispatch.
+
+## October 12 package compatibility fixes
+
+- Bigass calls `abs_real`. The MCC adapter implements real-valued absolute
+  value, including negative zero, without changing native functions.
+- Warthog Rally passes short script parameters and globals where long integers
+  are expected. MCC validation and evaluation now agree on signed widening.
+  Invalid signatures and scopes still fail with more specific diagnostics.
+- BioHalo deduplicates same-group tag roots and shares structured blocks,
+  prefixes, names and data streams. The MCC validator tracks compatible
+  allocations and isolates overlapping scalar, empty and selected raw-data
+  records before correction. Bounds, schema, cycle, depth and traversal-budget
+  checks remain enforced. Nonzero pointer-bearing partial overlaps are refused.
+- Canyon and Canyon-plus contain a 15360-by-256 DXT1 effect strip. Converted
+  linear pixels use an MCC descriptor with dimensions and pitch beyond the
+  Xbox header's fields. Their 8192-pixel texture also exposed a too-small Morton
+  address table in the MCC converter; its capacity and bounds now agree.
+  The MCC-only GPU uploader checks the device's actual size limit. Hardware
+  unable to upload the strip does not gain support through downsampling.
+- Cursed Halo's Sophia animation graph lacks its parent hierarchy. Recovery
+  requires an associated model with identical ordered node names and agreement
+  between multiple associated models. The recovered tree still passes normal
+  validation. This fixes the graph rejection, not all campaign features.
+- MacWorld's Elite model references material 14 with only 14 entries (valid
+  indices 0 through 13) on geometry 40, part 2: an 88-vertex damaged torso.
+  All supplied campaign variants have the same missing entry. With explicit
+  approval, MCC conversion applies the engine validator's existing material-0
+  fallback and logs the tag, geometry and part. Geometry remains present; the
+  intended appearance is unknown and may differ. Empty material lists and
+  invalid geometry buffers are still refused.
+
+These are MCC-owned changes. The sole shared renderer edit extends the existing
+MCC upload function because the game-side converter cannot query OpenGL device
+limits. Xbox/Custom Edition texture paths, script permissions and network
+messages are unchanged. Validation bookkeeping uses the game allocator's
+matching allocation/free pair, including cleanup when leaving an MCC map.
+The regression harness now checks this allocation pairing too.
+
+Resource investigation found two distinct MCC bitmap files. The direct
+`halo1/maps/bitmaps.map` contains Mirror of Autumn's pipe texture at offset
+52930688 (10936 bytes), and Warthog Rally's swamp bark at 146997993 (43704 bytes),
+matching their references exactly. Those names are absent from MCC's
+`halo1/maps/custom_edition/bitmaps.map`. Selecting by game mode or assuming
+the two files are interchangeable would therefore be incorrect.
+
+The existing MCC cast hook now also handles short-to-long widening for globals;
+parameter-only handling was insufficient when Warthog Rally compiled its timer
+expression. The guarded hook is necessary because native expression compilation
+and evaluation use the shared interpreter. Xbox and Custom Edition retain the
+original cast table, and the tests cover the inactive-MCC case.
+Cursed Halo loads after graph repair, but 15 scripts remain disabled because
+of restricted engine cheats (vehicle spawning, jetpack, super-jump, possession,
+Medusa, bottomless ammunition and omnipotence). The new diagnostics identify
+individual scripts. No cheat permission or client-authority restriction is
+bypassed; this fix does not certify Cursed Halo as playable.
+
+Validation: the portable Windows x86 release build passed 1,057 MCC and cache
+format regression tests, with six optional skips. MacWorld A10, BioHalo,
+Canyon, Canyon-plus and Bigass were checked sequentially in private data/save
+folders: each must load, execute a console marker after 150 simulation ticks,
+and exit normally after 45 seconds. The repaired cleanup also passed a single
+process sequence of MacWorld A10, Xbox A10, Custom Edition Hugeass, and MacWorld
+A10 again, with simulation markers at every stage and no detected assertions.
+The initial failing transition and the corrected run are retained under
+`build/mcc-package-fixes`; these generated files are not contribution assets.
+A Canyon gameplay capture confirms visible native-renderer output, not every
+newly supported texture or the damaged Elite material's intended appearance.
+Earlier batch startup-check executable SHA-256:
+`30f481e2c72c675010e6f215787761fae54a493e4a607472cfb15c1dff1b5c47`.
+These are bounded startup and transition checks, not complete playthroughs or
+live co-op certification. Android and web builds were attempted, but neither
+Ninja target exists in this local Windows configuration; both remain unverified.
+
+## Shared resource selection and client HUD verification
+
+The selected resource streams are retained through conversion. Map admission,
+conversion and checkpoint identity use the same dependency selection. Required
+resources contribute to the fingerprint regardless of their installation path;
+unused resources and `loc.map` do not. Network version 36 prevents older peers
+from using the previous fingerprint rules. Existing MCC checkpoints can become
+incompatible when their resource fingerprint changes. This is a consistency
+check, not authentication of a client or a map's contents.
+
+Bigass's HUD globals omit `defaults.default_weapon_hud` (reference at 0x2C0,
+handle NONE). A joining multiplayer client can briefly have a living unit but
+no weapon before replication completes. The native unarmed HUD update then
+tries to resolve that missing handle, causing cache assertions and repeated
+parent-HUD traversal. The MCC converter supplies one owned, empty weapon HUD
+only for omitted defaults, with no parent or visual elements. Authored defaults
+remain unchanged and invalid nonempty references still undergo validation.
+No shared HUD or networking code changes are needed. The generated tag has the
+same deterministic identity on both peers and is released with the MCC cache.
+Tests cover reuse, authored defaults, tag capacity and allocation failures.
+
+Final verification (12 October 2026):
+
+- The portable Windows x86 release build completed. All 1,124 MCC/cache-format
+  tests passed, with six optional skips. The focused HUD suite passed 232 tests,
+  including the final valid generated tag index and the next invalid index.
+- Mirror of Autumn and Warthog Rally passed bounded, hidden two-instance co-op
+  checks with matching resources installed in different locations. Both peers
+  loaded, exchanged simulation updates and exited normally without assertions.
+- Bigass's multiplayer client reproduced the missing-default-HUD assertions
+  before the fix. Both subsequent two-instance Slayer runs, including the
+  packaged executable, loaded and simulated without those assertions and
+  exited normally. The private host used shared resources; its client used
+  byte-identical package resources, including external audio.
+- Changing one byte in a private client resource copy caused native admission
+  to reject the map with the resource-mismatch diagnostic. The client did not
+  load the level. No host-authority restrictions were relaxed.
+- Combat Revolved B30 passed external audio/bitmap conversion, a delayed marker
+  after 150 simulation ticks, and normal exit. Mirror of Autumn -> Xbox A10 ->
+  Custom Edition Hugeass -> Mirror of Autumn passed markers at every stage and
+  exited normally without detected assertions. An earlier transition harness
+  falsely missed a lowercase map path; its log matcher was corrected and the
+  complete test rerun. Logs for failures and successful reruns are retained.
+- B30 and transition checks used executable SHA-256
+  `03a2825169f0d07bd8a491857bfe59f686a6eb5562b62662559adfd285a3dbd4`.
+  The packaged executable additionally admits the last valid signed tag index
+  for its generated empty HUD; that boundary has dedicated passing tests.
+  Packaged executable SHA-256:
+  `c8f715f99a99a80fb3f1b577cdd0aac8d56dbebd7ec6d5c5171636337ba6a077`.
+- The wider harness/web suite was also attempted: 1,359 passed, six skipped,
+  48 failed because of missing POSIX headers, Windows harness compilation
+  differences and absent Web build outputs. It is not reported as a passing
+  suite. Android/Web Ninja targets are unavailable in this local configuration;
+  browser transport checks could not start without Playwright. Those platforms
+  and Internet interoperability remain unverified locally.
+
+These tests exercise startup, simulation, joining, resource rejection and
+cleanup. They are not full campaign playthroughs, visual certification of every
+material, or proof of all possible network behavior. Review was a component and
+combined-diff self-review, not an independent review.

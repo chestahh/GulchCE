@@ -184,12 +184,28 @@ lists a public game with a password with its invite's token sealed with the
 password's key (`p2p_lobby.c`), a listing of another layout; version 21
 sends each killing blow again reliably and an object come to rest three
 times (a client waits for a player's blow before its body dies without one),
-and switches co-op's BSP on the host's crossing alone; version 26 has each
-machine say its WebRTC in internet play's signalling (a native build's
-certificate, a browser's ICE credentials too), so that browsers play
-(port/linux/README.md, "Browsers"). GulchCE version 29 combines that
-signalling with its existing MCC campaign snapshots (previously version 28);
-peers must use the same combined protocol.
+and switches co-op's BSP on the host's crossing alone; version 22 names a
+Custom Edition map `custom_maps\<name>`, which older clients cannot load or
+explain; version 23 keeps the blocks of a Custom Edition map that 22 cut to
+the Xbox tools' limits, so both place the same objects; version 24 sends the
+gametype's PC vehicle set; version 25 sends a unit's integrated light with
+its object state; version 26 has each machine say its WebRTC in internet
+play's signalling (a native build's certificate, a browser's ICE credentials
+too), so that browsers play (port/linux/README.md, "Browsers"); version 27
+shares Custom Edition maps (below, "Map sharing"): a client asks the host for
+a map it lacks, and the game's players reach each other to send it; version
+28 holds the players of a machine still downloading the map out of the game
+until it has the map, keeps a multiplayer map's first scripted BSP, leaves
+dynamic lights and the flashlight on past the Xbox game's player and vehicle
+limits, and readies a second weapon picked up while firing.
+
+`port/linux/network_format.txt` records the wire format of the current
+version (`tools/network_format.py`): `test_linux_port.py` fails when the
+sources' messages, kinds, bits, structs sent whole or the sizes of their
+arrays differ from it.
+
+GulchCE version 29 combines upstream WebRTC signalling with its existing
+MCC campaign snapshots (previously GulchCE version 28).
 
 GulchCE version 30 retains those messages and adds MCC package-qualified map
 identities and package resource fingerprints to map admission. The existing
@@ -197,7 +213,7 @@ map-version field carries the fingerprint; no packet fields are added. Peers
 must agree on this meaning, so version 29 clients cannot join version 30 games.
 Xbox and Custom Edition map checksum calculations are unchanged.
 
-Version 27 includes MCC extra-grenade inventory/action support and campaign
+GulchCE version 27 includes MCC extra-grenade inventory/action support and campaign
 state snapshots for gravity, dialogue gain and breadcrumb markers. All
 participants need the same protocol version, including on Xbox or Custom
 Edition maps; their existing inventory packet layouts are unchanged. MCC
@@ -209,9 +225,35 @@ GulchCE version 33 adds upstream Custom Edition map sharing alongside MCC.
 Map sharing retains upstream IDs 83-86; MCC moves to 87-88. Versions 31-32 belong
 to the separate camera test branch and are not compatible with this protocol.
 
-The online shoulder-camera branch uses version 34: it combines version 33's
-map sharing and relocated MCC messages with version 32's shoulder input relay
-and muzzle-origin shots. Neither version 32 nor main's version 33 can join it.
+GulchCE version 34 adds MCC named-object presence chunks (message 89) for
+MCC scenarios with more than 512 names, up to 32,767. The host sends bounded
+512-name chunks every 15 ticks, in co-op and multiplayer. Clients validate
+the count, range, padding, BSP and timestamp, and confirm a difference in
+two distinct snapshots before creating/deleting scenery or devices. Native
+unit/item replication is retained. Smaller MCC, Xbox and Custom Edition
+maps keep their original name tables and messages. All peers need version
+34; it cannot connect to version 33, including on legacy maps. Version 34
+also assigns campaign flag bit 3 to MCC script-controlled muting.
+
+GulchCE version 35 combines upstream OpenCE version 28's map-download
+admission, multiplayer BSP, lighting and weapon-selection rules with the
+MCC messages and semantics from GulchCE version 34. Both peers must use 35;
+upstream version 28 and GulchCE version 34 cannot join these games. MCC
+message IDs 87-89 and package fingerprints are retained. The wire-format
+record is regenerated for the combined implementation.
+
+GulchCE version 36 requires both peers to use MCC package-first resource
+selection and dependency-based fingerprints. Explicit root files take precedence
+over automatic selection between `_shared/singleplayer` and `_shared/multiplayer`;
+a candidate must satisfy all references of its type, and differing complete
+candidates are refused as ambiguous. Only externally referenced
+bitmap and sound files contribute; loose MCC levels now include their used
+resources too. Identical selected contents match across installation locations.
+Required missing files fail admission. Version 35 and earlier cannot join;
+all players, including those playing Xbox/Custom Edition maps, need version 36.
+No message layout or client authority changes. The checksums detect accidental
+resource mismatches; they do not authenticate untrusted files or clients.
+
 
 A client plays by its host's rules: in another's game (searching for it,
 in its lobby, or playing it) the developer console, the telnet console
@@ -485,7 +527,11 @@ menus show a map without its hash, unless two versions are listed.
    would leave a falling body hanging until its turn round all of them),
    and a few of those at rest, round them all. A client takes the host's
    word on whether each is at rest even when its copy is close enough to
-   leave where it is. A client puts its copies there, and the difference is
+   leave where it is. A body's pose goes with it: one lying limp that the
+   host moves stops lying limp (the blast that moved the host's reaches
+   only the machines that see the body's player), and one the host has at
+   rest is on the ground, so it lies limp again where it stops instead of
+   keeping the pose of its fall in the air. A client puts its copies there, and the difference is
    drawn fading over a few ticks (`render_interpolation.c`) instead of a
    jump. A client drives its own player's vehicle and sends where it is,
    which the host takes within a tolerance, as it does its own player's
@@ -754,3 +800,8 @@ The host logs to `debug.txt` when a player on another machine presses the
 action button where the host has nothing for them to pick up, with where it
 has them and the nearest item: a client that sees a pickup the host does
 not.
+
+The online-third-person branch uses version 37: main version 36 resource
+selection and MCC named-object synchronization combined with shoulder-camera
+policy, input relay and muzzle-origin shots. Earlier camera builds and main
+version 36 cannot join it; all participants must use the combined build.

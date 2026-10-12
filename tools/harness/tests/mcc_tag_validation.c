@@ -20,13 +20,15 @@ struct test_root {
     struct tag_block children; short index; short enumeration; struct tag_data file;
     struct tag_data hs_syntax_data, other_data;
     struct tag_block object_names;
+    struct tag_block scenery_palette;
+    short palette_entry_index;
 };
 struct test_bsp { void *root; long vcount; void *vertices; long icount; void *indices; unsigned long signature; };
 struct test_device { short kind; unsigned short flags; struct tag_data identifier, profile; };
 struct test_padded_inner { short kind; byte unused[14]; };
 struct test_padded_root { struct test_padded_inner inner; };
 struct test_graph { struct tag_block nodes, animations; };
-struct test_graph_node { short next_sibling_node_index, first_child_node_index, parent_node_index; };
+struct test_graph_node {char name[32]; short next_sibling_node_index, first_child_node_index, parent_node_index;byte pad[26];};
 struct test_animation { short next_animation_index; };
 struct test_first_person { struct tag_block animations; };
 struct test_grenades {struct tag_block grenades;};
@@ -68,10 +70,14 @@ static struct tag_schema_field const root_fields[] = {
     TAG_SCHEMA_DATA(struct test_root, hs_syntax_data, 56L + 20L * 19001),
     TAG_SCHEMA_DATA(struct test_root, other_data, 128),
     TAG_SCHEMA_BLOCK(struct test_root, object_names, name_schema, 512),
+    TAG_SCHEMA_BLOCK(struct test_root, scenery_palette, name_schema, 100),
+    TAG_SCHEMA_BLOCK_INDEX(struct test_root, palette_entry_index, TAG_SCHEMA_ROOT, offsetof(struct test_root, scenery_palette), FLAG(_tag_schema_none_bit)),
     TAG_SCHEMA_CHECK(check_root),
     TAG_SCHEMA_END
 };
 static struct tag_schema_definition const root_schema = TAG_SCHEMA_DEFINITION(scenario, struct test_root, root_fields);
+static struct tag_schema_field const alias_fields[]={TAG_SCHEMA_BLOCK(struct test_root,children,child_schema,4),TAG_SCHEMA_END};
+static struct tag_schema_definition const alias_schema=TAG_SCHEMA_DEFINITION(alias,struct test_root,alias_fields);
 static struct tag_schema_field const padded_inner_fields[] = {
     TAG_SCHEMA_ENUM(struct test_padded_inner, kind, 3, 0), TAG_SCHEMA_END
 };
@@ -101,6 +107,24 @@ static struct tag_schema_field const graph_fields[] = {
     TAG_SCHEMA_CHECK(animation_graph_check), TAG_SCHEMA_END
 };
 static struct tag_schema_definition const graph_schema = TAG_SCHEMA_DEFINITION(graph,struct test_graph,graph_fields);
+static struct tag_schema_field const empty_fields[]={TAG_SCHEMA_END};
+static struct tag_schema_definition const model_node_schema={"model_node",156,empty_fields};
+static struct tag_schema_definition const damage_name_schema={"damage_permutation",32,empty_fields};
+static struct tag_schema_field const damage_fields[]={TAG_SCHEMA_BLOCK(struct test_root,children,damage_name_schema,32),TAG_SCHEMA_END};
+static struct tag_schema_definition const damage_schema={"damage_test",sizeof(struct test_root),damage_fields};
+struct test_empty_weapon {byte unused[48];struct tag_block animations;};
+static struct tag_schema_field const empty_weapon_element_fields[]={TAG_SCHEMA_BLOCK(struct test_empty_weapon,animations,name_schema,4),TAG_SCHEMA_END};
+static struct tag_schema_definition const empty_weapon_schema={"animation_graph_weapon_type",60,empty_weapon_element_fields};
+static struct tag_schema_field const empty_weapon_fields[]={TAG_SCHEMA_BLOCK(struct test_root,children,empty_weapon_schema,32),TAG_SCHEMA_END};
+static struct tag_schema_definition const empty_weapon_root={"weapon_test",sizeof(struct test_root),empty_weapon_fields};
+static struct tag_schema_field const animation_data_fields[]={TAG_SCHEMA_DATA(struct test_root,other_data,128),TAG_SCHEMA_END};
+static struct tag_schema_definition const animation_data_schema={"animation",sizeof(struct test_root),animation_data_fields};
+struct test_model {byte pad[184];struct tag_block nodes;byte rest[36];};
+static struct tag_schema_field const model_fields[]={
+    TAG_SCHEMA_BLOCK(struct test_model,nodes,model_node_schema,64), TAG_SCHEMA_END
+};
+static struct tag_schema_definition const model_schema={"model",232,model_fields};
+static struct tag_schema_definition const object_schema={"object",72,empty_fields};
 static struct tag_schema_field const bitmap_fields[] = {TAG_SCHEMA_CHECK(bitmap_data_check),TAG_SCHEMA_END};
 static struct tag_schema_definition const bitmap_schema = {"bitmap",4,bitmap_fields};
 static struct tag_schema_field const fp_element_fields[] = {TAG_SCHEMA_END};
@@ -114,7 +138,16 @@ static struct tag_schema_definition const equipment_schema = {"equipment",sizeof
 struct test_anchor {short corner;};
 static struct tag_schema_field const anchor_fields[]={TAG_SCHEMA_ENUM(struct test_anchor,corner,5,0),TAG_SCHEMA_END};
 static struct tag_schema_definition const anchor_schema=TAG_SCHEMA_DEFINITION(hud_absolute_placement,struct test_anchor,anchor_fields);
+struct test_flag {long unused;char name[31];byte padding;byte rest[56];};
+static struct tag_schema_field const flag_fields[]={TAG_SCHEMA_STRING(struct test_flag,name),TAG_SCHEMA_END};
+static struct tag_schema_definition const flag_schema=TAG_SCHEMA_DEFINITION(cutscene_flag,struct test_flag,flag_fields);
 static struct tag_schema_group const groups[] = {
+    {'dmg!',{NONE,NONE},&damage_schema},
+    {'emp!',{NONE,NONE},&empty_weapon_root},
+    {'adt!',{NONE,NONE},&animation_data_schema},
+    {'alrt',{NONE,NONE},&alias_schema},
+    {'mode',{NONE,NONE},&model_schema}, {'vehi',{'obje',NONE},&object_schema},
+    {'cflg',{NONE,NONE},&flag_schema},
     {'scnr', {NONE, NONE}, &root_schema}, {'sbsp', {NONE, NONE}, &root_schema},
     {'antr', {NONE, NONE}, &graph_schema}, {'bitm', {NONE, NONE}, &bitmap_schema}, {'afp!', {NONE,NONE}, &fp_schema},
     {'matg', {NONE,NONE}, &grenade_schema}, {'eqip',{NONE,NONE}, &equipment_schema},
@@ -146,6 +179,15 @@ int mcc_geometry_contains(struct mcc_runtime *runtime, void const *address, unsi
         (a >= i && a - i <= sizeof(external_indices) && bytes <= sizeof(external_indices) - (a - i));
 }
 
+void *mcc_runtime_allocate(struct mcc_runtime *runtime,uint32_t bytes)
+{
+    uint32_t start=(runtime->used+15)&~15u;
+    if (start>runtime->capacity || bytes>runtime->capacity-start) return NULL;
+    runtime->used=start+bytes;
+    memset(runtime->tags+start,0,bytes);
+    return runtime->tags+start;
+}
+
 int main(int argc, char **argv)
 {
     struct mcc_runtime runtime;
@@ -158,16 +200,19 @@ int main(int argc, char **argv)
     memset(&runtime, 0, sizeof(runtime));
     runtime.capacity = 65536; runtime.used = 4096; runtime.source.size = 1024;
     if (!strncmp(argv[1], "syntax_", 7)) runtime.capacity = runtime.used = 1048576;
-    if (!strncmp(argv[1], "names_", 6)) runtime.used = runtime.capacity;
-    runtime.tags = calloc(runtime.capacity, 1); CHECK(runtime.tags != NULL);
+    if (!strncmp(argv[1], "names_", 6)) runtime.used = runtime.capacity = 2097152;
+    if (!strncmp(argv[1], "palette_", 8)) runtime.used = runtime.capacity = 2097152;
+    runtime.tags = malloc(runtime.capacity); CHECK(runtime.tags != NULL);
+    memset(runtime.tags, 0, runtime.capacity);
     header = (struct test_header *)runtime.tags;
     instance = (struct test_instance *)(runtime.tags + 0x28);
     root = (struct test_root *)(runtime.tags + 0x100);
     child = (struct test_child *)(runtime.tags + 0x200);
     header->instances = instance; header->count = 1; header->scenario = (long)0xe0000000UL; header->signature = 'tags';
     instance->group = 'scnr'; instance->parent[0] = instance->parent[1] = NONE;
-    instance->handle = header->scenario; instance->root = root; instance->name = (char *)runtime.tags + 0x180;
+    instance->handle = header->scenario; instance->root = root; instance->name = (char *)runtime.tags + 0x1c0;
     strcpy(instance->name, "scenario");
+    root->palette_entry_index = NONE;
     root->children.count = 1; root->children.address = child; root->index = 7; root->enumeration = 9;
     root->file.file_offset = 100; root->file.size = 8;
     child->data.address = runtime.tags + 0x300; child->data.size = 16;
@@ -184,6 +229,40 @@ int main(int argc, char **argv)
     if (!strcmp(argv[1], "bsp")) {
         header->count = 2; instance[1] = instance[0]; instance[1].group = 'sbsp'; instance[1].handle++;
     }
+    if (!strncmp(argv[1], "alias", 5)) {
+        header->count=2;instance[1]=instance[0];instance[1].handle++;
+        if (!strcmp(argv[1],"alias_partial")) {instance[1].root=(byte *)root+4;expected=0;}
+        if (!strcmp(argv[1],"alias_group")) {instance[1].group='trim';expected=0;}
+        if (!strcmp(argv[1],"alias_bad_child")) {child->data.address=root;expected=0;}
+        if (!strcmp(argv[1],"alias_block") || !strcmp(argv[1],"alias_block_partial")) {
+            struct test_root *other=(struct test_root *)(runtime.tags+0x500);
+            *other=*root;instance[1].root=other;instance[1].group='alrt';
+            if (!strcmp(argv[1],"alias_block_partial")) {other->children.address=(byte *)child+4;expected=0;}
+        }
+    }
+    if (!strncmp(argv[1],"prefix_",7)) {
+        strcpy((char *)runtime.tags+0x800,"prefix");
+        root->object_names.address=runtime.tags+0x800;root->object_names.count=2;
+        root->scenery_palette.address=runtime.tags+0x800;root->scenery_palette.count=1;
+        if (!strcmp(argv[1],"prefix_expand")) {root->object_names.count=1;root->scenery_palette.count=2;}
+        if (!strcmp(argv[1],"prefix_tail_overlap")) {
+            root->object_names.count=1;root->scenery_palette.count=2;
+            child->data.address=runtime.tags+0x800+36;child->data.size=4;
+        }
+    }
+    if (!strncmp(argv[1],"empty_weapon",12) || !strncmp(argv[1],"animation_data",14)) {
+        struct test_root *other=(void *)(runtime.tags+0x500);
+        header->count=2;instance[1]=instance[0];instance[1].handle++;instance[1].root=other;
+        root->other_data.address=runtime.tags+0x800;root->other_data.size=64;
+        if (!strncmp(argv[1],"empty_weapon",12)) {
+            instance[1].group='emp!';other->children.address=root->other_data.address;other->children.count=1;
+            if (!strcmp(argv[1],"empty_weapon_nonzero")) {runtime.tags[0x800]=1;expected=0;}
+        } else {
+            instance[1].group='adt!';other->other_data.address=runtime.tags+0x810;other->other_data.size=32;
+            memset(runtime.tags+0x800,0x7b,64);
+            if (!strcmp(argv[1],"animation_data_outside")) {other->other_data.address=runtime.tags+runtime.used-1;expected=0;}
+        }
+    }
     if (!strncmp(argv[1], "collection", 10)) {
         struct tag_block *collection = (struct tag_block *)(runtime.tags + 0x500);
         struct tag_reference *reference = (struct tag_reference *)(runtime.tags + 0x600);
@@ -191,6 +270,11 @@ int main(int argc, char **argv)
         instance[1].root = collection; collection->count = 1; collection->address = reference;
         *reference = child->reference;
         if (!strcmp(argv[1], "collection_outside")) { collection->address = runtime.tags + runtime.used - 1; expected = 0; }
+    }
+    if (!strcmp(argv[1],"damage_names")) {
+        struct test_root *damage=(struct test_root *)(runtime.tags+0x500);
+        header->count=2;instance[1]=instance[0];instance[1].group='dmg!';instance[1].handle++;instance[1].root=damage;
+        damage->children.count=1;damage->children.address=child;
     }
     if (!strncmp(argv[1], "device", 6)) {
         struct test_device *device = (struct test_device *)(runtime.tags + 0x500);
@@ -220,6 +304,23 @@ int main(int argc, char **argv)
         if (!strcmp(argv[1],"graph_root_sibling")) nodes[0].next_sibling_node_index=1;
         if (!strcmp(argv[1],"graph_root_outside")) nodes[0].next_sibling_node_index=3;
         if (!strcmp(argv[1],"graph_root_orphan")) {nodes[0].next_sibling_node_index=1;nodes[0].first_child_node_index=NONE;expected=0;}
+        if (!strncmp(argv[1],"graph_model",11)) {
+            byte *model=runtime.tags+0xc00,*model_nodes=runtime.tags+0xd00,*object=runtime.tags+0xf00;
+            struct tag_block *block=(struct tag_block *)(model+184);
+            short links[6]={NONE,1,NONE,NONE,NONE,0};
+            header->count=4;
+            instance[2]=instance[0];instance[2].group='mode';instance[2].handle+=2;instance[2].root=model;
+            instance[3]=instance[0];instance[3].group='vehi';instance[3].handle+=3;instance[3].root=object;
+            memcpy(object+52,&instance[2].handle,4);memcpy(object+68,&instance[1].handle,4);
+            block->count=2;block->address=model_nodes;
+            strcpy(nodes[0].name,"root");strcpy(nodes[1].name,"child");
+            strcpy((char *)model_nodes,"root");strcpy((char *)model_nodes+156,"child");
+            memcpy(model_nodes+32,links,6);memcpy(model_nodes+156+32,links+3,6);
+            nodes[0].first_child_node_index=NONE;
+            if (!strcmp(argv[1],"graph_model_mismatch")) {model_nodes[156]='x';expected=0;}
+            if (!strcmp(argv[1],"graph_model_outside")) {block->address=runtime.tags+runtime.used-1;expected=0;}
+            if (!strcmp(argv[1],"graph_model_cycle")) {short cycle=0;memcpy(model_nodes+156+34,&cycle,2);expected=0;}
+        }
     }
     if (!strncmp(argv[1],"bitmap",6)) {
         header->count=2; instance[1]=instance[0]; instance[1].group='bitm'; instance[1].handle++;
@@ -274,9 +375,47 @@ int main(int argc, char **argv)
     if (!strncmp(argv[1],"names_",6)) {
         root->object_names.count=atoi(argv[1]+6);
         root->object_names.address=runtime.tags+0x1000;
-        expected=root->object_names.count<=512;
+        expected=root->object_names.count<=32767;
+    }
+    if(!strcmp(argv[1],"flag_name")) {
+        struct test_flag *flag=(void*)(runtime.tags+0x500);
+        header->count=2;instance[1].group='cflg';instance[1].handle=(long)0xe0010001UL;
+        instance[1].root=flag;instance[1].name=instance->name;
+        memcpy(flag->name,"return_cart_cliffs_dropoff_flag",31);
+    }
+    if (!strncmp(argv[1], "palette_", 8)) {
+        root->scenery_palette.count = atoi(argv[1]+8);
+        if (!root->scenery_palette.count) root->scenery_palette.count = 101;
+        root->scenery_palette.address = runtime.tags+0x1000;
+        root->palette_entry_index = (short)(root->scenery_palette.count-1);
+        expected = root->scenery_palette.count<=32767;
+        if (!strcmp(argv[1], "palette_bad_index")) root->palette_entry_index = 101;
+        if (!strcmp(argv[1], "palette_outside")) {
+            root->scenery_palette.address = runtime.tags+runtime.used-36; expected = 0;
+        }
+        if (!strcmp(argv[1], "palette_overlap")) {
+            root->scenery_palette.address = child; expected = 0;
+        }
     }
     CHECK(mcc_tags_validate(&runtime) == expected);
+    if (!strncmp(argv[1], "palette_", 8)) {
+        int count = atoi(argv[1]+8);
+        if (!count) count = 101;
+        CHECK(root->scenery_palette.count == count);
+        if (expected) {
+            CHECK(root->palette_entry_index == (!strcmp(argv[1], "palette_bad_index") ? NONE : count-1));
+            CHECK(tag_validate_tags(header,runtime.used,runtime.source.size,"legacy scenery"));
+            CHECK(root->scenery_palette.count == MIN(count,100));
+            CHECK(root->palette_entry_index == (count>100 ? NONE : count-1));
+        }
+        mcc_validation_dispose(&runtime); free(runtime.tags); return 0;
+    }
+    if(!strcmp(argv[1],"flag_name")) {
+        struct test_flag *flag=(void*)(runtime.tags+0x500);
+        CHECK(!strcmp(flag->name,"return_cart_cliffs_dropoff_flag"));
+        CHECK(tag_validate_tags(header,runtime.used,runtime.source.size,"legacy flag"));
+        CHECK(flag->name[30]==0);
+    }
     if (!strncmp(argv[1],"names_",6)) {
         CHECK(root->object_names.count==atoi(argv[1]+6));
         CHECK(tag_validate_tags(header,runtime.used,runtime.source.size,"legacy names"));
@@ -310,6 +449,20 @@ int main(int argc, char **argv)
         CHECK(((struct test_equipment *)instance[2].root)->grenade_type==3);
     }
     if (expected) {
+        if (!strcmp(argv[1],"prefix_tail_overlap")) {
+            CHECK(root->scenery_palette.address!=runtime.tags+0x800);
+            CHECK(!memcmp(root->scenery_palette.address,runtime.tags+0x800,72));
+        }
+        if (!strcmp(argv[1],"empty_weapon")) CHECK(((struct test_root *)instance[1].root)->children.address!=root->other_data.address);
+        if (!strcmp(argv[1],"animation_data")) {
+            void *copy=((struct test_root *)instance[1].root)->other_data.address;
+            CHECK(copy!=runtime.tags+0x810 && !memcmp(copy,runtime.tags+0x810,32));
+        }
+        if (!strcmp(argv[1],"damage_names")) {
+            struct test_root *damage=instance[1].root;
+            CHECK(damage->children.address!=child);
+            CHECK(!memcmp(damage->children.address,child,4));
+        }
         CHECK(root->index == 0 && root->enumeration == 0);
         CHECK(child->reference.name == instance->name && child->reference.name_length == 8);
         CHECK(callback_calls > 0 && callback_failures == 0);
