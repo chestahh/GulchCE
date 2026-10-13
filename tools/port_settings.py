@@ -219,10 +219,38 @@ SCREENS["video_settings/fov_viewmodels"] = {
          "Draw first-person weapons, hands and attached\nvisuals. Gameplay and sound continue when off.", None),
         ("ARM SHIELDS:", "display.viewmodel_shield", ON_OFF,
          "The energy shield's flare on your first-person\narms too, as on your body.", None),
+        ("THIRD PERSON:", "display.third_person", ON_OFF,
+         "Right-shoulder view on foot. Zoom uses first\nperson. The reticle follows your aim point.", None),
         ("LEGS:", "display.first_person_legs", ON_OFF,
          "Your legs in first person, seen looking down,\nmoving as you run. Your body as others see it.", None),
         ("SHIELD COLOR:", "display.shield_color", [("DEFAULT", "default")] + [(c.upper(), c) for c in SHIELD_COLORS],
          "Your shield's flare in an armor color, whatever\nyour armor. Only you see it. Default: its own.", None),
+    ],
+}
+
+SCREENS["video_settings/fov_viewmodels"]["categories"] = [
+    ("SHOULDER CAMERA:", "video_settings/shoulder_camera",
+     "Choose the shoulder and camera position.\nV swaps shoulders while playing."),
+]
+SCREENS["video_settings/fov_viewmodels"]["extra_help"] = [
+    "CONTROLLED BY HOST. Your personal camera\\npreference returns after leaving the match.",
+]
+SCREENS["video_settings/shoulder_camera"] = {
+    "screen": "shoulder_camera_settings_screen", "header": _video["header"], "spacing": 30,
+    "rows": [
+        ("CAMERA MOTION:", "display.third_person_smooth", [("SMOOTH", "true"), ("SHARP", "false")],
+         "Smooth eases recovery and shoulder changes.\nSharp moves immediately; collision stays active.", None),
+        ("LEFT SHOULDER:", "display.third_person_left_shoulder", ON_OFF,
+         "Off uses the right shoulder. V swaps in game.\nRemap it under Controls Setup > Actions.", None),
+        ("DISTANCE:", "display.third_person_distance",
+         [(f"{n / 100:.2f}", f"{n / 100:.2f}") for n in [30, 45, 60, 70, 85, 100, 125, 150, 175, 200]],
+         "Distance behind the eye, in world units.\nDefault 0.85. One world unit is about 3 metres.", None),
+        ("HEIGHT:", "display.third_person_height",
+         [(f"{n / 100:.2f}", f"{n / 100:.2f}") for n in [-20, -10, 0, 6, 12, 18, 24, 36, 48, 60]],
+         "Height along the camera's up direction.\nDefault 0.12 world units.", None),
+        ("LATERAL OFFSET:", "display.third_person_offset",
+         [(f"{n / 100:.2f}", f"{n / 100:.2f}") for n in [0, 6, 12, 18, 24, 30, 36, 48, 60]],
+         "Distance to the selected shoulder's side.\nDefault 0.24 world units.", None),
     ],
 }
 
@@ -251,7 +279,7 @@ SCREENS["network_setup/map_sharing"] = {
 
 # Controls Setup: the keyboard and mouse's actions, in groups (the order of
 # port/linux/game/menu_functions.c's table of them)
-CONTROL_GROUPS = ["MOVEMENT", "WEAPONS", "ACTIONS"]
+CONTROL_GROUPS = ["MOVEMENT", "WEAPONS", "ACTIONS", "CAMERA"]
 CONTROL_ROWS = 7
 
 # the settings whose rows have the wider spinner (a device's name)
@@ -330,22 +358,22 @@ def _screen(folder: str, spec: dict, rows: list, list_inputs: list, list_handler
     lines = []
     lines += _widget(f"{base}/{spec['screen']}",
                      [("width", 640), ("height", 480), ("flags", "pass_unhandled_to_focused_child pause_game"),
-                      ("bitmap", "bitmaps/gradient")],
+                      ("bitmap", spec.get("background_bitmap", "bitmaps/gradient"))],
                      ['<on event="b" back="true"/>', '<on event="back" back="true"/>',
                       f'<child{attributes([("widget", f"{base}/{header}")])}/>',
                       f'<child{attributes([("widget", f"{base}/options_menu")])}/>'])
-    lines += _widget(f"{base}/{header}", [("controller", 1), ("left", 35), ("top", 11), ("width", 605), ("height", 59),
+    lines += _widget(f"{base}/{header}", [("controller", 1), ("left", 35), ("top", spec.get("header_top", 11)), ("width", 605), ("height", 59),
                                           ("bitmap", header_bitmap)], [])
     lines += _widget(f"{base}/help", [("type", "text"), ("controller", 1), ("left", 68),
                                       ("top", spec.get("help_top", 350)), ("width", 482),
                                       ("height", 60), ("string_list", f"{base}/help_strings"),
-                                      ("font", "ui\\large_ui"), ("color", "#FFFFFFFF")], [])
+                                      ("font", spec.get("help_font", "ui\\large_ui")), ("color", "#FFFFFFFF")], [])
     children = [f'<data input="{name}"/>' for name in list_inputs] + list_handlers
     # (each row: its widget, platform, and the place it is in, else the next)
     for index, (row, platform, *place) in enumerate(rows):
-        y = 73 + (place[0] if place else index) * spec["spacing"]
+        y = spec.get("rows_top", 73) + (place[0] if place else index) * spec["spacing"]
         children.append(f'<child{attributes([("widget", row), ("x", 54), ("y", y), ("platform", platform)])}/>')
-    children.append(f'<child{attributes([("widget", f"{base}/button_bar"), ("y", 414)])}/>')
+    children.append(f'<child{attributes([("widget", f"{base}/button_bar"), ("y", spec.get("button_top", 414))])}/>')
     lines += _widget(f"{base}/options_menu",
                      [("type", "column_list"), ("width", 640), ("height", 480),
                       ("flags", "pass_unhandled_to_focused_child up_down_tabs_children"),
@@ -447,7 +475,8 @@ def _setting_screen(folder: str, spec: dict) -> list:
     # (the help of the row whose label is string n is n + 1: the buttons' is 0)
     extra += _strings(f"{base}/help_strings",
                       [""] + [help_text.replace("\n", "\\n") for _, _, _, help_text, *_ in spec["rows"]] +
-                      [help_text.replace("\n", "\\n") for _, _, help_text, *_ in spec.get("categories", ())])
+                      [help_text.replace("\n", "\\n") for _, _, help_text, *_ in spec.get("categories", ())] +
+                      spec.get("extra_help", []))
     return _screen(folder, spec, rows, ["port settings help"], [], extra)
 
 
@@ -896,8 +925,10 @@ def _server_settings() -> list:
     whether the server browser lists it (PUBLIC or PRIVATE: an internet
     game's)"""
     base = f"{MT}/server_settings"
-    # (twelve rows: closer together, the help lower)
-    spec = {"screen": "server_settings_screen", "spacing": 24, "help_top": 366,
+    # Thirteen full-height rows: leave the selection artwork room to draw.
+    spec = {"screen": "server_settings_screen", "spacing": 28, "help_top": 410, "rows_top": 49,
+            "help_font": "ui\\small_ui", "button_top": 448,
+            "background_bitmap": "bitmaps/gradient_big", "header_top": -10,
             "header": ("header_server_settings", f"{base}/header_server_settings")}
     rows, extra = [], []
     extra += _value_row(base, "server_name", 0, "ss edit server name")
@@ -944,6 +975,25 @@ def _server_settings() -> list:
     # which players from the server browser must type
     extra += _value_row(base, "password", 10 + len(COOP_SETUP_SCREENS), "ss edit server password")
     rows.append((f"{base}/op_password", None))
+    # Shared match rule: visible for LAN, internet and campaign co-op alike.
+    extra += _widget(f"{base}/op_camera_policy", [("width", 512), ("height", 28),
+                         ("flags", "pass_unhandled_to_focused_child"),
+                         ("bitmap", "bitmaps/option_bkds"), ("color", "#FF2896FF")],
+                     [f'<child widget="{base}/camera_policy_label"/>',
+                      f'<child widget="{base}/camera_policy_spinner" x="270" y="1"/>'])
+    extra += _widget(f"{base}/camera_policy_label", [("type", "text"), ("controller", 1),
+                         ("width", 260), ("height", 22), ("string_list", f"{base}/labels"),
+                         ("string_index", 13), ("font", "ui\\large_ui"), ("color", "#FF2896FF"),
+                         ("text_x", 13), ("text_y", 4)], [])
+    extra += _widget(f"{base}/camera_policy_spinner", [("type", "spinner"), ("left", 3), ("top", 2),
+                         ("width", 197), ("height", 20),
+                         ("flags", "pass_unhandled_to_focused_child left_right_tabs_items"),
+                         ("strings", "PLAYER CHOICE|FORCED ON|FORCED OFF"), ("font", "ui\\large_ui"),
+                         ("color", "#FF2896FF"), ("align", "center"), ("text_y", 1),
+                         ("header_bitmap", "bitmaps/arrow_sm_left"), ("footer_bitmap", "bitmaps/arrow_sm_right"),
+                         ("header_bounds", "7 -6 19 0"), ("footer_bounds", "7 200 19 206")],
+                     ['<on event="left_mouse" run="mouse spinner 1wide click"/>'])
+    rows.append((f"{base}/op_camera_policy", None))
     # MAP SHARING (map_share.c), a screen of its own as co-op's options are,
     # for any game: SETUP_OPTIONS_PLACE below it
     key, _, _, _ = MAP_SHARE_SETUP
@@ -956,7 +1006,7 @@ def _server_settings() -> list:
                       f'<child widget="{base}/{key}_label"/>'])
     extra += _widget(f"{base}/{key}_label", [("type", "text"), ("controller", 1), ("width", 300), ("height", 22),
                                              ("string_list", f"{base}/labels"),
-                                             ("string_index", 11 + len(COOP_SETUP_SCREENS)),
+                                             ("string_index", 12 + len(COOP_SETUP_SCREENS)),
                                              ("font", "ui\\large_ui"), ("color", "#FF2896FF"), ("text_x", 13),
                                              ("text_y", 4)], [])
     rows.append((f"{base}/op_{key}", None, SETUP_OPTIONS_PLACE - 1))
@@ -1007,8 +1057,7 @@ def _server_settings() -> list:
     extra += _strings(f"{base}/labels", ["GAME NAME:", "MAXIMUM PLAYERS:", "INVITE LINK:", "GAME TYPE:",
                                          "PLAYER OPTIONS:", "ITEM OPTIONS:", "VEHICLE OPTIONS:", "INDICATOR OPTIONS:",
                                          "TEAMPLAY OPTIONS:", "LISTING:",
-                                         *(f"{title}:" for _, title, _, _ in COOP_SETUP_SCREENS), "PASSWORD:",
-                                         f"{MAP_SHARE_SETUP[1]}:"])
+                                         *(f"{title}:" for _, title, _, _ in COOP_SETUP_SCREENS), "PASSWORD:", "THIRD PERSON:", f"{MAP_SHARE_SETUP[1]}:"])
     extra += _strings(f"{base}/help_strings", [
         "",
         "The name the game shows in the lists of games.\\nEnter changes it.",
@@ -1027,6 +1076,9 @@ def _server_settings() -> list:
         *(help_text for _, _, help_text, _ in COOP_SETUP_SCREENS),
         # (PASSWORD's)
         "Players from the Server Browser must type it to\\njoin (an invite link needs none). Enter sets it.",
+        "Each player chooses first or third person.\\nTheir camera toggle remains available.",
+        "Everyone uses third person on foot. Scoping and\\ntight spaces still use first person.",
+        "Third person is disabled for everyone.\\nNormal vehicle and cinematic cameras remain.",
         # (MAP SHARING's)
         MAP_SHARE_SETUP[2],
     ])
@@ -1095,7 +1147,7 @@ MAP_SHARE_SETUP = ("map_share_options", "MAP SHARING",
 ])
 # (Server Setup's place of its options' rows, co-op's or the gametype's: after
 # MAP SHARING's)
-SETUP_OPTIONS_PLACE = 6
+SETUP_OPTIONS_PLACE = 7
 # (their screens' titles)
 TITLES.update({f"{MT}/server_settings/{key}/header_{key}": title
                for key, title, _, _ in [*COOP_SETUP_SCREENS, MAP_SHARE_SETUP]})

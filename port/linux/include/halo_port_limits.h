@@ -76,7 +76,8 @@ Raise it with any change to what the machines send each other. */
 /* Version 40: MCC campaign snapshots carry host-approved movement/ammo flags.
  * MCC possession preserves the former body until host death replication. */
 /* Version 41: MCC hosts send reliable clock multipliers, including while paused. */
-#define HALO_PORT_NETWORK_VERSION 42
+/* Version 43 combines MCC SHA-256 identity with host camera policy and shoulder input relay. */
+#define HALO_PORT_NETWORK_VERSION 43
 /* ... the advertisement's reserved bytes: the version (a little-endian word),
 then flags */
 #define HALO_PORT_ADVERTISED_VERSION_OFFSET 0

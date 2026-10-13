@@ -55,8 +55,8 @@ struct network_game
 	wchar_t name[16];
 	struct network_game_map map;
 	struct game_variant variant;
-	/* port: co-op's switches (_network_game_cooperative_*_bit), in a byte the
-	Xbox's game left as padding, which builds before them send as 0 */
+	/* port: co-op switches in bit 0 and the match camera policy in bits 1-2
+	(third_person.h), in a byte the Xbox left as padding. */
 	byte cooperative_flags;
 	char minimum_players;
 	/* port: 128 does not fit a signed char */

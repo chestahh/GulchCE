@@ -66,6 +66,7 @@ their handlers open opens.
 */
 
 #include "cseries.h"
+#include "third_person.h"
 #include "input/input.h"
 #include "interface/event_manager.h"
 #include "interface/player_ui.h"
@@ -379,6 +380,8 @@ static boolean setting_write(char const *name, char const *value)
 {
 	short index;
 
+	if (!strcmp(name, "display.third_person") && third_person_policy() != _third_person_player_choice)
+		return TRUE;
 	if (strncmp(name, "profile.", 8))
 		return config_write(name, value);
 	for (index = 0; index < NUMBEROF(profile_settings); index++)
@@ -425,6 +428,8 @@ static boolean setting_save(struct widget_instance *widget)
 	if (!setting || setting->loaded_index == NONE || widget->parameters.list.selected_index < 0 ||
 		widget->parameters.list.selected_index >= setting->value_count)
 		return FALSE;
+	if (!strcmp(setting->setting, "display.third_person") && third_person_policy() != _third_person_player_choice)
+		return TRUE;
 	if (widget->parameters.list.selected_index == setting->loaded_index)
 		return TRUE;
 	if (!config_write(setting->setting, setting->values[widget->parameters.list.selected_index]))
@@ -1688,6 +1693,11 @@ static boolean setting_changed_save(struct widget_instance *spinner, struct pc_m
 {
 	short index = spinner->parameters.list.selected_index;
 
+	/* A locked display value is never a change to the personal preference,
+	   even if the host unlocks the lobby just before this menu closes. */
+	if (!strcmp(setting->setting, "display.third_person") &&
+		(third_person_policy() != _third_person_player_choice || setting->loaded_index == NONE))
+		return TRUE;
 	if (index < 0 || index >= setting->value_count || index == setting->loaded_index)
 		return TRUE;
 	if (!setting_write(setting->setting, setting->values[index]))
@@ -1707,6 +1717,24 @@ static boolean setting_default_show(struct widget_instance *spinner, struct pc_m
 
 	if (setting_text(setting->setting, text, sizeof(text), TRUE))
 		spinner->parameters.list.selected_index = setting_value_index(setting, text);
+	return TRUE;
+}
+
+static boolean camera_setting_show(struct widget_instance *spinner, struct pc_menu_setting *setting)
+{
+	if (!strcmp(setting->setting, "display.third_person"))
+	{
+		if (third_person_policy() != _third_person_player_choice)
+		{
+			spinner->parameters.list.selected_index = setting_value_index(setting, third_person_enabled() ? "true" : "false");
+			setting->loaded_index = NONE;
+		}
+		else if (setting->loaded_index == NONE)
+		{
+			setting->loaded_index = setting_value_index(setting, config_boolean("display.third_person") ? "true" : "false");
+			spinner->parameters.list.selected_index = setting->loaded_index;
+		}
+	}
 	return TRUE;
 }
 
@@ -2185,6 +2213,9 @@ static struct
 	{ "controls.pause", L"PAUSE MENU", 2 },
 	{ "controls.screenshot", L"SCREENSHOT", 2 },
 	{ "controls.push_to_talk", L"PUSH TO TALK", 2 },
+	{ "controls.swap_shoulder", L"SWAP SHOULDER", 3 },
+	{ "controls.free_look", L"HOLD FREE LOOK", 3 },
+	{ "controls.toggle_perspective", L"TOGGLE PERSPECTIVE", 3 },
 };
 
 static struct
@@ -2483,6 +2514,7 @@ boolean ui_widget_port_multiplayer_player(short controller_index, long profile_i
 boolean ui_widget_port_unjoin_player(struct widget_instance *widget, struct event_record *event,
 	boolean *widget_deleted);
 void network_game_server_port_set_settings(wchar_t const *name, long maximum_players);
+void network_game_server_port_set_camera_policy(short policy);
 void network_game_server_port_set_cooperative_friendly_fire(short friendly_fire);
 void network_game_server_port_set_cooperative_player_collisions(boolean player_collisions);
 void *global_network_game_client_get(void);
@@ -3216,7 +3248,7 @@ VOTING), PASSWORD's and MAP SHARING's (its help_strings, tools/port_settings.py)
 #define COOPERATIVE_OPTIONS_HELP 12
 #define COOPERATIVE_VOICE_OPTIONS_HELP 13
 #define SERVER_PASSWORD_HELP 14
-#define MAP_SHARE_OPTIONS_HELP 15
+#define MAP_SHARE_OPTIONS_HELP 18
 
 /* co-op's EXTRA ENEMIES' choices (network.coop_enemies_mode's values, as
 gametype_options' coop_extra_enemies_spinner has them, in this order): its
@@ -3296,6 +3328,8 @@ static boolean server_settings_initialize(struct widget_instance *list)
 	}
 	if (spinner)
 		spinner->parameters.list.selected_index = *server_settings_maximum_players_index();
+	if ((spinner = named(list, "camera_policy_spinner", 0)) != NULL)
+		spinner->parameters.list.selected_index = third_person_policy();
 	/* (PUBLIC or PRIVATE: this game's; the screen is made again on coming
 	back from an option's screen) */
 	if ((spinner = named(list, "listing_spinner", 0)) != NULL)
@@ -3339,6 +3373,14 @@ static void server_settings_update(struct widget_instance *list)
 		text_set(named(list, "game_type_value", 0), type);
 	}
 	settings_help(list);
+	if ((spinner = named(list, "camera_policy_spinner", 0)) != NULL)
+	{
+		short policy = (short)PIN(spinner->parameters.list.selected_index, 0, 2);
+		if (policy != third_person_policy())
+			network_game_server_port_set_camera_policy(policy);
+		if (list->parameters.list.extended_description && list->focused_child == named(list, "op_camera_policy", 0))
+			list->parameters.list.extended_description->parameters.text_box.string_list_index = 15 + policy;
+	}
 	{
 		boolean cooperative = hosting_cooperative();
 		short row;
@@ -3442,6 +3484,8 @@ static boolean invite_copy(void)
 /* "ss start game": the settings given the server, then the lobby */
 static boolean server_start(void)
 {
+	static char const *const camera_policies[] = { "player_choice", "forced_on", "forced_off" };
+	config_write("network.camera_policy", camera_policies[third_person_policy()]);
 	if (text_field_editing(NULL))
 		text_field_end(TRUE);
 	network_game_server_port_set_settings(multiplayer.game_name,
@@ -6198,6 +6242,12 @@ void pc_menu_game_data_function_invoke(
 	{
 		video_rows_show(widget);
 		settings_help(widget);
+		settings_each(widget, camera_setting_show);
+		if (third_person_policy() != _third_person_player_choice &&
+			widget->parameters.list.extended_description &&
+			widget->focused_child == named(widget, "op_third_person", 0))
+			/* FOV And Viewmodels: seven rows, one category, then this help. */
+			widget->parameters.list.extended_description->parameters.text_box.string_list_index = 9;
 	}
 	else if (!strcmp(name, "controls update menu"))
 		controls_update(widget);
