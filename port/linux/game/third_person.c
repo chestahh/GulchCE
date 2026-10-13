@@ -1,5 +1,5 @@
-/* Optional shoulder view. Only the rendered camera changes: the director,
-   network simulation stays stock. Offline shots use the world muzzle. */
+/* Optional shoulder view, applied to the director's eye after interpolation.
+   The simulation's aim stays fixed; shoulder shots use world muzzles. */
 #include "cseries.h"
 #include "third_person.h"
 #include "camera/director.h"
@@ -81,7 +81,7 @@ boolean third_person_active(short local_player_index)
 		active[local_player_index];
 }
 
-static boolean third_person_wanted(short local_player_index)
+boolean third_person_available(short local_player_index)
 {
 	static unsigned long read_at = (unsigned long)-1;
 	long unit_index;
@@ -97,8 +97,8 @@ static boolean third_person_wanted(short local_player_index)
 		if (config_boolean("display.third_person_left_shoulder"))
 			requested_side = -requested_side;
 	}
-	if (!third_person_enabled() || cinematic_in_progress() || *director_camera_scripted ||
-		director_get_perspective(local_player_index) != _director_perspective_first_person ||
+	if (local_player_index < 0 || local_player_index >= MAXIMUM_LOCAL_PLAYERS ||
+		!third_person_enabled() || cinematic_in_progress() || *director_camera_scripted ||
 		director_inhibited_facing(local_player_index))
 		return FALSE;
 	unit_index = player_control_get_unit_index(local_player_index);
@@ -110,6 +110,12 @@ static boolean third_person_wanted(short local_player_index)
 	}
 	return unit && unit->object.parent_object_index == NONE &&
 		!TEST_FLAG(unit->object.damage_flags, _object_dead_bit);
+}
+
+static boolean third_person_wanted(short local_player_index)
+{
+	return third_person_available(local_player_index) &&
+		third_person_director_active(local_player_index);
 }
 
 boolean third_person_free_look_input(short local_player_index, real yaw, real pitch)

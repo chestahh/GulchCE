@@ -422,7 +422,7 @@ static const char *const binding_settings[NUMBER_OF_HALO_KEYBOARD_ACTIONS] =
 	"controls.reload", "controls.zoom", "controls.switch_weapon", "controls.switch_grenade", "controls.action",
 	"controls.flashlight", "controls.scoreboard", "controls.pause", "controls.screenshot",
 	"controls.push_to_talk", "controls.swap_shoulder",
-	"controls.free_look", "controls.toggle_perspective",
+	"controls.free_look", "controls.toggle_perspective", "controls.camera_distance",
 };
 
 static const struct
@@ -567,6 +567,26 @@ static unsigned long keyboard_bound_actions(const struct platform_input_state *i
 		}
 	}
 	return held;
+}
+
+/* Game-side camera eligibility and settings live in third_person_input.c. */
+int third_person_distance_scroll(float notches);
+
+static void camera_distance_capture(struct platform_input_state *input)
+{
+	if (!input->menus && !input->mouse_released && !console_is_active() &&
+		(keyboard_bound_actions(input) & (1UL << HALO_KEYBOARD_CAMERA_DISTANCE)) &&
+		third_person_distance_scroll(input->mouse_wheel))
+	{
+		input->mouse_wheel = 0.0f;
+		/* A captured scroll cannot feed the wheel's synthetic weapon button. */
+		pthread_mutex_lock(&mouse_lock);
+		mouse_wheel_accumulated = 0.0f;
+		wheel_press_until_ms = wheel_moved_ms = 0;
+		wheel_scrolling = FALSE;
+		wheel_direction = 0;
+		pthread_mutex_unlock(&mouse_lock);
+	}
 }
 
 /* One capture per press, regardless of how long the binding is held. */
@@ -985,10 +1005,11 @@ DWORD WINAPI XInputGetState(HANDLE device, PXINPUT_STATE state)
 		BOOL console_active;
 
 		platform_input_read(&input, TRUE);
+		keys_held_over_switch(&input);
+		camera_distance_capture(&input);
 		mouse_poll(&input);
 		wheel_update();
 		keyboard_actions_held = 0;
-		keys_held_over_switch(&input);
 		console_active = console_is_active();
 		held = console_active ? 0 : keyboard_bound_actions(&input);
 		keyboard_screenshot(held);

@@ -141,6 +141,7 @@ symbols in this file:
 
 /* network_game_globals.c's */
 boolean network_game_distributed_client(void);
+#include "third_person.h" /* port: port/linux/game/third_person_director.c */
 
 /* ---------- constants */
 
@@ -298,6 +299,13 @@ boolean director_inhibited_input(
 	return director_get(local_player_index)->inhibited_input;
 }
 
+/* port: expose camera identity without exposing mutable director state. */
+boolean director_camera_is(short local_player_index, director_camera_update_proc camera_proc)
+{
+	return local_player_index >= 0 && local_player_index < MAXIMUM_NUMBER_OF_LOCAL_PLAYERS &&
+		director_get(local_player_index)->camera_proc == camera_proc;
+}
+
 director_perspective director_get_perspective(
 	short local_player_index)
 {
@@ -309,6 +317,13 @@ director_perspective director_get_perspective(
 	{
 		if (camera->camera_change_pause == 0.f)
 			camera->perspective = 0;
+	}
+	/* port: report the resolved shoulder view, including collision fallback. */
+	else if (camera->camera_proc == third_person_camera_update)
+	{
+		camera->perspective = third_person_active(local_player_index) &&
+			third_person_available(local_player_index) ?
+			_director_perspective_third_person : _director_perspective_first_person;
 	}
 	else if (camera->camera_proc == following_camera_update)
 	{
@@ -631,6 +646,26 @@ static void director_choose_game_perspective(
 
 	unit_index = player_control_get_unit_index(local_player_index);
 	following = director_desired_perspective(unit_index, &perspective);
+	/* port: select the feature-owned on-foot camera without replacing seats,
+	   scripts or debug cameras. Its eye uses the first-person camera data. */
+	if (!following && third_person_available(local_player_index) &&
+		(force || director->camera_proc == (director_camera_update_proc)first_person_camera_update ||
+		 director->camera_proc == third_person_camera_update))
+	{
+		if (director->camera_proc != third_person_camera_update)
+		{
+			first_person_camera_new((struct first_person_camera *)director->camera_data);
+			director_set_camera(local_player_index, third_person_camera_update, FALSE);
+			director->camera_change_pause = 0.f;
+		}
+		director->seat_state = perspective;
+		return;
+	}
+	if (director->camera_proc == third_person_camera_update)
+	{
+		director_set_camera(local_player_index, (director_camera_update_proc)first_person_camera_update, FALSE);
+		director->camera_change_pause = 0.f;
+	}
 	if (force || director->seat_state != perspective)
 	{
 		if (following == TRUE)
@@ -840,6 +875,8 @@ static boolean director_update_controls(
 
 		if (director->camera_proc !=
 				(director_camera_update_proc)first_person_camera_update &&
+			/* port: shoulder view uses gameplay controls, never debug controls. */
+			director->camera_proc != third_person_camera_update &&
 			director->camera_proc !=
 				(director_camera_update_proc)following_camera_update)
 		{
@@ -891,6 +928,8 @@ static boolean director_update_controls(
 		switch_camera = input_key_is_down(_key_backspace) == TRUE;
 		if ((director->camera_proc !=
 				(director_camera_update_proc)first_person_camera_update &&
+			/* port: right mouse remains gameplay input in shoulder view. */
+			director->camera_proc != third_person_camera_update &&
 			mouse->buttons[1]) || input_key_is_down(_key_tab))
 		{
 			SET_FLAG(control_flags, _camera_control_forward_bit,

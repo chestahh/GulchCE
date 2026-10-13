@@ -2216,6 +2216,7 @@ static struct
 	{ "controls.swap_shoulder", L"SWAP SHOULDER", 3 },
 	{ "controls.free_look", L"HOLD FREE LOOK", 3 },
 	{ "controls.toggle_perspective", L"TOGGLE PERSPECTIVE", 3 },
+	{ "controls.camera_distance", L"CAMERA DISTANCE", 3 },
 };
 
 static struct

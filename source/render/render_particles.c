@@ -18,7 +18,6 @@ symbols in this file:
 
 #include "camera/director.h"
 #include "cseries/cseries.h"
-#include "third_person.h" /* port: port/linux/game/third_person.c */
 #include "cseries/profile.h"
 #include "effects/particles.h"
 #include "game/players.h"
@@ -79,9 +78,6 @@ boolean local_player_is_first_person(
 		director_get_perspective(local_player_index) ==
 		_director_perspective_first_person;
 
-	/* port: show the world weapon's flashes, not the hidden viewmodel's. */
-	if (third_person_active(local_player_index))
-		return FALSE;
 	if (!result)
 	{
 		long player_index = local_player_get_player_index(local_player_index);
