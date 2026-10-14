@@ -38,6 +38,8 @@ static struct
 } rasterizer_lights;
 static int on = 1, queries, allocations, blocked = 1, door, fail_upload;
 static unsigned long time_ms = 1000;
+static int uploads;
+static real specular_scale = 1;
 int config_boolean(const char *name)
 {
 	return on;
@@ -48,7 +50,7 @@ static unsigned long GetTickCount(void)
 }
 float plasma_occlusion_specular_scale(long index)
 {
-	return 1;
+	return specular_scale;
 }
 static int collision_test_vector(unsigned long flags, const real_point3d *p, const real_vector3d *v,
 								 long ignore, struct collision_result *hit)
@@ -76,6 +78,7 @@ static int D3DDevice_CreateVolumeTexture(int w, int h, int d, int levels, int us
 static int IDirect3DVolumeTexture8_LockBox(IDirect3DVolumeTexture8 *t, int l, D3DLOCKED_BOX *box, void *b,
 										   int f)
 {
+	uploads++;
 	box->pBits = t->pixels;
 	return 0;
 }
@@ -189,7 +192,11 @@ int main(int argc, char **argv)
 	for (n = 0; n < 8; n++)
 		CHECK(field_for(n), "eight fields admitted");
 	CHECK(!field_for(8) && queries == 8 * 1536, "ninth light falls back without evicting active fields");
-	CHECK(allocations == 24, "bounded texture allocation");
+	CHECK(allocations == 0, "visibility updates allocate no unused textures");
+	for (n = 0; n < 8; n++)
+		CHECK(plasma_occlusion_texture(n, 0), "diffuse texture requested");
+	CHECK(allocations == 8 && uploads == 8, "only consumed passes allocate and upload");
+	CHECK(plasma_occlusion_texture(0, 0) && uploads == 8, "repeated pass reuses upload");
 	time_ms += 16;
 	plasma_occlusion_window();
 	for (n = 0; n < 9; n++)
@@ -204,12 +211,12 @@ int main(int argc, char **argv)
 	plasma_occlusion_submit(18, 8);
 	f = field_for(8);
 	CHECK(f && f->fading, "previous overflow is admitted with a fade");
-	CHECK(f->texture[0]->pixels[4095] == 0xffffffffUL, "admission starts at previous unoccluded appearance");
+	CHECK(field_texture(f, 0) && f->texture[0]->pixels[4095] == 0xffffffffUL, "admission starts at previous unoccluded appearance");
 	time_ms += 40;
 	plasma_occlusion_window();
 	plasma_occlusion_submit(18, 8);
 	f = field_for(8);
-	CHECK(f->texture[0]->pixels[4095] != 0xffffffffUL && f->texture[0]->pixels[4095] != 0,
+	CHECK(field_texture(f, 0) && f->texture[0]->pixels[4095] != 0xffffffffUL && f->texture[0]->pixels[4095] != 0,
 		  "admission blends instead of snapping");
 	plasma_occlusion_submit(10, 0);
 	plasma_occlusion_model_slot(0, 0);
@@ -221,7 +228,13 @@ int main(int argc, char **argv)
 	CHECK(!allocations, "all fields released");
 	fail_upload = 1;
 	plasma_occlusion_submit(30, 0);
-	CHECK(!field_for(0), "allocation failure falls back");
+	CHECK(!plasma_occlusion_texture(0, 0), "allocation failure falls back");
+	fail_upload = 0;
+	CHECK(!plasma_occlusion_texture(0, 0), "failed pass does not retry every draw in the same view");
+	time_ms += 16;
+	plasma_occlusion_window();
+	plasma_occlusion_submit(30, 0);
+	CHECK(plasma_occlusion_texture(0, 0), "failed upload retries on the next view");
 	plasma_occlusion_reset();
 	fail_upload = 0;
 	time_ms = 1000;
@@ -258,5 +271,36 @@ int main(int argc, char **argv)
 	f = field_for(0);
 	CHECK(f->visibility[4095] > 0.99f, "a clear cached ray is not a wall at the old field boundary");
 	plasma_occlusion_reset();
+	/* Compare every output texel with the original attenuation expression,
+	   including different specular extents and partially admitted lights. */
+	for (cap = 0; cap < 3; cap++)
+	{
+		int pass, x, y, z;
+		specular_scale = cap == 0 ? 0.5f : cap == 1 ? 1.0f : 2.0f;
+		plasma_occlusion_submit(101 + cap, 0);
+		f = field_for(0);
+		for (n = 0; n < 4096; n++) f->visibility[n] = (n % 23) / 22.0f;
+		f->admission = 0.37f;
+		for (pass = 0; pass < 3; pass++)
+		{
+			IDirect3DVolumeTexture8 *t = field_texture(f, pass);
+			CHECK(t, "requested pass uploaded");
+			for (z=0; z<16; z++) for (y=0; y<16; y++) for (x=0; x<16; x++)
+			{
+				real dx=2.0f*(x+0.5f)/16-1, dy=2.0f*(y+0.5f)/16-1, dz=2.0f*(z+0.5f)/16-1;
+				real scale=(pass==2 ? f->specular : 1.0f)*f->radius/f->extent;
+				real remaining=MAX(0.0f,1-dx*dx-dy*dy-dz*dz);
+				real value=pass ? sample_field(f->visibility,0.5f+dx*scale*0.5f,0.5f+dy*scale*0.5f,0.5f+dz*scale*0.5f)*remaining*remaining : f->visibility[(z*16+y)*16+x];
+				int expected, actual;
+				value=pass ? (1-f->admission)*remaining*remaining+f->admission*value : 1-f->admission+f->admission*value;
+				expected=(int)(255*value+0.5f); actual=(int)(t->pixels[(z*16+y)*16+x]&255);
+				CHECK(abs(expected-actual)<=1,"lazy texture agrees with original within one quantization level");
+			}
+		}
+		n=uploads; time_ms+=16; plasma_occlusion_window(); plasma_occlusion_submit(101+cap,0);
+		CHECK(plasma_occlusion_texture(0,0) && uploads==n+1,"new view invalidates each pass independently");
+		plasma_occlusion_reset();
+		CHECK(!allocations,"all lazy passes released");
+	}
 	return 0;
 }

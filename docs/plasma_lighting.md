@@ -665,3 +665,118 @@ not MCC visual acceptance. Reports and console logs are under
 `build/rocket-transitions`; the private runner is `build/rocket-transitions.py`.
 All copied test maps and derived map caches were removed; original maps and
 saves remain untouched.
+
+
+## Projectile lighting hardening (2026-10-14)
+
+This pass keeps both settings off by default and changes only the feature-owned
+occlusion module and diagnostic tests/tools. It adds no shared-engine hooks,
+map-family routing, network state, projectile simulation or explosion changes.
+Muzzle flashes, CStencil and Modern remain deferred.
+
+Visibility fields retain the existing collision-ray count, refresh rules,
+receiver reprojection, time-based clearing/blocking and overflow-admission fade.
+The module now generates each model/diffuse/specular texture only when that
+pass consumes it, at most once per view. It avoids trilinear sampling where
+coordinates land exactly on texel centres and outside the attenuation sphere.
+A failed texture upload falls back for that pass until the next view; it cannot
+retry on every model draw. Texture masks are invalidated with each new field
+update, and all allocated passes still release on reset.
+
+The regression harness checks all texels against the previous expression for
+specular scales 0.5, 1 and 2 with partial admission, allowing one 8-bit rounding
+level. It checks per-pass upload reuse, next-view invalidation, allocation
+failure/retry, map reset, synthetic doorway/corner filtering and overflow fade.
+A negative control removing mask invalidation must fail.
+
+The Carousel rocket specular investigation found the selected glow template to be
+`weapons\plasma grenade\explosion`, flags `3`: dynamic plus no-specular.
+Consequently zero rocket world-specular draws are intentional in that probe.
+Blood Gulch selects `weapons\plasma rifle\muzzle flash`, flags `0x21`, which
+permits specular; its outdoor receiver did not produce specular draws. Template
+policy is map-dependent, and positive rocket-highlight coverage is not claimed.
+The fixture now records the template flags, and the runner verifies this
+policy instead of requiring highlights the template forbids. No explosion tag
+is edited: the existing glow service supplies a definition for a separate
+flight-light instance. Authored projectile light flags still take precedence.
+
+Performance diagnostics can use `tools/plasma_visual_run.py --no-images` to
+remove screenshot readback/writes while retaining frame and selection logs.
+Reports include active-light average FPS and 95th-percentile frame intervals,
+as well as the whole capture average. These are instrumented 640x480 tests,
+not a guarantee for every resolution, machine or map.
+
+Before optimization, twelve mixed lights at a 120 cap averaged 116.16 FPS with
+screenshots and 119.99 without them; disabling occlusion also yielded 119.99.
+The earlier 83 FPS result was not reproduced. Baseline evidence is in
+`build/plasma-visual/*-harden-before-*` and `build/hardening-before.log`.
+The baseline specular runner failed its old positive-draw expectation, prompting
+the template-flag correction described above.
+
+An O2 harness benchmark exercises 800 field updates with synthetic collision
+and model/diffuse consumers. Uploads fall from 2,400 to 1,600. Warm samples were
+about 0.160–0.162 seconds before and 0.095–0.096 after; first-launch timings are
+excluded. This measures CPU field generation with mocked collision/upload,
+not GPU cost or a whole-game speedup. Script/results:
+`build/hardening-cpu-benchmark.py` and `build/hardening-cpu-benchmark.json`.
+
+
+### Hardening acceptance results
+
+The portable Windows release build and 28 focused harness tests passed, as did
+ordinary/full-LTO light-storage checks and their negative control. The capture
+manifest identifies base commit `5cc72528` plus the tested source hashes. Those
+hashes match the final production modules, and the normal executable contains
+no capture markers or fixture code. Self-review covered the complete diff;
+no independent reviewer was used.
+
+| Final scene | 30 cap | 60 cap | 120 cap |
+| --- | ---: | ---: | ---: |
+| Twelve mixed lights, no screenshots | 29.75 | 60.00 | 119.99 |
+| Rocket flight/model impact, screenshots | 30.00 | 59.99 | 119.99 |
+| A10 moving door, plasma probe, screenshots | 30.00 | 60.00 | 119.99 |
+
+The 120-cap twelve-light screenshot run also averaged 119.99 FPS; its active
+95th-percentile frame interval was 12 ms. Eight-rocket occlusion toggling
+averaged 119.75 (11 ms active p95); the eight-rocket Carousel corner sweep
+averaged 119.70 (12 ms p95). These demonstrate the tested average targets,
+not a locked frame deadline. CE Death Island rocket flight averaged 120.02.
+The 60 FPS disabled control selected no feature lights and did no occlusion
+updates. Captures were inspected for rocket impacts, corner sweeps, moving
+open/closed doors, model illumination and specular output. The stock fireball,
+smoke and blast response remain visible. Coarse field-edge leakage remains an
+approximation; this is not proof of artifact-free output on every map.
+
+The Carousel plasma specular-only case recorded 2,049 selected specular draws.
+The rocket case recorded none, correctly matching its template's no-specular
+flag. The three initial A10 rocket-door cases failed because A10 lacks the
+rocket projectile tag; each logged three missing-tag messages. They are excluded
+from acceptance, and the replacement plasma-door cases pass at all three caps.
+Budget admission/turnover smoothing is covered by the synthetic harness;
+real door motion and twelve-light pressure are separate visual scenarios.
+
+Final reports/images are under `build/plasma-visual/*-harden-final-*`, including
+`sequence.png` contact sheets and `*-door-plasma/door-states.png`. Matrix and
+follow-up scripts/results are `build/hardening-matrix.*` and
+`build/hardening-followup.*`; `build/hardening-remainder.log` records follow-up,
+network and transition execution. All 16 valid final visual/measurement cases
+passed; the three unavailable-tag fixtures remain in the record.
+
+Two hidden native loopback peers, with lighting/occlusion enabled only on the
+host, agreed on the host kill, client death and respawn and exited successfully.
+The disabled peer logged no feature occlusion. Both transition runs (disabled
+at 30, enabled at 120) completed Xbox → CE → MCC → Xbox with zero exit status,
+all three commands, one MCC load and no logged exceptions. Evidence is in
+`build/hardening-network-rocket` and `build/hardening-transitions`. This covers
+local networking and map lifecycle, not internet/browser transport or MCC
+visual acceptance. Copied test maps and derived caches were removed.
+
+The normal release executable also passed a hidden startup/load smoke test
+with both settings false, no capture markers and a successful OpenGL context;
+logs and its SHA-256 are in `build/hardening-playtest-smoke`. A Windows playtest
+package uses these same executable/DLL bytes and keeps both options false.
+
+Android/web build attempts still report unknown targets: configuration records
+no Android NDK and no Emscripten. WSL reports that it is not installed, so Linux
+runtime validation is unavailable here. These platforms remain unverified.
+No simulation or network payload changed; the network version is unchanged.

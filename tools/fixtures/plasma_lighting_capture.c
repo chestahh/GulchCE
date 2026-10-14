@@ -22,6 +22,7 @@
 
 void platform_log(const char *format, ...);
 int config_boolean(const char *name);
+long light_port_glow_definition_get(void);
 real render_interpolation_fraction(void);
 static long capture_ticks, capture_projectile = NONE, capture_last_time;
 static struct observer_result capture_camera;
@@ -276,6 +277,15 @@ void plasma_capture_tick(void)
 		struct object_datum *object = object_get(capture_projectile);
 		struct object_definition *definition = object_definition_get(tag);
 		platform_log("PLASMA tag %s type %d", tag_get_name(tag), object->object.type);
+		if (capture_kind() == 3)
+		{
+			long glow = light_port_glow_definition_get();
+			if (glow != NONE)
+			{
+				long *light = tag_get('ligh', glow);
+				platform_log("PLASMA glow template %s flags %lx", tag_get_name(glow), light[0]);
+			}
+		}
 		for (i = 0; i < definition->object.attachments.count; i++)
 		{
 			struct object_attachment_definition *attachment =
@@ -317,6 +327,6 @@ void plasma_capture_frame(void)
 
 int plasma_capture_should_capture(void)
 {
-	return capture_ticks >= 85 && capture_ticks <= 240 && capture_ticks % 60 >= 28 &&
+	return !getenv("HALO_PLASMA_CAPTURE_NO_IMAGES") && capture_ticks >= 85 && capture_ticks <= 240 && capture_ticks % 60 >= 28 &&
 		   capture_ticks % 60 <= 58;
 }

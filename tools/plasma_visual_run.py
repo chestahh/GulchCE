@@ -23,6 +23,7 @@ parser.add_argument('--mixed', action='store_true')
 parser.add_argument('--model', action='store_true')
 parser.add_argument('--occlusion', type=int, choices=[0,1], default=0)
 parser.add_argument('--probe', action='store_true')
+parser.add_argument('--no-images', action='store_true', help='Measure without screenshot readback or disk writes')
 parser.add_argument('--combat', action='store_true')
 parser.add_argument('--door', action='store_true')
 parser.add_argument('--toggle', action='store_true')
@@ -74,6 +75,8 @@ for key in ['combat','door','toggle','mixed']:
     if getattr(args,key):env['HALO_PLASMA_CAPTURE_'+key.upper()]='1'
 if args.probe:
     env['HALO_PLASMA_CAPTURE_PROBE']='1'
+if args.no_images:
+    env['HALO_PLASMA_CAPTURE_NO_IMAGES']='1'
 if args.model:
     env['HALO_PLASMA_CAPTURE_MODEL'] = '1'
 if args.per_pixel:
@@ -100,6 +103,12 @@ report = dict(kind=args.kind, mixed=args.mixed, cap=args.fps, enabled=args.enabl
               specular_draws=sum(int(x) for x in re.findall(r'PLASMA draws model \d+ specular (\d+)', logs)),
               max_selected=max([int(x) for x in re.findall(r'selected (\d+)',logs)] or [0]), burst=args.burst, combat=args.combat, door=args.door, toggle=args.toggle, occlusion=args.occlusion, probe=args.probe, occlusion_updates=len(re.findall('PLASMA occlusion extent',logs)), map=args.map, model=args.model, per_pixel=args.per_pixel, specular_only=args.specular_only)
 report['authored_light_flags'] = sorted({int(x, 16) for x in re.findall(r'PLASMA enabled [01] light flags ([0-9a-f]+)', logs)})
+report['glow_template_flags'] = sorted({int(x, 16) for x in re.findall(r'PLASMA glow template [^\r\n]+ flags ([0-9a-f]+)', logs)})
+report['no_images'] = args.no_images
+active_frames = [(int(t), int(n)) for t, n in re.findall(r'PLASMA frame (\d+)[^\r\n]+ selected (\d+)', logs)]
+active_deltas = [b[0]-a[0] for a, b in zip(active_frames, active_frames[1:]) if a[1] and b[1] and b[0] > a[0]]
+report['active_average_fps'] = 1000 / statistics.mean(active_deltas) if active_deltas else None
+report['active_p95_ms'] = sorted(active_deltas)[int((len(active_deltas)-1)*.95)] if active_deltas else None
 report['homing_shots'] = len(re.findall('PLASMA homing', logs))
 report['selected_tags'] = sorted(set(re.findall(r'PLASMA prepare [^\r\n]+ tag ([^\r\n]+)', logs)))
 (out/'report.json').write_text(json.dumps(report, indent=2))
@@ -107,7 +116,7 @@ print(json.dumps(report), flush=True)
 for path in out.rglob('*.map'):
     assert path.resolve().is_relative_to(out.resolve())
     path.unlink()
-if process.returncode or (report['shots'] != 3 and not args.combat) or not report['screenshots']:
+if process.returncode or (report['shots'] != 3 and not args.combat) or (not args.no_images and not report['screenshots']):
     raise SystemExit('Capture incomplete; inspect report.json and logs')
 if bool(report['selected_frames']) != bool(args.enabled):
     raise SystemExit('Lighting selection did not match the requested mode')
@@ -117,7 +126,7 @@ if report['average_fps'] is None or report['average_fps'] < args.fps * .95:
 if args.enabled and args.model and not report['model_draws']:
     raise SystemExit('Capture never reached a selected model draw')
 if args.enabled and args.specular_only:
-    flags = report['authored_light_flags']
+    flags = report['authored_light_flags'] or report['glow_template_flags']
     # Bit 1 is _light_definition_no_specular_bit in object_lights.c.
     if flags and all(value & 2 for value in flags):
         if report['specular_draws']:

@@ -24,7 +24,8 @@ static struct occlusion_field
 {
 	long identity;
 	unsigned long used, updated, window, admitted, traced;
-	int fading;
+	int fading, texture_mask;
+	real admission;
 	real center[3], extent, radius, specular;
 	real visibility[OCC_COUNT];
 	real depths[6][OCC_SIZE * OCC_SIZE], trace_center[3], trace_extent;
@@ -168,9 +169,9 @@ static struct occlusion_field *field_for(long rasterizer_index)
 {
 	struct occlusion_field *field = NULL;
 	struct rasterizer_light_submit_parameters *light;
-	unsigned long now = GetTickCount(), pixels[OCC_COUNT];
+	unsigned long now = GetTickCount();
 	long identity = NONE;
-	int i, x, y, z, pass;
+	int i, x, y, z;
 	real elapsed, extent, specular, clear_alpha, block_alpha, admission;
 	real previous[OCC_COUNT];
 	real trace_dx, trace_dy, trace_dz;
@@ -278,35 +279,56 @@ static struct occlusion_field *field_for(long rasterizer_index)
 	field->radius = light->radius;
 	field->specular = specular;
 	field->extent = extent;
-	for (pass = 0; pass < 3; pass++)
-	{
-		for (z = 0; z < OCC_SIZE; z++)
-			for (y = 0; y < OCC_SIZE; y++)
-				for (x = 0; x < OCC_SIZE; x++)
-				{
-					real dx = 2.0f * (x + 0.5f) / OCC_SIZE - 1, dy = 2.0f * (y + 0.5f) / OCC_SIZE - 1,
-						 dz = 2.0f * (z + 0.5f) / OCC_SIZE - 1;
-					real scale = (pass == 2 ? specular : 1.0f) * light->radius / extent;
-					real remaining = MAX(0.0f, 1 - dx * dx - dy * dy - dz * dz);
-					real value = pass ? sample_field(field->visibility, 0.5f + dx * scale * 0.5f,
-													 0.5f + dy * scale * 0.5f, 0.5f + dz * scale * 0.5f) *
-											remaining * remaining
-									  : field->visibility[(z * OCC_SIZE + y) * OCC_SIZE + x];
-					value = pass ? (1 - admission) * remaining * remaining + admission * value
-								 : 1 - admission + admission * value;
-					pixels[(z * OCC_SIZE + y) * OCC_SIZE + x] =
-						(unsigned long)(255 * value + 0.5f) * 0x01010101UL;
-				}
-		if (!upload(&field->texture[pass], pixels))
-		{
-			field->valid = 0;
-			return NULL;
-		}
-	}
+	field->admission = admission;
+	field->texture_mask = 0;
 	field->updated = now;
 	field->window = current_window;
 	field->valid = 1;
 	return field;
+}
+/* Build only a texture actually consumed by this view. CPU visibility history
+   stays independent of pass order, and each pass uploads at most once. */
+static void *field_texture(struct occlusion_field *field, int pass)
+{
+	unsigned long pixels[OCC_COUNT];
+	int x, y, z, i;
+	real scale;
+	if (!field)
+		return NULL;
+	/* A failed pass falls back for the rest of this view, then retries next view. */
+	if (field->texture_mask & (8 << pass))
+		return NULL;
+	if (field->texture_mask & (1 << pass))
+		return field->texture[pass];
+	scale = (pass == 2 ? field->specular : 1.0f) * field->radius / field->extent;
+	for (z = 0; z < OCC_SIZE; z++)
+		for (y = 0; y < OCC_SIZE; y++)
+			for (x = 0; x < OCC_SIZE; x++)
+			{
+				real dx = 2.0f * (x + 0.5f) / OCC_SIZE - 1;
+				real dy = 2.0f * (y + 0.5f) / OCC_SIZE - 1;
+				real dz = 2.0f * (z + 0.5f) / OCC_SIZE - 1;
+				real remaining = MAX(0.0f, 1 - dx * dx - dy * dy - dz * dz);
+				real value;
+				i = (z * OCC_SIZE + y) * OCC_SIZE + x;
+				/* Unit-scale samples land exactly at texel centres. Outside the
+				   attenuation sphere the result is zero regardless of visibility. */
+				value = field->visibility[i];
+				if (pass && remaining > 0 && scale != 1.0f)
+					value = sample_field(field->visibility, 0.5f + dx * scale * 0.5f,
+						0.5f + dy * scale * 0.5f, 0.5f + dz * scale * 0.5f);
+				value = 1 - field->admission + field->admission * value;
+				if (pass)
+					value *= remaining * remaining;
+				pixels[i] = (unsigned long)(255 * value + 0.5f) * 0x01010101UL;
+			}
+	if (!upload(&field->texture[pass], pixels))
+	{
+		field->texture_mask |= 8 << pass;
+		return NULL;
+	}
+	field->texture_mask |= 1 << pass;
+	return field->texture[pass];
 }
 void plasma_occlusion_reset(void)
 {
@@ -342,7 +364,7 @@ void plasma_occlusion_model_slot(long rasterizer_index, short slot)
 void *plasma_occlusion_texture(long rasterizer_index, int specular)
 {
 	struct occlusion_field *field = field_for(rasterizer_index);
-	return field ? field->texture[specular ? 2 : 1] : NULL;
+	return field_texture(field, specular ? 2 : 1);
 }
 void *plasma_occlusion_model_texture(int slot, float transform[4])
 {
@@ -356,5 +378,5 @@ void *plasma_occlusion_model_texture(int slot, float transform[4])
 	transform[1] = field->center[1];
 	transform[2] = field->center[2];
 	transform[3] = 0.5f / field->extent;
-	return field->texture[0];
+	return field_texture(field, 0);
 }
