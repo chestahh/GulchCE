@@ -11,6 +11,7 @@ from harness import CHECK_FAILED, build, function, mutated, read, run
 
 def generated(fault=None):
     code = function(read('source/objects/object_lights.c'), 'light_port_refresh_attachment')
+    code += function(read('source/objects/object_lights.c'), 'light_port_dynamic_set')
     code += re.sub(r'^#include.*$', '', read('port/linux/game/plasma_lighting.c'), flags=re.M)
     code += function(read('port/linux/game/render_interpolation.c'), 'render_interpolation_frame_end')
     if fault:
@@ -18,7 +19,7 @@ def generated(fault=None):
     return (('under_test.inc', code),)
 
 
-@pytest.mark.parametrize('case', ['off', 'filter', 'restore', 'split', 'capacity', 'unload', 'missing', 'stale'])
+@pytest.mark.parametrize('case', ['off', 'filter', 'restore', 'split', 'capacity', 'unload', 'missing', 'stale', 'selection', 'existing'])
 def test_case(case):
     status, output = run(build('plasma_lighting', generated()), case)
     assert status == 0, output
@@ -27,7 +28,7 @@ def test_case(case):
 @pytest.mark.parametrize('before,after,case', [
     ('interpolation_rendering = FALSE;', 'interpolation_rendering = TRUE;', 'restore'),
     ('plasma_lighting_count = 0;', '(void)0;', 'unload'),
-    ('!config_boolean("display.plasma_lighting")', '0', 'off'),
+    ('!config_boolean("display.plasma_lighting") || object_index == NONE', 'object_index == NONE', 'off'),
 ])
 def test_negative_control(before, after, case):
     status, output = run(build('plasma_lighting', generated((before, after))), case)

@@ -711,6 +711,7 @@ void lights_initialize(
 void lights_dispose(
 	void)
 {
+	plasma_falloff_dispose(); /* port: release optional resources on shutdown too */
 	cluster_partition_delete(&light_cluster_partition);
 
 	return;
@@ -793,11 +794,28 @@ int light_port_refresh_attachment(long light_index, long object_index)
 	return TRUE;
 }
 
+/* port: render-only promotion of a selected lens-flare attachment. Return its
+   original dynamic flag so the feature can restore it without changing tags. */
+int light_port_dynamic_set(long light_index, long object_index, int enabled)
+{
+	struct light_datum *light;
+	int previous;
+	if (!light_data->valid || light_index == NONE || object_index == NONE)
+		return FALSE;
+	light = (struct light_datum *)datum_try_and_get(light_data, light_index);
+	if (!light || light->object_index != object_index || light->parent_light_index != NONE)
+		return FALSE;
+	previous = TEST_FLAG(light->flags, _point_light_dynamic_bit);
+	SET_FLAG(light->flags, _point_light_dynamic_bit, enabled);
+	return previous;
+}
+
 void lights_initialize_for_new_map(
 	void)
 {
 	light_port_glow_definition = NONE - 1; /* port: (looked for again) */
 	plasma_lighting_reset(); /* port: discard render-only attachment identities */
+	plasma_falloff_dispose(); /* port: release the previous map's optional texture */
 	data_make_valid(light_data);
 	lights_game_globals->render_lights = TRUE;
 	cluster_partition_make_valid(&light_cluster_partition);
@@ -809,6 +827,7 @@ void lights_dispose_from_old_map(
 	void)
 {
 	plasma_lighting_reset(); /* port: no attachment identities cross map loads */
+	plasma_falloff_dispose(); /* port: release feature-owned attenuation */
 	data_make_invalid(light_data);
 	cluster_partition_make_invalid(&light_cluster_partition);
 
@@ -1042,6 +1061,7 @@ void lights_preprocess_scene(
 		light_mark);
 	light_marker_end();
 	rasterizer_lights_begin();
+	plasma_lighting_window_begin(); /* port: submitted light indices belong to this view */
 	for (rendered_cluster_index = 0;
 		rendered_cluster_index < render.rendered_cluster_count;
 		rendered_cluster_index++)
@@ -1235,6 +1255,8 @@ void lights_preprocess_scene(
 
 					light->rasterizer_light_index = rasterizer_light_submit(
 						&light_parameters);
+					/* port: identify only this feature's existing submitted lights. */
+					plasma_lighting_submitted(scene_light_handle, light->rasterizer_light_index);
 					debug_rasterizer_light_count = light->rasterizer_light_index + 1;
 				}
 			}

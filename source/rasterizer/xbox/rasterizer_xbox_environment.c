@@ -145,6 +145,7 @@ symbols in this file:
 #include "cseries/errors.h"
 #include "effects/decals.h"
 #include "game/game_globals.h"
+#include "plasma_lighting.h" /* port: port/linux/game/plasma_falloff.c */
 #include "interface/hud_draw.h"
 #include "bitmaps/bitmaps_inlines.h"
 #include "math/periodic_functions.h"
@@ -1145,6 +1146,7 @@ void _rasterizer_environment_lightmap_begin(
 void _rasterizer_environment_diffuse_light_end(
 	void)
 {
+	plasma_falloff_end(); /* port: restore stock attenuation before the next light */
 	return;
 }
 
@@ -1244,6 +1246,7 @@ void _rasterizer_environment_diffuse_light_begin(
 		D3DDevice_SetRenderState(
 			D3DRS_PSCONSTANT0_0,
 			real_rgb_color_to_pixel32(&light->color));
+		plasma_falloff_begin(light_index); /* port: scoped to this selected plasma light */
 	}
 	return;
 }

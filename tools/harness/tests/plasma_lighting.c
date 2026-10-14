@@ -2,6 +2,8 @@
 #include <string.h>
 
 enum { _object_type_projectile = 5 };
+enum { _point_light_dynamic_bit = 0 };
+#define SET_FLAG(value, bit, enabled) ((value) = (enabled) ? ((value) | (1 << (bit))) : ((value) & ~(1 << (bit))))
 struct object_datum { long definition_index; struct { short type; } object; };
 static struct object_datum projectile = { 1, { _object_type_projectile } };
 static const char *tag_name = "weapons\\plasma rifle\\bolt";
@@ -10,7 +12,7 @@ static int rendered_pose;
 int config_boolean(const char *name) { return enabled; }
 static struct object_datum *object_try_and_get(long index) { return present ? &projectile : NULL; }
 static const char *tag_get_name(long index) { return tag_name; }
-struct light_datum { long object_index, parent_light_index; };
+struct light_datum { long object_index, parent_light_index; int flags; };
 static struct { int valid; } storage = { 1 }, *light_data = &storage;
 static int stale;
 static struct light_datum *datum_try_and_get(void *data, long index)
@@ -27,6 +29,8 @@ static void light_reconnect_to_map(long index)
 	rendered_pose = interpolation_rendering;
 }
 void plasma_lighting_reset(void);
+void plasma_falloff_dispose(void) {}
+void plasma_falloff_end(void) {}
 #include "under_test.inc"
 
 int main(int argc, char **argv)
@@ -53,9 +57,11 @@ int main(int argc, char **argv)
 	{
 		plasma_lighting_prepare(1, 1);
 		CHECK(rendered_pose && refreshes == 1, "draw uses render pose");
+		CHECK(datum_try_and_get(light_data, 1)->flags == 1, "lens-flare attachment promoted only for rendering");
 		enabled = 0;
 		render_interpolation_frame_end();
 		CHECK(!rendered_pose && refreshes == 2, "disable still restores simulation pose");
+		CHECK(datum_try_and_get(light_data, 1)->flags == 0, "original dynamic flag restored");
 		plasma_lighting_frame_end();
 		CHECK(refreshes == 2, "restoration happens once");
 	}
@@ -95,6 +101,25 @@ int main(int argc, char **argv)
 		storage.valid = 0;
 		plasma_lighting_prepare(2, 2);
 		CHECK(refreshes == 1, "invalid light storage is untouched");
+	}
+	else if (!strcmp(test, "selection"))
+	{
+		plasma_lighting_prepare(1, 1);
+		plasma_lighting_submitted(1, 3);
+		CHECK(plasma_lighting_selected(3) && !plasma_lighting_selected(2), "only submitted plasma lights selected");
+		CHECK(!plasma_lighting_selected(NONE), "failed submission excluded");
+		plasma_lighting_window_begin();
+		CHECK(!plasma_lighting_selected(3), "view indices cannot leak across split screen");
+		plasma_lighting_submitted(1, 0);
+		enabled = 0;
+		CHECK(!plasma_lighting_selected(0), "disable immediately restores stock selection");
+	}
+	else if (!strcmp(test, "existing"))
+	{
+		datum_try_and_get(light_data, 1)->flags = 1;
+		plasma_lighting_prepare(1, 1);
+		render_interpolation_frame_end();
+		CHECK(datum_try_and_get(light_data, 1)->flags == 1, "authored dynamic lighting stays dynamic");
 	}
 	return 0;
 }

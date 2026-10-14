@@ -1,78 +1,117 @@
 # Plasma lighting prototype
 
-The `plasma-lighting-prototype` branch starts from `main`. The local
-`chesters-cool-stuff` branch remains a reference. CStencil, Modern shadows,
-rockets and muzzle flashes are outside this prototype.
+Work lives on `plasma-lighting-prototype`, based on `main`.
+`chesters-cool-stuff` remains an unchanged local reference. CStencil, Modern,
+rockets and muzzle flashes are separate milestones.
 
-Set `plasma_lighting = true` in config.toml's `[display]` section
-(or `HALO_PLASMA_LIGHTING=1`). The default is false. Keep
-`display.interpolation` enabled, its default, to interpolate between ticks.
+Set `plasma_lighting = true` in config.toml's `[display]` section, or
+`HALO_PLASMA_LIGHTING=1`. The default is false. Keep `display.interpolation`
+enabled for motion between simulation ticks.
 
-This first experiment addresses temporal stepping. Persistent light
-attachments were refreshed by simulation, while their projectiles were drawn
-from interpolated node matrices. The prototype refreshes the existing lights
-on projectile tags named `weapons\plasma rifle\bolt` before light visibility
-and receiver selection. It uses the existing marker pose, not an estimated
-velocity or an extra smoothing filter. New objects without interpolation
-history use the engine's existing fallback pose.
+## Rendering
 
-It adds no lights, changes no tags, and preserves light colour, radius,
-falloff and impact effects. It therefore does **not** yet address sharp spatial
-falloff or vertex lighting on models. It provides a baseline for comparing
-movement before introducing a new per-pixel contribution. It cannot produce
-lighting for maps whose projectile tags lack existing light attachments.
+The feature selects existing light attachments on the projectile tag
+`weapons\plasma rifle\bolt`, up to 128 per frame. It refreshes their marker
+poses before visibility and receiver selection. New objects without a previous
+snapshot use the engine's existing fallback pose.
+
+Live captures revealed that Xbox Blood Gulch's bolt light has flags zero:
+its attachment supplies a lens flare but is not marked dynamic. The first
+temporal prototype therefore did not illuminate world surfaces on that map.
+Selected attachments now become dynamic during rendering, with their original
+flags restored afterward. Tags are never edited and no extra light is allocated.
+Already-dynamic attachments retain their authored flag after rendering.
+
+World diffuse illumination uses a feature-owned 64³ attenuation texture:
+`max(1 - distance_squared / radius_squared, 0)²`. Both value and slope approach
+zero at the outer boundary. Texels are sampled at their centres and filtered
+linearly. The authored colour and radius remain unchanged. The existing
+additive pass still applies material colour and surface facing.
+
+This iteration softens **world diffuse lighting**. Model lighting and world
+specular lighting retain their existing falloff; model lighting remains vertex
+based unless the separate existing per-pixel setting is enabled. No shadow or
+occlusion system is added. Custom projectile tag names and projectiles without
+light attachments are outside this prototype.
 
 ## Isolation and lifetime
 
-Feature selection and frame tracking live in `port/linux/game/plasma_lighting.c`.
-The light owner and spatial partition are private to `object_lights.c`, so a
-small validated bridge there refreshes an attachment through the existing
-disconnect/reconnect interfaces. A preprocess hook is necessary to refresh
-before culling; merely overriding the GPU submission would leave receiver
-selection and bounding spheres at the old position.
+Selection, render tracking and texture generation live in the dedicated
+`plasma_lighting.c` and `plasma_falloff.c` modules. The small bridges in
+`object_lights.c` are necessary because light storage and cluster ownership
+are private there. They validate handles and ownership before refreshing
+attachments or changing the runtime dynamic flag. No map-family loading,
+conversion, gameplay or network protocol changes are intended.
 
-After rendering, `render_interpolation_frame_end` disables interpolation before
-restoring the same attachments and their partition membership. Restoration
-runs even if the setting has been disabled. Map initialization, unloading and
-the existing light-array recovery path discard tracked handles. The bridge
-checks the salted light handle, owner and persistent attachment type before
-touching it. The feature creates no independent lights to survive impact.
-Split-screen views share one refresh. Tracking is bounded to 128 lights;
-overflow leaves additional lights stock.
+World diffuse begin/end hooks are necessary because the attenuation sampler
+belongs to that existing pass. Only selected plasma draws bind the replacement
+texture. End restores the stock texture and filter, including if the option
+has just been disabled. Allocation failure falls back to stock attenuation.
+The texture is released on disable, map initialization/unload, light recovery
+and shutdown. Per-view rasterizer indices reset for each split-screen view.
 
-The disabled path does not refresh lights. No simulation, protocol, map
-discovery, conversion or MCC compatibility logic changes. Xbox, Custom Edition
-and MCC continue to use their established loading paths; the same narrow
-runtime projectile-tag check applies after loading.
+After interpolation ends, the feature restores original dynamic flags and
+simulation-time positions and cluster membership. Map boundaries discard old
+handles. Excess lights beyond the bounded tracking array retain stock behaviour.
+The disabled path performs no light refresh or texture substitution.
 
-## Validation and next experiment
+## Validation
 
-The asset-free harness exercises disabled behavior, tag/type selection,
-render-to-simulation restoration (including disabling while pending), repeated
-views, bounded capacity, unload, missing objects and changed light ownership.
-Negative controls verify
-that breaking restoration order, reset or the off switch fails the tests.
+Windows portable release, 2026-10-14: 17 harness checks passed, including
+negative controls, disabled selection, view boundaries, stale ownership,
+restoration of both dynamic and lens-flare-only flags, allocation failure,
+texture/filter restoration, and monotonic falloff with a zero boundary slope.
+Existing light-storage checks passed ordinary and full-LTO links and their
+negative control.
 
-Local validation on Windows (2026-10-14): release build passed; all 11 harness
-cases passed; the existing light-storage checks passed ordinary and full-LTO
-links, including their negative control. Hidden isolated sessions with the
-option off at a 30 FPS cap and on at a 120 FPS cap exited normally with no
-logged exceptions. Both started Xbox Blood Gulch and received console commands
-for Custom Edition Death Island, MCC Mercury Falling and a return to Blood
-Gulch. Logs confirm CE conversion and MCC loading; this is a smoke check, not
-proof of complete compatibility or smooth projectile illumination. Temporary
-map copies were removed and diagnostic logs retained under `build/plasma-smoke`.
-Android and web builds could not run: this local configuration has neither
-target/toolchain. Linux, browser networking and live projectile footage were
-not validated. No gameplay or network protocol changes are intended.
+Hidden Xbox Blood Gulch captures launched three real plasma-rifle projectiles
+along a repeatable trajectory across visible ground. The fixture creates real
+projectile objects using normal physics and impacts; it does not simulate
+controller firing. Screenshots and per-render-frame telemetry were collected
+with the option both off and on:
 
-Before considering this visually accepted, compare a plasma rifle fired past
-a wall and nearby model at 30, 60 and 120+ FPS, enabled and disabled. Check
-birth, impact, deletion, pause, split screen and map changes. Confirm the light
-follows the bolt and leaves no residue. Automated lifecycle checks and map
-loads alone do not establish visual quality.
+| Cap | Off average | On average | On median frame interval | Most distinct rendered poses within one tick |
+| --- | --- | --- | --- | --- |
+| 30 FPS | 30.01 | 29.67 | 33 ms | 1 |
+| 60 FPS | 60.00 | 59.56 | 17 ms | 2 |
+| 120 FPS | 119.99 | 120.04 | 8 ms | 4 |
 
-The next rendering experiment should provide a feature-owned, smoothly
-attenuated per-pixel contribution on world geometry and models, suppressing
-the corresponding stock contribution only while enabled. Preserve the stock
-path when disabled. Shadows and occlusion remain separate work.
+The measurements include capture overhead and initial shader/texture work.
+Images show a feathered pool following the bolt across the ground. Successive
+60/120 FPS frames and telemetry show intermediate poses rather than a light
+held at each 30 Hz tick. Selected lights return to zero after projectile removal.
+No crashes occurred in these six runs. Captures are under `build/plasma-visual`;
+`sequence-contact.png` shows consecutive enabled frames at each cap.
+
+Separate hidden runs with the production executable exercised Xbox Blood Gulch,
+Custom Edition Death Island and MCC Mercury Falling with the option off and on.
+Both runs sent all three transition commands and exited normally without logged
+exceptions; the logs confirm CE conversion and MCC loading. These were loading
+and transition smoke checks, not projectile-lighting visual tests on CE/MCC.
+Their logs remain in `build/plasma-falloff-transitions`; copied test maps were
+removed. An earlier sandboxed attempt could not connect to the local console
+and is not counted as a successful transition test.
+
+The tests do not establish softer model/specular shading, wall occlusion,
+split-screen visual quality, every plasma tag variant or full map compatibility.
+Android/web targets are unavailable in the local build configuration. Linux,
+Android, web, browser networking and multiplayer runtime were not tested.
+The change introduces no wire-format or simulation contract changes, so the
+network version is unchanged.
+
+## Reproducing the captures
+
+With the repository's Windows compiler environment configured:
+
+```
+python tools/plasma_visual_build.py
+python tools/plasma_visual_run.py --data-root C:/Games/GulchCE --fps 30 --enabled 1
+```
+
+Repeat for caps 30, 60 and 120 and enabled values 0/1. Use `--label` for a new
+output directory when repeating a combination. The builder temporarily installs
+`tools/fixtures/plasma_lighting_capture.c`, restores the production source and
+configuration even on failure, and rebuilds the normal executable. The fixture
+is only present in `build/plasma-visual/halo-capture.exe`. The runner uses hidden
+windows and private data/save folders, removes copied maps and generated map
+caches, and retains screenshots and diagnostic logs.
