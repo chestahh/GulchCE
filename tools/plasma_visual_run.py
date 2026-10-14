@@ -18,6 +18,8 @@ parser.add_argument('--fps', required=True, type=int, choices=[30, 60, 120])
 parser.add_argument('--enabled', required=True, type=int, choices=[0, 1])
 parser.add_argument('--label', default='')
 parser.add_argument('--map', default='bloodgulch', choices=['bloodgulch', 'carousel', 'a10', 'ce-deathisland'])
+parser.add_argument('--kind', choices=['rifle','pistol','charged'], default='rifle')
+parser.add_argument('--mixed', action='store_true')
 parser.add_argument('--model', action='store_true')
 parser.add_argument('--occlusion', type=int, choices=[0,1], default=0)
 parser.add_argument('--probe', action='store_true')
@@ -66,7 +68,8 @@ for key in ['distance', 'height', 'receiver_distance', 'span', 'burst']:
     value = getattr(args, key)
     if value is not None:
         env['HALO_PLASMA_CAPTURE_'+key.upper()] = str(value)
-for key in ['combat','door','toggle']:
+env['HALO_PLASMA_CAPTURE_KIND'] = args.kind
+for key in ['combat','door','toggle','mixed']:
     if getattr(args,key):env['HALO_PLASMA_CAPTURE_'+key.upper()]='1'
 if args.probe:
     env['HALO_PLASMA_CAPTURE_PROBE']='1'
@@ -86,7 +89,7 @@ with (out/'stdout.log').open('wb') as so, (out/'stderr.log').open('wb') as se:
 logs = '\n'.join(p.read_text(errors='replace') for p in out.glob('*.log'))
 times = [int(x) for x in re.findall(r'PLASMA frame (\d+)', logs)]
 deltas = [b-a for a,b in zip(times, times[1:]) if b>a]
-report = dict(cap=args.fps, enabled=args.enabled, exit=process.returncode,
+report = dict(kind=args.kind, mixed=args.mixed, cap=args.fps, enabled=args.enabled, exit=process.returncode,
               screenshots=len(list((out/'screenshots').glob('*.bmp'))), frames=len(times),
               selected_frames=len(re.findall(r'selected [1-9]', logs)),
               average_fps=1000*(len(times)-1)/(times[-1]-times[0]) if len(times)>1 else None,
@@ -95,6 +98,9 @@ report = dict(cap=args.fps, enabled=args.enabled, exit=process.returncode,
               model_draws=sum(int(x) for x in re.findall(r'PLASMA draws model (\d+)', logs)),
               specular_draws=sum(int(x) for x in re.findall(r'PLASMA draws model \d+ specular (\d+)', logs)),
               max_selected=max([int(x) for x in re.findall(r'selected (\d+)',logs)] or [0]), burst=args.burst, combat=args.combat, door=args.door, toggle=args.toggle, occlusion=args.occlusion, probe=args.probe, occlusion_updates=len(re.findall('PLASMA occlusion extent',logs)), map=args.map, model=args.model, per_pixel=args.per_pixel, specular_only=args.specular_only)
+report['authored_light_flags'] = sorted({int(x, 16) for x in re.findall(r'PLASMA enabled [01] light flags ([0-9a-f]+)', logs)})
+report['homing_shots'] = len(re.findall('PLASMA homing', logs))
+report['selected_tags'] = sorted(set(re.findall(r'PLASMA prepare [^\r\n]+ tag ([^\r\n]+)', logs)))
 (out/'report.json').write_text(json.dumps(report, indent=2))
 print(json.dumps(report), flush=True)
 for path in out.rglob('*.map'):
@@ -109,14 +115,20 @@ if report['average_fps'] is None or report['average_fps'] < args.fps * .95:
 
 if args.enabled and args.model and not report['model_draws']:
     raise SystemExit('Capture never reached a selected model draw')
-if args.enabled and args.specular_only and not report['specular_draws']:
-    raise SystemExit('Capture never reached a selected specular draw')
+if args.enabled and args.specular_only:
+    flags = report['authored_light_flags']
+    # Bit 1 is _light_definition_no_specular_bit in object_lights.c.
+    if flags and all(value & 2 for value in flags):
+        if report['specular_draws']:
+            raise SystemExit('Capture ignored the authored no-specular flag')
+    elif not report['specular_draws']:
+        raise SystemExit('Capture never reached a selected specular draw')
 
 if args.enabled and args.occlusion and not report['occlusion_updates']:
     raise SystemExit('Capture did not update any occlusion fields')
 
 if args.combat and 'PLASMA combat equipped' not in logs:
-    raise SystemExit('Combat fixture did not equip the plasma rifle')
+    raise SystemExit('Combat fixture did not equip the requested weapon')
 if args.probe and args.enabled and report['max_selected'] < args.burst:
     raise SystemExit('Stress capture did not select the requested simultaneous light count')
 if args.door:
@@ -130,3 +142,17 @@ if args.toggle:
     for i in range(1, len(intervals)-1, 2):
         if intervals[i] == '0' and 'PLASMA occlusion extent' in intervals[i+1]:
             raise SystemExit('Occlusion updated while disabled')
+
+expected_tags = {
+    'rifle': r'weapons\plasma rifle\bolt',
+    'pistol': r'weapons\plasma pistol\bolt',
+    'charged': r'weapons\plasma rifle\charged bolt',
+}
+if args.enabled:
+    expected = set(expected_tags.values()) if args.mixed else {expected_tags[args.kind]}
+    if not expected.issubset(report['selected_tags']):
+        raise SystemExit('Capture did not select every requested projectile kind')
+if not args.enabled and report['occlusion_updates']:
+    raise SystemExit('Disabled plasma lighting still updated occlusion')
+if args.kind == 'charged' and args.model and not args.probe and not args.combat and report['homing_shots'] != 3:
+    raise SystemExit('Charged-shot capture did not exercise the homing target')

@@ -43,7 +43,26 @@ int main(int argc, char **argv)
 	int i;
 	const char *test = argv[1];
 
-	if (!strcmp(test, "model"))
+	if (!strcmp(test, "pistol"))
+	{
+		const char *names[] = { "weapons\\plasma pistol\\bolt", "weapons\\plasma rifle\\charged bolt" };
+		for (i = 0; i < 2; i++)
+		{
+			tag_name = names[i];
+			interpolation_rendering = 1;
+			datum_try_and_get(light_data, 1)->flags = i ? 3 : 0;
+			plasma_lighting_prepare(1, 1);
+			plasma_lighting_submitted(1, 3);
+			CHECK(plasma_lighting_selected(3), "pistol projectile attachment selected");
+			render_interpolation_frame_end();
+			CHECK(!plasma_lighting_selected(3), "pistol light expires with render frame");
+			CHECK(datum_try_and_get(light_data, 1)->flags == (i ? 3 : 0), "pistol authored flags restored");
+		}
+		tag_name = "weapons\\plasma pistol\\muzzle flash";
+		plasma_lighting_prepare(1, 1);
+		CHECK(refreshes == 4, "muzzle effects excluded");
+	}
+	else if (!strcmp(test, "model"))
 	{
 		plasma_lighting_prepare(1,1); plasma_lighting_submitted(1,3);
 		plasma_model_lighting_slot(3,0); plasma_model_lighting_slot(7,1);

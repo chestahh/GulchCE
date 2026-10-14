@@ -19,13 +19,14 @@ def generated(fault=None):
     return (('under_test.inc', code),)
 
 
-@pytest.mark.parametrize('case', ['model', 'off', 'filter', 'restore', 'split', 'capacity', 'unload', 'missing', 'stale', 'selection', 'existing'])
+@pytest.mark.parametrize('case', ['pistol', 'model', 'off', 'filter', 'restore', 'split', 'capacity', 'unload', 'missing', 'stale', 'selection', 'existing'])
 def test_case(case):
     status, output = run(build('plasma_lighting', generated()), case)
     assert status == 0, output
 
 
 @pytest.mark.parametrize('before,after,case', [
+    ('strcmp(name, "weapons\\\\plasma pistol\\\\bolt")', '1', 'pistol'),
     ('interpolation_rendering = FALSE;', 'interpolation_rendering = TRUE;', 'restore'),
     ('plasma_lighting_count = 0;', '(void)0;', 'unload'),
     ('!config_boolean("display.plasma_lighting") || object_index == NONE', 'object_index == NONE', 'off'),

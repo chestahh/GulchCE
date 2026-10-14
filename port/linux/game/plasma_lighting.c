@@ -1,4 +1,4 @@
-/* Optional rendering prototype for the plasma rifle's existing lights.
+/* Optional rendering prototype for the plasma weapons' existing lights.
    Reuse the rendered attachment pose, including its marker offset. Never
    create a second light, change a tag, or advance projectile simulation. */
 #include "cseries.h"
@@ -57,7 +57,10 @@ void plasma_lighting_prepare(long light_index, long object_index)
 		return;
 	name = tag_get_name(object->definition_index);
 	/* Deliberately narrow: custom projectiles need an explicit policy later. */
-	if (!name || strcmp(name, "weapons\\plasma rifle\\bolt"))
+	/* The pistol overcharge uses a tag in the rifle directory. */
+	if (!name || (strcmp(name, "weapons\\plasma rifle\\bolt") &&
+		strcmp(name, "weapons\\plasma pistol\\bolt") &&
+		strcmp(name, "weapons\\plasma rifle\\charged bolt")))
 		return;
 	for (index = 0; index < plasma_lighting_count; index++)
 		if (plasma_lighting_attachments[index].light_index == light_index &&

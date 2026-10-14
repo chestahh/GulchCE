@@ -1,5 +1,5 @@
 /* Test-build-only fixture. The visual runner installs and removes this file.
-			Creates real plasma rifle projectiles; never linked into the normal game. */
+			Creates real plasma projectiles; never linked into the normal game. */
 #include "cseries.h"
 #include <xtl.h>
 #include "objects/objects.h"
@@ -28,6 +28,18 @@ static struct observer_result capture_camera;
 static int capture_model, capture_probe, capture_burst = 1;
 static long capture_bolts[32], capture_door = NONE;
 static int capture_combat, capture_toggle;
+static long capture_target = NONE;
+static const char *capture_projectile_tags[] = {
+	"weapons\\plasma rifle\\bolt", "weapons\\plasma pistol\\bolt",
+	"weapons\\plasma rifle\\charged bolt"
+};
+static int capture_kind(void)
+{
+	const char *kind = getenv("HALO_PLASMA_CAPTURE_KIND");
+	if (kind && !strcmp(kind, "pistol")) return 1;
+	if (kind && !strcmp(kind, "charged")) return 2;
+	return 0;
+}
 int config_write_boolean(const char *name, int value);
 static real capture_distance, capture_height, capture_receiver_distance, capture_span;
 static real capture_option(const char *name, real fallback)
@@ -69,7 +81,7 @@ void plasma_capture_tick(void)
 	if (now < capture_last_time)
 	{
 		capture_ticks = 0;
-		capture_projectile = capture_door = NONE;
+		capture_projectile = capture_door = capture_target = NONE;
 		for (i = 0; i < 32; i++)
 			capture_bolts[i] = NONE;
 	}
@@ -101,7 +113,7 @@ void plasma_capture_tick(void)
 	{
 		long unit = player_control_get_unit_index(0);
 		const char *role = getenv("HALO_NETWORK_TEST");
-		tag = tag_loaded('weap', "weapons\\plasma rifle\\plasma rifle");
+		tag = tag_loaded('weap', capture_kind() ? "weapons\\plasma pistol\\plasma pistol" : "weapons\\plasma rifle\\plasma rifle");
 		if (unit != NONE && tag != NONE && (!role || strncmp(role, "join", 4)))
 		{
 			long weapon;
@@ -130,7 +142,7 @@ void plasma_capture_tick(void)
 				for (i = 0; i < MAXIMUM_WEAPONS_PER_UNIT; i++)
 					if (unit_inventory_get_weapon(unit, (short)i) == weapon)
 						player_control_set_desired_weapon(unit, (short)i);
-				platform_log("PLASMA combat equipped %ld", weapon);
+				platform_log("PLASMA combat equipped %ld tag %s", weapon, tag_get_name(tag));
 			}
 		}
 	}
@@ -192,7 +204,8 @@ void plasma_capture_tick(void)
 			placement.forward.i = -placement.forward.i;
 			placement.forward.j = -placement.forward.j;
 			observer_up_from_forward(&placement.forward, &placement.up);
-			platform_log("PLASMA receiver model %ld tag %s", object_new(&placement), tag_get_name(tag));
+			capture_target = object_new(&placement);
+			platform_log("PLASMA receiver model %ld tag %s", capture_target, tag_get_name(tag));
 		}
 		else
 			platform_log("PLASMA receiver missing");
@@ -222,7 +235,7 @@ void plasma_capture_tick(void)
 		}
 	if (capture_ticks < 90 || capture_ticks > 210 || capture_ticks % 60 != 30)
 		return;
-	tag = tag_loaded(PROJECTILE_DEFINITION_TAG, "weapons\\plasma rifle\\bolt");
+	tag = tag_loaded(PROJECTILE_DEFINITION_TAG, capture_projectile_tags[capture_kind()]);
 	if (tag == NONE)
 	{
 		platform_log("PLASMA missing projectile tag");
@@ -246,7 +259,14 @@ void plasma_capture_tick(void)
 	for (bolt = 0; bolt < capture_burst; bolt++)
 	{
 		placement.position.z += 0.025f;
+		if (getenv("HALO_PLASMA_CAPTURE_MIXED"))
+			placement.definition_index = tag_loaded(PROJECTILE_DEFINITION_TAG, capture_projectile_tags[bolt % 3]);
 		capture_bolts[bolt] = object_new(&placement);
+		if (capture_bolts[bolt] != NONE && capture_target != NONE && capture_kind() == 2 && !capture_probe)
+		{
+			projectile_set_target_object_index(capture_bolts[bolt], capture_target);
+			platform_log("PLASMA homing %ld target %ld", capture_bolts[bolt], capture_target);
+		}
 	}
 	capture_projectile = capture_bolts[0];
 	platform_log("PLASMA shot tick %ld object %ld", capture_ticks, capture_projectile);

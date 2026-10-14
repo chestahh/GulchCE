@@ -45,7 +45,7 @@ try:
     text=input_original.decode().replace('\r\n','\n')
     marker='\tif (seed < 0)'
     assert marker in text
-    text=text.replace(marker,'\tif (getenv("HALO_PLASMA_CAPTURE_DOOR")) { pad->bAnalogButtons[XINPUT_GAMEPAD_A] = SDL_GetTicks()%1000 < 100 ? 255 : 0; return; }\n\tif (getenv("HALO_PLASMA_CAPTURE_COMBAT")) { pad->bAnalogButtons[XINPUT_GAMEPAD_RIGHT_TRIGGER] = SDL_GetTicks()%3000 < 2200 ? 255 : 0; return; }\n'+marker,1)
+    text=text.replace(marker,'\tif (getenv("HALO_PLASMA_CAPTURE_DOOR")) { pad->bAnalogButtons[XINPUT_GAMEPAD_A] = SDL_GetTicks()%1000 < 100 ? 255 : 0; return; }\n\tif (getenv("HALO_PLASMA_CAPTURE_COMBAT")) { pad->bAnalogButtons[XINPUT_GAMEPAD_RIGHT_TRIGGER] = (getenv("HALO_PLASMA_CAPTURE_KIND") && !strcmp(getenv("HALO_PLASMA_CAPTURE_KIND"), "pistol") ? SDL_GetTicks()%400 < 100 : SDL_GetTicks()%3000 < 2200) ? 255 : 0; return; }\n'+marker,1)
     input_source.write_text(text)
     shutil.copy2(ROOT / 'tools/fixtures/plasma_lighting_capture.c', fixture)
     text = original.decode().replace('\r\n', '\n')
@@ -92,7 +92,7 @@ try:
     text = plasma_original.decode().replace('\r\n', '\n')
     text = 'void platform_log(const char *format, ...);\n' + text
     text = text.replace('if (!light_port_refresh_attachment(light_index, object_index))',
-                        'platform_log("PLASMA prepare %ld owner %ld", light_index, object_index);\n\tif (!light_port_refresh_attachment(light_index, object_index))', 1)
+                        'platform_log("PLASMA prepare %ld owner %ld tag %s", light_index, object_index, name);\n\tif (!light_port_refresh_attachment(light_index, object_index))', 1)
     text = text.replace('plasma_lighting_attachments[index].rasterizer_index = rasterizer_index;',
                         '{ plasma_lighting_attachments[index].rasterizer_index = rasterizer_index; platform_log("PLASMA submit %ld", rasterizer_index); }', 1)
     plasma.write_text(text)

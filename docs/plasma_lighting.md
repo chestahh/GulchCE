@@ -10,8 +10,9 @@ enabled for motion between simulation ticks.
 
 ## Rendering
 
-The feature selects existing light attachments on the projectile tag
-`weapons\plasma rifle\bolt`, up to 128 per frame. It refreshes their marker
+The feature selects existing light attachments on three exact projectile tags:
+`weapons\plasma rifle\bolt`, `weapons\plasma pistol\bolt` and
+`weapons\plasma rifle\charged bolt` (the pistol overcharge), up to 128 per frame. It refreshes their marker
 poses before visibility and receiver selection. New objects without a previous
 snapshot use the engine's existing fallback pose.
 
@@ -430,3 +431,110 @@ private cache maps were removed. Original maps and saves were preserved.
 
 A separate 60 FPS moving-door control with occlusion off averaged 59.14 FPS;
 `hardening-door-off-on.png` contains representative off/on frames.
+
+
+## Plasma pistol extension (2026-10-14)
+
+Normal pistol bolts and overcharged shots use the existing feature-owned
+selection, falloff, occlusion and cleanup paths. Inspection of the local Xbox
+Blood Gulch and CE Death Island data, followed by runtime captures, identified
+`weapons\plasma pistol\bolt` and `weapons\plasma rifle\charged bolt`.
+The overcharge lives in the rifle directory despite being fired by the pistol.
+The normal bolt's light has flags 0 and the charged bolt's flags 3; both report
+an authored radius of 1.0 in these captures. The no-specular definition bit
+(value 2) disables specular lighting: the charged bolt deliberately retains no world specular
+highlights. Promotion and restoration preserve the original dynamic state;
+definition flags are never edited. No tag, colour, radius, projectile physics
+or network messages change, so no network version increment is required.
+
+This general feature extension changes only the selector in the existing
+feature module and the setting's description. It adds no shared engine hooks,
+MCC adapters or loading changes. Custom projectile names still remain stock.
+The eight-field occlusion budget is shared by all three selected projectile
+kinds, with the existing overflow/admission policy.
+
+The capture runner accepts `--kind pistol` and `--kind charged`. Add `--model`
+to give controlled charged shots a real biped homing target through the existing
+projectile interface. These shots retain ordinary projectile simulation;
+`--probe` instead holds and sweeps diagnostic projectiles and does not validate
+homing. `--mixed --probe --burst 12` creates four of each supported kind to
+exercise overflow. `--combat` equips the actual weapon and drives its normal
+trigger (short taps for pistol, hold/release for charged). These mechanisms are
+linked only into the temporary capture build, never the normal executable.
+
+Births use the existing interpolation fallback, and expired projectile lights
+leave selection immediately. This does not add a birth/death crossfade or alter
+stock impact flashes, contrails, muzzle flashes or the weapon's charging glow.
+Existing low-resolution occlusion and coarse-model lighting limitations apply.
+
+
+Validation used a portable Windows release based on `c05f2388` plus this
+extension, hidden at 640x480 with capture logging enabled. The normal Windows
+build passes and contains none of the capture instrumentation. The focused
+harness has 23 passing cases, including a negative control which removes pistol
+selection and must fail. Light-storage ordinary/full-LTO and corruption-control
+checks pass. Local `ninja android` and `ninja web` both report unknown targets;
+those builds, Linux runtime, browser networking and split screen remain
+unverified for this extension.
+
+Measured capture averages (FPS, not isolated GPU benchmarks):
+
+| Scene | 30 cap | 60 cap | 120 cap |
+| --- | ---: | ---: | ---: |
+| Xbox Blood Gulch, controlled normal bolts | 29.54 | 60.00 | 120.02 |
+| Xbox Blood Gulch, controlled homing overcharges | 30.00 | 60.00 | 119.99 |
+| CE Death Island, controlled normal bolts | 30.00 | 60.04 | 120.02 |
+| CE Death Island, controlled homing overcharges | 30.00 | 59.99 | 120.02 |
+| Xbox Blood Gulch, actual tap-fired pistol | 29.99 | 59.98 | 120.11 |
+| Xbox Blood Gulch, actual charge/release pistol | 29.99 | 59.99 | 119.99 |
+| Twelve mixed diagnostic projectiles | 30.00 | 60.00 | 119.80 |
+
+All runs met the capture runner's 5% average-frame-rate tolerance. The
+controlled-shot captures exercised model draws and returned to zero selected
+lights after their projectiles expired. Logs at 60/120 FPS show changing render
+poses within individual simulation ticks. Image sequences and the FPS overview
+sheets were inspected for both map families and projectile kinds. Sampling
+phase, first-use shader stalls and capture overhead prevent pixel-identical
+comparisons or a general locked-frame-rate claim.
+
+Disabled controls at 60 FPS for both kinds on both map families recorded zero
+selected lights and zero occlusion updates, even with the occlusion setting on.
+Twelve mixed lights selected all three tags and updated exactly eight fields per
+active frame. Eight charged diagnostic lights survived 13 rapid occlusion
+setting changes with no field updates during disabled intervals. Additional
+60 FPS captures exercised the existing per-pixel model path (58.99 FPS) and
+Carousel's isolated world specular passes (normal: 59.51 FPS, 789 draws;
+charged: zero draws, respecting its authored no-specular flag). The initial
+charged specular run exited successfully but the runner wrongly failed it for
+having zero draws; the corrected runner checks that no draws occur when every
+reported light definition disables specular. The rerun
+`60-1-pistol-specular-authored` passed at 59.30 FPS with zero specular draws
+and reported flags 3. These are targeted scenes, not exhaustive map coverage.
+
+Evidence is retained under `build/plasma-visual/`, in directories named
+`{fps}-1-pistol-{map}-{kind}`, `pistol-combat-{kind}`, `pistol-mixed`,
+`pistol-toggle`, `pistol-perpixel`, `pistol-specular-{kind}` and disabled
+`60-0-pistol-off-{map}-{kind}` captures. Each holds its report, logs, screenshots
+and capture build manifest. Overview images are `pistol-bloodgulch-fps.png`,
+`pistol-ce-deathisland-fps.png` and representative `pistol-off-on.png`; the last
+uses nearby phases rather than asserting identical projectile positions.
+Copied maps and derived map caches from those runs were removed.
+
+
+Two separate hidden, two-peer native Slayer runs used normal pistol taps and
+charged shots, with lighting/occlusion enabled on the host and disabled on the
+client. In each run both peers exited successfully and agreed on one host kill,
+one client death and the client's respawn. Only the host logged feature
+occlusion updates. These are local loopback checks, not internet-latency or
+browser transport coverage; no networking code changed. Evidence and private
+runner scripts are `build/plasma-pistol-network-{pistol,charged}` and
+`build/plasma-pistol-network.py`.
+
+Active pistol-fire sessions traversed Xbox Blood Gulch → CE Death Island → MCC
+Mercury Falling → Xbox Blood Gulch, once disabled at 30 FPS and once enabled at
+120 FPS. Both completed all three transition commands, loaded the MCC map,
+returned to Xbox and exited with no logged exceptions. This validates targeted
+lifecycle transitions, not MCC visual correctness or campaign completion.
+Reports, logs and the private runner remain in `build/plasma-pistol-transitions`
+and `build/plasma-pistol-transitions.py`. All copied maps and derived caches
+from these tests were removed; original maps and saves were untouched.
