@@ -184,6 +184,7 @@ symbols in this file:
 #include "tag_files/tag_groups.h"
 #include "units/units.h"
 #include "cache/cache_files.h" /* port: (tag_iterator: light_port_glow_definition_get) */
+#include "plasma_lighting.h" /* port: port/linux/game/plasma_lighting.c */
 void shield_glow_update(void); /* port: port/linux/game/shield_glow.c */
 
 /* port: port/linux/src (halo.log) */
@@ -775,10 +776,28 @@ boolean light_port_glow_set(
 	return TRUE;
 }
 
+/* port: this bridge keeps private light storage and partition ownership here.
+   The caller restores attachments after render interpolation ends. */
+int light_port_refresh_attachment(long light_index, long object_index)
+{
+	struct light_datum *light;
+
+	if (!light_data->valid || light_index == NONE || object_index == NONE)
+		return FALSE;
+	light = (struct light_datum *)datum_try_and_get(light_data, light_index);
+	if (!light || light->object_index != object_index ||
+		light->parent_light_index != NONE || !object_try_and_get(object_index))
+		return FALSE;
+	light_disconnect_from_map(light_index);
+	light_reconnect_to_map(light_index);
+	return TRUE;
+}
+
 void lights_initialize_for_new_map(
 	void)
 {
 	light_port_glow_definition = NONE - 1; /* port: (looked for again) */
+	plasma_lighting_reset(); /* port: discard render-only attachment identities */
 	data_make_valid(light_data);
 	lights_game_globals->render_lights = TRUE;
 	cluster_partition_make_valid(&light_cluster_partition);
@@ -789,6 +808,7 @@ void lights_initialize_for_new_map(
 void lights_dispose_from_old_map(
 	void)
 {
+	plasma_lighting_reset(); /* port: no attachment identities cross map loads */
 	data_make_invalid(light_data);
 	cluster_partition_make_invalid(&light_cluster_partition);
 
@@ -985,6 +1005,10 @@ void lights_preprocess_scene(
 			FALSE);
 		light->rasterizer_light_index = NONE;
 		lights_port.radius_writes++;
+		/* port: refresh selected persistent plasma attachments at the render pose,
+		   before visibility and receiver selection (plasma_lighting.c). */
+		if (light->parent_light_index == NONE)
+			plasma_lighting_prepare(light_index, light->object_index);
 		if (light->parent_light_index != NONE)
 		{
 			struct point_light_definition *definition = light_definition_get(
