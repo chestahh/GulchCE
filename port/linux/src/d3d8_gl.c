@@ -23,6 +23,7 @@ Conventions carried over from the Xbox:
 
 #include "xgpu.h"
 #include "plasma_model_shader.h"
+#include "plasma_occlusion.h"
 #include "mcc_environment_shader.h"
 #include "sdl_platform.h"
 #include "halo_ui_pointer.h"
@@ -3921,6 +3922,7 @@ static struct program_entry *prepare_draw(BOOL immediate)
 	if (entry->plasma_model_slots >= 0)
 	{
 		unsigned int mask = plasma_model_lighting_mask();
+		plasma_occlusion_bind_model(entry->program);
 		glUniform2f(entry->plasma_model_slots, (mask & 1) ? 1.0f : 0.0f, (mask & 2) ? 1.0f : 0.0f);
 	}
 	/* the lights of a draw lit for each pixel, from the same registers, when

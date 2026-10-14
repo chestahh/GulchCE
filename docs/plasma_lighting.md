@@ -40,8 +40,49 @@ Omnidirectional world specular passes use the same texture on their own
 attenuation stage, preserving the authored specular radius multiplier,
 material mask, exponent and highlight colour. Spotlight gel passes and model
 cubemap reflections remain stock; this does not add a new model specular BRDF.
-No shadow or occlusion system is added. Custom projectile tag names and projectiles without
+Optional collision occlusion is described below. Custom projectile tag names and projectiles without
 light attachments are outside this prototype.
+
+## Optional occlusion prototype
+
+Enable `plasma_occlusion = true` alongside `plasma_lighting = true` in
+`[display]`, or set both `HALO_PLASMA_OCCLUSION=1` and
+`HALO_PLASMA_LIGHTING=1`. Both default to false. Occlusion alone does nothing.
+
+`plasma_occlusion.c` builds a 16³ local visibility field using the existing
+structure, scenery and machine collision queries. Bipeds, vehicles and
+projectiles do not cast occlusion. The origin is the rendered light position;
+queries do not modify simulation state or collision geometry. The extent
+includes the authored world specular radius. Trilinear sampling avoids
+switching an entire receiver on or off at a doorway. Visibility uses elapsed
+time, with an 8 ms blocking half-life and a 25 ms clearing half-life.
+
+World diffuse and omnidirectional specular passes combine visibility with
+soft attenuation in separate 16³ volume textures. Models sample the same
+visibility field in their existing vertex or optional per-pixel lighting path.
+The private specular-radius getter in `object_lights.c` is the only new game
+source bridge: the feature module cannot safely access that private layout.
+The existing falloff, model selection and lifecycle hooks supply the remaining
+integration. `plasma_occlusion_gl.c` binds model volumes on extra texture units
+6/7 and restores the active unit; it does not replace the game's four stages.
+
+Four stable light identities can hold fields. At most four field updates,
+each with 4096 collision queries, occur per view. Active fields are not evicted
+for a fifth light; excess lights retain unoccluded soft lighting. An unused
+field becomes reusable after 100 ms. Upload failure also falls back. Fields
+and their textures reset at the existing disable, map and shutdown boundaries;
+model slots reset per receiver/view. A constant white GL fallback texture is
+renderer-lifetime state and contains no map or feature history.
+
+This is deliberately approximate, not CStencil or Modern. Thin geometry and
+cell boundaries can leak light; the cell width is twice the largest light
+radius divided by 16. History follows the light-local grid, so moving edges
+can briefly lag. Collision meshes may differ from visible meshes, and coarse
+vertex-lit models interpolate visibility between vertices. Four-light budget
+admission and projectile creation/destruction are not cross-faded. The feature
+does not alter the stock bolt lens flare, which can remain visible when its
+projected illumination is blocked. Dense combat, moving doors, split-screen
+and every map/material are not established by the captures below.
 
 ## Isolation and lifetime
 
@@ -200,3 +241,72 @@ configuration even on failure, and rebuilds the normal executable. The fixture
 is only present in `build/plasma-visual/halo-capture.exe`. The runner uses hidden
 windows and private data/save folders, removes copied maps and generated map
 caches, and retains screenshots and diagnostic logs.
+
+## Occlusion validation (2026-10-14)
+
+The Windows portable release build and 21 focused harness tests pass. These
+include synthetic wall/doorway visibility, partial clearing, equal elapsed-time
+response at 30/60/120 FPS, the four-field limit, model-slot reset, disabled
+queries, allocation failure and resource cleanup. Light-storage tests pass
+ordinary/full-LTO links and their negative control.
+
+Hidden Xbox Carousel captures compare occlusion off/on with plasma lighting
+on. A diagnostic carrier sweeps across the nearby pillar/opening; this fixture
+holds and moves a real projectile object and may pass through geometry. It is
+not a combat trajectory. Separate normal projectiles use ordinary physics and
+impact quickly in this scene. Neither probe logic nor telemetry enters the
+production executable. Off/on comparisons show reduced illumination beyond
+the pillar; consecutive-frame inspection shows a spatially softened transition
+in the tested scene, rather than whole-receiver rejection. A synthetic doorway
+is covered by the collision harness; moving-door visual behaviour is untested.
+
+| Cap | Corner sweep, occlusion off | Corner sweep, on | Wider sweep, on | Normal projectiles, on |
+| --- | --- | --- | --- | --- |
+| 30 FPS | 29.55 | 30.00 | 29.61 | 30.00 |
+| 60 FPS | 58.62 | 58.61 | 58.60 | 60.00 |
+| 120 FPS | 119.22 | 120.02 | 120.02 | 119.99 |
+
+These are average measured FPS including capture overhead and startup work,
+not GPU benchmarks. One active light is exercised, not the four-light worst
+case. The optional per-pixel model path passed at 58.70 FPS under a 60 cap.
+With plasma lighting disabled and occlusion enabled, selection and field-update
+counts remained zero (59.46 FPS). No shader/GL errors or exceptions were found
+in these capture logs. An 8-unit distant scout produced no selected lights and
+is explicitly excluded from successful validation.
+
+Production transition runs, off at 30 FPS and on at 120 FPS, loaded Xbox Blood
+Gulch, CE Death Island, MCC Mercury Falling and returned to Xbox. Both completed
+three console transitions, logged MCC loading and exited without exceptions.
+These are loading/lifecycle smoke checks, not CE/MCC lighting visual validation.
+Android/web build attempts report unknown targets in this Windows configuration;
+Linux, Android, web and browser networking runtime remain unverified. The
+prototype changes no simulation or network contract, so the network version
+is unchanged.
+
+Evidence remains under `build/plasma-visual/*occ*` and
+`build/plasma-occlusion-transitions`. The comparison and consecutive-frame
+contact sheets are `occlusion-comparison.png`, `occlusion-corner-sequence.png`
+and `occlusion-opening-sequence.png`. Copied test maps are removed; diagnostic
+logs and images are retained. The capture manifests identify the source used;
+subsequent source polish hardens overflow budget admission and removes
+an unnecessary upper limit on the private radius getter. None changes the
+successful single-light, stock-radius scenes above.
+
+To reproduce the controlled wide sweep after building the capture executable:
+
+```
+python tools/plasma_visual_run.py --data-root C:/Games/GulchCE --fps 60 --enabled 1 --occlusion 1 --map carousel --distance 3 --height -0.1 --probe --span 4 --model --receiver-distance 2 --label occlusion
+```
+
+Repeat at 30/120 FPS. Drop `--probe --span 4` for normal projectiles; use
+`--occlusion 0` for the soft-lighting control. Output labels must be unique.
+
+A hidden two-instance native loopback Slayer smoke test also passed with plasma
+lighting/occlusion enabled on the host and disabled on the client. Both peers
+reported two players through approximately tick 870 and exited normally. Logs
+are in `build/plasma-occlusion-network`; this is connection/gameplay smoke
+coverage, not a multiplayer plasma-combat or browser transport test. Final
+review added a regression ensuring an overflow light submitted before the four
+admitted lights cannot spend their update budget. That correction is covered
+by the harness and final Windows build; the captured single-light paths are
+unchanged.

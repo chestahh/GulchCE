@@ -19,6 +19,9 @@ parser.add_argument('--enabled', required=True, type=int, choices=[0, 1])
 parser.add_argument('--label', default='')
 parser.add_argument('--map', default='bloodgulch', choices=['bloodgulch', 'carousel'])
 parser.add_argument('--model', action='store_true')
+parser.add_argument('--occlusion', type=int, choices=[0,1], default=0)
+parser.add_argument('--probe', action='store_true')
+parser.add_argument('--span', type=float)
 parser.add_argument('--specular-only', action='store_true')
 parser.add_argument('--per-pixel', action='store_true')
 parser.add_argument('--distance', type=float)
@@ -47,11 +50,13 @@ env.update(HALO_DATA_ROOT=str(out), HALO_SAVE_ROOT=str(out/'saves'), HALO_HIDDEN
            HALO_NO_AUDIO='1', HALO_MAX_FPS=str(args.fps), HALO_NO_VSYNC='1', HALO_EXIT_AFTER='13',
            HALO_NET_ONLINE='0', HALO_NET_PUBLIC_LOBBY='0', HALO_UPDATE_ANSWER='never',
            HALO_CRASH_REPORTS='no', HALO_WINDOW_SIZE='640x480', HALO_PLASMA_LIGHTING=str(args.enabled),
-           HALO_SCREENSHOT_DIR=str(out/'screenshots'))
-for key in ['distance', 'height', 'receiver_distance']:
+           HALO_SCREENSHOT_DIR=str(out/'screenshots'), HALO_PLASMA_OCCLUSION=str(args.occlusion))
+for key in ['distance', 'height', 'receiver_distance', 'span']:
     value = getattr(args, key)
     if value is not None:
         env['HALO_PLASMA_CAPTURE_'+key.upper()] = str(value)
+if args.probe:
+    env['HALO_PLASMA_CAPTURE_PROBE']='1'
 if args.model:
     env['HALO_PLASMA_CAPTURE_MODEL'] = '1'
 if args.per_pixel:
@@ -76,7 +81,7 @@ report = dict(cap=args.fps, enabled=args.enabled, exit=process.returncode,
               shots=len(re.findall('PLASMA shot', logs)),
               model_draws=sum(int(x) for x in re.findall(r'PLASMA draws model (\d+)', logs)),
               specular_draws=sum(int(x) for x in re.findall(r'PLASMA draws model \d+ specular (\d+)', logs)),
-              map=args.map, model=args.model, per_pixel=args.per_pixel, specular_only=args.specular_only)
+              occlusion=args.occlusion, probe=args.probe, occlusion_updates=len(re.findall('PLASMA occlusion extent',logs)), map=args.map, model=args.model, per_pixel=args.per_pixel, specular_only=args.specular_only)
 (out/'report.json').write_text(json.dumps(report, indent=2))
 print(json.dumps(report), flush=True)
 for path in out.rglob('*.map'):
@@ -93,3 +98,6 @@ if args.enabled and args.model and not report['model_draws']:
     raise SystemExit('Capture never reached a selected model draw')
 if args.enabled and args.specular_only and not report['specular_draws']:
     raise SystemExit('Capture never reached a selected specular draw')
+
+if args.enabled and args.occlusion and not report['occlusion_updates']:
+    raise SystemExit('Capture did not update any occlusion fields')

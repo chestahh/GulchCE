@@ -19,8 +19,8 @@ int config_boolean(const char *name);
 real render_interpolation_fraction(void);
 static long capture_ticks, capture_projectile = NONE;
 static struct observer_result capture_camera;
-static int capture_model;
-static real capture_distance, capture_height, capture_receiver_distance;
+static int capture_model, capture_probe;
+static real capture_distance, capture_height, capture_receiver_distance, capture_span;
 static real capture_option(const char *name, real fallback)
 {
 	const char *value = getenv(name);
@@ -41,6 +41,10 @@ void plasma_capture_specular_draw(void)
 	if (capture_specular_selected) capture_specular_draws++;
 }
 
+int plasma_capture_hold_projectile(long index)
+{
+	return capture_probe && index == capture_projectile;
+}
 void plasma_capture_tick(void)
 {
 	struct object_placement_data placement;
@@ -51,6 +55,8 @@ void plasma_capture_tick(void)
 	{
 		capture_camera = *observer_get_camera(0);
 		capture_model = getenv("HALO_PLASMA_CAPTURE_MODEL") != NULL;
+		capture_probe = getenv("HALO_PLASMA_CAPTURE_PROBE") != NULL;
+		capture_span = capture_option("HALO_PLASMA_CAPTURE_SPAN", 2.0f);
 		capture_distance = capture_option("HALO_PLASMA_CAPTURE_DISTANCE", capture_model ? 2.2f : 3.0f);
 		capture_height = capture_option("HALO_PLASMA_CAPTURE_HEIGHT", capture_model ? -0.2f : -0.6f);
 		capture_receiver_distance = capture_option("HALO_PLASMA_CAPTURE_RECEIVER_DISTANCE", 2.8f);
@@ -75,6 +81,25 @@ void plasma_capture_tick(void)
 		}
 		else platform_log("PLASMA receiver missing");
 	}
+	if (capture_probe && capture_projectile != NONE && object_try_and_get(capture_projectile))
+	{
+		real_point3d position;
+		real lateral = -capture_span + 2 * capture_span * (capture_ticks % 60 - 30) / 28.0f;
+		cross_product3d(&capture_camera.forward, &capture_camera.up, &right);
+		position.x = capture_camera.position.x + capture_distance * capture_camera.forward.i +
+					 lateral * right.i + capture_height * capture_camera.up.i;
+		position.y = capture_camera.position.y + capture_distance * capture_camera.forward.j +
+					 lateral * right.j + capture_height * capture_camera.up.j;
+		position.z = capture_camera.position.z + capture_distance * capture_camera.forward.k +
+					 lateral * right.k + capture_height * capture_camera.up.k;
+		if (capture_ticks % 60 >= 59 || capture_ticks % 60 < 30)
+		{
+			object_delete(capture_projectile);
+			capture_projectile = NONE;
+		}
+		else
+			object_set_position(capture_projectile, &position, NULL, NULL);
+	}
 	if (capture_ticks < 90 || capture_ticks > 210 || capture_ticks % 60 != 30)
 		return;
 	tag = tag_loaded(PROJECTILE_DEFINITION_TAG, "weapons\\plasma rifle\\bolt");
@@ -85,9 +110,9 @@ void plasma_capture_tick(void)
 	}
 	cross_product3d(&capture_camera.forward, &capture_camera.up, &right);
 	object_placement_data_new(&placement, tag, NONE);
-	placement.position.x = capture_camera.position.x + capture_distance*capture_camera.forward.i - 1.2f*right.i + capture_height*capture_camera.up.i;
-	placement.position.y = capture_camera.position.y + capture_distance*capture_camera.forward.j - 1.2f*right.j + capture_height*capture_camera.up.j;
-	placement.position.z = capture_camera.position.z + capture_distance*capture_camera.forward.k - 1.2f*right.k + capture_height*capture_camera.up.k;
+	placement.position.x = capture_camera.position.x + capture_distance*capture_camera.forward.i - (capture_probe?capture_span:1.2f)*right.i + capture_height*capture_camera.up.i;
+	placement.position.y = capture_camera.position.y + capture_distance*capture_camera.forward.j - (capture_probe?capture_span:1.2f)*right.j + capture_height*capture_camera.up.j;
+	placement.position.z = capture_camera.position.z + capture_distance*capture_camera.forward.k - (capture_probe?capture_span:1.2f)*right.k + capture_height*capture_camera.up.k;
 	placement.forward = right;
 	placement.forward.k -= 0.12f;
 	normalize3d(&placement.forward);

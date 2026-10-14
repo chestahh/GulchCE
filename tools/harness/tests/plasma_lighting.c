@@ -28,6 +28,10 @@ static void light_reconnect_to_map(long index)
 	refreshes++;
 	rendered_pose = interpolation_rendering;
 }
+void plasma_occlusion_model_slot(long i, short s) {}
+void plasma_occlusion_reset(void) {}
+void plasma_occlusion_window(void) {}
+void plasma_occlusion_submit(long i,long r) {}
 void plasma_lighting_reset(void);
 int plasma_lighting_selected(long index);
 void plasma_falloff_dispose(void) {}

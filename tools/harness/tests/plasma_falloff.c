@@ -22,6 +22,8 @@ static void D3DDevice_SetTexture(int stage,D3DBaseTexture *t) { CHECK(stage == 2
 static void D3DDevice_SetTextureState_Deferred(int stage,int state,int value) { filter = value; }
 static void rasterizer_set_texture_direct(int stage,int bitmap,int mip) { restored_stage=stage; restores++; }
 static void D3DResource_Release(D3DResource *t) { releases++; }
+void *plasma_occlusion_texture(long index,int specular) { return NULL; }
+void plasma_occlusion_reset(void) {}
 void plasma_falloff_dispose(void);
 #include "under_test.inc"
 int main(int argc, char **argv)

@@ -6,6 +6,7 @@
 #include "tag_files/tag_files.h"
 #include "plasma_lighting.h"
 #include "plasma_model_shader.h"
+#include "plasma_occlusion.h"
 #include <string.h>
 
 int config_boolean(const char *name);
@@ -24,6 +25,8 @@ static unsigned int	plasma_model_mask;
 void plasma_model_lighting_reset(void)
 {
 	plasma_model_mask = 0;
+	plasma_occlusion_model_slot(NONE, 0);
+	plasma_occlusion_model_slot(NONE, 1);
 }
 
 void plasma_model_lighting_slot(long light_index, short slot)
@@ -31,6 +34,7 @@ void plasma_model_lighting_slot(long light_index, short slot)
 	if (slot < 0 || slot >= 2)
 		return;
 	plasma_model_mask &= ~(1U << slot);
+	plasma_occlusion_model_slot(light_index, slot);
 	if (plasma_lighting_selected(light_index))
 		plasma_model_mask |= 1U << slot;
 }
@@ -84,6 +88,8 @@ void plasma_lighting_frame_end(void)
 			plasma_lighting_attachments[index].object_index);
 	}
 	plasma_lighting_reset();
+	if (!config_boolean("display.plasma_occlusion"))
+		plasma_occlusion_reset();
 	if (!config_boolean("display.plasma_lighting"))
 		plasma_falloff_dispose();
 }
@@ -98,6 +104,7 @@ void plasma_lighting_reset(void)
 void plasma_lighting_window_begin(void)
 {
 	int index;
+	plasma_occlusion_window();
 	plasma_model_lighting_reset();
 	for (index = 0; index < plasma_lighting_count; index++)
 		plasma_lighting_attachments[index].rasterizer_index = NONE;
@@ -108,7 +115,10 @@ void plasma_lighting_submitted(long light_index, long rasterizer_index)
 	int index;
 	for (index = 0; index < plasma_lighting_count; index++)
 		if (plasma_lighting_attachments[index].light_index == light_index)
+		{
 			plasma_lighting_attachments[index].rasterizer_index = rasterizer_index;
+			plasma_occlusion_submit(light_index, rasterizer_index);
+		}
 }
 
 int plasma_lighting_selected(long rasterizer_index)

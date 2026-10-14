@@ -24,6 +24,10 @@ plasma = ROOT / 'port/linux/game/plasma_lighting.c'
 plasma_original = plasma.read_bytes()
 environment = ROOT/'source/rasterizer/xbox/rasterizer_xbox_environment.c'
 environment_original = environment.read_bytes()
+projectiles = ROOT/'source/items/projectiles.c'
+projectiles_original = projectiles.read_bytes()
+occlusion = ROOT/'port/linux/game/plasma_occlusion.c'
+occlusion_original = occlusion.read_bytes()
 assert not fixture.exists(), 'Refusing to overwrite an existing fixture'
 out = ROOT / 'build/plasma-visual'
 out.mkdir(exist_ok=True)
@@ -32,7 +36,7 @@ saved_args = shlex.split(re.search(r'^configure_args = (.*)$',
 manifest = dict(configure_args=saved_args, base_commit=subprocess.check_output(
     ['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip(), source_hashes={})
 for path in [source, main, backend, plasma, ROOT/'port/linux/game/plasma_falloff.c',
-             ROOT/'source/objects/object_lights.c', ROOT/'source/rasterizer/xbox/rasterizer_xbox.c',
+             occlusion, ROOT/'port/linux/src/plasma_occlusion_gl.c', ROOT/'source/objects/object_lights.c', ROOT/'source/rasterizer/xbox/rasterizer_xbox.c',
              ROOT/'port/linux/src/plasma_model_shader.c', ROOT/'port/linux/src/nv2a_vsh.c', ROOT/'port/linux/src/nv2a_psh.c', ROOT/'source/rasterizer/xbox/rasterizer_xbox_environment.c']:
     manifest['source_hashes'][path.relative_to(ROOT).as_posix()] = hashlib.sha256(path.read_bytes()).hexdigest()
 try:
@@ -43,6 +47,19 @@ try:
     text = text.replace('long previous_tick = interpolation_tick++;',
                         'long previous_tick = interpolation_tick++;\n\tplasma_capture_tick();', 1)
     source.write_text(text)
+    text = projectiles_original.decode().replace('\r\n','\n')
+    text = 'int plasma_capture_hold_projectile(long index);\n'+text
+    begin = text.index('boolean projectile_update(')
+    marker = '\tprojectile = projectile_get(projectile_index);'
+    at = text.index(marker, begin)
+    text = text[:at]+'\tif (plasma_capture_hold_projectile(projectile_index)) return TRUE;\n'+text[at:]
+    projectiles.write_text(text)
+    text = occlusion_original.decode().replace('\r\n','\n')
+    text = 'void platform_log(const char *format,...);\n'+text
+    marker = '\tfield->valid = 1;'
+    assert text.count(marker) == 1
+    text = text.replace(marker, marker+'\n\tplatform_log("PLASMA occlusion extent %.3f sample %.3f",field->extent,field->visibility[0]);')
+    occlusion.write_text(text)
     text = main_original.decode().replace('\r\n', '\n')
     text = 'void plasma_capture_frame(void);\n' + text
     text = text.replace('main_game_render((double)main_globals.seconds_elapsed);',
@@ -83,6 +100,8 @@ finally:
     backend.write_bytes(backend_original)
     plasma.write_bytes(plasma_original)
     environment.write_bytes(environment_original)
+    projectiles.write_bytes(projectiles_original)
+    occlusion.write_bytes(occlusion_original)
     fixture.unlink(missing_ok=True)
     subprocess.run([sys.executable, 'configure.py', *saved_args], cwd=ROOT, check=True)
     subprocess.run(['ninja', 'windows'], cwd=ROOT, check=True)

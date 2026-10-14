@@ -311,6 +311,9 @@ static const struct config_setting config_settings[] =
 	{ "display.first_person_legs", _config_boolean, "false", "HALO_FIRST_PERSON_LEGS", _environment_value, _platform_all,
 		"Your own legs in first person, seen looking down: your body as others\n"
 		"see it, drawn from the waist down, moving as it moves." },
+	{ "display.plasma_occlusion", _config_boolean, "false", "HALO_PLASMA_OCCLUSION", _environment_value, _platform_all,
+		"Prototype collision-filtered plasma visibility. Requires plasma_lighting.\n"
+		"Off preserves unoccluded plasma lighting. At most four occluded lights." },
 	{ "display.plasma_lighting", _config_boolean, "false", "HALO_PLASMA_LIGHTING", _environment_value, _platform_all,
 		"Prototype: plasma rifle bolt lights follow their rendered attachments\n"
 		"with soft world/model falloff and omni highlights. Off keeps stock lighting." },

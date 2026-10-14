@@ -184,6 +184,7 @@ symbols in this file:
 #include "tag_files/tag_groups.h"
 #include "units/units.h"
 #include "cache/cache_files.h" /* port: (tag_iterator: light_port_glow_definition_get) */
+#include "plasma_occlusion.h" /* port: port/linux/game/plasma_occlusion.c */
 #include "plasma_lighting.h" /* port: port/linux/game/plasma_lighting.c */
 void shield_glow_update(void); /* port: port/linux/game/shield_glow.c */
 
@@ -775,6 +776,16 @@ boolean light_port_glow_set(
 	light->color.blue = PIN(color->blue, 0.0f, 1.0f);
 	light->intensity_scale = radius;
 	return TRUE;
+}
+
+/* port: the light definition layout is private to this implementation. */
+float plasma_occlusion_specular_scale(long rasterizer_index)
+{
+	real scale;
+	if (rasterizer_index < 0 || rasterizer_index >= rasterizer_lights.light_count)
+		return 1.0f;
+	scale = rasterizer_lights.lights[rasterizer_index].definition->specular_radius_multiplier;
+	return scale > 0.0f ? scale : 1.0f;
 }
 
 /* port: this bridge keeps private light storage and partition ownership here.

@@ -6,6 +6,7 @@
 #include "rasterizer/xbox/rasterizer_xbox.h"
 #include "rasterizer/rasterizer_swizzle.h"
 #include "plasma_lighting.h"
+#include "plasma_occlusion.h"
 #include <stdlib.h>
 
 enum { PLASMA_FALLOFF_SIZE = 64 };
@@ -59,11 +60,13 @@ static boolean plasma_falloff_create(void)
 
 static void plasma_falloff_bind(long rasterizer_index, int stage, int stock_filter)
 {
+	D3DBaseTexture *occlusion;
 	if (!plasma_lighting_selected(rasterizer_index))
 		return;
 	if (!plasma_falloff_texture && !plasma_falloff_create())
 		return; /* allocation failure leaves the stock pass intact */
-	D3DDevice_SetTexture(stage, (D3DBaseTexture *)plasma_falloff_texture);
+	occlusion = plasma_occlusion_texture(rasterizer_index, stage == 1);
+	D3DDevice_SetTexture(stage, occlusion ? occlusion : (D3DBaseTexture *)plasma_falloff_texture);
 	D3DDevice_SetTextureState_Deferred(stage, D3DTSS_MINFILTER, D3DTEXF_LINEAR);
 	plasma_falloff_stage = stage;
 	plasma_falloff_filter = stock_filter;
@@ -91,6 +94,7 @@ void plasma_falloff_end(void)
 
 void plasma_falloff_dispose(void)
 {
+	plasma_occlusion_reset();
 	plasma_falloff_end();
 	if (plasma_falloff_texture)
 		D3DResource_Release((D3DResource *)plasma_falloff_texture);
