@@ -19,6 +19,7 @@ static struct
 	long object_index;
 	long rasterizer_index;
 	int was_dynamic;
+	float radius_scale, saved_radius;
 } plasma_lighting_attachments[PLASMA_LIGHTING_MAXIMUM];
 static int plasma_lighting_count;
 static unsigned int	plasma_model_mask;
@@ -70,12 +71,32 @@ void plasma_lighting_prepare(long light_index, long object_index)
 			return; /* shared by split-screen views */
 	if (plasma_lighting_count == PLASMA_LIGHTING_MAXIMUM)
 		return; /* excess lights retain stock behavior */
-	if (!light_port_refresh_attachment(light_index, object_index))
+	if (!light_port_attachment_radius(light_index, object_index,
+		&plasma_lighting_attachments[plasma_lighting_count].saved_radius, FALSE))
 		return;
 	plasma_lighting_attachments[plasma_lighting_count].light_index = light_index;
 	plasma_lighting_attachments[plasma_lighting_count].was_dynamic = light_port_dynamic_set(light_index, object_index, TRUE);
 	plasma_lighting_attachments[plasma_lighting_count].rasterizer_index = NONE;
-	plasma_lighting_attachments[plasma_lighting_count++].object_index = object_index;
+	plasma_lighting_attachments[plasma_lighting_count].object_index = object_index;
+	/* Wider soft falloff increases useful illumination without clipping colour.
+	   Pistol shots start with smaller authored radii than rifle bolts. */
+	plasma_lighting_attachments[plasma_lighting_count].radius_scale =
+		!strcmp(name, "weapons\\plasma pistol\\bolt") ? 2.25f :
+		!strcmp(name, "weapons\\plasma rifle\\charged bolt") ? 2.75f : 1.75f;
+	plasma_lighting_count++;
+	light_port_refresh_attachment(light_index, object_index);
+}
+
+float plasma_lighting_radius(long light_index, long object_index, float radius)
+{
+	int index;
+	if (!config_boolean("display.plasma_lighting"))
+		return radius;
+	for (index = 0; index < plasma_lighting_count; index++)
+		if (plasma_lighting_attachments[index].light_index == light_index &&
+			plasma_lighting_attachments[index].object_index == object_index)
+			return radius * plasma_lighting_attachments[index].radius_scale;
+	return radius;
 }
 
 void plasma_lighting_frame_end(void)
@@ -88,6 +109,10 @@ void plasma_lighting_frame_end(void)
 	   Restore positions AND cluster membership before the next simulation tick. */
 	for (index = 0; index < plasma_lighting_count; index++)
 	{
+		plasma_lighting_attachments[index].radius_scale = 1.0f;
+		light_port_attachment_radius(plasma_lighting_attachments[index].light_index,
+			plasma_lighting_attachments[index].object_index,
+			&plasma_lighting_attachments[index].saved_radius, TRUE);
 		light_port_dynamic_set(plasma_lighting_attachments[index].light_index,
 			plasma_lighting_attachments[index].object_index, plasma_lighting_attachments[index].was_dynamic);
 		light_port_refresh_attachment(plasma_lighting_attachments[index].light_index,

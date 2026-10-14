@@ -780,3 +780,82 @@ Android/web build attempts still report unknown targets: configuration records
 no Android NDK and no Emscripten. WSL reports that it is not installed, so Linux
 runtime validation is unavailable here. These platforms remain unverified.
 No simulation or network payload changed; the network version is unchanged.
+
+
+## Projectile visibility tuning
+
+The optional soft falloff now uses larger render radii: rifle bolts and authored
+rocket attachments multiply their authored radius by 1.75, normal plasma-pistol
+bolts by 2.25, and charged plasma-pistol bolts by 2.75. The charged bolt still
+uses the rifle-directory tag. Feature-owned rocket flight lights use radius
+1.75 instead of 1.0. The exact four-tag allowlist is unchanged. Plasma grenades,
+needles, muzzle flashes and explosion lights are not added by this change.
+
+The wider radius raises illumination at a given surface distance through the
+existing smooth attenuation curve. It does not multiply or clip RGB colours,
+change lens-flare brightness, or remove authored no-specular flags. This keeps
+plasma colour and soft edges while making the smaller pistol lights easier to
+see. Bright outdoor materials will still show less contrast than dark interiors.
+Both feature settings remain false by default.
+
+Policy remains in plasma_lighting.c and rocket_lighting.c. Minimal additive
+hooks in object_lights.c are needed because its private light datum supplies
+world/model receiver selection, and its private maximum-bound calculation
+supplies visibility and cluster membership. Changing only rasterizer parameters
+would leave the expanded light culled at its original bounds. The hooks apply
+only to registered attachments or owned rocket lights with matching handles
+and owners. Attachment registration precedes render-pose reconnection so the
+partition sees the expanded bound immediately. Each attachment saves its prior
+radius, restores it before simulation resumes, and reconnects with stock bounds;
+map unload/recovery discards identities. Split views recompute from authored
+radius rather than scaling previous output. Other lights retain their old bounds.
+
+No tag data, projectile simulation, stock explosion effects, network payloads,
+map-family adapters or CStencil/Modern code changes. No network-version bump is
+needed for this render-only policy. Xbox, CE and MCC continue through their
+existing loading paths.
+
+Validation on Windows x86 portable release (full LTO):
+
+- Thirty focused harness cases pass, including negative controls, exact profile
+  scales, owner validation, maximum/actual/specular bounds, registration before
+  partition reconnection, split-view non-compounding and disabled cleanup.
+  Light-storage checks pass ordinary COFF, full LTO and the corruption control.
+- All 32 main capture cases pass: each of four projectile types indoors on
+  Carousel and outdoors on Blood Gulch at 30/60/120 FPS; twelve simultaneous
+  mixed lights with model receivers at all three caps; disabled control;
+  CE pistol flight; a moving A10 door; isolated specular output; rocket impact.
+  Before/after images show wider coloured ground/wall illumination and stronger
+  nearby model lighting, with the soft edge and stock explosion effects retained.
+  Charged shots and Carousel's rocket template still forbid specular highlights.
+- Actual weapon firing was captured at all three caps for all four types.
+  Eleven of twelve initial cases passed timing; the first 120 FPS pistol capture
+  averaged 111.85 FPS with 132/103 ms frame gaps. A targeted repeat averaged
+  119.99 FPS with screenshots and 120.01 without; the old build also averaged
+  119.68 without screenshots. The slowdown was not reproduced, but these runs
+  do not establish its cause. The original failed report remains in the record.
+  One old-build baseline rocket capture also missed timing outside its active
+  lighting interval; it is used for visual comparison, not performance acceptance.
+- The twelve-light image captures average approximately 30/60/120 FPS, with
+  active-frame p95 of 34/18/12 ms respectively. These are short 640x480 tests on
+  this machine, not a locked-120 guarantee or a high-resolution GPU benchmark.
+- Two hidden native loopback peers, feature enabled only on the host, exited
+  successfully and agreed on player state at tick 870. The disabled peer had no
+  occlusion updates. This run establishes local state agreement, not internet
+  transport, kill/respawn coverage or full networking compatibility.
+- Disabled-at-30 and enabled-at-120 runs completed Xbox -> CE -> MCC -> Xbox,
+  with three transition commands, one MCC load and no logged exceptions each.
+  This is lifecycle coverage, not full MCC visual acceptance. Private copied
+  maps and derived caches were removed; original game data was untouched.
+- The normal Windows executable passes hidden startup/load with stock settings,
+  contains no capture markers, and matches the capture manifest's source hashes.
+  Android/web build attempts report unknown targets (toolchains unavailable);
+  WSL/Linux is not installed. Those platforms remain unverified.
+
+Evidence: build/tuning-matrix.json, build/tuning-combat.json,
+build/tuning-timing.json, build/tuning-network-rocket,
+build/tuning-transitions and build/tuning-playtest-smoke. Per-run logs, timing,
+images and build hashes are in build/plasma-visual/*-tuned-*; old-build comparison
+runs use *-tuning-before-*. Comparison sheets are tuning-all-*.png,
+tuning-caps-*.png and tuning-combat-caps.png in that directory. The refreshed
+Windows package retains both options off and includes PLAYTEST.txt beside halo.exe.

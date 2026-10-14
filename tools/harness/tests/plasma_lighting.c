@@ -9,10 +9,11 @@ static struct object_datum projectile = { 1, { _object_type_projectile } };
 static const char *tag_name = "weapons\\plasma rifle\\bolt";
 static int enabled = 1, refreshes, present = 1, interpolation_rendering = 1;
 static int rendered_pose;
+static float connected_radius;
 int config_boolean(const char *name) { return enabled; }
 static struct object_datum *object_try_and_get(long index) { return present ? &projectile : NULL; }
 static const char *tag_get_name(long index) { return tag_name; }
-struct light_datum { long object_index, parent_light_index; int flags; };
+struct light_datum { long object_index, parent_light_index; int flags; float radius; long definition_index; real_point3d position; real_vector3d forward; };
 static struct { int valid; } storage = { 1 }, *light_data = &storage;
 static int stale;
 static struct light_datum *datum_try_and_get(void *data, long index)
@@ -22,11 +23,20 @@ static struct light_datum *datum_try_and_get(void *data, long index)
 	light.parent_light_index = NONE;
 	return &light;
 }
+enum { _light_definition_no_specular_bit = 1 };
+#define _pi 3.14159265f
+struct point_light_definition { real radius_modifier_upper_bound, radius, specular_radius_multiplier, lens_flare_radius, cutoff_angle, runtime_cosine_cutoff_angle, runtime_sine_cutoff_angle; int flags; };
+static struct point_light_definition light_definition = {1,1,2,0,2,1,1,0};
+static struct point_light_definition *light_definition_get(long i) { return &light_definition; }
+static struct light_datum *light_get(long i) { return datum_try_and_get(light_data,i); }
+float rocket_lighting_radius(long l,long o,float r) { return r; }
+static void light_compute_bounding_sphere(long i,boolean m,boolean s,boolean f,real_point3d *p,real *r);
 static void light_disconnect_from_map(long index) {}
 static void light_reconnect_to_map(long index)
 {
 	refreshes++;
 	rendered_pose = interpolation_rendering;
+	{ real_point3d p; light_compute_bounding_sphere(index, TRUE, FALSE, TRUE, &p, &connected_radius); }
 }
 void plasma_occlusion_model_slot(long i, short s) {}
 void plasma_occlusion_reset(void) {}
@@ -47,7 +57,37 @@ int main(int argc, char **argv)
 	int i;
 	const char *test = argv[1];
 
-	if (!strcmp(test, "rocket"))
+	if (!strcmp(test, "radius"))
+	{
+		const char *names[] = {"weapons\\plasma rifle\\bolt", "weapons\\plasma pistol\\bolt",
+			"weapons\\plasma rifle\\charged bolt", "weapons\\rocket launcher\\rocket"};
+		float scales[] = {1.75f, 2.25f, 2.75f, 1.75f};
+		real_point3d position;
+		real radius;
+		for (i = 0; i < 4; i++)
+		{
+			tag_name = names[i]; enabled = 1;
+			datum_try_and_get(light_data, 1)->radius = 0.5f;
+			plasma_lighting_prepare(1, 1);
+			CHECK(plasma_lighting_radius(1, 1, 1.0f) == scales[i], "per-projectile reach");
+			CHECK(connected_radius == 2.0f * scales[i], "partition sees tuned radius before submission");
+			datum_try_and_get(light_data, 1)->radius = scales[i];
+			light_compute_bounding_sphere(1, FALSE, FALSE, FALSE, &position, &radius);
+			CHECK(radius == scales[i], "actual bounds do not scale twice");
+			light_compute_bounding_sphere(1, FALSE, TRUE, FALSE, &position, &radius);
+			CHECK(radius == 2.0f * scales[i], "specular keeps authored multiplier");
+			plasma_lighting_prepare(1, 1);
+			CHECK(plasma_lighting_radius(1, 1, 1.0f) == scales[i], "split views do not compound radius");
+			CHECK(plasma_lighting_radius(1, 2, 1.0f) == 1.0f, "wrong owner untouched");
+			datum_try_and_get(light_data, 1)->radius = 9.0f;
+			enabled = 0;
+			CHECK(plasma_lighting_radius(1, 1, 1.0f) == 1.0f, "disabled policy is stock");
+			plasma_lighting_frame_end();
+			CHECK(datum_try_and_get(light_data, 1)->radius == 0.5f, "radius restored even when disabled");
+			CHECK(connected_radius == 2.0f, "partition restored to stock");
+		}
+	}
+	else if (!strcmp(test, "rocket"))
 	{
 		tag_name = "weapons\\rocket launcher\\rocket";
 		plasma_lighting_prepare(1, 1);

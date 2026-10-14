@@ -95,7 +95,7 @@ void rocket_lighting_update(void)
 		if (slot == NONE)
 			continue;
 		light = &rocket_lights[slot];
-		if (light->active && light_port_glow_set(light->light_index, iterator.index, &rocket_color, 1.0f))
+		if (light->active && light_port_glow_set(light->light_index, iterator.index, &rocket_color, 1.75f))
 		{
 			if (!light->connected)
 				light_reconnect_to_map(light->light_index);
@@ -113,7 +113,7 @@ void rocket_lighting_update(void)
 		light->object_index = iterator.index;
 		light->rasterizer_index = NONE;
 		light->active = light->connected = TRUE;
-		light_port_glow_set(light->light_index, iterator.index, &rocket_color, 1.0f);
+		light_port_glow_set(light->light_index, iterator.index, &rocket_color, 1.75f);
 	}
 }
 
@@ -170,4 +170,18 @@ int rocket_lighting_selected(long rasterizer_index)
 		if (rocket_lights[i].active && rocket_lights[i].rasterizer_index == rasterizer_index)
 			return TRUE;
 	return FALSE;
+}
+
+/* Visibility bounds must cover the owned flight glow, even when the map's
+   borrowed template describes a smaller muzzle flash. */
+float rocket_lighting_radius(long light_index, long object_index, float radius)
+{
+	int i;
+	if (!config_boolean("display.plasma_lighting"))
+		return radius;
+	for (i = 0; i < ROCKET_LIGHTS; i++)
+		if (rocket_lights[i].active && rocket_lights[i].light_index == light_index &&
+			rocket_lights[i].object_index == object_index)
+			return MAX(radius, 1.75f);
+	return radius;
 }

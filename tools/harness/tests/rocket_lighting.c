@@ -1,5 +1,6 @@
 #include "harness.h"
 #include <string.h>
+#define MAX(a,b) ((a) > (b) ? (a) : (b))
 typedef struct { real red, green, blue; } real_rgb_color;
 typedef struct { real elements[13]; } real_matrix4x3;
 enum { _object_type_projectile = 5, _object_mask_projectile = 1, _object_invisible_bit = 0,
@@ -53,6 +54,8 @@ int main(void)
  long held;
  for(i=0;i<10;i++) { objects[i].object.node_matrices.size=sizeof(real_matrix4x3); objects[i].object.type=5; objects[i].object.bounding_sphere_center.x=1; }
  rocket_lighting_update(); CHECK(allocs==8,"bounded eight owned lights");
+ CHECK(rocket_lighting_radius(100,0,0.25f)==1.75f,"owned radius covers template");
+ CHECK(rocket_lighting_radius(100,1,0.25f)==0.25f,"wrong owner keeps bounds");
  rocket_lighting_window_begin();
  for(i=0;i<8;i++) { rocket_lighting_submitted(100+i,i); CHECK(rocket_lighting_selected(i),"submitted rocket selected"); }
  CHECK(submits==8 && !rocket_lighting_selected(NONE),"only valid submissions");

@@ -93,8 +93,9 @@ try:
     environment.write_text(text)
     text = plasma_original.decode().replace('\r\n', '\n')
     text = 'void platform_log(const char *format, ...);\n' + text
-    text = text.replace('if (!light_port_refresh_attachment(light_index, object_index))',
-                        'platform_log("PLASMA prepare %ld owner %ld tag %s", light_index, object_index, name);\n\tif (!light_port_refresh_attachment(light_index, object_index))', 1)
+    marker = '\tlight_port_refresh_attachment(light_index, object_index);'
+    assert text.count(marker) == 1
+    text = text.replace(marker, '\tplatform_log("PLASMA prepare %ld owner %ld tag %s", light_index, object_index, name);\n' + marker)
     text = text.replace('plasma_lighting_attachments[index].rasterizer_index = rasterizer_index;',
                         '{ plasma_lighting_attachments[index].rasterizer_index = rasterizer_index; platform_log("PLASMA submit %ld", rasterizer_index); }', 1)
     plasma.write_text(text)
