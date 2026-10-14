@@ -313,7 +313,7 @@ static const struct config_setting config_settings[] =
 		"see it, drawn from the waist down, moving as it moves." },
 	{ "display.plasma_occlusion", _config_boolean, "false", "HALO_PLASMA_OCCLUSION", _environment_value, _platform_all,
 		"Prototype collision-filtered plasma visibility. Requires plasma_lighting.\n"
-		"Off preserves unoccluded plasma lighting. At most four occluded lights." },
+		"Off preserves unoccluded plasma lighting. At most eight occluded lights." },
 	{ "display.plasma_lighting", _config_boolean, "false", "HALO_PLASMA_LIGHTING", _environment_value, _platform_all,
 		"Prototype: plasma rifle bolt lights follow their rendered attachments\n"
 		"with soft world/model falloff and omni highlights. Off keeps stock lighting." },

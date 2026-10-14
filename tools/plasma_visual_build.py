@@ -28,6 +28,8 @@ projectiles = ROOT/'source/items/projectiles.c'
 projectiles_original = projectiles.read_bytes()
 occlusion = ROOT/'port/linux/game/plasma_occlusion.c'
 occlusion_original = occlusion.read_bytes()
+input_source=ROOT/'port/linux/src/xinput_sdl.c'
+input_original=input_source.read_bytes()
 assert not fixture.exists(), 'Refusing to overwrite an existing fixture'
 out = ROOT / 'build/plasma-visual'
 out.mkdir(exist_ok=True)
@@ -35,11 +37,16 @@ saved_args = shlex.split(re.search(r'^configure_args = (.*)$',
                                   (ROOT / 'build.ninja').read_text(), re.M).group(1))
 manifest = dict(configure_args=saved_args, base_commit=subprocess.check_output(
     ['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip(), source_hashes={})
-for path in [source, main, backend, plasma, ROOT/'port/linux/game/plasma_falloff.c',
+for path in [input_source, ROOT/'tools/fixtures/plasma_lighting_capture.c', source, main, backend, plasma, ROOT/'port/linux/game/plasma_falloff.c',
              occlusion, ROOT/'port/linux/src/plasma_occlusion_gl.c', ROOT/'source/objects/object_lights.c', ROOT/'source/rasterizer/xbox/rasterizer_xbox.c',
              ROOT/'port/linux/src/plasma_model_shader.c', ROOT/'port/linux/src/nv2a_vsh.c', ROOT/'port/linux/src/nv2a_psh.c', ROOT/'source/rasterizer/xbox/rasterizer_xbox_environment.c']:
     manifest['source_hashes'][path.relative_to(ROOT).as_posix()] = hashlib.sha256(path.read_bytes()).hexdigest()
 try:
+    text=input_original.decode().replace('\r\n','\n')
+    marker='\tif (seed < 0)'
+    assert marker in text
+    text=text.replace(marker,'\tif (getenv("HALO_PLASMA_CAPTURE_DOOR")) { pad->bAnalogButtons[XINPUT_GAMEPAD_A] = SDL_GetTicks()%1000 < 100 ? 255 : 0; return; }\n\tif (getenv("HALO_PLASMA_CAPTURE_COMBAT")) { pad->bAnalogButtons[XINPUT_GAMEPAD_RIGHT_TRIGGER] = SDL_GetTicks()%3000 < 2200 ? 255 : 0; return; }\n'+marker,1)
+    input_source.write_text(text)
     shutil.copy2(ROOT / 'tools/fixtures/plasma_lighting_capture.c', fixture)
     text = original.decode().replace('\r\n', '\n')
     text = text.replace('void render_interpolation_tick(void)',
@@ -95,6 +102,7 @@ try:
     manifest['capture_sha256'] = hashlib.sha256((out/'halo-capture.exe').read_bytes()).hexdigest()
     (out/'build-manifest.json').write_text(json.dumps(manifest, indent=2))
 finally:
+    input_source.write_bytes(input_original)
     source.write_bytes(original)
     main.write_bytes(main_original)
     backend.write_bytes(backend_original)

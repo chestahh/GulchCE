@@ -17,15 +17,17 @@ enum
 {
 	OCC_SIZE = 16,
 	OCC_COUNT = 4096,
-	OCC_LIGHTS = 4,
+	OCC_LIGHTS = 8,
 	OCC_SUBMITTED = 128
 };
 static struct occlusion_field
 {
 	long identity;
-	unsigned long used, updated, window;
+	unsigned long used, updated, window, admitted, traced;
+	int fading;
 	real center[3], extent, radius, specular;
 	real visibility[OCC_COUNT];
+	real depths[6][OCC_SIZE * OCC_SIZE], trace_center[3], trace_extent;
 	IDirect3DVolumeTexture8 *texture[3];
 	int valid;
 } fields[OCC_LIGHTS];
@@ -33,6 +35,35 @@ static struct
 {
 	long identity, rasterizer;
 } submitted[OCC_SUBMITTED];
+/* Only overflow identities need admission history; no engine pointers persist. */
+static struct
+{
+	long identity;
+	unsigned long seen;
+	int valid;
+} overflow[OCC_SUBMITTED];
+static void remember_overflow(long identity, unsigned long now)
+{
+	int i, oldest = 0;
+	for (i = 0; i < OCC_SUBMITTED; i++)
+	{
+		if (overflow[i].valid && overflow[i].identity == identity)
+		{
+			oldest = i;
+			break;
+		}
+		if (!overflow[i].valid)
+		{
+			oldest = i;
+			break;
+		}
+		if (now - overflow[i].seen > now - overflow[oldest].seen)
+			oldest = i;
+	}
+	overflow[oldest].identity = identity;
+	overflow[oldest].seen = now;
+	overflow[oldest].valid = 1;
+}
 static int submitted_count;
 static int updates_this_window;
 static unsigned long current_window;
@@ -63,18 +94,64 @@ static real sample_field(const real *values, real x, real y, real z)
 						  (i ? t[0] : 1 - t[0]) * (j ? t[1] : 1 - t[1]) * (k ? t[2] : 1 - t[2]);
 	return result;
 }
-static real trace_visibility(real_point3d const *from, real_vector3d const *vector)
+/* One depth ray per cubemap texel serves every radial cell on that ray.
+   Interpolate visibility comparisons, never distances across a doorway. */
+static void trace_depths(real const extent, real_point3d const *from, real depths[6][OCC_SIZE * OCC_SIZE])
 {
-	struct collision_result hit;
-	real length = sqrtf(vector->i * vector->i + vector->j * vector->j + vector->k * vector->k);
+	int face, x, y, axis;
 	unsigned long flags =
 		FLAG(_collision_test_structure_bit) | FLAG(_collision_test_front_facing_surfaces_bit) |
 		FLAG(_collision_test_back_facing_surfaces_bit) | FLAG(_collision_test_objects_bit) |
 		FLAG(_collision_test_objects_scenery_bit) | FLAG(_collision_test_objects_machines_bit);
-	if (length < 0.0001f || !collision_test_vector(flags, from, vector, NONE, &hit))
+	for (face = 0; face < 6; face++)
+		for (y = 0; y < OCC_SIZE; y++)
+			for (x = 0; x < OCC_SIZE; x++)
+			{
+				real component[3];
+				real_vector3d ray;
+				struct collision_result hit;
+				axis = face / 2;
+				component[axis] = (face & 1) ? extent : -extent;
+				component[(axis + 1) % 3] = (2.0f * (x + 0.5f) / OCC_SIZE - 1) * extent;
+				component[(axis + 2) % 3] = (2.0f * (y + 0.5f) / OCC_SIZE - 1) * extent;
+				ray.i = component[0];
+				ray.j = component[1];
+				ray.k = component[2];
+				/* A clear ray must not become a blocker when reprojection crosses its endpoint. */
+				depths[face][y * OCC_SIZE + x] =
+					collision_test_vector(flags, from, &ray, NONE, &hit) ? hit.t : 2.0f;
+			}
+}
+static real depth_visibility(real depths[6][OCC_SIZE * OCC_SIZE], real_vector3d const *ray, real extent)
+{
+	real p[3], magnitude, u, v, tx, ty, result = 0, length;
+	int axis = 0, face, x, y, i, j;
+	p[0] = ray->i;
+	p[1] = ray->j;
+	p[2] = ray->k;
+	if (fabsf(p[1]) > fabsf(p[axis]))
+		axis = 1;
+	if (fabsf(p[2]) > fabsf(p[axis]))
+		axis = 2;
+	magnitude = fabsf(p[axis]);
+	if (magnitude < 0.0001f)
 		return 1;
-	/* Leave a narrow receiver bias, without admitting surfaces far past a wall. */
-	return MAX(0.0f, MIN(1.0f, 1.0f - (1.0f - hit.t) * length / 0.025f));
+	face = axis * 2 + (p[axis] > 0);
+	u = MAX(0.0f, MIN((real)(OCC_SIZE - 1), (p[(axis + 1) % 3] / magnitude + 1) * 0.5f * OCC_SIZE - 0.5f));
+	v = MAX(0.0f, MIN((real)(OCC_SIZE - 1), (p[(axis + 2) % 3] / magnitude + 1) * 0.5f * OCC_SIZE - 0.5f));
+	x = (int)u;
+	y = (int)v;
+	tx = u - x;
+	ty = v - y;
+	length = sqrtf(p[0] * p[0] + p[1] * p[1] + p[2] * p[2]) * extent / magnitude;
+	for (j = 0; j < 2; j++)
+		for (i = 0; i < 2; i++)
+		{
+			real hit = depths[face][MIN(y + j, OCC_SIZE - 1) * OCC_SIZE + MIN(x + i, OCC_SIZE - 1)];
+			real visible = MAX(0.0f, MIN(1.0f, 1.0f - (magnitude / extent - hit) * length / 0.025f));
+			result += visible * (i ? tx : 1 - tx) * (j ? ty : 1 - ty);
+		}
+	return result;
 }
 static int upload(IDirect3DVolumeTexture8 **texture, unsigned long const *pixels)
 {
@@ -94,7 +171,9 @@ static struct occlusion_field *field_for(long rasterizer_index)
 	unsigned long now = GetTickCount(), pixels[OCC_COUNT];
 	long identity = NONE;
 	int i, x, y, z, pass;
-	real elapsed, extent, specular, clear_alpha, block_alpha;
+	real elapsed, extent, specular, clear_alpha, block_alpha, admission;
+	real previous[OCC_COUNT];
+	real trace_dx, trace_dy, trace_dz;
 	if (!enabled() || rasterizer_index < 0 || rasterizer_index >= rasterizer_lights.light_count)
 		return NULL;
 	for (i = 0; i < submitted_count; i++)
@@ -108,7 +187,10 @@ static struct occlusion_field *field_for(long rasterizer_index)
 	if (field && field->window == current_window)
 		return field;
 	if (updates_this_window >= OCC_LIGHTS)
+	{
+		remember_overflow(identity, now);
 		return NULL;
+	}
 	if (!field)
 	{
 		for (i = 0; i < OCC_LIGHTS; i++)
@@ -118,9 +200,17 @@ static struct occlusion_field *field_for(long rasterizer_index)
 				break;
 			}
 		if (!field)
-			return NULL; /* stable admission: active lights are never evicted */
+		{
+			remember_overflow(identity, now);
+			return NULL; /* active lights are never evicted */
+		}
 		field->valid = 0;
 		field->identity = identity;
+		field->admitted = now;
+		field->fading = 0;
+		for (i = 0; i < OCC_SUBMITTED; i++)
+			if (overflow[i].valid && overflow[i].identity == identity && now - overflow[i].seen < 200)
+				field->fading = 1;
 		for (i = 0; i < OCC_COUNT; i++)
 			field->visibility[i] = 1;
 	}
@@ -134,22 +224,53 @@ static struct occlusion_field *field_for(long rasterizer_index)
 		return field;
 	updates_this_window++;
 	elapsed = field->valid ? MIN((real)(now - field->updated) * 0.001f, 0.1f) : 0.1f;
+	trace_dx = light->position.x - field->trace_center[0];
+	trace_dy = light->position.y - field->trace_center[1];
+	trace_dz = light->position.z - field->trace_center[2];
+	/* Cache collision depths briefly, but project and fade at every rendered pose.
+	   Fast motion and radius changes invalidate the cache immediately. */
+	if (!field->valid || now - field->traced >= 12 || field->trace_extent != extent ||
+		trace_dx * trace_dx + trace_dy * trace_dy + trace_dz * trace_dz > extent * extent * 0.015625f)
+	{
+		trace_depths(extent, &light->position, field->depths);
+		field->traced = now;
+		field->trace_extent = extent;
+		field->trace_center[0] = light->position.x;
+		field->trace_center[1] = light->position.y;
+		field->trace_center[2] = light->position.z;
+		trace_dx = trace_dy = trace_dz = 0;
+	}
+	memcpy(previous, field->visibility, sizeof(previous));
+	admission = field->fading ? MIN(1.0f, (real)(now - field->admitted) / 80.0f) : 1.0f;
+	admission = admission * admission * (3.0f - 2.0f * admission);
 	clear_alpha = 1.0f - powf(0.5f, elapsed / 0.025f);
 	block_alpha = 1.0f - powf(0.5f, elapsed / 0.008f);
 	for (z = 0; z < OCC_SIZE; z++)
 		for (y = 0; y < OCC_SIZE; y++)
 			for (x = 0; x < OCC_SIZE; x++)
 			{
-				real_vector3d ray;
-				real target, alpha;
+				real_vector3d ray, visibility_ray;
+				real target, alpha, history, u, v, w;
 				i = (z * OCC_SIZE + y) * OCC_SIZE + x;
 				ray.i = (2.0f * (x + 0.5f) / OCC_SIZE - 1) * extent;
 				ray.j = (2.0f * (y + 0.5f) / OCC_SIZE - 1) * extent;
 				ray.k = (2.0f * (z + 0.5f) / OCC_SIZE - 1) * extent;
-				target = trace_visibility(&light->position, &ray);
-				/* Time-based filtering, faster when a blocker appears than when it clears. */
-				alpha = target < field->visibility[i] ? block_alpha : clear_alpha;
-				field->visibility[i] += (target - field->visibility[i]) * alpha;
+				visibility_ray.i = ray.i + trace_dx;
+				visibility_ray.j = ray.j + trace_dy;
+				visibility_ray.k = ray.k + trace_dz;
+				target = depth_visibility(field->depths, &visibility_ray, extent);
+				/* Reproject history at the receiver, not at a moving light-local cell. */
+				history = target;
+				if (field->valid && field->extent > 0)
+				{
+					u = 0.5f + (light->position.x + ray.i - field->center[0]) / (2 * field->extent);
+					v = 0.5f + (light->position.y + ray.j - field->center[1]) / (2 * field->extent);
+					w = 0.5f + (light->position.z + ray.k - field->center[2]) / (2 * field->extent);
+					if (u >= 0 && u <= 1 && v >= 0 && v <= 1 && w >= 0 && w <= 1)
+						history = sample_field(previous, u, v, w);
+				}
+				alpha = target < history ? block_alpha : clear_alpha;
+				field->visibility[i] = history + (target - history) * alpha;
 			}
 	field->center[0] = light->position.x;
 	field->center[1] = light->position.y;
@@ -171,6 +292,8 @@ static struct occlusion_field *field_for(long rasterizer_index)
 													 0.5f + dy * scale * 0.5f, 0.5f + dz * scale * 0.5f) *
 											remaining * remaining
 									  : field->visibility[(z * OCC_SIZE + y) * OCC_SIZE + x];
+					value = pass ? (1 - admission) * remaining * remaining + admission * value
+								 : 1 - admission + admission * value;
 					pixels[(z * OCC_SIZE + y) * OCC_SIZE + x] =
 						(unsigned long)(255 * value + 0.5f) * 0x01010101UL;
 				}
@@ -193,6 +316,7 @@ void plasma_occlusion_reset(void)
 			if (fields[i].texture[j])
 				D3DResource_Release((D3DResource *)fields[i].texture[j]);
 	memset(fields, 0, sizeof(fields));
+	memset(overflow, 0, sizeof(overflow));
 	plasma_occlusion_window();
 }
 void plasma_occlusion_window(void)

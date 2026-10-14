@@ -34,7 +34,7 @@ struct rasterizer_light_submit_parameters
 static struct
 {
 	long light_count;
-	struct rasterizer_light_submit_parameters lights[8];
+	struct rasterizer_light_submit_parameters lights[32];
 } rasterizer_lights;
 static int on = 1, queries, allocations, blocked = 1, door, fail_upload;
 static unsigned long time_ms = 1000;
@@ -112,9 +112,24 @@ int main(int argc, char **argv)
 	n = queries;
 	time_ms++;
 	CHECK(field_for(0) == f && queries == n, "one bounded update per window, not per model draw");
+	n = queries;
+	time_ms += 4;
+	plasma_occlusion_window();
+	plasma_occlusion_submit(1, 0);
+	f = field_for(0);
+	CHECK(queries == n, "collision depths are briefly reused while render projection updates");
+	rasterizer_lights.lights[0].position.x = 0.2f;
+	plasma_occlusion_window();
+	plasma_occlusion_submit(1, 0);
+	f = field_for(0);
+	CHECK(queries == n + 1536, "fast movement invalidates cached depths immediately");
+	rasterizer_lights.lights[0].position.x = 0;
+	plasma_occlusion_window();
+	plasma_occlusion_submit(1, 0);
+	f = field_for(0);
 	blocked = 0;
 	previous = f->visibility[4095];
-	time_ms += 8;
+	time_ms += 16;
 	plasma_occlusion_window();
 	plasma_occlusion_submit(1, 0);
 	f = field_for(0);
@@ -137,28 +152,66 @@ int main(int argc, char **argv)
 	plasma_occlusion_submit(2, 0);
 	f = field_for(0);
 	CHECK(sample_field(f->visibility, 0.9f, 0.5f, 0.5f) > 0.99f, "door opening admits light");
-	CHECK(sample_field(f->visibility, 0.9f, 0.95f, 0.5f) < 0.2f, "door jamb blocks adjacent rays");
+	CHECK(sample_field(f->visibility, 0.9f, 0.95f, 0.5f) < 0.35f,
+		  "filtered doorway edge remains predominantly blocked");
+	CHECK(sample_field(f->visibility, 0.9f, 0.99f, 0.5f) < 0.01f,
+		  "receiver beyond filtered edge is fully blocked");
+	door = 0;
+	time_ms += 16;
+	plasma_occlusion_window();
+	plasma_occlusion_submit(2, 0);
+	f = field_for(0);
+	CHECK(sample_field(f->visibility, 0.9f, 0.5f, 0.5f) < 0.3f,
+		  "closing door blocks within bounded refresh and fade");
+	time_ms += 64;
+	plasma_occlusion_window();
+	plasma_occlusion_submit(2, 0);
+	f = field_for(0);
+	CHECK(sample_field(f->visibility, 0.9f, 0.9f, 0.5f) < 0.01f,
+		  "thin blocker remains closed across cube face seam");
+	door = 1;
+	time_ms += 16;
+	plasma_occlusion_window();
+	plasma_occlusion_submit(2, 0);
+	f = field_for(0);
+	CHECK(sample_field(f->visibility, 0.9f, 0.5f, 0.5f) > 0.3f &&
+			  sample_field(f->visibility, 0.9f, 0.5f, 0.5f) < 0.8f,
+		  "opening door clears gradually");
 	plasma_occlusion_reset();
-	rasterizer_lights.light_count = 5;
-	for (n = 0; n < 5; n++)
+	door = 0;
+	rasterizer_lights.light_count = 9;
+	for (n = 0; n < 9; n++)
 	{
 		rasterizer_lights.lights[n].radius = 1;
 		plasma_occlusion_submit(10 + n, n);
 	}
 	queries = 0;
-	for (n = 0; n < 4; n++)
-		CHECK(field_for(n), "four fields admitted");
-	CHECK(!field_for(4) && queries == 4 * 4096, "fifth light falls back without evicting active fields");
-	CHECK(allocations == 12, "bounded texture allocation");
-	time_ms += 8;
+	for (n = 0; n < 8; n++)
+		CHECK(field_for(n), "eight fields admitted");
+	CHECK(!field_for(8) && queries == 8 * 1536, "ninth light falls back without evicting active fields");
+	CHECK(allocations == 24, "bounded texture allocation");
+	time_ms += 16;
 	plasma_occlusion_window();
-	for (n = 0; n < 5; n++)
+	for (n = 0; n < 9; n++)
 		plasma_occlusion_submit(10 + n, n);
 	queries = 0;
-	CHECK(!field_for(4), "overflow cannot replace an active field");
-	for (n = 0; n < 4; n++)
+	CHECK(!field_for(8), "overflow cannot replace an active field");
+	for (n = 0; n < 8; n++)
 		CHECK(field_for(n), "rejected overflow does not consume an admitted light's update budget");
-	CHECK(queries == 4 * 4096, "only admitted fields spend the query budget");
+	CHECK(queries == 8 * 1536, "only admitted fields spend the query budget");
+	time_ms += 120;
+	plasma_occlusion_window();
+	plasma_occlusion_submit(18, 8);
+	f = field_for(8);
+	CHECK(f && f->fading, "previous overflow is admitted with a fade");
+	CHECK(f->texture[0]->pixels[4095] == 0xffffffffUL, "admission starts at previous unoccluded appearance");
+	time_ms += 40;
+	plasma_occlusion_window();
+	plasma_occlusion_submit(18, 8);
+	f = field_for(8);
+	CHECK(f->texture[0]->pixels[4095] != 0xffffffffUL && f->texture[0]->pixels[4095] != 0,
+		  "admission blends instead of snapping");
+	plasma_occlusion_submit(10, 0);
 	plasma_occlusion_model_slot(0, 0);
 	CHECK(plasma_occlusion_model_texture(0, transform), "model uses selected field");
 	CHECK(!plasma_occlusion_model_texture(-1, transform), "invalid model slot rejected");
@@ -193,7 +246,17 @@ int main(int argc, char **argv)
 		plasma_occlusion_reset();
 		time_ms = 1000;
 	}
-	CHECK(fabsf(temporal[0] - temporal[1]) < 0.001f && fabsf(temporal[1] - temporal[2]) < 0.001f,
-		  "30/60/120 elapsed-time response agrees");
+	CHECK(fabsf(temporal[0] - temporal[1]) < 0.025f && fabsf(temporal[1] - temporal[2]) < 0.025f,
+		  "30/60/120 response agrees within the bounded collision refresh interval");
+	blocked = 0;
+	plasma_occlusion_submit(99, 0);
+	f = field_for(0);
+	time_ms += 4;
+	rasterizer_lights.lights[0].position.x = 0.1f;
+	plasma_occlusion_window();
+	plasma_occlusion_submit(99, 0);
+	f = field_for(0);
+	CHECK(f->visibility[4095] > 0.99f, "a clear cached ray is not a wall at the old field boundary");
+	plasma_occlusion_reset();
 	return 0;
 }
