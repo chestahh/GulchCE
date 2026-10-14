@@ -314,6 +314,9 @@ static const struct config_setting config_settings[] =
 	{ "display.plasma_occlusion", _config_boolean, "false", "HALO_PLASMA_OCCLUSION", _environment_value, _platform_all,
 		"Prototype collision-filtered plasma visibility. Requires plasma_lighting.\n"
 		"Off preserves unoccluded plasma lighting. At most eight occluded lights." },
+	{ "display.muzzle_lighting", _config_boolean, "false", "HALO_MUZZLE_LIGHTING", _environment_value, _platform_all,
+		"Optional soft muzzle illumination with a smooth render-time fade.\n"
+		"Stock flash effects remain intact. Off keeps stock lighting." },
 	{ "display.plasma_lighting", _config_boolean, "false", "HALO_PLASMA_LIGHTING", _environment_value, _platform_all,
 		"Prototype: plasma bolt and rocket flight lights follow rendered poses\n"
 		"with soft world/model falloff and omni highlights. Off keeps stock lighting." },

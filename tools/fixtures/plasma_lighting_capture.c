@@ -116,6 +116,8 @@ void plasma_capture_tick(void)
 		long unit = player_control_get_unit_index(0);
 		const char *role = getenv("HALO_NETWORK_TEST");
 		tag = tag_loaded('weap', capture_kind() == 3 ? "weapons\\rocket launcher\\rocket launcher" : capture_kind() ? "weapons\\plasma pistol\\plasma pistol" : "weapons\\plasma rifle\\plasma rifle");
+		if (getenv("HALO_MUZZLE_CAPTURE_WEAPON"))
+			tag = tag_loaded('weap', getenv("HALO_MUZZLE_CAPTURE_WEAPON"));
 		if (unit != NONE && tag != NONE && (!role || strncmp(role, "join", 4)))
 		{
 			long weapon;

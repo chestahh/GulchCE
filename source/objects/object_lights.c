@@ -185,6 +185,7 @@ symbols in this file:
 #include "units/units.h"
 #include "cache/cache_files.h" /* port: (tag_iterator: light_port_glow_definition_get) */
 #include "plasma_occlusion.h" /* port: port/linux/game/plasma_occlusion.c */
+#include "muzzle_lighting.h" /* port: port/linux/game/muzzle_lighting.c */
 #include "rocket_lighting.h" /* port: port/linux/game/rocket_lighting.c */
 #include "plasma_lighting.h" /* port: port/linux/game/plasma_lighting.c */
 void shield_glow_update(void); /* port: port/linux/game/shield_glow.c */
@@ -713,6 +714,7 @@ void lights_initialize(
 void lights_dispose(
 	void)
 {
+	muzzle_lighting_forget(); /* port: discard render-owned pulse identities */
 	rocket_lighting_forget(); /* port: partition and light storage are being discarded */
 	plasma_falloff_dispose(); /* port: release optional resources on shutdown too */
 	cluster_partition_delete(&light_cluster_partition);
@@ -780,6 +782,24 @@ boolean light_port_glow_set(
 	return TRUE;
 }
 
+/* port: move a feature-owned, unattached glow without exposing private light
+   storage. Muzzle markers may use a different rendered pose for each view. */
+boolean light_port_glow_move(long light_index, real_point3d const *position)
+{
+	struct light_datum *light;
+	if (!light_data->valid || light_index == NONE)
+		return FALSE;
+	light = (struct light_datum *)datum_try_and_get(light_data, light_index);
+	if (!light || light->object_index != NONE || light->definition_index != light_port_glow_definition ||
+		!TEST_FLAG(light->flags, _point_light_port_glow_bit))
+		return FALSE;
+	if (TEST_FLAG(light->flags, _point_light_connected_to_map_bit))
+		light_disconnect_from_map(light_index);
+	light->position = *position;
+	light_reconnect_to_map(light_index);
+	return TRUE;
+}
+
 /* port: the light definition layout is private to this implementation. */
 float plasma_occlusion_specular_scale(long rasterizer_index)
 {
@@ -843,6 +863,7 @@ int light_port_dynamic_set(long light_index, long object_index, int enabled)
 void lights_initialize_for_new_map(
 	void)
 {
+	muzzle_lighting_forget(); /* port: discard render-owned pulse identities */
 	rocket_lighting_forget(); /* port: includes light-array recovery */
 	light_port_glow_definition = NONE - 1; /* port: (looked for again) */
 	plasma_lighting_reset(); /* port: discard render-only attachment identities */
@@ -857,6 +878,7 @@ void lights_initialize_for_new_map(
 void lights_dispose_from_old_map(
 	void)
 {
+	muzzle_lighting_forget(); /* port: discard render-owned pulse identities */
 	rocket_lighting_forget(); /* port: no flight-light handles cross map loads */
 	plasma_lighting_reset(); /* port: no attachment identities cross map loads */
 	plasma_falloff_dispose(); /* port: release feature-owned attenuation */
@@ -1044,6 +1066,7 @@ void lights_preprocess_scene(
 	between ticks: lights_port_recover) */
 	lights_port_recover();
 	shield_glow_update(); /* port: port/linux/game/shield_glow.c */
+	muzzle_lighting_update(); /* port: render-time muzzle poses and pulse fade */
 	rocket_lighting_update(); /* port: create flight lights before visibility collection */
 	for (light_index = data_next_index(light_data, NONE);
 		light_index != NONE;
@@ -1814,6 +1837,7 @@ static void light_compute_bounding_sphere(
 	   Owned glow radii are independent of their borrowed light template. */
 	if (maximum)
 	{
+		light_radius = muzzle_lighting_radius(light_index, light_radius); /* port: owned flash bounds */
 		light_radius = rocket_lighting_radius(light_index, light->object_index, light_radius);
 		light_radius = plasma_lighting_radius(light_index, light->object_index, light_radius);
 	}

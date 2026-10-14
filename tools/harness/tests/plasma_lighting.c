@@ -7,10 +7,11 @@ enum { _point_light_dynamic_bit = 0 };
 struct object_datum { long definition_index; struct { short type; } object; };
 static struct object_datum projectile = { 1, { _object_type_projectile } };
 static const char *tag_name = "weapons\\plasma rifle\\bolt";
+static int muzzle_on;
 static int enabled = 1, refreshes, present = 1, interpolation_rendering = 1;
 static int rendered_pose;
 static float connected_radius;
-int config_boolean(const char *name) { return enabled; }
+int config_boolean(const char *name) { return strcmp(name, "display.muzzle_lighting") ? enabled : muzzle_on; }
 static struct object_datum *object_try_and_get(long index) { return present ? &projectile : NULL; }
 static const char *tag_get_name(long index) { return tag_name; }
 struct light_datum { long object_index, parent_light_index; int flags; float radius; long definition_index; real_point3d position; real_vector3d forward; };
@@ -40,6 +41,11 @@ static void light_reconnect_to_map(long index)
 }
 void plasma_occlusion_model_slot(long i, short s) {}
 void plasma_occlusion_reset(void) {}
+void muzzle_lighting_frame_end(void) {}
+void muzzle_lighting_window_begin(void) {}
+void muzzle_lighting_submitted(long l,long r) {}
+int muzzle_lighting_selected(long i) { return muzzle_on && i == 20; }
+float muzzle_lighting_radius(long l,float r) { return r; }
 void rocket_lighting_frame_end(void) {}
 void rocket_lighting_window_begin(void) {}
 void rocket_lighting_submitted(long i,long r) {}
@@ -136,6 +142,15 @@ int main(int argc, char **argv)
 		plasma_lighting_submitted(1,3); plasma_model_lighting_slot(3,1);
 		plasma_lighting_frame_end();
 		CHECK(!plasma_model_lighting_mask(),"frame cleanup clears slots");
+	}
+	else if (!strcmp(test, "muzzle"))
+	{
+		enabled=0; muzzle_on=1;
+		CHECK(plasma_lighting_selected(20), "muzzle uses shared soft falloff independently");
+		CHECK(!plasma_lighting_selected(3), "unrelated light stays stock");
+		plasma_model_lighting_slot(20,0);
+		CHECK(plasma_model_lighting_mask()==1,"muzzle model slot works without projectile lighting");
+		muzzle_on=0; CHECK(!plasma_model_lighting_mask(),"both off restores stock model");
 	}
 	else if (!strcmp(test, "off"))
 	{

@@ -19,6 +19,8 @@ parser.add_argument('--enabled', required=True, type=int, choices=[0, 1])
 parser.add_argument('--label', default='')
 parser.add_argument('--map', default='bloodgulch', choices=['bloodgulch', 'carousel', 'a10', 'ce-deathisland'])
 parser.add_argument('--kind', choices=['rifle','pistol','charged','rocket'], default='rifle')
+parser.add_argument('--muzzle', choices=['ar','handgun','shotgun','sniper','rifle','pistol','charged','needler','rocket','flamethrower'])
+parser.add_argument('--both-lighting', action='store_true')
 parser.add_argument('--mixed', action='store_true')
 parser.add_argument('--model', action='store_true')
 parser.add_argument('--occlusion', type=int, choices=[0,1], default=0)
@@ -36,6 +38,8 @@ parser.add_argument('--height', type=float)
 parser.add_argument('--drop', type=float)
 parser.add_argument('--receiver-distance', type=float)
 args = parser.parse_args()
+if args.muzzle:
+    args.combat = True
 root = Path(__file__).resolve().parents[1]
 assert re.fullmatch(r'[a-zA-Z0-9_-]*', args.label)
 out = root / f'build/plasma-visual/{args.fps}-{args.enabled}{"-" + args.label if args.label else ""}'
@@ -66,6 +70,21 @@ env.update(HALO_DATA_ROOT=str(out), HALO_SAVE_ROOT=str(out/'saves'), HALO_HIDDEN
            HALO_NET_ONLINE='0', HALO_NET_PUBLIC_LOBBY='0', HALO_UPDATE_ANSWER='never',
            HALO_CRASH_REPORTS='no', HALO_WINDOW_SIZE='640x480', HALO_PLASMA_LIGHTING=str(args.enabled),
            HALO_SCREENSHOT_DIR=str(out/'screenshots'), HALO_PLASMA_OCCLUSION=str(args.occlusion))
+if args.muzzle:
+    muzzle_tags = {
+        'ar': r'weapons\assault rifle\assault rifle', 'handgun': r'weapons\pistol\pistol',
+        'shotgun': r'weapons\shotgun\shotgun', 'sniper': r'weapons\sniper rifle\sniper rifle',
+        'rifle': r'weapons\plasma rifle\plasma rifle', 'pistol': r'weapons\plasma pistol\plasma pistol',
+        'charged': r'weapons\plasma pistol\plasma pistol',
+        'needler': r'weapons\needler\mp_needler' if args.map == 'ce-deathisland' else r'weapons\needler\needler',
+        'rocket': r'weapons\rocket launcher\rocket launcher', 'flamethrower': r'weapons\flamethrower\flamethrower',
+    }
+    env['HALO_MUZZLE_CAPTURE_WEAPON'] = muzzle_tags[args.muzzle]
+    env['HALO_MUZZLE_LIGHTING'] = str(args.enabled)
+    env['HALO_PLASMA_LIGHTING'] = str(int(args.both_lighting))
+    if args.muzzle == 'charged':
+        env['HALO_MUZZLE_CAPTURE_CHARGED'] = '1'
+        args.kind = 'charged'
 for key in ['distance', 'height', 'receiver_distance', 'span', 'burst', 'drop']:
     value = getattr(args, key)
     if value is not None:
@@ -111,6 +130,10 @@ report['active_average_fps'] = 1000 / statistics.mean(active_deltas) if active_d
 report['active_p95_ms'] = sorted(active_deltas)[int((len(active_deltas)-1)*.95)] if active_deltas else None
 report['homing_shots'] = len(re.findall('PLASMA homing', logs))
 report['selected_tags'] = sorted(set(re.findall(r'PLASMA prepare [^\r\n]+ tag ([^\r\n]+)', logs)))
+report['muzzle'] = args.muzzle
+report['both_lighting'] = args.both_lighting
+report['muzzle_submissions'] = len(re.findall('MUZZLE submit', logs))
+report['muzzle_fade_samples'] = sum(0 < float(x) < .99 for x in re.findall(r'MUZZLE sample[^\r\n]+ strength ([0-9.]+)', logs))
 (out/'report.json').write_text(json.dumps(report, indent=2))
 print(json.dumps(report), flush=True)
 for path in out.rglob('*.map'):
@@ -118,7 +141,7 @@ for path in out.rglob('*.map'):
     path.unlink()
 if process.returncode or (report['shots'] != 3 and not args.combat) or (not args.no_images and not report['screenshots']):
     raise SystemExit('Capture incomplete; inspect report.json and logs')
-if bool(report['selected_frames']) != bool(args.enabled):
+if bool(report['selected_frames']) != bool(args.enabled or (args.muzzle and args.both_lighting)):
     raise SystemExit('Lighting selection did not match the requested mode')
 if report['average_fps'] is None or report['average_fps'] < args.fps * .95:
     raise SystemExit('Capture did not sustain the requested FPS within 5 percent')
@@ -159,13 +182,18 @@ expected_tags = {
     'charged': r'weapons\plasma rifle\charged bolt',
     'rocket': r'weapons\rocket launcher\rocket',
 }
-if args.enabled:
+if args.enabled and not args.muzzle:
     expected = {expected_tags[args.kind]}
     if args.mixed:
         expected = {value for kind, value in expected_tags.items() if args.kind == 'rocket' or kind != 'rocket'}
     if not expected.issubset(report['selected_tags']):
         raise SystemExit('Capture did not select every requested projectile kind')
-if not args.enabled and report['occlusion_updates']:
-    raise SystemExit('Disabled plasma lighting still updated occlusion')
+if not args.enabled and not (args.muzzle and args.both_lighting and args.occlusion) and report['occlusion_updates']:
+    raise SystemExit('Disabled lighting still updated occlusion')
 if args.kind == 'charged' and args.model and not args.probe and not args.combat and report['homing_shots'] != 3:
     raise SystemExit('Charged-shot capture did not exercise the homing target')
+
+if args.muzzle and args.enabled and (not report['muzzle_submissions'] or not report['muzzle_fade_samples']):
+    raise SystemExit('Muzzle capture did not exercise submission and smooth fade')
+if args.muzzle and not args.enabled and report['muzzle_submissions']:
+    raise SystemExit('Disabled muzzle feature still submitted lights')

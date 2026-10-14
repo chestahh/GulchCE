@@ -40,8 +40,11 @@ static int on = 1, queries, allocations, blocked = 1, door, fail_upload;
 static unsigned long time_ms = 1000;
 static int uploads;
 static real specular_scale = 1;
+static int muzzle_on;
+int muzzle_lighting_selected(long i) { return muzzle_on && i == 0; }
 int config_boolean(const char *name)
 {
+	if (!strcmp(name, "display.muzzle_lighting")) return muzzle_on;
 	return on;
 }
 static unsigned long GetTickCount(void)
@@ -302,5 +305,12 @@ int main(int argc, char **argv)
 		plasma_occlusion_reset();
 		CHECK(!allocations,"all lazy passes released");
 	}
+	on=0; muzzle_on=1; time_ms+=200;
+	plasma_occlusion_window(); plasma_occlusion_submit(500,0);
+	CHECK(plasma_occlusion_texture(0,0), "muzzle occlusion works with projectile lighting off");
+	plasma_occlusion_reset();
+	plasma_occlusion_window(); plasma_occlusion_submit(501,1);
+	CHECK(!plasma_occlusion_texture(1,0), "muzzle option cannot enable unrelated projectile occlusion");
+	muzzle_on=0; plasma_occlusion_reset();
 	return 0;
 }

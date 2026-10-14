@@ -8,6 +8,7 @@
 #include "plasma_model_shader.h"
 #include "plasma_occlusion.h"
 #include "rocket_lighting.h"
+#include "muzzle_lighting.h"
 #include <string.h>
 
 int config_boolean(const char *name);
@@ -43,7 +44,7 @@ void plasma_model_lighting_slot(long light_index, short slot)
 
 unsigned int plasma_model_lighting_mask(void)
 {
-	return config_boolean("display.plasma_lighting") ? plasma_model_mask : 0;
+	return (config_boolean("display.plasma_lighting") || config_boolean("display.muzzle_lighting")) ? plasma_model_mask : 0;
 }
 
 void plasma_lighting_prepare(long light_index, long object_index)
@@ -103,6 +104,7 @@ void plasma_lighting_frame_end(void)
 {
 	int index;
 
+	muzzle_lighting_frame_end();
 	rocket_lighting_frame_end();
 	plasma_falloff_end(); /* Also close a pass if drawing ended early. */
 	/* Called after render interpolation ends, even if the option was disabled.
@@ -119,9 +121,9 @@ void plasma_lighting_frame_end(void)
 			plasma_lighting_attachments[index].object_index);
 	}
 	plasma_lighting_reset();
-	if (!config_boolean("display.plasma_occlusion"))
+	if (!config_boolean("display.plasma_occlusion") && !config_boolean("display.muzzle_lighting"))
 		plasma_occlusion_reset();
-	if (!config_boolean("display.plasma_lighting"))
+	if (!config_boolean("display.plasma_lighting") && !config_boolean("display.muzzle_lighting"))
 		plasma_falloff_dispose();
 }
 
@@ -136,6 +138,7 @@ void plasma_lighting_window_begin(void)
 {
 	int index;
 	plasma_occlusion_window();
+	muzzle_lighting_window_begin();
 	rocket_lighting_window_begin();
 	plasma_model_lighting_reset();
 	for (index = 0; index < plasma_lighting_count; index++)
@@ -145,6 +148,7 @@ void plasma_lighting_window_begin(void)
 void plasma_lighting_submitted(long light_index, long rasterizer_index)
 {
 	int index;
+	muzzle_lighting_submitted(light_index, rasterizer_index);
 	rocket_lighting_submitted(light_index, rasterizer_index);
 	for (index = 0; index < plasma_lighting_count; index++)
 		if (plasma_lighting_attachments[index].light_index == light_index)
@@ -157,6 +161,8 @@ void plasma_lighting_submitted(long light_index, long rasterizer_index)
 int plasma_lighting_selected(long rasterizer_index)
 {
 	int index;
+	if (muzzle_lighting_selected(rasterizer_index))
+		return TRUE;
 	if (rasterizer_index == NONE || !config_boolean("display.plasma_lighting"))
 		return FALSE;
 	if (rocket_lighting_selected(rasterizer_index))
