@@ -185,6 +185,7 @@ symbols in this file:
 #include "units/units.h"
 #include "cache/cache_files.h" /* port: (tag_iterator: light_port_glow_definition_get) */
 #include "plasma_occlusion.h" /* port: port/linux/game/plasma_occlusion.c */
+#include "rocket_lighting.h" /* port: port/linux/game/rocket_lighting.c */
 #include "plasma_lighting.h" /* port: port/linux/game/plasma_lighting.c */
 void shield_glow_update(void); /* port: port/linux/game/shield_glow.c */
 
@@ -712,6 +713,7 @@ void lights_initialize(
 void lights_dispose(
 	void)
 {
+	rocket_lighting_forget(); /* port: partition and light storage are being discarded */
 	plasma_falloff_dispose(); /* port: release optional resources on shutdown too */
 	cluster_partition_delete(&light_cluster_partition);
 
@@ -824,6 +826,7 @@ int light_port_dynamic_set(long light_index, long object_index, int enabled)
 void lights_initialize_for_new_map(
 	void)
 {
+	rocket_lighting_forget(); /* port: includes light-array recovery */
 	light_port_glow_definition = NONE - 1; /* port: (looked for again) */
 	plasma_lighting_reset(); /* port: discard render-only attachment identities */
 	plasma_falloff_dispose(); /* port: release the previous map's optional texture */
@@ -837,6 +840,7 @@ void lights_initialize_for_new_map(
 void lights_dispose_from_old_map(
 	void)
 {
+	rocket_lighting_forget(); /* port: no flight-light handles cross map loads */
 	plasma_lighting_reset(); /* port: no attachment identities cross map loads */
 	plasma_falloff_dispose(); /* port: release feature-owned attenuation */
 	data_make_invalid(light_data);
@@ -1023,6 +1027,7 @@ void lights_preprocess_scene(
 	between ticks: lights_port_recover) */
 	lights_port_recover();
 	shield_glow_update(); /* port: port/linux/game/shield_glow.c */
+	rocket_lighting_update(); /* port: create flight lights before visibility collection */
 	for (light_index = data_next_index(light_data, NONE);
 		light_index != NONE;
 		light_index = data_next_index(light_data, light_index))

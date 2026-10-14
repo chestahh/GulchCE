@@ -1,12 +1,13 @@
-/* Optional rendering prototype for the plasma weapons' existing lights.
-   Reuse the rendered attachment pose, including its marker offset. Never
-   create a second light, change a tag, or advance projectile simulation. */
+/* Optional rendering for authored projectile lights. Reuse the rendered
+   attachment pose without editing tags or advancing projectile simulation.
+   rocket_lighting.c owns additional flight lights where rockets have none. */
 #include "cseries.h"
 #include "objects/objects.h"
 #include "tag_files/tag_files.h"
 #include "plasma_lighting.h"
 #include "plasma_model_shader.h"
 #include "plasma_occlusion.h"
+#include "rocket_lighting.h"
 #include <string.h>
 
 int config_boolean(const char *name);
@@ -60,7 +61,8 @@ void plasma_lighting_prepare(long light_index, long object_index)
 	/* The pistol overcharge uses a tag in the rifle directory. */
 	if (!name || (strcmp(name, "weapons\\plasma rifle\\bolt") &&
 		strcmp(name, "weapons\\plasma pistol\\bolt") &&
-		strcmp(name, "weapons\\plasma rifle\\charged bolt")))
+		strcmp(name, "weapons\\plasma rifle\\charged bolt") &&
+		strcmp(name, "weapons\\rocket launcher\\rocket")))
 		return;
 	for (index = 0; index < plasma_lighting_count; index++)
 		if (plasma_lighting_attachments[index].light_index == light_index &&
@@ -80,6 +82,7 @@ void plasma_lighting_frame_end(void)
 {
 	int index;
 
+	rocket_lighting_frame_end();
 	plasma_falloff_end(); /* Also close a pass if drawing ended early. */
 	/* Called after render interpolation ends, even if the option was disabled.
 	   Restore positions AND cluster membership before the next simulation tick. */
@@ -108,6 +111,7 @@ void plasma_lighting_window_begin(void)
 {
 	int index;
 	plasma_occlusion_window();
+	rocket_lighting_window_begin();
 	plasma_model_lighting_reset();
 	for (index = 0; index < plasma_lighting_count; index++)
 		plasma_lighting_attachments[index].rasterizer_index = NONE;
@@ -116,6 +120,7 @@ void plasma_lighting_window_begin(void)
 void plasma_lighting_submitted(long light_index, long rasterizer_index)
 {
 	int index;
+	rocket_lighting_submitted(light_index, rasterizer_index);
 	for (index = 0; index < plasma_lighting_count; index++)
 		if (plasma_lighting_attachments[index].light_index == light_index)
 		{
@@ -129,6 +134,8 @@ int plasma_lighting_selected(long rasterizer_index)
 	int index;
 	if (rasterizer_index == NONE || !config_boolean("display.plasma_lighting"))
 		return FALSE;
+	if (rocket_lighting_selected(rasterizer_index))
+		return TRUE;
 	for (index = 0; index < plasma_lighting_count; index++)
 		if (plasma_lighting_attachments[index].rasterizer_index == rasterizer_index)
 			return TRUE;

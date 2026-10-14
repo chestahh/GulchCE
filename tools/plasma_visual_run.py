@@ -18,7 +18,7 @@ parser.add_argument('--fps', required=True, type=int, choices=[30, 60, 120])
 parser.add_argument('--enabled', required=True, type=int, choices=[0, 1])
 parser.add_argument('--label', default='')
 parser.add_argument('--map', default='bloodgulch', choices=['bloodgulch', 'carousel', 'a10', 'ce-deathisland'])
-parser.add_argument('--kind', choices=['rifle','pistol','charged'], default='rifle')
+parser.add_argument('--kind', choices=['rifle','pistol','charged','rocket'], default='rifle')
 parser.add_argument('--mixed', action='store_true')
 parser.add_argument('--model', action='store_true')
 parser.add_argument('--occlusion', type=int, choices=[0,1], default=0)
@@ -32,6 +32,7 @@ parser.add_argument('--specular-only', action='store_true')
 parser.add_argument('--per-pixel', action='store_true')
 parser.add_argument('--distance', type=float)
 parser.add_argument('--height', type=float)
+parser.add_argument('--drop', type=float)
 parser.add_argument('--receiver-distance', type=float)
 args = parser.parse_args()
 root = Path(__file__).resolve().parents[1]
@@ -64,7 +65,7 @@ env.update(HALO_DATA_ROOT=str(out), HALO_SAVE_ROOT=str(out/'saves'), HALO_HIDDEN
            HALO_NET_ONLINE='0', HALO_NET_PUBLIC_LOBBY='0', HALO_UPDATE_ANSWER='never',
            HALO_CRASH_REPORTS='no', HALO_WINDOW_SIZE='640x480', HALO_PLASMA_LIGHTING=str(args.enabled),
            HALO_SCREENSHOT_DIR=str(out/'screenshots'), HALO_PLASMA_OCCLUSION=str(args.occlusion))
-for key in ['distance', 'height', 'receiver_distance', 'span', 'burst']:
+for key in ['distance', 'height', 'receiver_distance', 'span', 'burst', 'drop']:
     value = getattr(args, key)
     if value is not None:
         env['HALO_PLASMA_CAPTURE_'+key.upper()] = str(value)
@@ -147,9 +148,12 @@ expected_tags = {
     'rifle': r'weapons\plasma rifle\bolt',
     'pistol': r'weapons\plasma pistol\bolt',
     'charged': r'weapons\plasma rifle\charged bolt',
+    'rocket': r'weapons\rocket launcher\rocket',
 }
 if args.enabled:
-    expected = set(expected_tags.values()) if args.mixed else {expected_tags[args.kind]}
+    expected = {expected_tags[args.kind]}
+    if args.mixed:
+        expected = {value for kind, value in expected_tags.items() if args.kind == 'rocket' or kind != 'rocket'}
     if not expected.issubset(report['selected_tags']):
         raise SystemExit('Capture did not select every requested projectile kind')
 if not args.enabled and report['occlusion_updates']:

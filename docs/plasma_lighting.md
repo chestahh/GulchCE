@@ -2,7 +2,8 @@
 
 Work lives on `plasma-lighting-prototype`, based on `main`.
 `chesters-cool-stuff` remains an unchanged local reference. CStencil, Modern,
-rockets and muzzle flashes are separate milestones.
+muzzle flashes remain a separate milestone. Rocket flight lighting now uses
+the same optional system.
 
 Set `plasma_lighting = true` in config.toml's `[display]` section, or
 `HALO_PLASMA_LIGHTING=1`. The default is false. Keep `display.interpolation`
@@ -10,9 +11,12 @@ enabled for motion between simulation ticks.
 
 ## Rendering
 
-The feature selects existing light attachments on three exact projectile tags:
+The feature selects existing light attachments on four exact projectile tags:
 `weapons\plasma rifle\bolt`, `weapons\plasma pistol\bolt` and
-`weapons\plasma rifle\charged bolt` (the pistol overcharge), up to 128 per frame. It refreshes their marker
+`weapons\plasma rifle\charged bolt` (the pistol overcharge) and
+`weapons\rocket launcher\rocket`, up to 128 authored attachments per frame.
+Stock rockets have no authored light and use the separate bounded flight-light
+module described below. It refreshes their marker
 poses before visibility and receiver selection. New objects without a previous
 snapshot use the engine's existing fallback pose.
 
@@ -20,7 +24,8 @@ Live captures revealed that Xbox Blood Gulch's bolt light has flags zero:
 its attachment supplies a lens flare but is not marked dynamic. The first
 temporal prototype therefore did not illuminate world surfaces on that map.
 Selected attachments now become dynamic during rendering, with their original
-flags restored afterward. Tags are never edited and no extra light is allocated.
+flags restored afterward. Tags are never edited and the authored-attachment
+path allocates no extra light.
 Already-dynamic attachments retain their authored flag after rendering.
 
 World diffuse illumination uses a feature-owned 64³ attenuation texture:
@@ -538,3 +543,125 @@ lifecycle transitions, not MCC visual correctness or campaign completion.
 Reports, logs and the private runner remain in `build/plasma-pistol-transitions`
 and `build/plasma-pistol-transitions.py`. All copied maps and derived caches
 from these tests were removed; original maps and saves were untouched.
+
+
+## Rocket flight lighting (2026-10-14)
+
+The initial Xbox capture established that the stock rocket projectile has
+contrail, particle, sound and effect attachments, but no light attachment.
+Simply adding its tag to the plasma selector produced no illumination. The
+feature therefore owns up to eight additional flight lights in
+`port/linux/game/rocket_lighting.c`, using existing engine glow interfaces.
+These use a prototype warm colour `(1.0, 0.45, 0.12)` and radius 1.0 world unit;
+there is no authored rocket flight-light colour/radius to preserve. The stock
+exhaust, rocket motion, damage, impact and explosion effects remain untouched.
+
+The existing `display.plasma_lighting` setting enables both plasma and rocket
+flight lighting. Its name is retained and its default remains false. Optional
+`display.plasma_occlusion`, also false by default, shares its eight-field budget
+between selected plasma and rocket lights. Muzzle flashes, CStencil and Modern
+remain deferred, and `chesters-cool-stuff` remains a local reference.
+
+Only exact `weapons\rocket launcher\rocket` projectile objects with a model
+node and within 25 world units of a local camera receive new lights. A map's
+existing light attachment takes precedence and uses the authored-attachment
+path; no duplicate flight light is added. Missing glow templates, exhausted
+light storage and rockets beyond the eight-owned-light limit keep stock
+behaviour. No tag is changed and no light is attached to an explosion object.
+The template comes from the engine's existing glow-definition service; this
+also preserves that template's specular policy.
+
+Owned light identities persist across frames for occlusion filtering. They are
+made black and disconnected from the spatial partition after rendering, then
+reconnected before the next scene pass. They are removed when their projectile
+is gone, becomes ineligible or the feature is disabled. Salted handles, object
+ownership and the glow definition are checked before touching or deleting a
+light. Map unload, new-map initialization, light-array recovery and shutdown
+forget feature handles as the engine discards its light storage/partition.
+No projectile simulation or network contract changes are introduced.
+
+The only new shared-engine wiring is in `source/objects/object_lights.c`:
+a pre-visibility update and lifecycle reset calls, each marked `port:`.
+A module-only attachment callback cannot create flight lights because stock
+rockets have no light to invoke it. The new hook runs after light-array recovery
+and before scene collection. All creation, selection and cleanup policy stays
+in the feature module; existing Xbox, CE and MCC loading paths are unchanged.
+The plasma module supplies existing falloff/model/occlusion integration.
+
+Capture tools accept `--kind rocket`; `--kind rocket --mixed --probe --burst 12`
+creates three of each supported projectile kind. `--combat` equips the actual
+launcher and uses ordinary trigger input. These diagnostic mechanisms never
+enter the normal build. The first exploratory capture (`30-1-rocket-first`)
+failed lighting-selection checks because no authored attachment existed;
+`rocket-owned-first` verified the added light before the connection-state fix.
+Neither is final acceptance evidence.
+
+
+### Rocket validation
+
+The Windows release build and all 27 focused projectile-lighting, falloff,
+model-shader, occlusion and owned-rocket-light harness tests passed. Negative
+controls detect a removed rocket selector and a missing reconnect. The light
+storage checks passed ordinary COFF, full LTO and their corruption negative
+control. The capture builder restored production files and rebuilt the normal
+executable; capture markers are absent from that executable.
+
+Hidden 640x480 captures were inspected at 30, 60 and 120 FPS. Measured averages:
+
+| Scenario, lighting and occlusion enabled | 30 cap | 60 cap | 120 cap |
+| --- | ---: | ---: | ---: |
+| Xbox Blood Gulch, flight and model impact | 29.99 | 60.03 | 119.99 |
+| CE Death Island, clear flight path | 30.00 | 60.00 | 120.02 |
+| Actual launcher trigger fire, Blood Gulch | 30.00 | 59.69 | 119.37 |
+
+Blood Gulch disabled controls averaged 29.66/59.98/119.99 FPS and selected no
+feature lights or occlusion fields. CE disabled controls likewise selected
+none. Blood Gulch had 12/36 changed render poses within unchanged simulation
+ticks at 60/120 FPS; CE had 63/189. Controlled flights ended with zero selected
+lights. The inspected Blood Gulch sequences show the stock fireball, smoke,
+debris and target blast response with the feature on and off; they are not a
+pixel-identical effects comparison. CE lighting is subtle against daylight.
+Reports, logs, source manifests and images are retained under
+`build/plasma-visual/*-rocket-*`; overviews are `rocket-bloodgulch-fps.png` and
+`rocket-ce-flight-fps.png`. Runners are `build/rocket-matrix.py` and
+`build/rocket-followup.py`.
+
+The first CE model-impact placement detonated within one tick and selected no
+flight light. The revised clear-path capture resolves that fixture limitation.
+Three runs failed before recording any gameplay frames with Windows exception
+`c0000008` during graphics startup. Replacement CE captures and the repeated
+120 FPS combat case passed; these startup failures remain recorded, not treated
+as evidence of a gameplay lighting failure or a proven driver diagnosis.
+
+Stress limits remain: twelve overlapping mixed lights averaged 83.03 FPS at a
+120 cap, and eight rockets with occlusion toggling averaged 49.52 at a 60 cap.
+Both cases passed at 30 FPS (30.00/29.99), including all four projectile kinds,
+the eight-rocket limit and no occlusion updates during disabled intervals.
+These screenshot-heavy captures do not establish a general 120 FPS performance
+guarantee. The Carousel specular-only probe selected a rocket light but recorded
+zero specular draws and failed that acceptance check; rocket specular output is
+not validated. The inherited template policy has not been overridden to force
+highlights.
+
+Android and web builds were attempted, but this Windows configuration exposes
+neither Ninja target (`unknown target`). Linux, Android, web and browser/native
+internet interoperability remain unverified. No network data or simulation
+rules changed, so no network version bump is required.
+
+
+Two hidden native loopback peers completed ordinary launcher fire with lighting
+and occlusion on for the host and off for the client. Both exited successfully
+and agreed on one host kill, one client death and the client's respawn. The
+host recorded 132 rocket submissions; the client recorded none and no feature
+occlusion. Evidence is in `build/rocket-network-rocket`, with private runner
+`build/rocket-network.py`. This checks local multiplayer with differing visual
+settings, not internet latency or browser transport.
+
+Both active-fire transition runs (disabled at 30 FPS and enabled at 120 FPS)
+completed Xbox Blood Gulch → CE Death Island → MCC Mercury Falling → Xbox
+Blood Gulch. Both exited with status zero, completed all three transition
+commands, loaded MCC once and logged no exceptions. This is lifecycle coverage,
+not MCC visual acceptance. Reports and console logs are under
+`build/rocket-transitions`; the private runner is `build/rocket-transitions.py`.
+All copied test maps and derived map caches were removed; original maps and
+saves remain untouched.

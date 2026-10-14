@@ -30,6 +30,10 @@ static void light_reconnect_to_map(long index)
 }
 void plasma_occlusion_model_slot(long i, short s) {}
 void plasma_occlusion_reset(void) {}
+void rocket_lighting_frame_end(void) {}
+void rocket_lighting_window_begin(void) {}
+void rocket_lighting_submitted(long i,long r) {}
+int rocket_lighting_selected(long i) { return 0; }
 void plasma_occlusion_window(void) {}
 void plasma_occlusion_submit(long i,long r) {}
 void plasma_lighting_reset(void);
@@ -43,7 +47,22 @@ int main(int argc, char **argv)
 	int i;
 	const char *test = argv[1];
 
-	if (!strcmp(test, "pistol"))
+	if (!strcmp(test, "rocket"))
+	{
+		tag_name = "weapons\\rocket launcher\\rocket";
+		plasma_lighting_prepare(1, 1);
+		plasma_lighting_submitted(1, 3);
+		CHECK(plasma_lighting_selected(3), "rocket flight attachment selected");
+		render_interpolation_frame_end();
+		CHECK(!plasma_lighting_selected(3), "rocket selection expires with frame");
+		CHECK(!datum_try_and_get(light_data, 1)->flags, "rocket dynamic state restored");
+		tag_name = "weapons\\rocket launcher\\explosion";
+		plasma_lighting_prepare(1, 1);
+		tag_name = "weapons\\rocket launcher\\effects\\rocket explosion";
+		plasma_lighting_prepare(1, 1);
+		CHECK(refreshes == 2, "explosion attachments stay stock");
+	}
+	else if (!strcmp(test, "pistol"))
 	{
 		const char *names[] = { "weapons\\plasma pistol\\bolt", "weapons\\plasma rifle\\charged bolt" };
 		for (i = 0; i < 2; i++)
@@ -86,7 +105,7 @@ int main(int argc, char **argv)
 	}
 	else if (!strcmp(test, "filter"))
 	{
-		tag_name = "weapons\\rocket launcher\\rocket";
+		tag_name = "weapons\\rocket launcher\\explosion";
 		plasma_lighting_prepare(1, 1);
 		tag_name = "weapons\\plasma rifle\\bolt";
 		projectile.object.type = 0;

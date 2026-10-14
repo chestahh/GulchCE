@@ -31,13 +31,14 @@ static int capture_combat, capture_toggle;
 static long capture_target = NONE;
 static const char *capture_projectile_tags[] = {
 	"weapons\\plasma rifle\\bolt", "weapons\\plasma pistol\\bolt",
-	"weapons\\plasma rifle\\charged bolt"
+	"weapons\\plasma rifle\\charged bolt", "weapons\\rocket launcher\\rocket"
 };
 static int capture_kind(void)
 {
 	const char *kind = getenv("HALO_PLASMA_CAPTURE_KIND");
 	if (kind && !strcmp(kind, "pistol")) return 1;
 	if (kind && !strcmp(kind, "charged")) return 2;
+	if (kind && !strcmp(kind, "rocket")) return 3;
 	return 0;
 }
 int config_write_boolean(const char *name, int value);
@@ -113,7 +114,7 @@ void plasma_capture_tick(void)
 	{
 		long unit = player_control_get_unit_index(0);
 		const char *role = getenv("HALO_NETWORK_TEST");
-		tag = tag_loaded('weap', capture_kind() ? "weapons\\plasma pistol\\plasma pistol" : "weapons\\plasma rifle\\plasma rifle");
+		tag = tag_loaded('weap', capture_kind() == 3 ? "weapons\\rocket launcher\\rocket launcher" : capture_kind() ? "weapons\\plasma pistol\\plasma pistol" : "weapons\\plasma rifle\\plasma rifle");
 		if (unit != NONE && tag != NONE && (!role || strncmp(role, "join", 4)))
 		{
 			long weapon;
@@ -253,14 +254,14 @@ void plasma_capture_tick(void)
 						   (capture_probe ? capture_span : 1.2f) * right.k +
 						   capture_height * capture_camera.up.k;
 	placement.forward = right;
-	placement.forward.k -= 0.12f;
+	placement.forward.k -= capture_option("HALO_PLASMA_CAPTURE_DROP", 0.12f);
 	normalize3d(&placement.forward);
 	observer_up_from_forward(&placement.forward, &placement.up);
 	for (bolt = 0; bolt < capture_burst; bolt++)
 	{
 		placement.position.z += 0.025f;
 		if (getenv("HALO_PLASMA_CAPTURE_MIXED"))
-			placement.definition_index = tag_loaded(PROJECTILE_DEFINITION_TAG, capture_projectile_tags[bolt % 3]);
+			placement.definition_index = tag_loaded(PROJECTILE_DEFINITION_TAG, capture_projectile_tags[bolt % (capture_kind() == 3 ? 4 : 3)]);
 		capture_bolts[bolt] = object_new(&placement);
 		if (capture_bolts[bolt] != NONE && capture_target != NONE && capture_kind() == 2 && !capture_probe)
 		{
@@ -274,12 +275,18 @@ void plasma_capture_tick(void)
 	{
 		struct object_datum *object = object_get(capture_projectile);
 		struct object_definition *definition = object_definition_get(tag);
-		struct object_attachment_definition *attachment =
-			TAG_BLOCK_GET_ELEMENT(&definition->object.attachments, 0, struct object_attachment_definition);
-		long *light = tag_get('ligh', attachment->type.index);
 		platform_log("PLASMA tag %s type %d", tag_get_name(tag), object->object.type);
-		platform_log("PLASMA enabled %d light flags %lx radius %.4f",
-					 config_boolean("display.plasma_lighting"), light[0], ((real *)light)[1]);
+		for (i = 0; i < definition->object.attachments.count; i++)
+		{
+			struct object_attachment_definition *attachment =
+				TAG_BLOCK_GET_ELEMENT(&definition->object.attachments, i, struct object_attachment_definition);
+			if (attachment->type.group_tag == 'ligh' && attachment->type.index != NONE)
+			{
+				long *light = tag_get('ligh', attachment->type.index);
+				platform_log("PLASMA enabled %d light flags %lx radius %.4f",
+					config_boolean("display.plasma_lighting"), light[0], ((real *)light)[1]);
+			}
+		}
 		for (i = 0; i < MAXIMUM_NUMBER_OF_ATTACHMENTS_PER_OBJECT; i++)
 			platform_log("PLASMA attachment %ld type %d index %ld", i, object->object.attachment_types[i],
 						 object->object.attachment_indices[i]);

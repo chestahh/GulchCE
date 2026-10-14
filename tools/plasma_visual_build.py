@@ -30,6 +30,8 @@ occlusion = ROOT/'port/linux/game/plasma_occlusion.c'
 occlusion_original = occlusion.read_bytes()
 input_source=ROOT/'port/linux/src/xinput_sdl.c'
 input_original=input_source.read_bytes()
+rocket=ROOT/'port/linux/game/rocket_lighting.c'
+rocket_original=rocket.read_bytes()
 assert not fixture.exists(), 'Refusing to overwrite an existing fixture'
 out = ROOT / 'build/plasma-visual'
 out.mkdir(exist_ok=True)
@@ -37,7 +39,7 @@ saved_args = shlex.split(re.search(r'^configure_args = (.*)$',
                                   (ROOT / 'build.ninja').read_text(), re.M).group(1))
 manifest = dict(configure_args=saved_args, base_commit=subprocess.check_output(
     ['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip(), source_hashes={})
-for path in [input_source, ROOT/'tools/fixtures/plasma_lighting_capture.c', source, main, backend, plasma, ROOT/'port/linux/game/plasma_falloff.c',
+for path in [rocket, input_source, ROOT/'tools/fixtures/plasma_lighting_capture.c', source, main, backend, plasma, ROOT/'port/linux/game/plasma_falloff.c',
              occlusion, ROOT/'port/linux/src/plasma_occlusion_gl.c', ROOT/'source/objects/object_lights.c', ROOT/'source/rasterizer/xbox/rasterizer_xbox.c',
              ROOT/'port/linux/src/plasma_model_shader.c', ROOT/'port/linux/src/nv2a_vsh.c', ROOT/'port/linux/src/nv2a_psh.c', ROOT/'source/rasterizer/xbox/rasterizer_xbox_environment.c']:
     manifest['source_hashes'][path.relative_to(ROOT).as_posix()] = hashlib.sha256(path.read_bytes()).hexdigest()
@@ -96,12 +98,19 @@ try:
     text = text.replace('plasma_lighting_attachments[index].rasterizer_index = rasterizer_index;',
                         '{ plasma_lighting_attachments[index].rasterizer_index = rasterizer_index; platform_log("PLASMA submit %ld", rasterizer_index); }', 1)
     plasma.write_text(text)
+    text = rocket_original.decode().replace('\r\n', '\n')
+    text = 'void platform_log(const char *format,...);\n' + text
+    marker = '\t\t\trocket_lights[i].rasterizer_index = rasterizer_index;'
+    assert marker in text
+    text = text.replace(marker, marker + '\n\t\t\tplatform_log("PLASMA prepare %ld owner %ld tag weapons\\\\rocket launcher\\\\rocket", light_index, rocket_lights[i].object_index);')
+    rocket.write_text(text)
     subprocess.run([sys.executable, 'configure.py', *saved_args], cwd=ROOT, check=True)
     subprocess.run(['ninja', 'windows'], cwd=ROOT, check=True)
     shutil.copy2(ROOT / 'build/windows/halo.exe', out / 'halo-capture.exe')
     manifest['capture_sha256'] = hashlib.sha256((out/'halo-capture.exe').read_bytes()).hexdigest()
     (out/'build-manifest.json').write_text(json.dumps(manifest, indent=2))
 finally:
+    rocket.write_bytes(rocket_original)
     input_source.write_bytes(input_original)
     source.write_bytes(original)
     main.write_bytes(main_original)
