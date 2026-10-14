@@ -16,6 +16,7 @@ Register values are clamped to [-1, 1] between stages, as on the hardware.
 */
 
 #include "xgpu.h"
+#include "plasma_model_shader.h"
 #include "port_config.h"
 #include "mcc_environment_shader.h"
 
@@ -549,6 +550,9 @@ static void model_lighting(struct xgpu_text *text, BOOL point_lights)
 {
 	int light;
 
+	if (point_lights)
+		plasma_model_emit_pixel(text);
+
 	xgpu_text_append(text,
 		"uniform vec4 model_lights[%d];\n"
 		"in vec4 xWorldNormal;\n"
@@ -576,11 +580,11 @@ static void model_lighting(struct xgpu_text *text, BOOL point_lights)
 			"\t\tvec3 to_light = model_lights[%d].xyz - xWorldPosition;\n"
 			"\t\tfloat distance_squared = dot(to_light, to_light);\n"
 			"\t\tvec3 l = to_light * inversesqrt(max(distance_squared, 1.0e-12));\n"
-			"\t\tlight += max(1.0 - distance_squared * model_lights[%d].w, 0.0) * clamp(dot(l, n), 0.0, 1.0) *\n"
+			"\t\tlight += plasma_model_falloff(max(1.0 - distance_squared * model_lights[%d].w, 0.0), plasma_model_slots[%d]) * clamp(dot(l, n), 0.0, 1.0) *\n"
 			"\t\t\tclamp(dot(l, -model_lights[%d].xyz) * model_lights[%d].w + model_lights[%d].w, 0.0, 1.0) *\n"
 			"\t\t\tmodel_lights[%d].xyz;\n"
 			"\t}\n",
-			first, first, first + 1, first + 1, first + 2, first + 2);
+			first, first, light, first + 1, first + 1, first + 2, first + 2);
 	}
 	xgpu_text_append(text, "\treturn clamp(light, 0.0, 1.0);\n}\n");
 }

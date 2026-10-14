@@ -16,7 +16,7 @@ def generated(fault=None):
     return (('under_test.inc', code),)
 
 
-@pytest.mark.parametrize('case', ['curve', 'scope', 'failure'])
+@pytest.mark.parametrize('case', ['curve', 'scope', 'specular', 'failure'])
 def test_case(case):
     status, output = run(build('plasma_falloff', generated()), case)
     assert status == 0, output

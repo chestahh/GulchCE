@@ -10,7 +10,7 @@ enum { D3DFMT_A8R8G8B8, D3DPOOL_MANAGED, D3DTSS_MINFILTER, D3DTEXF_LINEAR, D3DTE
 static struct { struct { int index; } distance_attenuation; } globals, *global_rasterizer_data = &globals;
 static IDirect3DVolumeTexture8 texture;
 static unsigned long texels[64*64*64];
-static int selected, fail_create, creates, releases, binds, restores, filter;
+static int selected, fail_create, creates, releases, binds, restores, filter, bound_stage, restored_stage;
 static int plasma_lighting_selected(long index) { return selected; }
 static int D3DDevice_CreateVolumeTexture(int w,int h,int d,int levels,int usage,int format,int pool,IDirect3DVolumeTexture8 **out)
 { creates++; if (fail_create) return -1; *out = &texture; return 0; }
@@ -18,9 +18,9 @@ static int IDirect3DVolumeTexture8_LockBox(IDirect3DVolumeTexture8 *t,int l,D3DL
 { box->pBits = texels; return 0; }
 static int IDirect3DVolumeTexture8_UnlockBox(IDirect3DVolumeTexture8 *t,int l) { return 0; }
 static void rasterizer_xbox_bitmap_swizzle3d_long(void *d,void *s,int w,int h,int depth) { memcpy(d,s,w*h*depth*sizeof(long)); }
-static void D3DDevice_SetTexture(int stage,D3DBaseTexture *t) { CHECK(stage == 2, "only attenuation stage"); binds++; }
+static void D3DDevice_SetTexture(int stage,D3DBaseTexture *t) { CHECK(stage == 2 || stage == 1, "only attenuation stages"); bound_stage=stage; binds++; }
 static void D3DDevice_SetTextureState_Deferred(int stage,int state,int value) { filter = value; }
-static void rasterizer_set_texture_direct(int stage,int bitmap,int mip) { restores++; }
+static void rasterizer_set_texture_direct(int stage,int bitmap,int mip) { restored_stage=stage; restores++; }
 static void D3DResource_Release(D3DResource *t) { releases++; }
 void plasma_falloff_dispose(void);
 #include "under_test.inc"
@@ -50,6 +50,18 @@ int main(int argc, char **argv)
 		CHECK(restores == 1 && filter == D3DTEXF_POINT, "restore even after disabling");
 		plasma_falloff_end(); plasma_falloff_dispose(); plasma_falloff_dispose();
 		CHECK(restores == 1 && releases == 1, "idempotent end and cleanup");
+	}
+	else if (!strcmp(argv[1], "specular"))
+	{
+		plasma_falloff_specular_begin(0); CHECK(!binds,"unselected specular stays stock");
+		selected=1; plasma_falloff_specular_begin(0);
+		CHECK(bound_stage==1 && filter==D3DTEXF_LINEAR,"specular uses attenuation stage one");
+		plasma_falloff_end();
+		CHECK(restored_stage==1 && filter==D3DTEXF_LINEAR,"specular filter restored");
+		plasma_falloff_begin(0);
+		CHECK(bound_stage==2,"diffuse follows specular independently");
+		plasma_falloff_dispose();
+		CHECK(restored_stage==2 && filter==D3DTEXF_POINT && releases==1,"cleanup restores latest stage");
 	}
 	else
 	{

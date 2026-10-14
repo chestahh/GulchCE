@@ -313,7 +313,7 @@ static const struct config_setting config_settings[] =
 		"see it, drawn from the waist down, moving as it moves." },
 	{ "display.plasma_lighting", _config_boolean, "false", "HALO_PLASMA_LIGHTING", _environment_value, _platform_all,
 		"Prototype: plasma rifle bolt lights follow their rendered attachments\n"
-		"and illuminate the world with a soft edge. Off keeps stock lighting." },
+		"with soft world/model falloff and omni highlights. Off keeps stock lighting." },
 	{ "display.shield_glow", _config_boolean, "false", "HALO_SHIELD_GLOW", _environment_value, _platform_all,
 		"Energy shields light what is around them as they flare, as plasma\n"
 		"does, in the shield's own color." },

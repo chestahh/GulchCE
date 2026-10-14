@@ -17,6 +17,13 @@ parser.add_argument('--data-root', required=True, type=Path)
 parser.add_argument('--fps', required=True, type=int, choices=[30, 60, 120])
 parser.add_argument('--enabled', required=True, type=int, choices=[0, 1])
 parser.add_argument('--label', default='')
+parser.add_argument('--map', default='bloodgulch', choices=['bloodgulch', 'carousel'])
+parser.add_argument('--model', action='store_true')
+parser.add_argument('--specular-only', action='store_true')
+parser.add_argument('--per-pixel', action='store_true')
+parser.add_argument('--distance', type=float)
+parser.add_argument('--height', type=float)
+parser.add_argument('--receiver-distance', type=float)
 args = parser.parse_args()
 root = Path(__file__).resolve().parents[1]
 assert re.fullmatch(r'[a-zA-Z0-9_-]*', args.label)
@@ -24,9 +31,16 @@ out = root / f'build/plasma-visual/{args.fps}-{args.enabled}{"-" + args.label if
 out.mkdir(parents=True, exist_ok=False)
 (out / 'maps').mkdir()
 (out / 'screenshots').mkdir()
-for name in ['ui.map', 'bloodgulch.map']:
+manifest = root/'build/plasma-visual/build-manifest.json'
+if manifest.exists():
+    shutil.copy2(manifest, out/'build-manifest.json')
+for name in ['ui.map', args.map+'.map']:
     shutil.copy2(args.data_root / 'maps' / name, out / 'maps' / name)
-(out / 'init.txt').write_text('map_name levels\\test\\bloodgulch\\bloodgulch\n')
+(out / 'init.txt').write_text(f'map_name levels\\test\\{args.map}\\{args.map}\n')
+if args.specular_only:
+    with (out/'init.txt').open('a') as init:
+        init.write('(set rasterizer_environment_diffuse_lights false)\n')
+
 env = {k:v for k,v in os.environ.items() if not k.startswith('HALO_')}
 env['PATH'] = str(root / 'build/windows') + os.pathsep + env.get('PATH', '')
 env.update(HALO_DATA_ROOT=str(out), HALO_SAVE_ROOT=str(out/'saves'), HALO_HIDDEN_WINDOW='1',
@@ -34,6 +48,14 @@ env.update(HALO_DATA_ROOT=str(out), HALO_SAVE_ROOT=str(out/'saves'), HALO_HIDDEN
            HALO_NET_ONLINE='0', HALO_NET_PUBLIC_LOBBY='0', HALO_UPDATE_ANSWER='never',
            HALO_CRASH_REPORTS='no', HALO_WINDOW_SIZE='640x480', HALO_PLASMA_LIGHTING=str(args.enabled),
            HALO_SCREENSHOT_DIR=str(out/'screenshots'))
+for key in ['distance', 'height', 'receiver_distance']:
+    value = getattr(args, key)
+    if value is not None:
+        env['HALO_PLASMA_CAPTURE_'+key.upper()] = str(value)
+if args.model:
+    env['HALO_PLASMA_CAPTURE_MODEL'] = '1'
+if args.per_pixel:
+    env['HALO_PER_PIXEL_LIGHTING'] = '1'
 with (out/'stdout.log').open('wb') as so, (out/'stderr.log').open('wb') as se:
     process = subprocess.Popen([str(root/'build/plasma-visual/halo-capture.exe')], cwd=out,
                                env=env, stdout=so, stderr=se, creationflags=subprocess.CREATE_NO_WINDOW)
@@ -51,7 +73,10 @@ report = dict(cap=args.fps, enabled=args.enabled, exit=process.returncode,
               selected_frames=len(re.findall(r'selected [1-9]', logs)),
               average_fps=1000*(len(times)-1)/(times[-1]-times[0]) if len(times)>1 else None,
               median_ms=statistics.median(deltas) if deltas else None,
-              shots=len(re.findall('PLASMA shot', logs)))
+              shots=len(re.findall('PLASMA shot', logs)),
+              model_draws=sum(int(x) for x in re.findall(r'PLASMA draws model (\d+)', logs)),
+              specular_draws=sum(int(x) for x in re.findall(r'PLASMA draws model \d+ specular (\d+)', logs)),
+              map=args.map, model=args.model, per_pixel=args.per_pixel, specular_only=args.specular_only)
 (out/'report.json').write_text(json.dumps(report, indent=2))
 print(json.dumps(report), flush=True)
 for path in out.rglob('*.map'):
@@ -63,3 +88,8 @@ if bool(report['selected_frames']) != bool(args.enabled):
     raise SystemExit('Lighting selection did not match the requested mode')
 if report['average_fps'] is None or report['average_fps'] < args.fps * .95:
     raise SystemExit('Capture did not sustain the requested FPS within 5 percent')
+
+if args.enabled and args.model and not report['model_draws']:
+    raise SystemExit('Capture never reached a selected model draw')
+if args.enabled and args.specular_only and not report['specular_draws']:
+    raise SystemExit('Capture never reached a selected specular draw')

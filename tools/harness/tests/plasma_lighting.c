@@ -29,6 +29,7 @@ static void light_reconnect_to_map(long index)
 	rendered_pose = interpolation_rendering;
 }
 void plasma_lighting_reset(void);
+int plasma_lighting_selected(long index);
 void plasma_falloff_dispose(void) {}
 void plasma_falloff_end(void) {}
 #include "under_test.inc"
@@ -38,7 +39,23 @@ int main(int argc, char **argv)
 	int i;
 	const char *test = argv[1];
 
-	if (!strcmp(test, "off"))
+	if (!strcmp(test, "model"))
+	{
+		plasma_lighting_prepare(1,1); plasma_lighting_submitted(1,3);
+		plasma_model_lighting_slot(3,0); plasma_model_lighting_slot(7,1);
+		CHECK(plasma_model_lighting_mask()==1,"only selected slot is softened");
+		plasma_model_lighting_slot(3,1);
+		CHECK(plasma_model_lighting_mask()==3,"both selected slots supported");
+		plasma_model_lighting_slot(NONE,0);
+		CHECK(plasma_model_lighting_mask()==2,"empty slot clears previous model");
+		enabled=0; CHECK(!plasma_model_lighting_mask(),"disable immediately gates model state");
+		enabled=1; plasma_lighting_window_begin();
+		CHECK(!plasma_model_lighting_mask(),"next view clears slots");
+		plasma_lighting_submitted(1,3); plasma_model_lighting_slot(3,1);
+		plasma_lighting_frame_end();
+		CHECK(!plasma_model_lighting_mask(),"frame cleanup clears slots");
+	}
+	else if (!strcmp(test, "off"))
 	{
 		enabled = 0;
 		plasma_lighting_prepare(1, 1);

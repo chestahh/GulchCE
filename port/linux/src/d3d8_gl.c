@@ -22,6 +22,7 @@ Conventions carried over from the Xbox:
 */
 
 #include "xgpu.h"
+#include "plasma_model_shader.h"
 #include "mcc_environment_shader.h"
 #include "sdl_platform.h"
 #include "halo_ui_pointer.h"
@@ -401,6 +402,7 @@ struct program_entry
 	/* the lights of a draw lit for each pixel (XGPU_MODEL_LIGHT_COUNT), and
 	constants_serial at their last upload */
 	GLint model_lights;
+	GLint plasma_model_slots;
 	unsigned long long model_lights_serial;
 
 	/* the vertex constants c[0..constant_count) the program uses; with
@@ -2910,6 +2912,7 @@ static struct program_entry *program_get(GLuint vertex_shader, GLuint fragment_s
 	entry->screen_offset = glGetUniformLocation(entry->program, "screen_offset");
 	entry->blend_constant = glGetUniformLocation(entry->program, "blend_constant");
 	entry->model_lights = glGetUniformLocation(entry->program, "model_lights");
+	entry->plasma_model_slots = glGetUniformLocation(entry->program, "plasma_model_slots");
 	for (stage = 0; stage < D3DTSS_MAXSTAGES; stage++)
 	{
 		char name[8];
@@ -3914,6 +3917,11 @@ static struct program_entry *prepare_draw(BOOL immediate)
 		constants_checkpoint_serial = constants_serial;
 		constants_checkpoint_first = XGPU_VERTEX_CONSTANT_COUNT;
 		constants_checkpoint_last = 0;
+	}
+	if (entry->plasma_model_slots >= 0)
+	{
+		unsigned int mask = plasma_model_lighting_mask();
+		glUniform2f(entry->plasma_model_slots, (mask & 1) ? 1.0f : 0.0f, (mask & 2) ? 1.0f : 0.0f);
 	}
 	/* the lights of a draw lit for each pixel, from the same registers, when
 	any of them changed since the program last had them */

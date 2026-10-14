@@ -5,6 +5,7 @@
 #include "objects/objects.h"
 #include "tag_files/tag_files.h"
 #include "plasma_lighting.h"
+#include "plasma_model_shader.h"
 #include <string.h>
 
 int config_boolean(const char *name);
@@ -18,6 +19,26 @@ static struct
 	int was_dynamic;
 } plasma_lighting_attachments[PLASMA_LIGHTING_MAXIMUM];
 static int plasma_lighting_count;
+static unsigned int	plasma_model_mask;
+
+void plasma_model_lighting_reset(void)
+{
+	plasma_model_mask = 0;
+}
+
+void plasma_model_lighting_slot(long light_index, short slot)
+{
+	if (slot < 0 || slot >= 2)
+		return;
+	plasma_model_mask &= ~(1U << slot);
+	if (plasma_lighting_selected(light_index))
+		plasma_model_mask |= 1U << slot;
+}
+
+unsigned int plasma_model_lighting_mask(void)
+{
+	return config_boolean("display.plasma_lighting") ? plasma_model_mask : 0;
+}
 
 void plasma_lighting_prepare(long light_index, long object_index)
 {
@@ -71,11 +92,13 @@ void plasma_lighting_reset(void)
 {
 	/* No tag pointers or object identities survive unloading or light recovery. */
 	plasma_lighting_count = 0;
+	plasma_model_lighting_reset();
 }
 
 void plasma_lighting_window_begin(void)
 {
 	int index;
+	plasma_model_lighting_reset();
 	for (index = 0; index < plasma_lighting_count; index++)
 		plasma_lighting_attachments[index].rasterizer_index = NONE;
 }

@@ -1763,6 +1763,7 @@ void _rasterizer_environment_diffuse_texture_draw(
 void _rasterizer_environment_specular_light_end(
 	void)
 {
+	plasma_falloff_end(); /* port: restore the selected plasma specular pass */
 	return;
 }
 
@@ -1921,6 +1922,7 @@ void _rasterizer_environment_specular_light_begin(
 			pixel_shader.final_combiner_inputs_abcd = 0x0C0F0000;
 			pixel_shader.final_combiner_inputs_efg = 0x1D200D00;
 			rasterizer_set_pixel_shader(&pixel_shader);
+			plasma_falloff_specular_begin(light_index); /* port: selected omni plasma attenuation */
 		}
 	}
 	return;

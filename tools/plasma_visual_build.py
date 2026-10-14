@@ -22,6 +22,8 @@ main_original = main.read_bytes()
 backend_original = backend.read_bytes()
 plasma = ROOT / 'port/linux/game/plasma_lighting.c'
 plasma_original = plasma.read_bytes()
+environment = ROOT/'source/rasterizer/xbox/rasterizer_xbox_environment.c'
+environment_original = environment.read_bytes()
 assert not fixture.exists(), 'Refusing to overwrite an existing fixture'
 out = ROOT / 'build/plasma-visual'
 out.mkdir(exist_ok=True)
@@ -30,7 +32,8 @@ saved_args = shlex.split(re.search(r'^configure_args = (.*)$',
 manifest = dict(configure_args=saved_args, base_commit=subprocess.check_output(
     ['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip(), source_hashes={})
 for path in [source, main, backend, plasma, ROOT/'port/linux/game/plasma_falloff.c',
-             ROOT/'source/objects/object_lights.c', ROOT/'source/rasterizer/xbox/rasterizer_xbox_environment.c']:
+             ROOT/'source/objects/object_lights.c', ROOT/'source/rasterizer/xbox/rasterizer_xbox.c',
+             ROOT/'port/linux/src/plasma_model_shader.c', ROOT/'port/linux/src/nv2a_vsh.c', ROOT/'port/linux/src/nv2a_psh.c', ROOT/'source/rasterizer/xbox/rasterizer_xbox_environment.c']:
     manifest['source_hashes'][path.relative_to(ROOT).as_posix()] = hashlib.sha256(path.read_bytes()).hexdigest()
 try:
     shutil.copy2(ROOT / 'tools/fixtures/plasma_lighting_capture.c', fixture)
@@ -46,10 +49,22 @@ try:
                         'main_game_render((double)main_globals.seconds_elapsed);\n\t\t\t\t\tplasma_capture_frame();', 1)
     main.write_text(text)
     text = backend_original.decode().replace('\r\n', '\n')
-    text = 'int plasma_capture_should_capture(void);\n' + text
+    text = 'int plasma_capture_should_capture(void);\nvoid plasma_capture_model_draw(unsigned int mask);\n' + text
+    text = text.replace('unsigned int mask = plasma_model_lighting_mask();', 'unsigned int mask = plasma_model_lighting_mask();\n\t\tplasma_capture_model_draw(mask);', 1)
     text = text.replace('if (screenshot_every > 0 && device.frame % (unsigned long)screenshot_every == 0)',
                         'if (plasma_capture_should_capture())', 1)
     backend.write_text(text)
+    text = environment_original.decode().replace('\r\n', '\n')
+    text = 'void plasma_capture_specular_begin(long index);\nvoid plasma_capture_specular_draw(void);\n' + text
+    text = text.replace('void _rasterizer_environment_specular_light_begin(\n\tlong light_index)\n{', 'void _rasterizer_environment_specular_light_begin(\n\tlong light_index)\n{\n\tplasma_capture_specular_begin(light_index);', 1)
+    start = text.index('void _rasterizer_environment_specular_light_draw(')
+    end = text.index('void _rasterizer_environment_specular_lights_end(', start)
+    part = text[start:end]
+    marker = '\t\trasterizer_draw_dynamic_triangles_static_vertices('
+    assert marker in part
+    part = part.replace(marker, '\t\tplasma_capture_specular_draw();\n' + marker)
+    text = text[:start] + part + text[end:]
+    environment.write_text(text)
     text = plasma_original.decode().replace('\r\n', '\n')
     text = 'void platform_log(const char *format, ...);\n' + text
     text = text.replace('if (!light_port_refresh_attachment(light_index, object_index))',
@@ -67,6 +82,7 @@ finally:
     main.write_bytes(main_original)
     backend.write_bytes(backend_original)
     plasma.write_bytes(plasma_original)
+    environment.write_bytes(environment_original)
     fixture.unlink(missing_ok=True)
     subprocess.run([sys.executable, 'configure.py', *saved_args], cwd=ROOT, check=True)
     subprocess.run(['ninja', 'windows'], cwd=ROOT, check=True)

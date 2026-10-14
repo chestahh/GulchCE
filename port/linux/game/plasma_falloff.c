@@ -11,6 +11,8 @@
 enum { PLASMA_FALLOFF_SIZE = 64 };
 static IDirect3DVolumeTexture8 *plasma_falloff_texture;
 static boolean plasma_falloff_bound;
+static int plasma_falloff_stage;
+static int plasma_falloff_filter;
 
 /* Zero value and zero slope at the radius, without a hard luminous rim. */
 static real plasma_falloff_value(real distance_squared)
@@ -55,23 +57,35 @@ static boolean plasma_falloff_create(void)
 	return success;
 }
 
-void plasma_falloff_begin(long rasterizer_index)
+static void plasma_falloff_bind(long rasterizer_index, int stage, int stock_filter)
 {
 	if (!plasma_lighting_selected(rasterizer_index))
 		return;
 	if (!plasma_falloff_texture && !plasma_falloff_create())
 		return; /* allocation failure leaves the stock pass intact */
-	D3DDevice_SetTexture(2, (D3DBaseTexture *)plasma_falloff_texture);
-	D3DDevice_SetTextureState_Deferred(2, D3DTSS_MINFILTER, D3DTEXF_LINEAR);
+	D3DDevice_SetTexture(stage, (D3DBaseTexture *)plasma_falloff_texture);
+	D3DDevice_SetTextureState_Deferred(stage, D3DTSS_MINFILTER, D3DTEXF_LINEAR);
+	plasma_falloff_stage = stage;
+	plasma_falloff_filter = stock_filter;
 	plasma_falloff_bound = TRUE;
+}
+
+void plasma_falloff_begin(long rasterizer_index)
+{
+	plasma_falloff_bind(rasterizer_index, 2, D3DTEXF_POINT);
+}
+
+void plasma_falloff_specular_begin(long rasterizer_index)
+{
+	plasma_falloff_bind(rasterizer_index, 1, D3DTEXF_LINEAR);
 }
 
 void plasma_falloff_end(void)
 {
 	if (!plasma_falloff_bound)
 		return;
-	rasterizer_set_texture_direct(2, global_rasterizer_data->distance_attenuation.index, 0);
-	D3DDevice_SetTextureState_Deferred(2, D3DTSS_MINFILTER, D3DTEXF_POINT);
+	rasterizer_set_texture_direct(plasma_falloff_stage, global_rasterizer_data->distance_attenuation.index, 0);
+	D3DDevice_SetTextureState_Deferred(plasma_falloff_stage, D3DTSS_MINFILTER, plasma_falloff_filter);
 	plasma_falloff_bound = FALSE;
 }
 
