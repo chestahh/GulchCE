@@ -178,7 +178,7 @@ static struct occlusion_field *field_for(long rasterizer_index)
 	struct rasterizer_light_submit_parameters *light;
 	unsigned long now = GetTickCount();
 	long identity = NONE;
-	int i, x, y, z;
+	int i, x, y, z, stationary;
 	real elapsed, extent, specular, clear_alpha, block_alpha, admission;
 	real previous[OCC_COUNT];
 	real trace_dx, trace_dy, trace_dz;
@@ -228,8 +228,6 @@ static struct occlusion_field *field_for(long rasterizer_index)
 	extent = light->radius * MAX(1.0f, specular);
 	if (!(extent > 0.001f && extent < 1000.0f))
 		return NULL;
-	if (field->valid && field->window == current_window)
-		return field;
 	updates_this_window++;
 	elapsed = field->valid ? MIN((real)(now - field->updated) * 0.001f, 0.1f) : 0.1f;
 	trace_dx = light->position.x - field->trace_center[0];
@@ -250,6 +248,9 @@ static struct occlusion_field *field_for(long rasterizer_index)
 		trace_dx = trace_dy = trace_dz = 0;
 	}
 	memcpy(previous, field->visibility, sizeof(previous));
+	stationary = field->valid && field->extent == extent &&
+		field->center[0] == light->position.x && field->center[1] == light->position.y &&
+		field->center[2] == light->position.z;
 	admission = field->fading ? MIN(1.0f, (real)(now - field->admitted) / 80.0f) : 1.0f;
 	admission = admission * admission * (3.0f - 2.0f * admission);
 	clear_alpha = 1.0f - powf(0.5f, elapsed / 0.025f);
@@ -270,7 +271,9 @@ static struct occlusion_field *field_for(long rasterizer_index)
 				target = depth_visibility(field->depths, &visibility_ray, extent);
 				/* Reproject history at the receiver, not at a moving light-local cell. */
 				history = target;
-				if (field->valid && field->extent > 0)
+				if (stationary)
+					history = previous[i];
+				else if (field->valid && field->extent > 0)
 				{
 					u = 0.5f + (light->position.x + ray.i - field->center[0]) / (2 * field->extent);
 					v = 0.5f + (light->position.y + ray.j - field->center[1]) / (2 * field->extent);
@@ -328,7 +331,8 @@ static void *field_texture(struct occlusion_field *field, int pass, long rasteri
 						0.5f + dy * scale * 0.5f, 0.5f + dz * scale * 0.5f);
 				value = 1 - field->admission + field->admission * value;
 				if (directional)
-					value *= directional == 2 ? needler_falloff_factor(axis, dx, dy, dz) :
+					value *= directional == 2 ? needler_falloff_factor(dz *
+						(pass == 0 ? field->extent / field->radius : pass == 2 ? field->specular : 1.0f)) :
 						ammo_counter_falloff_factor(axis, dx, dy, dz);
 				if (pass)
 					value *= remaining * remaining;
@@ -382,7 +386,7 @@ void *plasma_occlusion_texture(long rasterizer_index, int specular)
 {
 	struct occlusion_field *field = field_for(rasterizer_index);
 	void *texture = field_texture(field, specular ? 2 : 1, rasterizer_index);
-	return texture ? texture : ammo_counter_falloff_texture(rasterizer_index, 1, NULL);
+	return texture ? texture : ammo_counter_falloff_texture(rasterizer_index, specular ? 2 : 1, NULL);
 }
 void *plasma_occlusion_model_texture(int slot, float transform[4])
 {

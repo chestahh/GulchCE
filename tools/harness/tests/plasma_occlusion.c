@@ -46,12 +46,13 @@ static int muzzle_on, emitter_on, emitter_occlusion;
 static long last_ignore;
 static unsigned long last_flags;
 static int directional_on, vehicle_only;
+static float directional_axis[3]={-.8f,0,.6f}, directional_origin, directional_radius=1;
 int muzzle_lighting_vehicle_occlusion(long light) { return muzzle_on && light==500; }
 int covenant_emitter_lighting_cone(long r,float axis[3],float origin[3],float *radius)
 {
  int i;if(!directional_on||r<0||r>=8)return 0;
- axis[0]=-.8f;axis[1]=0;axis[2]=.6f;
- for(i=0;i<3;i++)origin[i]=0;*radius=1;return 1;
+ for(i=0;i<3;i++){axis[i]=directional_axis[i];origin[i]=directional_origin;}
+ *radius=directional_radius;return directional_on;
 }
 long covenant_emitter_lighting_occlusion_ignore(long i) { return emitter_on && i == 502 ? 42 : NONE; }
 int covenant_emitter_lighting_enabled(void) { return emitter_on; }
@@ -347,10 +348,11 @@ int main(int argc, char **argv)
 	 CHECK(ammo_counter_falloff_factor(axis,0,0,-1)==0,"floor behind display is dark");
 	 CHECK(ammo_counter_falloff_factor(axis,.8f,0,-.6f)==0,"back hemisphere is dark");
 	 CHECK(ammo_counter_falloff_factor(axis,0,0,1)==1,"face above screen retains brightness");
-	 { float up[3]={0,0,1};
-	 CHECK(needler_falloff_factor(up,1,0,0)>.8f,"needles spill sideways");
-	 CHECK(needler_falloff_factor(up,0,0,-1)==0,"needle housing suppresses floor spill");
-	 CHECK(needler_falloff_factor(up,0,0,1)==1,"exposed tips retain full intensity"); }
+	 CHECK(needler_falloff_factor(0)==1,"needles spill equally in every horizontal direction");
+	 CHECK(needler_falloff_factor(-.05f)==1,"nearby hands and housing below needles retain full spill");
+	 CHECK(needler_falloff_factor(-.15f)>.49f&&needler_falloff_factor(-.15f)<.51f,"lower spill fades softly with distance");
+	 CHECK(needler_falloff_factor(-.25f)==0,"distant floor spill suppressed");
+	 CHECK(needler_falloff_factor(1)==1,"exposed tips retain full intensity");
 	 plasma_occlusion_model_slot(0,0);t=plasma_occlusion_model_texture(0,tr);
 	 CHECK(t&&tr[3]==.5f,"model directional mask independent of collision option");
 	 CHECK((t->pixels[(0*16+8)*16+8]&255)==0,"model floor mask dark");
@@ -358,6 +360,34 @@ int main(int argc, char **argv)
 	 CHECK(t&&(t->pixels[(0*16+8)*16+8]&255)==0,"world floor mask dark");
 	 n=uploads;CHECK(plasma_occlusion_texture(0,1)==t&&uploads==n,"specular reuses angular radial mask");
 	 CHECK(!plasma_occlusion_texture(20,0),"unrelated lights retain stock fallback");
+	 plasma_occlusion_window();
+	 CHECK(plasma_occlusion_texture(0,0)==t&&uploads==n,"unchanged view reuses directional upload");
+	 directional_origin=3;directional_radius=2;
+	 plasma_occlusion_window();
+	 CHECK(ammo_counter_falloff_texture(0,1,tr)==t&&uploads==n&&tr[0]==3&&tr[3]==.25f,"translation and radius update transform without rebuilding mask");
+	 directional_axis[0]=.8f;
+	 plasma_occlusion_window();
+	 CHECK(ammo_counter_falloff_texture(0,1,tr)==t&&uploads==n+1,"rotation refreshes radial mask");
+	 CHECK(ammo_counter_falloff_texture(0,0,tr)&&uploads==n+2,"rotation refreshes angular mask independently");
+	 directional_on=2;
+	 plasma_occlusion_window();
+	 CHECK(ammo_counter_falloff_texture(0,1,tr)&&uploads==n+3,"profile change refreshes mask");
+	 directional_axis[0]=0;directional_axis[1]=1;directional_axis[2]=0;
+	 plasma_occlusion_window();
+	 CHECK(ammo_counter_falloff_texture(0,1,tr)&&uploads==n+3,"radial Needler spill does not rotate with aim");
+	 specular_scale=2;
+	 t=plasma_occlusion_texture(0,1);
+	 CHECK(t&&(t->pixels[(6*16+8)*16+8]&255)==0,"unoccluded Needler specular uses physical lower fade");
+	 t=plasma_occlusion_texture(0,0);
+	 CHECK(t&&(t->pixels[(6*16+8)*16+8]&255)>0,"specular cache does not overwrite diffuse mask");
+	 specular_scale=1;
+	 CHECK(plasma_occlusion_texture(0,1)==t,"equal radii share diffuse and specular mask");
+	 specular_scale=.5f;
+	 t=plasma_occlusion_texture(0,1);
+	 CHECK(t&&(t->pixels[(6*16+8)*16+8]&255)>128,"changed specular radius refreshes its mask");
+	 specular_scale=1;
+	 directional_axis[0]=-.8f;directional_axis[1]=0;directional_axis[2]=.6f;
+	 directional_on=1;directional_origin=0;directional_radius=1;
 	 plasma_occlusion_reset();CHECK(!allocations,"directional textures released on reset");
 	}
 	on=1;emitter_on=1;emitter_occlusion=1;blocked=0;
@@ -366,6 +396,20 @@ int main(int argc, char **argv)
 	 IDirect3DVolumeTexture8 *t=plasma_occlusion_texture(0,0);
 	 CHECK(t&&(t->pixels[(0*16+8)*16+8]&255)==0,"combined collision and direction mask stays dark behind screen");
 	}
+	/* Model visibility spans the largest specular radius. The Needler's lower
+	   fade must still be measured against its actual diffuse radius. */
+	plasma_occlusion_reset();directional_on=2;specular_scale=2;
+	rasterizer_lights.lights[0].radius=1;
+	plasma_occlusion_submit(502,0);f=field_for(0);
+	{
+	 IDirect3DVolumeTexture8 *t=field_texture(f,0,0);
+	 CHECK(t&&(t->pixels[(6*16+8)*16+8]&255)==0,"model lower fade uses physical source radius");
+	 t=field_texture(f,1,0);
+	 CHECK(t&&(t->pixels[(6*16+8)*16+8]&255)>0,"nearby diffuse receiver retains lower glow");
+	 t=field_texture(f,2,0);
+	 CHECK(t&&(t->pixels[(6*16+8)*16+8]&255)==0,"specular lower fade uses physical source radius");
+	}
+	specular_scale=1;
 	plasma_occlusion_reset();on=0;
 	directional_on=0;emitter_on=0;muzzle_on=1;vehicle_only=blocked=1;
 	plasma_occlusion_submit(500,0);f=field_for(0);

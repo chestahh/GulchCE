@@ -35,7 +35,7 @@ static const real_rgb_color emitter_black = {0, 0, 0};
 struct emitter_sample
 {
 	int kind;
-	real strength, radius;
+	real strength, radius, view_gain;
 	real_rgb_color color;
 	real_point3d position;
 	real_vector3d direction;
@@ -86,6 +86,7 @@ static int emitter_sample(long index, struct emitter_sample *sample)
 	real nearest = 25.0f;
 	short player;
 	int counter_pose;
+	sample->view_gain = 1.0f;
 	if (!object || TEST_FLAG(object->object.flags, _object_invisible_bit) ||
 		object->object.node_matrices.size < sizeof(real_matrix4x3))
 		return FALSE;
@@ -154,8 +155,9 @@ static int emitter_sample(long index, struct emitter_sample *sample)
 		sample->color.red = 0.24f;
 		sample->color.green = 0.65f;
 		sample->color.blue = 1.0f;
-		/* The close view needs more spill; other holders retain stock tuning. */
-		sample->strength = counter_pose == 2 ? 1.0f : 0.65f;
+		/* Keep view-specific brightness out of the shared temporal history. */
+		sample->strength = 0.65f;
+		sample->view_gain = counter_pose == 2 ? 1.0f / 0.65f : 1.0f;
 		marker_name = NULL;
 	}
 	else if (object->object.type == _object_type_weapon && needler_lighting_position(index, &sample->position, &sample->direction))
@@ -260,9 +262,9 @@ void covenant_emitter_lighting_update(void)
 				emitter_release(emitter);
 			continue;
 		}
-		color.red = sample.color.red * emitter->strength;
-		color.green = sample.color.green * emitter->strength;
-		color.blue = sample.color.blue * emitter->strength;
+		color.red = sample.color.red * emitter->strength * sample.view_gain;
+		color.green = sample.color.green * emitter->strength * sample.view_gain;
+		color.blue = sample.color.blue * emitter->strength * sample.view_gain;
 		if (emitter->light == NONE)
 		{
 			definition = light_port_glow_definition_get();

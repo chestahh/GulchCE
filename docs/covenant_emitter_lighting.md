@@ -354,3 +354,37 @@ regressions passed, including negative controls. Capture manifests match the
 production source hashes. These are bounded Xbox-map fixtures, not campaign,
 CE/MCC, reload-animation, multiplayer or all-GPU acceptance. Temporary map
 copies/cache files were removed and only representative frames/logs retained.
+
+
+## Baseline polish and radial Needler spill
+
+The Needler now uses radial spill around the crystal cluster instead of the
+weapon-up angular mask. Receivers immediately below the source retain full
+light, so the casing and hands are not cut out by a cone. Only farther downward
+spill fades: full strength through 0.06 of the radius below the source, a smooth
+transition through 0.24, then zero. This uses world height and does not rotate
+with aim. Radius (1.5), colour, brightness, crystal material emission and held
+weapon policy are unchanged. It is an artistic approximation to body/housing
+shielding, not mesh shadows. A crouched holder or unusual custom pose still
+needs playtest judgement; CStencil and Modern remain separate work.
+
+The model, world diffuse and specular paths use the same physical lower fade.
+In an occlusion field enlarged for specular range, the height is converted back
+to the source radius before evaluating it. Without an occlusion field, a third
+mask variant preserves that same physical height for larger or smaller specular
+radii; equal radii reuse the diffuse variant. Directionality remains mandatory for
+the AR, independent of optional wall occlusion or field-budget overflow.
+
+AR first-person intensity is now a per-view gain applied after the common
+render-time fade. Previously the first-person target entered shared temporal
+history and could brighten another view of the same weapon. A regression first
+reproduced that leak, then verified both view orders without advancing time.
+Single-view first-person and third-person tuning remains 1.0 and 0.65.
+
+Unchanged masks retain their cached volume textures across views. AR rotation
+or a profile change invalidates both mask variants; translation and radius
+changes update the transform without rebuilding normalized texels. The radial
+Needler mask is also independent of weapon rotation. The eight-slot bound and
+map/disable cleanup remain intact. Each reused variant avoids generating and
+uploading 4096 texels. The visual fixture's `--face-camera` option permits front
+views of hands/torso in addition to the earlier rear-facing holder views.

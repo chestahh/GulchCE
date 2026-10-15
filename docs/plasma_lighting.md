@@ -859,3 +859,89 @@ images and build hashes are in build/plasma-visual/*-tuned-*; old-build comparis
 runs use *-tuning-before-*. Comparison sheets are tuning-all-*.png,
 tuning-caps-*.png and tuning-combat-caps.png in that directory. The refreshed
 Windows package retains both options off and includes PLAYTEST.txt beside halo.exe.
+
+
+## Dynamic lighting baseline review
+
+The polish review covers the existing optional feature, with every setting
+still off by default. Production changes stay in feature-owned modules; no
+`source/` hooks, loaders, simulation state, explosion effects, network messages,
+CStencil or Modern code are changed. No network-version bump is needed for
+these render-only changes.
+
+| Area reviewed | Outcome |
+| --- | --- |
+| `plasma_lighting.c` and attachment hooks in `object_lights.c` | Exact projectile selection, bounded attachment storage, rendered-pose refresh and restoration of radius/dynamic/partition state remain intact. Owned glows are excluded by the engine's parent-light contract. |
+| `rocket_lighting.c`, `covenant_lighting.c` | Authored attachments retain precedence, missing-light fallbacks remain bounded, salted handles/owners are checked, and stock impacts/explosions are unchanged. No manager rewrite or broader custom-tag matching. |
+| `muzzle_lighting.c` and successful-shot hook | Render-time envelope, duplicate-shot guard, marker selection, expiry and owner validation retained. Only Warthog pulses add vehicle collision blockers. |
+| `covenant_emitter_lighting.c`, AR/Needler material and pose modules | Damage colours, held/dropped policy, first/world poses and map-owned shader caches reviewed. Fixed AR view-gain leakage; revised Needler falloff as documented in `covenant_emitter_lighting.md`. |
+| `ammo_counter_falloff.c` | Reuse unchanged masks across views; invalidate on shape changes. Keep independent AR mask when occlusion is disabled or unavailable. |
+| `plasma_occlusion.c` | Stationary fields reuse the previous cell directly; moving/resized fields retain trilinear reprojection. Removed a redundant same-view check. Collision refresh, admission, edge filtering, fade rates and eight-field limit remain unchanged. |
+| `plasma_falloff.c` and world/specular hooks | Stock texture/filter restoration, allocation fallback and cleanup retained. Shared radial volume remains lazy and bounded. |
+| `plasma_model_shader.c`, `plasma_occlusion_gl.c`, shader translation and binding hooks | Selected two-light slots preserve stock alpha/material/cone paths. Reserved samplers, fallback texture and active texture restoration reviewed. Uniform-location/sampler caching is a possible later measured optimization; no shared renderer rewrite is justified by this pass. |
+| Settings/build/lifecycle integration | Existing registrations, false defaults, feature-off paths, map cleanup and failed-load/recovery boundaries retained. Xbox/CE/MCC loaders and ownership boundaries are unchanged. |
+
+The stationary shortcut is compared against full reprojection cell by cell over
+synthetic moving lights, changed extents, door transitions and 30/60/120 Hz
+sequences (absolute tolerance 0.00001). Cache tests cover unchanged views,
+translation, radius, rotation, profile changes and cleanup. These establish
+saved work and equivalent visibility, not a claim of a measured whole-game
+FPS percentage. Geometry queries and GL binding remain potential costs;
+reducing their quality or cadence was not part of this optimization.
+
+### Polish validation and limits
+
+- All 57 focused lighting regressions pass on the final production sources.
+  Light-storage COFF/LTO checks and the negative legacy-corruption control pass.
+  The broader harness/cache/viewmodel run has 506 passes, four skips and 28
+  compile failures outside changed files: missing pthread support (10), missing
+  clock_gettime/CLOCK_MONOTONIC (6), and Windows __int64 typedef conflicts (12).
+  That broader run is not a green suite.
+- The primary 53-case Windows capture matrix covers AR/Needler first/world views,
+  both Jackal colours, stationary shields, held fuel rods, Warthog muzzle pulses,
+  mixed plasma/rocket shots, twelve-Needle stress, moving doors, runtime toggles
+  and per-pixel receivers at 30/60/120 FPS, plus eleven disabled cases at 60 FPS.
+  All functional checks pass; 49 runs meet the timing threshold. Original
+  screenshot timing failures remain recorded: AR first-person 30 (26.65), AR
+  world 60 (49.37), Warthog 30 (26.91) and Warthog 60 (52.17 FPS).
+  Separate final-source runs without screenshot readback pass at 30.01, 60.00,
+  30.00 and 60.00 FPS respectively. Capture overhead is a plausible contributor;
+  the repeats do not prove the cause of every original stall.
+- Final-source follow-ups exercise front-facing radial Needler spill with wall
+  occlusion off at all three caps and first-person fallback at 60. The front
+  standing-player images show weapon/upper-body spill without a foot-level pool.
+  The c40 Grunt fixture creates an emitter but does not frame the holder usefully;
+  it does not establish low-NPC visual acceptance. A front-facing Marine on b40
+  passes at 60.01 FPS and shows upper-body/weapon glow without a foot-level pool.
+  Unusual/crouched poses remain
+  a player acceptance item, rather than a claim of precise mesh shielding.
+- A synthetic five-pair benchmark of 1,000 stationary updates reduces median
+  CPU time from 88 to 53 ms, with the same 1,536,000 stub collision queries.
+  Two unchanged mask variants over 1,000 views require two uploads instead of
+  2,000. This measures avoided work with fake collisions/uploads, not game FPS.
+- Hidden Xbox c40 -> MCC Mercury Falling -> Xbox Blood Gulch transitions pass
+  disabled at 30 FPS and enabled at 120 FPS, with two commands, one MCC load,
+  clean exit and no logged exceptions each. The first sandboxed attempt could
+  not connect its localhost console and is retained as a failed fixture run.
+  This checks lifecycle/load boundaries, not full MCC visual compatibility.
+- Two hidden native loopback peers exit cleanly after 100 seconds and both
+  submit Needler emitter samples (4,919/4,925). Of 84 common player snapshots,
+  19 match exactly; all 84 match excluding loaded-ammo counts, which differ
+  during firing. Final tick 2520 matches exactly. This is a bounded native
+  regression check, not bit-identical live prediction or browser/internet
+  transport acceptance. See `build/polish-network-needle/comparison.json`.
+- The normal Windows portable release builds successfully, matches the final
+  capture manifest's production hashes and contains no capture markers.
+  Local Linux is unavailable (no WSL), and Android/web targets are unavailable
+  in this Windows configuration. Those builds require CI; runtime acceptance
+  on other platforms/GPUs remains separate. Local CE assets are absent, so no
+  current CE runtime compatibility claim is made. Shared loaders are unchanged.
+
+Evidence remains under `build/polish-acceptance.json`, `build/polish-followup.json`,
+`build/polish-regressions-final.log`, `build/polish-full-tests.log`,
+`build/polish-benchmark.json`, `build/polish-production-check.json` and the
+per-run reports/contact sheets in `build/plasma-visual`. Captures are short,
+640x480 fixtures on one Windows/NVIDIA machine, not a locked-120 guarantee.
+The primary matrix predates only the final unoccluded specular-height correction;
+final-source regressions/follow-ups cover that correction. Original game maps
+and saves are preserved; private map copies are removed after each run.

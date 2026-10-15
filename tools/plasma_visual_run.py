@@ -18,13 +18,14 @@ parser.add_argument('--capture-dir', type=Path, help='Directory containing halo-
 parser.add_argument('--fps', required=True, type=int, choices=[30, 60, 120])
 parser.add_argument('--enabled', required=True, type=int, choices=[0, 1])
 parser.add_argument('--label', default='')
-parser.add_argument('--map', default='bloodgulch', choices=['bloodgulch', 'carousel', 'a10', 'b40', 'c40', 'ce-deathisland'])
+parser.add_argument('--map', choices=['bloodgulch', 'carousel', 'a10', 'b40', 'c40', 'ce-deathisland'])
 parser.add_argument('--kind', choices=['rifle','pistol','charged','rocket','needle','ghost','banshee','banshee-fuel','shade','fuel','wraith','mp-needle','mp-banshee-fuel','mp-shade','ce-fuel'], default='rifle')
 parser.add_argument('--muzzle', choices=['ar','handgun','shotgun','sniper','rifle','pistol','charged','needler','rocket','flamethrower','warthog'])
 parser.add_argument('--both-lighting', action='store_true')
-parser.add_argument('--emitter', choices=['jackal','major','fuel','stationary','ammo-fp','ammo-marine','ammo-player','needler-fp','needler-marine','needler-player'])
+parser.add_argument('--emitter', choices=['jackal','major','fuel','stationary','ammo-fp','ammo-marine','ammo-player','needler-fp','needler-marine','needler-player','needler-grunt'])
 parser.add_argument('--turn', action='store_true', help='Capture-only yaw/pitch sweep for light orientation checks')
 parser.add_argument('--hide-viewmodel', action='store_true', help='Keep the local rifle from obscuring third-person receivers')
+parser.add_argument('--face-camera', action='store_true', help='Face a held-weapon fixture toward the camera to inspect torso and hand spill')
 parser.add_argument('--mixed', action='store_true')
 parser.add_argument('--model', action='store_true')
 parser.add_argument('--occlusion', type=int, choices=[0,1], default=0)
@@ -42,6 +43,9 @@ parser.add_argument('--height', type=float)
 parser.add_argument('--drop', type=float)
 parser.add_argument('--receiver-distance', type=float)
 args = parser.parse_args()
+if args.map is None:
+    # Blood Gulch has no machine door for the moving-occluder fixture.
+    args.map = 'a10' if args.door else 'bloodgulch'
 if args.muzzle:
     args.combat = True
 root = Path(__file__).resolve().parents[1]
@@ -82,6 +86,8 @@ if args.turn:
     env['HALO_LIGHTING_CAPTURE_TURN'] = '1'
 if args.hide_viewmodel:
     env['HALO_VIEWMODEL_VISIBLE'] = '0'
+if args.face_camera:
+    env['HALO_EMITTER_CAPTURE_FACE_CAMERA'] = '1'
 if args.emitter:
     env['HALO_EXIT_AFTER'] = '70' if args.map == 'b40' else '35'
     env['HALO_EMITTER_CAPTURE'] = args.emitter
@@ -90,7 +96,8 @@ if args.emitter:
          'fuel':'HALO_FUEL_ROD_LIGHTING', 'stationary':'HALO_COVENANT_SHIELD_LIGHTING',
          'ammo-fp':'HALO_AMMO_COUNTER_LIGHTING','ammo-marine':'HALO_AMMO_COUNTER_LIGHTING',
          'ammo-player':'HALO_AMMO_COUNTER_LIGHTING', 'needler-fp':'HALO_NEEDLER_LIGHTING',
-         'needler-player':'HALO_NEEDLER_LIGHTING','needler-marine':'HALO_NEEDLER_LIGHTING'}[args.emitter]] = str(args.enabled)
+         'needler-player':'HALO_NEEDLER_LIGHTING','needler-marine':'HALO_NEEDLER_LIGHTING',
+         'needler-grunt':'HALO_NEEDLER_LIGHTING'}[args.emitter]] = str(args.enabled)
 if args.muzzle:
     muzzle_tags = {
         'ar': r'weapons\assault rifle\assault rifle', 'handgun': r'weapons\pistol\pistol',
@@ -161,6 +168,7 @@ report['selected_tags'] = sorted(set(re.findall(r'PLASMA prepare [^\r\n]+ tag ([
 report['muzzle'] = args.muzzle
 report['emitter'] = args.emitter
 report['hide_viewmodel'] = args.hide_viewmodel
+report['face_camera'] = args.face_camera
 report['turn'] = args.turn
 report['emitter_samples'] = len(re.findall('EMITTER sample', logs))
 report['emitter_created'] = bool(re.search(r'EMITTER created (?!-1 )', logs))

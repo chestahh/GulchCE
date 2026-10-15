@@ -46,6 +46,6 @@ def test_needle_crystal_glow_is_required():
 
 
 def test_first_person_counter_strength_is_required():
-    code = source().replace('counter_pose == 2 ? 1.0f : 0.65f', '0.65f')
+    code = source().replace('counter_pose == 2 ? 1.0f / 0.65f : 1.0f', '1.0f')
     status, output = run(build('covenant_emitter_lighting', (('under_test.inc', code),)), 'emitters')
     assert status == CHECK_FAILED, output

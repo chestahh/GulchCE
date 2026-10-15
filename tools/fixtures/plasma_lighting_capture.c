@@ -50,7 +50,8 @@ static void ammo_capture_tick(const char *kind)
 		holder = player_control_get_unit_index(0);
 		if (strcmp(pose, "fp"))
 		{
-			tag = tag_loaded('bipd', !strcmp(pose, "marine") ? "characters\\marine_armored\\marine_armored" : "characters\\cyborg\\cyborg");
+			tag = tag_loaded('bipd', !strcmp(pose, "marine") ? "characters\\marine_armored\\marine_armored" :
+				!strcmp(pose, "grunt") ? "characters\\grunt\\grunt" : "characters\\cyborg\\cyborg");
 			if (tag == NONE) { platform_log("EMITTER missing actor"); return; }
 			object_placement_data_new(&placement, tag, NONE);
 			placement.position = capture_camera.position;
@@ -59,6 +60,11 @@ static void ammo_capture_tick(const char *kind)
 			placement.position.z -= 0.6f;
 			placement.forward = capture_camera.forward;
 			placement.forward.k = 0;
+			if (getenv("HALO_EMITTER_CAPTURE_FACE_CAMERA"))
+			{
+				placement.forward.i = -placement.forward.i;
+				placement.forward.j = -placement.forward.j;
+			}
 			normalize3d(&placement.forward);
 			observer_up_from_forward(&placement.forward, &placement.up);
 			holder = object_new(&placement);
