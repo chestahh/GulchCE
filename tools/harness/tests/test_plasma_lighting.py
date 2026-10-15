@@ -13,6 +13,9 @@ def generated(fault=None):
     code = function(read('source/objects/object_lights.c'), 'light_port_refresh_attachment')
     code += function(read('source/objects/object_lights.c'), 'light_port_dynamic_set')
     code += function(read('source/objects/object_lights.c'), 'light_port_attachment_radius')
+    policy = read('port/linux/game/covenant_lighting.c')
+    policy = policy[policy.index('static const struct covenant_profile'):policy.index('static const real_rgb_color covenant_black')]
+    code += 'typedef struct { real red, green, blue; } real_rgb_color;\n' + policy
     code += re.sub(r'^#include.*$', '', read('port/linux/game/plasma_lighting.c'), flags=re.M)
     code += function(read('source/objects/object_lights.c'), 'light_compute_bounding_sphere')
     code += function(read('port/linux/game/render_interpolation.c'), 'render_interpolation_frame_end')
@@ -21,7 +24,7 @@ def generated(fault=None):
     return (('under_test.inc', code),)
 
 
-@pytest.mark.parametrize('case', ['muzzle', 'radius', 'rocket', 'pistol', 'model', 'off', 'filter', 'restore', 'split', 'capacity', 'unload', 'missing', 'stale', 'selection', 'existing'])
+@pytest.mark.parametrize('case', ['covenant', 'muzzle', 'radius', 'rocket', 'pistol', 'model', 'off', 'filter', 'restore', 'split', 'capacity', 'unload', 'missing', 'stale', 'selection', 'existing'])
 def test_case(case):
     status, output = run(build('plasma_lighting', generated()), case)
     assert status == 0, output

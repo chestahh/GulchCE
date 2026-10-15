@@ -17,8 +17,8 @@ parser.add_argument('--data-root', required=True, type=Path)
 parser.add_argument('--fps', required=True, type=int, choices=[30, 60, 120])
 parser.add_argument('--enabled', required=True, type=int, choices=[0, 1])
 parser.add_argument('--label', default='')
-parser.add_argument('--map', default='bloodgulch', choices=['bloodgulch', 'carousel', 'a10', 'ce-deathisland'])
-parser.add_argument('--kind', choices=['rifle','pistol','charged','rocket'], default='rifle')
+parser.add_argument('--map', default='bloodgulch', choices=['bloodgulch', 'carousel', 'a10', 'b40', 'c40', 'ce-deathisland'])
+parser.add_argument('--kind', choices=['rifle','pistol','charged','rocket','needle','ghost','banshee','banshee-fuel','shade','fuel','wraith','mp-needle','mp-banshee-fuel','mp-shade','ce-fuel'], default='rifle')
 parser.add_argument('--muzzle', choices=['ar','handgun','shotgun','sniper','rifle','pistol','charged','needler','rocket','flamethrower'])
 parser.add_argument('--both-lighting', action='store_true')
 parser.add_argument('--mixed', action='store_true')
@@ -57,7 +57,7 @@ if args.map=='ce-deathisland':
     level='custom_maps\\deathisland_451254bb'
 else:
     shutil.copy2(args.data_root/'maps'/(args.map+'.map'),out/'maps'/(args.map+'.map'))
-    level=f'levels\\{args.map}\\{args.map}' if args.map=='a10' else f'levels\\test\\{args.map}\\{args.map}'
+    level=f'levels\\{args.map}\\{args.map}' if args.map in ('a10','b40','c40') else f'levels\\test\\{args.map}\\{args.map}'
 (out/'init.txt').write_text(f'map_name {level}\n')
 if args.specular_only:
     with (out/'init.txt').open('a') as init:
@@ -70,6 +70,9 @@ env.update(HALO_DATA_ROOT=str(out), HALO_SAVE_ROOT=str(out/'saves'), HALO_HIDDEN
            HALO_NET_ONLINE='0', HALO_NET_PUBLIC_LOBBY='0', HALO_UPDATE_ANSWER='never',
            HALO_CRASH_REPORTS='no', HALO_WINDOW_SIZE='640x480', HALO_PLASMA_LIGHTING=str(args.enabled),
            HALO_SCREENSHOT_DIR=str(out/'screenshots'), HALO_PLASMA_OCCLUSION=str(args.occlusion))
+if args.map in ('b40', 'c40'):
+    env['HALO_COVENANT_CAPTURE_CAMPAIGN'] = '1'
+    env['HALO_EXIT_AFTER'] = '70'
 if args.muzzle:
     muzzle_tags = {
         'ar': r'weapons\assault rifle\assault rifle', 'handgun': r'weapons\pistol\pistol',
@@ -104,7 +107,7 @@ with (out/'stdout.log').open('wb') as so, (out/'stderr.log').open('wb') as se:
     process = subprocess.Popen([str(root/'build/plasma-visual/halo-capture.exe')], cwd=out,
                                env=env, stdout=so, stderr=se, creationflags=subprocess.CREATE_NO_WINDOW)
     try:
-        process.wait(timeout=45)
+        process.wait(timeout=145 if args.map in ('b40', 'c40') else 45)
     finally:
         if process.poll() is None:
             process.terminate()
@@ -162,7 +165,7 @@ if args.enabled and args.occlusion and not report['occlusion_updates']:
 
 if args.combat and 'PLASMA combat equipped' not in logs:
     raise SystemExit('Combat fixture did not equip the requested weapon')
-if args.probe and args.enabled and report['max_selected'] < args.burst:
+if args.probe and args.enabled and report['max_selected'] < (min(args.burst, 8) if args.kind in ('needle', 'mp-needle', 'wraith') else args.burst):
     raise SystemExit('Stress capture did not select the requested simultaneous light count')
 if args.door:
     positions = [float(x) for x in re.findall(r'PLASMA door position ([0-9.]+)', logs)]
@@ -181,11 +184,22 @@ expected_tags = {
     'pistol': r'weapons\plasma pistol\bolt',
     'charged': r'weapons\plasma rifle\charged bolt',
     'rocket': r'weapons\rocket launcher\rocket',
+    'needle': 'weapons\\needler\\needle',
+    'ghost': 'vehicles\\ghost\\ghost bolt',
+    'banshee': 'vehicles\\banshee\\banshee bolt',
+    'banshee-fuel': 'vehicles\\banshee\\banshee fuel rod',
+    'shade': 'vehicles\\c gun turret\\c gun turret',
+    'fuel': 'weapons\\fuel rod gun\\fuel rod',
+    'wraith': 'vehicles\\wraith\\wraith mortar',
+    'mp-needle': 'weapons\\needler\\mp_needle',
+    'mp-banshee-fuel': 'vehicles\\banshee\\mp_banshee fuel rod',
+    'mp-shade': 'vehicles\\c gun turret\\mp gun turret',
+    'ce-fuel': 'weapons\\plasma_cannon\\plasma_cannon',
 }
 if args.enabled and not args.muzzle:
     expected = {expected_tags[args.kind]}
     if args.mixed:
-        expected = {value for kind, value in expected_tags.items() if args.kind == 'rocket' or kind != 'rocket'}
+        expected = {expected_tags[kind] for kind in ('rifle', 'pistol', 'charged', 'rocket') if args.kind == 'rocket' or kind != 'rocket'}
     if not expected.issubset(report['selected_tags']):
         raise SystemExit('Capture did not select every requested projectile kind')
 if not args.enabled and not (args.muzzle and args.both_lighting and args.occlusion) and report['occlusion_updates']:

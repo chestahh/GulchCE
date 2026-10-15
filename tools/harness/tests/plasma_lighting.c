@@ -1,4 +1,5 @@
 #include "harness.h"
+#define NUMBEROF(a) (sizeof(a)/sizeof((a)[0]))
 #include <string.h>
 
 enum { _object_type_projectile = 5 };
@@ -56,6 +57,12 @@ void plasma_lighting_reset(void);
 int plasma_lighting_selected(long index);
 void plasma_falloff_dispose(void) {}
 void plasma_falloff_end(void) {}
+void covenant_lighting_frame_end(void) {}
+void covenant_lighting_window_begin(void) {}
+void covenant_lighting_submitted(long i,long r) {}
+int covenant_lighting_selected(long i) { return 0; }
+int covenant_lighting_owns(long l,long o) { return l == 21; }
+float covenant_lighting_radius(long l,long o,float r) { return r; }
 #include "under_test.inc"
 
 int main(int argc, char **argv)
@@ -63,7 +70,19 @@ int main(int argc, char **argv)
 	int i;
 	const char *test = argv[1];
 
-	if (!strcmp(test, "radius"))
+	if (!strcmp(test, "covenant"))
+ {
+  const char *names[] = {"vehicles\\ghost\\ghost bolt", "vehicles\\banshee\\banshee bolt", "vehicles\\banshee\\banshee fuel rod", "vehicles\\c gun turret\\c gun turret", "weapons\\fuel rod gun\\fuel rod", "weapons\\needler\\needle", "vehicles\\wraith\\wraith mortar", "weapons\\plasma_cannon\\plasma_cannon"};
+  float scales[] = {1.75f,1.75f,2.75f,2.5f,2.75f,1.5f,1.75f,2.75f};
+  for(i=0;i<8;i++) {
+   tag_name=names[i];plasma_lighting_prepare(1,1);
+   CHECK(plasma_lighting_radius(1,1,1)==scales[i],"Covenant authored radius");
+   plasma_lighting_frame_end();
+   CHECK(plasma_lighting_radius(1,1,1)==1,"Covenant restore");
+  }
+  plasma_lighting_prepare(21,21);CHECK(plasma_lighting_count==0,"owned glow bypasses authored restore");
+ }
+ else if (!strcmp(test, "radius"))
 	{
 		const char *names[] = {"weapons\\plasma rifle\\bolt", "weapons\\plasma pistol\\bolt",
 			"weapons\\plasma rifle\\charged bolt", "weapons\\rocket launcher\\rocket"};

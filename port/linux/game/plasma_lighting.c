@@ -8,6 +8,7 @@
 #include "plasma_model_shader.h"
 #include "plasma_occlusion.h"
 #include "rocket_lighting.h"
+#include "covenant_lighting.h"
 #include "muzzle_lighting.h"
 #include <string.h>
 
@@ -52,16 +53,20 @@ void plasma_lighting_prepare(long light_index, long object_index)
 	struct object_datum *object;
 	const char *name;
 	int index;
+	float covenant_scale;
 
 	if (!config_boolean("display.plasma_lighting") || object_index == NONE)
 		return;
+	if (covenant_lighting_owns(light_index, object_index))
+		return; /* Owned glows have their own radius and frame cleanup. */
 	object = object_try_and_get(object_index);
 	if (!object || object->object.type != _object_type_projectile)
 		return;
 	name = tag_get_name(object->definition_index);
-	/* Deliberately narrow: custom projectiles need an explicit policy later. */
+	covenant_scale = covenant_lighting_scale(name);
+	/* Exact tag policies keep unrelated custom projectiles stock. */
 	/* The pistol overcharge uses a tag in the rifle directory. */
-	if (!name || (strcmp(name, "weapons\\plasma rifle\\bolt") &&
+	if (!name || (!covenant_scale && strcmp(name, "weapons\\plasma rifle\\bolt") &&
 		strcmp(name, "weapons\\plasma pistol\\bolt") &&
 		strcmp(name, "weapons\\plasma rifle\\charged bolt") &&
 		strcmp(name, "weapons\\rocket launcher\\rocket")))
@@ -82,6 +87,7 @@ void plasma_lighting_prepare(long light_index, long object_index)
 	/* Wider soft falloff increases useful illumination without clipping colour.
 	   Pistol shots start with smaller authored radii than rifle bolts. */
 	plasma_lighting_attachments[plasma_lighting_count].radius_scale =
+		covenant_scale ? covenant_scale :
 		!strcmp(name, "weapons\\plasma pistol\\bolt") ? 2.25f :
 		!strcmp(name, "weapons\\plasma rifle\\charged bolt") ? 2.75f : 1.75f;
 	plasma_lighting_count++;
@@ -105,6 +111,7 @@ void plasma_lighting_frame_end(void)
 	int index;
 
 	muzzle_lighting_frame_end();
+	covenant_lighting_frame_end();
 	rocket_lighting_frame_end();
 	plasma_falloff_end(); /* Also close a pass if drawing ended early. */
 	/* Called after render interpolation ends, even if the option was disabled.
@@ -139,6 +146,7 @@ void plasma_lighting_window_begin(void)
 	int index;
 	plasma_occlusion_window();
 	muzzle_lighting_window_begin();
+	covenant_lighting_window_begin();
 	rocket_lighting_window_begin();
 	plasma_model_lighting_reset();
 	for (index = 0; index < plasma_lighting_count; index++)
@@ -149,6 +157,7 @@ void plasma_lighting_submitted(long light_index, long rasterizer_index)
 {
 	int index;
 	muzzle_lighting_submitted(light_index, rasterizer_index);
+	covenant_lighting_submitted(light_index, rasterizer_index);
 	rocket_lighting_submitted(light_index, rasterizer_index);
 	for (index = 0; index < plasma_lighting_count; index++)
 		if (plasma_lighting_attachments[index].light_index == light_index)
@@ -165,7 +174,7 @@ int plasma_lighting_selected(long rasterizer_index)
 		return TRUE;
 	if (rasterizer_index == NONE || !config_boolean("display.plasma_lighting"))
 		return FALSE;
-	if (rocket_lighting_selected(rasterizer_index))
+	if (covenant_lighting_selected(rasterizer_index) || rocket_lighting_selected(rasterizer_index))
 		return TRUE;
 	for (index = 0; index < plasma_lighting_count; index++)
 		if (plasma_lighting_attachments[index].rasterizer_index == rasterizer_index)

@@ -17,6 +17,8 @@
 #include "devices/devices.h"
 #include "cache/cache_files.h"
 #include "cutscene/cinematics.h"
+#include "game/cheats.h"
+#include "ai/ai.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -32,7 +34,18 @@ static int capture_combat, capture_toggle;
 static long capture_target = NONE;
 static const char *capture_projectile_tags[] = {
 	"weapons\\plasma rifle\\bolt", "weapons\\plasma pistol\\bolt",
-	"weapons\\plasma rifle\\charged bolt", "weapons\\rocket launcher\\rocket"
+	"weapons\\plasma rifle\\charged bolt", "weapons\\rocket launcher\\rocket",
+	"weapons\\needler\\needle",
+	"vehicles\\ghost\\ghost bolt",
+	"vehicles\\banshee\\banshee bolt",
+	"vehicles\\banshee\\banshee fuel rod",
+	"vehicles\\c gun turret\\c gun turret",
+	"weapons\\fuel rod gun\\fuel rod",
+	"vehicles\\wraith\\wraith mortar",
+	"weapons\\needler\\mp_needle",
+	"vehicles\\banshee\\mp_banshee fuel rod",
+	"vehicles\\c gun turret\\mp gun turret",
+	"weapons\\plasma_cannon\\plasma_cannon"
 };
 static int capture_kind(void)
 {
@@ -40,6 +53,17 @@ static int capture_kind(void)
 	if (kind && !strcmp(kind, "pistol")) return 1;
 	if (kind && !strcmp(kind, "charged")) return 2;
 	if (kind && !strcmp(kind, "rocket")) return 3;
+	if (kind && !strcmp(kind, "needle")) return 4;
+	if (kind && !strcmp(kind, "ghost")) return 5;
+	if (kind && !strcmp(kind, "banshee")) return 6;
+	if (kind && !strcmp(kind, "banshee-fuel")) return 7;
+	if (kind && !strcmp(kind, "shade")) return 8;
+	if (kind && !strcmp(kind, "fuel")) return 9;
+	if (kind && !strcmp(kind, "wraith")) return 10;
+	if (kind && !strcmp(kind, "mp-needle")) return 11;
+	if (kind && !strcmp(kind, "mp-banshee-fuel")) return 12;
+	if (kind && !strcmp(kind, "mp-shade")) return 13;
+	if (kind && !strcmp(kind, "ce-fuel")) return 14;
 	return 0;
 }
 int config_write_boolean(const char *name, int value);
@@ -88,8 +112,17 @@ void plasma_capture_tick(void)
 			capture_bolts[i] = NONE;
 	}
 	capture_last_time = now;
-	if (getenv("HALO_PLASMA_CAPTURE_DOOR") && cinematic_in_progress())
+	if (!game_in_progress())
 		return;
+	if ((getenv("HALO_PLASMA_CAPTURE_DOOR") || getenv("HALO_COVENANT_CAPTURE_CAMPAIGN")) && cinematic_in_progress())
+		return;
+	/* Keep campaign captures reproducible without AI attacks or reloads from
+	   the fixture's nearby explosions. Projectile flight/effects remain live. */
+	if (getenv("HALO_COVENANT_CAPTURE_CAMPAIGN"))
+	{
+		ai_globals_ai_active(FALSE);
+		cheat.deathless_player = TRUE;
+	}
 	capture_ticks++;
 	if (capture_ticks == 60)
 	{
@@ -266,7 +299,7 @@ void plasma_capture_tick(void)
 		if (getenv("HALO_PLASMA_CAPTURE_MIXED"))
 			placement.definition_index = tag_loaded(PROJECTILE_DEFINITION_TAG, capture_projectile_tags[bolt % (capture_kind() == 3 ? 4 : 3)]);
 		capture_bolts[bolt] = object_new(&placement);
-		if (capture_bolts[bolt] != NONE && capture_target != NONE && capture_kind() == 2 && !capture_probe)
+		if (capture_bolts[bolt] != NONE && capture_target != NONE && (capture_kind() == 2 || capture_kind() == 4 || capture_kind() == 11) && !capture_probe)
 		{
 			projectile_set_target_object_index(capture_bolts[bolt], capture_target);
 			platform_log("PLASMA homing %ld target %ld", capture_bolts[bolt], capture_target);
@@ -278,8 +311,8 @@ void plasma_capture_tick(void)
 	{
 		struct object_datum *object = object_get(capture_projectile);
 		struct object_definition *definition = object_definition_get(tag);
-		platform_log("PLASMA tag %s type %d", tag_get_name(tag), object->object.type);
-		if (capture_kind() == 3)
+		platform_log("PLASMA tag %s type %d nodes %ld flags %lx", tag_get_name(tag), object->object.type, object->object.node_matrices.size, object->object.flags);
+		if (capture_kind() == 3 || capture_kind() == 4 || capture_kind() == 10 || capture_kind() == 11)
 		{
 			long glow = light_port_glow_definition_get();
 			if (glow != NONE)
