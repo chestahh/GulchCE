@@ -27,6 +27,8 @@ static struct emitter_light
 	int active, connected, seen, kind;
 	long object, light, rasterizer;
 	real strength, last_time, radius;
+	real_point3d position;
+	real_vector3d direction;
 } emitters[EMITTER_LIGHTS];
 static const real_rgb_color emitter_black = {0, 0, 0};
 struct emitter_sample
@@ -35,6 +37,7 @@ struct emitter_sample
 	real strength, radius;
 	real_rgb_color color;
 	real_point3d position;
+	real_vector3d direction;
 };
 
 int covenant_emitter_lighting_enabled(void)
@@ -140,7 +143,7 @@ static int emitter_sample(long index, struct emitter_sample *sample)
 		sample->color.blue = 0.05f;
 		sample->strength = 0.75f;
 	}
-	else if (object->object.type == _object_type_weapon && ammo_counter_lighting_position(index, &sample->position))
+	else if (object->object.type == _object_type_weapon && ammo_counter_lighting_position(index, &sample->position, &sample->direction))
 	{
 		sample->kind = 3;
 		sample->radius = 0.95f;
@@ -231,6 +234,11 @@ void covenant_emitter_lighting_update(void)
 		emitter->strength += (sample.strength - emitter->strength) * blend;
 		emitter->last_time = now;
 		emitter->radius = sample.radius;
+		if (sample.kind == 3)
+		{
+			emitter->position = sample.position;
+			emitter->direction = sample.direction;
+		}
 		if (emitter->strength < 0.002f)
 		{
 			if (sample.strength <= 0.0f)
@@ -332,4 +340,24 @@ long covenant_emitter_lighting_occlusion_ignore(long light)
 			light != NONE && emitter_kind_enabled(2))
 			return emitters[i].object;
 	return NONE;
+}
+
+int covenant_emitter_lighting_cone(long rasterizer, float axis[3], float origin[3], float *radius)
+{
+	int i;
+	if (rasterizer == NONE || !emitter_kind_enabled(3))
+		return FALSE;
+	for (i = 0; i < EMITTER_LIGHTS; i++)
+		if (emitters[i].active && emitters[i].kind == 3 && emitters[i].rasterizer == rasterizer)
+		{
+			axis[0] = emitters[i].direction.i;
+			axis[1] = emitters[i].direction.j;
+			axis[2] = emitters[i].direction.k;
+			origin[0] = emitters[i].position.x;
+			origin[1] = emitters[i].position.y;
+			origin[2] = emitters[i].position.z;
+			*radius = emitters[i].radius;
+			return TRUE;
+		}
+	return FALSE;
 }

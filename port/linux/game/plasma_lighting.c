@@ -131,7 +131,8 @@ void plasma_lighting_frame_end(void)
 			plasma_lighting_attachments[index].object_index);
 	}
 	plasma_lighting_reset();
-	if (!config_boolean("display.plasma_occlusion") && !config_boolean("display.muzzle_lighting"))
+	if (!config_boolean("display.plasma_occlusion") && !config_boolean("display.muzzle_lighting") &&
+		!covenant_emitter_lighting_enabled())
 		plasma_occlusion_reset();
 	if (!config_boolean("display.plasma_lighting") && !config_boolean("display.muzzle_lighting") &&
 		!covenant_emitter_lighting_enabled())

@@ -234,3 +234,64 @@ samples from the replicated weapon. See `build/colour-network-rifle`. This is a
 bounded multiplayer smoke/regression check, not a proof of deterministic or
 internet/browser compatibility. All test map copies were confined to private
 run folders and removed; original maps and saves were preserved.
+
+## Directional ammo counter refinement
+
+The counter keeps its 0.95 radius, 0.65 strength, colour and emissive screen
+floor. Its spill now follows a broad rear/up-facing hemisphere in the animated
+weapon marker basis (-0.8 forward + 0.6 up), in both first and third person.
+This approximates the sloped display orientation; it is not a measured mesh
+normal or an area-light simulation. A smooth angular fade reaches full strength
+at a dot product of 0.6 and zero behind the display. This removes downward spill
+for a normally held rifle while allowing nearby surfaces when the rifle turns.
+
+`ammo_counter_falloff.c` owns the bounded eight-light, 16-cubed texture pool.
+Existing world diffuse/specular and model visibility interfaces consume the
+same angular mask. With collision occlusion enabled it multiplies the visibility
+field after admission blending. Without an admitted field it uses a separate
+mask, so disabling wall occlusion or exhausting its budget does not remove the
+directionality. Allocation/upload failure still permits the existing unmasked
+fallback; this is not a guarantee under graphics resource failure.
+Textures reset with the existing occlusion lifecycle and refresh per view.
+No stock source hooks, map loaders, simulation or network formats changed.
+
+Regression tests exercise the actual feature sources, rotated poses, forward
+brightness, rear rejection, combined visibility, disabled collision, independent
+world/model textures and resource cleanup. A mutation that removes the angular
+mask is rejected. The brighter shield profiles and screen material are unchanged.
+
+The directional refinement passes 54 focused lighting, falloff and shader
+regression tests. Windows portable release and diagnostic builds compile.
+The final capture manifest is `build/directional-sweeps/build-manifest.json`.
+Earlier stationary captures use `build/directional-visual`; the only later
+production changes are a collision comment and retaining the directional cache
+between emitter-only frames when collision occlusion is off.
+
+Visual captures cover first-person AR, Marine and player models at 30/60/120 FPS,
+with disabled controls at 60 FPS. The final aim sweeps exercise yaw, elevation
+and reloads. First-person screen readability and nearby housing light remain;
+the tested held-model scenes have no broad blue foot pool. Their rear camera
+angle limits assessment of face illumination and tiny third-person digits.
+The angular model is intentionally approximate and needs normal playtest feedback.
+Initial weak-input sweeps were superseded after correcting controller dead-zone
+coverage; two also failed timing due to frame hitches. Those logs are retained.
+Final captures are separate and must sustain the cap within five percent.
+
+`build/directional-capture-summary.json` records 26 accepted capture cases,
+including counter-only lighting with collision off at all three frame caps.
+Xbox c40 -> CE Death Island -> MCC Mercury Falling -> Xbox Blood Gulch passed
+with features off at 30 FPS and on at 120 FPS, clean exits and no logged
+exceptions (`build/directional-transitions`). This checks lifecycle boundaries,
+not exhaustive map compatibility. Android and web builds were attempted but
+both targets are absent from the generated build; Linux and browser transport
+remain unverified locally. No simulation agreement or wire format changed.
+
+The two-instance native AR session exited cleanly with 84 shared player snapshots:
+76 exact matches; the other eight differed only by one in the logged `ed` field.
+Positions, health, ammunition and the other compared player fields matched.
+The client recorded 4926 emitter samples without equipping a fixture locally.
+This is a bounded replication smoke test, not bit-identical multiplayer proof
+(`build/directional-network-rifle`). The normal executable passed a separate
+hidden OpenGL smoke test with stock defaults and no capture markers; its hash
+matches the final package. Final production hashes match the sweep manifest.
+Owned map copies were removed; original maps/saves and diagnostic logs remain.

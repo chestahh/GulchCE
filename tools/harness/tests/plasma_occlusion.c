@@ -1,6 +1,7 @@
 #include "harness.h"
 #include <math.h>
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
+#define PIN(a,b,c) MIN(MAX(a,b),c)
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 typedef struct
 {
@@ -20,7 +21,8 @@ enum
 	_collision_test_back_facing_surfaces_bit,
 	_collision_test_objects_bit,
 	_collision_test_objects_scenery_bit,
-	_collision_test_objects_machines_bit
+	_collision_test_objects_machines_bit,
+	_collision_test_objects_vehicles_bit
 };
 struct collision_result
 {
@@ -42,6 +44,15 @@ static int uploads;
 static real specular_scale = 1;
 static int muzzle_on, emitter_on, emitter_occlusion;
 static long last_ignore;
+static unsigned long last_flags;
+static int directional_on, vehicle_only;
+int muzzle_lighting_vehicle_occlusion(long light) { return muzzle_on && light==500; }
+int covenant_emitter_lighting_cone(long r,float axis[3],float origin[3],float *radius)
+{
+ int i;if(!directional_on||r<0||r>=8)return 0;
+ axis[0]=-.8f;axis[1]=0;axis[2]=.6f;
+ for(i=0;i<3;i++)origin[i]=0;*radius=1;return 1;
+}
 long covenant_emitter_lighting_occlusion_ignore(long i) { return emitter_on && i == 502 ? 42 : NONE; }
 int covenant_emitter_lighting_enabled(void) { return emitter_on; }
 int covenant_emitter_lighting_selected(long i) { return emitter_on && i == 0; }
@@ -66,6 +77,8 @@ static int collision_test_vector(unsigned long flags, const real_point3d *p, con
 	float t, y;
 	queries++;
 	last_ignore = ignore;
+	last_flags = flags;
+	if (vehicle_only && !(flags & FLAG(_collision_test_objects_vehicles_bit))) return 0;
 	if (!blocked || v->i == 0)
 		return 0;
 	t = (0.3f - p->x) / v->i;
@@ -220,12 +233,12 @@ int main(int argc, char **argv)
 	plasma_occlusion_submit(18, 8);
 	f = field_for(8);
 	CHECK(f && f->fading, "previous overflow is admitted with a fade");
-	CHECK(field_texture(f, 0) && f->texture[0]->pixels[4095] == 0xffffffffUL, "admission starts at previous unoccluded appearance");
+	CHECK(field_texture(f, 0, 0) && f->texture[0]->pixels[4095] == 0xffffffffUL, "admission starts at previous unoccluded appearance");
 	time_ms += 40;
 	plasma_occlusion_window();
 	plasma_occlusion_submit(18, 8);
 	f = field_for(8);
-	CHECK(field_texture(f, 0) && f->texture[0]->pixels[4095] != 0xffffffffUL && f->texture[0]->pixels[4095] != 0,
+	CHECK(field_texture(f, 0, 0) && f->texture[0]->pixels[4095] != 0xffffffffUL && f->texture[0]->pixels[4095] != 0,
 		  "admission blends instead of snapping");
 	plasma_occlusion_submit(10, 0);
 	plasma_occlusion_model_slot(0, 0);
@@ -292,7 +305,7 @@ int main(int argc, char **argv)
 		f->admission = 0.37f;
 		for (pass = 0; pass < 3; pass++)
 		{
-			IDirect3DVolumeTexture8 *t = field_texture(f, pass);
+			IDirect3DVolumeTexture8 *t = field_texture(f, pass, 0);
 			CHECK(t, "requested pass uploaded");
 			for (z=0; z<16; z++) for (y=0; y<16; y++) for (x=0; x<16; x++)
 			{
@@ -325,5 +338,38 @@ int main(int argc, char **argv)
 	emitter_occlusion=0; plasma_occlusion_reset();
 	plasma_occlusion_window(); plasma_occlusion_submit(503,0);
 	CHECK(!plasma_occlusion_texture(0,0), "emitter occlusion remains independently optional");
+	/* A counter remains directional with wall occlusion disabled or full. */
+	directional_on=1;plasma_occlusion_reset();
+	{
+	 float axis[3]={-.8f,0,.6f},tr[4];
+	 IDirect3DVolumeTexture8 *t;
+	 CHECK(ammo_counter_falloff_factor(axis,-.8f,0,.6f)==1,"screen-facing strength preserved");
+	 CHECK(ammo_counter_falloff_factor(axis,0,0,-1)==0,"floor behind display is dark");
+	 CHECK(ammo_counter_falloff_factor(axis,.8f,0,-.6f)==0,"back hemisphere is dark");
+	 CHECK(ammo_counter_falloff_factor(axis,0,0,1)==1,"face above screen retains brightness");
+	 plasma_occlusion_model_slot(0,0);t=plasma_occlusion_model_texture(0,tr);
+	 CHECK(t&&tr[3]==.5f,"model directional mask independent of collision option");
+	 CHECK((t->pixels[(0*16+8)*16+8]&255)==0,"model floor mask dark");
+	 t=plasma_occlusion_texture(0,0);
+	 CHECK(t&&(t->pixels[(0*16+8)*16+8]&255)==0,"world floor mask dark");
+	 n=uploads;CHECK(plasma_occlusion_texture(0,1)==t&&uploads==n,"specular reuses angular radial mask");
+	 CHECK(!plasma_occlusion_texture(20,0),"unrelated lights retain stock fallback");
+	 plasma_occlusion_reset();CHECK(!allocations,"directional textures released on reset");
+	}
+	on=1;emitter_on=1;emitter_occlusion=1;blocked=0;
+	plasma_occlusion_submit(502,0);
+	{
+	 IDirect3DVolumeTexture8 *t=plasma_occlusion_texture(0,0);
+	 CHECK(t&&(t->pixels[(0*16+8)*16+8]&255)==0,"combined collision and direction mask stays dark behind screen");
+	}
+	plasma_occlusion_reset();on=0;
+	directional_on=0;emitter_on=0;muzzle_on=1;vehicle_only=blocked=1;
+	plasma_occlusion_submit(500,0);f=field_for(0);
+	CHECK(f&&(last_flags&FLAG(_collision_test_objects_vehicles_bit)),"turret rays include chassis");
+	CHECK(f->visibility[4095]<.1f,"vehicle blocks receiver behind hull");
+	plasma_occlusion_reset();plasma_occlusion_submit(501,0);f=field_for(0);
+	CHECK(f&&!(last_flags&FLAG(_collision_test_objects_vehicles_bit)),"other muzzle profiles retain original blockers");
+	CHECK(f->visibility[4095]>.99f,"vehicle-only blocker does not change unrelated lights");
+	plasma_occlusion_reset();
 	return 0;
 }

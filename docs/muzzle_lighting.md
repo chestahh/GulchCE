@@ -155,3 +155,26 @@ earlier 45-second run timed out before gameplay and is excluded. Logs are in
 `build/emitter-network-retry-warthog`; final turret images are in
 `build/plasma-visual/*-emitter-release-warthog`.
 
+
+## Vehicle occlusion refinement
+
+Warthog muzzle pulses now include vehicle collision geometry in the existing
+optional visibility field. The emitting Warthog is not excluded: its chassis
+can block light reaching ground beneath it, while exposed surroundings can
+receive the same broad warm pulse. Radius, colour, duration and stock flash
+remain unchanged. Other muzzle profiles retain their existing collision mask.
+This requires both muzzle lighting and plasma occlusion to be enabled; both
+remain off by default. It is approximate collision-based visibility, not exact
+render-mesh shadows, and the existing shared budget and edge leakage apply.
+The regression fixture checks vehicle-only obstruction and verifies that an
+unrelated muzzle profile does not acquire vehicle blocking.
+
+The chassis refinement was captured on Windows at 30/60/120 FPS, with an off
+control at 60 FPS and final larger yaw/elevation sweeps at all three caps.
+Images show exposed warm ground spill and a dark region under the chassis;
+turning exposes lit hull surfaces. Final sweeps record model and specular draws.
+The shared visibility regression tests pass, including vehicle obstruction and
+preserving the collision mask for other muzzle profiles. These bounded scenes
+do not establish perfect self-shadowing at every hull edge or seat/view angle.
+See `build/plasma-visual/*-direct-warthog` and
+`build/plasma-visual/*-direct-final-turn-warthog` for the retained captures.

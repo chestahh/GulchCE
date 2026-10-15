@@ -11,7 +11,7 @@
 
 int config_boolean(const char *name);
 
-int ammo_counter_lighting_position(long index, real_point3d *position)
+int ammo_counter_lighting_position(long index, real_point3d *position, real_vector3d *direction)
 {
 	struct weapon_datum *weapon;
 	struct unit_datum *unit;
@@ -47,6 +47,11 @@ int ammo_counter_lighting_position(long index, real_point3d *position)
 		up = marker.matrix.up;
 		height = 0.027744f;
 	}
+	/* Broad rear/up-facing emission approximates the sloped display surface.
+	   Derive it from the rendered weapon basis, never world up. */
+	direction->i = -0.8f * forward.i + 0.6f * up.i;
+	direction->j = -0.8f * forward.j + 0.6f * up.j;
+	direction->k = -0.8f * forward.k + 0.6f * up.k;
 	position->x += -0.18f * forward.i + height * up.i;
 	position->y += -0.18f * forward.j + height * up.j;
 	position->z += -0.18f * forward.k + height * up.k;

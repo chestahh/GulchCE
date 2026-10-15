@@ -11,4 +11,6 @@ int covenant_emitter_lighting_selected(long rasterizer);
 long covenant_emitter_lighting_occlusion_ignore(long light);
 float covenant_emitter_lighting_radius(long light, float radius);
 
+int covenant_emitter_lighting_cone(long rasterizer, float axis[3], float origin[3], float *radius);
+
 #endif

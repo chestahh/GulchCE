@@ -121,6 +121,7 @@ int main(int argc,char **argv)
   weapons[1].object.flags=FLAG(_object_invisible_bit);weapons[1].object.node_matrices.size=0;
   weapons[20].object.node_matrices.size=sizeof(real_matrix4x3);
   muzzle_lighting_shot(1,0);muzzle_lighting_update();
+  CHECK(muzzle_lighting_vehicle_occlusion(pulses[0].light),"turret includes vehicle blockers");
   CHECK(allocs==1 && lights[0].radius==5.0f && lights[0].color.green==0.75f,"wide warm turret pulse uses vehicle marker");
   muzzle_lighting_frame_end();marker_x=1;render_time+=1.0f/120;muzzle_lighting_update();
   CHECK(lights[0].position.x==1 && lights[0].color.red<1,"turret follows rendered aim with smooth fade");

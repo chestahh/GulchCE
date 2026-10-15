@@ -24,7 +24,7 @@ def generated(fault=None):
     return (('under_test.inc', code),)
 
 
-@pytest.mark.parametrize('case', ['covenant', 'muzzle', 'radius', 'rocket', 'pistol', 'model', 'off', 'filter', 'restore', 'split', 'capacity', 'unload', 'missing', 'stale', 'selection', 'existing'])
+@pytest.mark.parametrize('case', ['counter_cache', 'covenant', 'muzzle', 'radius', 'rocket', 'pistol', 'model', 'off', 'filter', 'restore', 'split', 'capacity', 'unload', 'missing', 'stale', 'selection', 'existing'])
 def test_case(case):
     status, output = run(build('plasma_lighting', generated()), case)
     assert status == 0, output

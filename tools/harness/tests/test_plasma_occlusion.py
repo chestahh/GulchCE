@@ -8,14 +8,21 @@ from harness import CHECK_FAILED, build, read, run
 
 
 def test_visibility_field():
-    code = re.sub(r'^#include.*$', '', read('port/linux/game/plasma_occlusion.c'), flags=re.M)
+    code = re.sub(r'^#include.*$', '', read('port/linux/game/ammo_counter_falloff.c') + '\n' + read('port/linux/game/plasma_occlusion.c'), flags=re.M)
     status, output = run(build('plasma_occlusion', (('under_test.inc', code),)), 'visibility')
     assert status == 0, output
 
 
 def test_stale_pass_upload_is_detected():
-    code = re.sub(r'^#include.*$', '', read('port/linux/game/plasma_occlusion.c'), flags=re.M)
+    code = re.sub(r'^#include.*$', '', read('port/linux/game/ammo_counter_falloff.c') + '\n' + read('port/linux/game/plasma_occlusion.c'), flags=re.M)
     assert code.count('field->texture_mask = 0;') == 1
     code = code.replace('field->texture_mask = 0;', '(void)0;')
+    status, output = run(build('plasma_occlusion', (('under_test.inc', code),)), 'visibility')
+    assert status == CHECK_FAILED, output
+
+
+def test_directional_mask_is_required():
+    code = re.sub(r'^#include.*$', '', read('port/linux/game/ammo_counter_falloff.c') + '\n' + read('port/linux/game/plasma_occlusion.c'), flags=re.M)
+    code = code.replace('return t*t*(3.0f - 2.0f*t);', '(void)t; return 1.0f;')
     status, output = run(build('plasma_occlusion', (('under_test.inc', code),)), 'visibility')
     assert status == CHECK_FAILED, output

@@ -1,7 +1,9 @@
 /* A filtered local visibility field avoids rejecting a whole model at a door.
-   Collision queries see only the structure, scenery and machines. The field
+   Queries see structure, scenery and machines, plus vehicles for Warthog flashes.
+   The field
    is approximate within one cell of an edge; this is not a shadow renderer. */
 #include "plasma_occlusion.h"
+#include "ammo_counter_falloff.h"
 #include "cseries.h"
 #include "physics/collisions.h"
 #include "plasma_lighting.h"
@@ -101,13 +103,14 @@ static real sample_field(const real *values, real x, real y, real z)
 }
 /* One depth ray per cubemap texel serves every radial cell on that ray.
    Interpolate visibility comparisons, never distances across a doorway. */
-static void trace_depths(real const extent, real_point3d const *from, long ignore, real depths[6][OCC_SIZE * OCC_SIZE])
+static void trace_depths(real const extent, real_point3d const *from, long ignore, int vehicles, real depths[6][OCC_SIZE * OCC_SIZE])
 {
 	int face, x, y, axis;
 	unsigned long flags =
 		FLAG(_collision_test_structure_bit) | FLAG(_collision_test_front_facing_surfaces_bit) |
 		FLAG(_collision_test_back_facing_surfaces_bit) | FLAG(_collision_test_objects_bit) |
 		FLAG(_collision_test_objects_scenery_bit) | FLAG(_collision_test_objects_machines_bit);
+	if (vehicles) flags |= FLAG(_collision_test_objects_vehicles_bit);
 	for (face = 0; face < 6; face++)
 		for (y = 0; y < OCC_SIZE; y++)
 			for (x = 0; x < OCC_SIZE; x++)
@@ -237,7 +240,8 @@ static struct occlusion_field *field_for(long rasterizer_index)
 	if (!field->valid || now - field->traced >= 12 || field->trace_extent != extent ||
 		trace_dx * trace_dx + trace_dy * trace_dy + trace_dz * trace_dz > extent * extent * 0.015625f)
 	{
-		trace_depths(extent, &light->position, covenant_emitter_lighting_occlusion_ignore(field->identity), field->depths);
+		trace_depths(extent, &light->position, covenant_emitter_lighting_occlusion_ignore(field->identity),
+			muzzle_lighting_vehicle_occlusion(field->identity), field->depths);
 		field->traced = now;
 		field->trace_extent = extent;
 		field->trace_center[0] = light->position.x;
@@ -292,11 +296,12 @@ static struct occlusion_field *field_for(long rasterizer_index)
 }
 /* Build only a texture actually consumed by this view. CPU visibility history
    stays independent of pass order, and each pass uploads at most once. */
-static void *field_texture(struct occlusion_field *field, int pass)
+static void *field_texture(struct occlusion_field *field, int pass, long rasterizer)
 {
 	unsigned long pixels[OCC_COUNT];
 	int x, y, z, i;
-	real scale;
+	real scale, axis[3], origin[3], radius;
+	int directional = covenant_emitter_lighting_cone(rasterizer, axis, origin, &radius);
 	if (!field)
 		return NULL;
 	/* A failed pass falls back for the rest of this view, then retries next view. */
@@ -322,6 +327,8 @@ static void *field_texture(struct occlusion_field *field, int pass)
 					value = sample_field(field->visibility, 0.5f + dx * scale * 0.5f,
 						0.5f + dy * scale * 0.5f, 0.5f + dz * scale * 0.5f);
 				value = 1 - field->admission + field->admission * value;
+				if (directional)
+					value *= ammo_counter_falloff_factor(axis, dx, dy, dz);
 				if (pass)
 					value *= remaining * remaining;
 				pixels[i] = (unsigned long)(255 * value + 0.5f) * 0x01010101UL;
@@ -337,6 +344,7 @@ static void *field_texture(struct occlusion_field *field, int pass)
 void plasma_occlusion_reset(void)
 {
 	int i, j;
+	ammo_counter_falloff_dispose();
 	for (i = 0; i < OCC_LIGHTS; i++)
 		for (j = 0; j < 3; j++)
 			if (fields[i].texture[j])
@@ -347,6 +355,7 @@ void plasma_occlusion_reset(void)
 }
 void plasma_occlusion_window(void)
 {
+	ammo_counter_falloff_window();
 	current_window++;
 	submitted_count = 0;
 	updates_this_window = 0;
@@ -371,7 +380,8 @@ void plasma_occlusion_model_slot(long rasterizer_index, short slot)
 void *plasma_occlusion_texture(long rasterizer_index, int specular)
 {
 	struct occlusion_field *field = field_for(rasterizer_index);
-	return field_texture(field, specular ? 2 : 1);
+	void *texture = field_texture(field, specular ? 2 : 1, rasterizer_index);
+	return texture ? texture : ammo_counter_falloff_texture(rasterizer_index, 1, NULL);
 }
 void *plasma_occlusion_model_texture(int slot, float transform[4])
 {
@@ -380,10 +390,13 @@ void *plasma_occlusion_model_texture(int slot, float transform[4])
 		return NULL;
 	field = field_for(model_slots[slot]);
 	if (!field)
-		return NULL;
+		return ammo_counter_falloff_texture(model_slots[slot], 0, transform);
 	transform[0] = field->center[0];
 	transform[1] = field->center[1];
 	transform[2] = field->center[2];
 	transform[3] = 0.5f / field->extent;
-	return field_texture(field, 0);
+	{
+		void *texture = field_texture(field, 0, model_slots[slot]);
+		return texture ? texture : ammo_counter_falloff_texture(model_slots[slot], 0, transform);
+	}
 }

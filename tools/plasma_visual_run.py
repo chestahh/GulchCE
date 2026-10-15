@@ -23,6 +23,7 @@ parser.add_argument('--kind', choices=['rifle','pistol','charged','rocket','need
 parser.add_argument('--muzzle', choices=['ar','handgun','shotgun','sniper','rifle','pistol','charged','needler','rocket','flamethrower','warthog'])
 parser.add_argument('--both-lighting', action='store_true')
 parser.add_argument('--emitter', choices=['jackal','major','fuel','stationary','ammo-fp','ammo-marine','ammo-player'])
+parser.add_argument('--turn', action='store_true', help='Capture-only yaw/pitch sweep for light orientation checks')
 parser.add_argument('--hide-viewmodel', action='store_true', help='Keep the local rifle from obscuring third-person receivers')
 parser.add_argument('--mixed', action='store_true')
 parser.add_argument('--model', action='store_true')
@@ -77,6 +78,8 @@ env.update(HALO_DATA_ROOT=str(out), HALO_SAVE_ROOT=str(out/'saves'), HALO_HIDDEN
 if args.map in ('b40', 'c40'):
     env['HALO_COVENANT_CAPTURE_CAMPAIGN'] = '1'
     env['HALO_EXIT_AFTER'] = '70'
+if args.turn:
+    env['HALO_LIGHTING_CAPTURE_TURN'] = '1'
 if args.hide_viewmodel:
     env['HALO_VIEWMODEL_VISIBLE'] = '0'
 if args.emitter:
@@ -157,6 +160,7 @@ report['selected_tags'] = sorted(set(re.findall(r'PLASMA prepare [^\r\n]+ tag ([
 report['muzzle'] = args.muzzle
 report['emitter'] = args.emitter
 report['hide_viewmodel'] = args.hide_viewmodel
+report['turn'] = args.turn
 report['emitter_samples'] = len(re.findall('EMITTER sample', logs))
 report['emitter_created'] = bool(re.search(r'EMITTER created (?!-1 )', logs))
 report['both_lighting'] = args.both_lighting

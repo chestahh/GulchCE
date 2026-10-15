@@ -188,6 +188,7 @@ int main(int argc,char **argv)
  first_person=1;
  CHECK(emitter_sample(0,&sample)&&sample.position.x==5&&fabs(sample.position.y+.18f)<.0001,"first person follows rotated rendered marker");
  CHECK(fabs(sample.position.z-.025f)<.0001,"first person has separate offset");
+ CHECK(sample.direction.i==0&&fabs(sample.direction.j+.8f)<.0001&&fabs(sample.direction.k-.6f)<.0001,"screen direction rotates with rendered weapon");
  inventory=1;CHECK(!emitter_sample(0,&sample),"holstered counter rejected");inventory=0;
  objects[0].object.parent_object_index=NONE;CHECK(!emitter_sample(0,&sample),"dropped counter is off");
  objects[0].object.parent_object_index=42;marker_missing=1;CHECK(!emitter_sample(0,&sample),"missing counter marker stays stock");marker_missing=0;

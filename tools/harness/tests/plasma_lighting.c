@@ -41,7 +41,8 @@ static void light_reconnect_to_map(long index)
 	{ real_point3d p; light_compute_bounding_sphere(index, TRUE, FALSE, TRUE, &p, &connected_radius); }
 }
 void plasma_occlusion_model_slot(long i, short s) {}
-void plasma_occlusion_reset(void) {}
+static int visibility_resets;
+void plasma_occlusion_reset(void) { visibility_resets++; }
 void muzzle_lighting_frame_end(void) {}
 void muzzle_lighting_window_begin(void) {}
 void muzzle_lighting_submitted(long l,long r) {}
@@ -76,7 +77,17 @@ int main(int argc, char **argv)
 	int i;
 	const char *test = argv[1];
 
-	if (!strcmp(test, "covenant"))
+	if (!strcmp(test, "counter_cache"))
+	{
+		enabled = muzzle_on = 0;
+		emitter_on = 1;
+		plasma_lighting_frame_end();
+		CHECK(visibility_resets == 0, "emitter-only frame retains directional textures");
+		emitter_on = 0;
+		plasma_lighting_frame_end();
+		CHECK(visibility_resets == 1, "disabled lighting releases visibility cache");
+	}
+	else if (!strcmp(test, "covenant"))
  {
   const char *names[] = {"vehicles\\ghost\\ghost bolt", "vehicles\\banshee\\banshee bolt", "vehicles\\banshee\\banshee fuel rod", "vehicles\\c gun turret\\c gun turret", "weapons\\fuel rod gun\\fuel rod", "weapons\\needler\\needle", "vehicles\\wraith\\wraith mortar", "weapons\\plasma_cannon\\plasma_cannon"};
   float scales[] = {1.75f,1.75f,2.75f,2.5f,2.75f,1.5f,1.75f,2.75f};

@@ -10,4 +10,6 @@ void muzzle_lighting_submitted(long light_index, long rasterizer_index);
 int muzzle_lighting_selected(long rasterizer_index);
 float muzzle_lighting_radius(long light_index, float radius);
 
+int muzzle_lighting_vehicle_occlusion(long light);
+
 #endif

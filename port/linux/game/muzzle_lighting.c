@@ -261,3 +261,15 @@ float muzzle_lighting_radius(long light_index, float radius)
 			return MAX(radius, pulses[i].radius);
 	return radius;
 }
+
+int muzzle_lighting_vehicle_occlusion(long light)
+{
+	int i;
+	if (light == NONE || !config_boolean("display.muzzle_lighting"))
+		return FALSE;
+	for (i = 0; i < MUZZLE_LIGHTS; i++)
+		if (pulses[i].active && pulses[i].light == light &&
+			!strcmp(muzzle_profiles[pulses[i].profile].tag, "vehicles\\warthog\\warthog gun"))
+			return TRUE;
+	return FALSE;
+}
