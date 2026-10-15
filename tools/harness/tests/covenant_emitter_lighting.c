@@ -30,7 +30,7 @@ static struct object_definition definition;
 #define TAG_BLOCK_GET_ELEMENT(b,i,t) (&fake_region)
 static const char *names[10];
 static real now,marker_x=1;
-static int count=1,shield_on=1,fuel_on,stationary_on,allocs,deletes,disconnects,moves,missing,fail,marker_missing;
+static int count=1,shield_on=1,fuel_on,stationary_on,allocs,deletes,disconnects,missing,fail,marker_missing;
 static long inventory=0;
 static int ammo_on,first_person;
 #define weapon_datum object_datum
@@ -72,7 +72,7 @@ static long light_new_unattached(long d,long o,short n,const real_point3d *p,con
 boolean light_port_glow_set(long l,long o,const real_rgb_color *c,real r)
 { int i=l-100;if(i<0||i>=allocs||!storage[i].active)return FALSE;storage[i].color=*c;storage[i].radius=r;return TRUE; }
 boolean light_port_glow_move(long l,const real_point3d *p)
-{ storage[l-100].position=*p;storage[l-100].connected=1;moves++;return TRUE; }
+{ storage[l-100].position=*p;storage[l-100].connected=1;return TRUE; }
 static void light_delete(long l) { storage[l-100].active=0;deletes++; }
 static void light_disconnect_from_map(long l)
 { CHECK(storage[l-100].connected,"double disconnect");storage[l-100].connected=0;disconnects++; }

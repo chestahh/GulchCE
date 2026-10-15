@@ -13,7 +13,7 @@ static struct weapon_datum weapons[21];
 static struct unit_datum unit;
 static struct observer_result camera;
 static const char *tag="weapons\\assault rifle\\assault rifle";
-static int on=1,present=1,held=1,marker=1,world_marker,allocs,deletes,disconnects,moves,submits,fail,missing;
+static int on=1,present=1,held=1,marker=1,world_marker,allocs,deletes,disconnects,submits,fail,missing;
 static long tick=30;
 static real render_time=1.0f, marker_x=0.5f;
 static real_vector3d forward={1,0,0};
@@ -51,7 +51,7 @@ boolean light_port_glow_set(long i,long o,const real_rgb_color *c,real r)
 }
 static void light_delete(long i) { lights[i].active=0;deletes++; }
 static void light_disconnect_from_map(long i) { CHECK(TEST_FLAG(lights[i].flags,_point_light_connected_to_map_bit),"disconnect once");lights[i].flags&=~FLAG(_point_light_connected_to_map_bit);disconnects++; }
-static void light_reconnect_to_map(long i) { CHECK(!TEST_FLAG(lights[i].flags,_point_light_connected_to_map_bit),"reconnect once");lights[i].flags|=FLAG(_point_light_connected_to_map_bit);moves++; }
+static void light_reconnect_to_map(long i) { CHECK(!TEST_FLAG(lights[i].flags,_point_light_connected_to_map_bit),"reconnect once");lights[i].flags|=FLAG(_point_light_connected_to_map_bit); }
 void plasma_occlusion_submit(long l,long r) { submits++; }
 #include "under_test.inc"
 int main(int argc,char **argv)
