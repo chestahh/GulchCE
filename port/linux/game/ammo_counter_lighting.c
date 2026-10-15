@@ -6,6 +6,7 @@
 #include "units/units.h"
 #include "interface/first_person_weapons.h"
 #include "ammo_counter_lighting.h"
+#include "shaders/shader_definitions.h"
 #include <string.h>
 
 int config_boolean(const char *name);
@@ -50,4 +51,34 @@ int ammo_counter_lighting_position(long index, real_point3d *position)
 	position->y += -0.18f * forward.j + height * up.j;
 	position->z += -0.18f * forward.k + height * up.k;
 	return TRUE;
+}
+
+/* Cache only within a loaded map; the emitter lifecycle clears this pointer. */
+static struct shader *ammo_counter_screen;
+static int ammo_counter_screen_checked;
+
+void ammo_counter_lighting_forget(void)
+{
+	ammo_counter_screen = NULL;
+	ammo_counter_screen_checked = FALSE;
+}
+
+void ammo_counter_lighting_screen(struct shader *shader, real_rgb_color *color)
+{
+	long index;
+	if (!config_boolean("display.ammo_counter_lighting"))
+		return;
+	if (!ammo_counter_screen_checked)
+	{
+		index = tag_loaded('soso', "weapons\\assault rifle\\fp\\shaders\\display");
+		ammo_counter_screen = index == NONE ? NULL : shader_definition_get(index);
+		ammo_counter_screen_checked = TRUE;
+	}
+	if (!shader || shader != ammo_counter_screen)
+		return;
+	/* The authored multipurpose-map mask confines emission to the screen.
+	   Both stock AR models share this shader; retain any brighter animation. */
+	color->red = MAX(color->red, 0.22f);
+	color->green = MAX(color->green, 0.75f);
+	color->blue = MAX(color->blue, 1.0f);
 }

@@ -318,7 +318,7 @@ static const struct config_setting config_settings[] =
 		"Soft illumination from visible Jackal shields, following their colour and pose.\n"
 		"Stock shield effects remain intact. Optional occlusion uses plasma_occlusion." },
 	{ "display.ammo_counter_lighting", _config_boolean, "false", "HALO_AMMO_COUNTER_LIGHTING", _environment_value, _platform_all,
-	  "Subtle blue light from held Assault Rifle ammo counters (experimental, off by default)." },
+	  "Blue spill and screen emission from held Assault Rifle ammo counters (experimental, off by default)." },
 	{ "display.fuel_rod_lighting", _config_boolean, "false", "HALO_FUEL_ROD_LIGHTING", _environment_value, _platform_all,
 		"Soft green illumination from the Grunt fuel-rod weapon's exposed rods.\n"
 		"Stock weapon effects remain intact. Optional occlusion uses plasma_occlusion." },

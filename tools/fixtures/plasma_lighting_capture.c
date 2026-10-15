@@ -163,6 +163,16 @@ static void emitter_capture_tick(void)
 			capture_emitter_attached = TRUE;
 			platform_log("EMITTER attached");
 		}
+		if (capture_ticks == 110 && strcmp(kind, "fuel"))
+		{
+			struct damage_network_state state;
+			damage_get_network_state(capture_emitter, &state);
+			state.current_shield_damage = 1.0f;
+			state.recent_shield_damage = 0.5f;
+			state.shield_vitality = 0.75f;
+			damage_set_network_state(capture_emitter, &state);
+			platform_log("EMITTER hit %ld", capture_emitter);
+		}
 		if (capture_ticks == 150 && strcmp(kind, "fuel"))
 		{
 			object_deplete_shield(capture_emitter);

@@ -15,7 +15,7 @@ struct object_datum { long definition_index; struct {
  long flags,damage_flags,regions_destroyed_flags,parent_object_index;
  short type; struct { int size; } node_matrices;
  real body_vitality,maximum_body_vitality,shield_vitality,recent_shield_damage;
- unsigned char region_permutations[8]; real_rgb_color outgoing_change_colors[4];
+ real outgoing_function_values[4]; unsigned char region_permutations[8]; real_rgb_color outgoing_change_colors[4];
  } object; };
 struct unit_datum { struct { long flags; } object; struct { short current_weapon_index; } unit; };
 struct block { int count; };
@@ -77,11 +77,27 @@ static void light_delete(long l) { storage[l-100].active=0;deletes++; }
 static void light_disconnect_from_map(long l)
 { CHECK(storage[l-100].connected,"double disconnect");storage[l-100].connected=0;disconnects++; }
 void plasma_occlusion_submit(long l,long r) {}
+struct shader { int unused; };
+static struct shader screen_shader, other_shader;
+static int screen_present=1;
+static long tag_loaded(long group,const char *name) { return screen_present&&group=='soso'&&!strcmp(name,"weapons\\assault rifle\\fp\\shaders\\display")?99:NONE; }
+static struct shader *shader_definition_get(long i) { return &screen_shader; }
 #include "under_test.inc"
 static void frame(real dt) { now+=dt;covenant_emitter_lighting_update(); }
 int main(int argc,char **argv)
 {
  int i,old;real slow,fast;struct emitter_sample sample;
+ real_rgb_color screen={0,.2f,.35f};
+ ammo_counter_lighting_screen(&screen_shader,&screen);
+ CHECK(screen.blue==.35f,"disabled screen untouched");
+ ammo_on=1;ammo_counter_lighting_screen(&other_shader,&screen);
+ CHECK(screen.blue==.35f,"unrelated shaders untouched");
+ ammo_counter_lighting_screen(&screen_shader,&screen);
+ CHECK(screen.blue==1&&screen.green==.75f,"screen uses emissive mask");
+ ammo_counter_lighting_forget();screen_present=0;screen.blue=.35f;
+ ammo_counter_lighting_screen(&screen_shader,&screen);
+ CHECK(screen.blue==.35f,"missing screen after map switch stays stock");
+ ammo_counter_lighting_forget();screen_present=1;ammo_on=0;
  for(i=0;i<10;i++) {
   objects[i].definition_index=i;names[i]="characters\\jackal\\jackal";
   objects[i].object.node_matrices.size=sizeof(real_matrix4x3);
@@ -89,9 +105,19 @@ int main(int argc,char **argv)
   objects[i].object.body_vitality=objects[i].object.shield_vitality=1;
   objects[i].object.outgoing_change_colors[2].blue=1;
  }
- CHECK(emitter_sample(0,&sample)&&sample.kind==0&&sample.radius==2.6f,"minor shield profile");
+ CHECK(emitter_sample(0,&sample)&&sample.kind==0&&sample.radius==3.6f&&sample.color.green>=.42f,"minor shield profile");
  names[0]="characters\\jackal\\jackal major";objects[0].object.outgoing_change_colors[2].red=1;
  CHECK(emitter_sample(0,&sample)&&sample.color.red==1,"major uses authored colour");
+ objects[0].object.outgoing_change_colors[2].blue=.10f;
+ objects[0].object.outgoing_change_colors[2].green=.68f;
+ CHECK(emitter_sample(0,&sample)&&sample.radius==3.6f&&sample.color.green==.78f&&sample.color.blue==.24f,"gold shares broader brighter spill");
+ objects[0].object.outgoing_change_colors[2].blue=1;
+ objects[0].object.outgoing_change_colors[2].green=0;
+ objects[0].object.outgoing_function_values[0]=1;
+ CHECK(emitter_sample(0,&sample)&&sample.color.red==1&&sample.color.blue==0&&sample.color.green==0,"shield light follows full shader hit flash");
+ objects[0].object.outgoing_function_values[0]=.5f;
+ CHECK(emitter_sample(0,&sample)&&sample.color.blue==.5f,"shield flash blends with the evaluated shader value");
+ objects[0].object.outgoing_function_values[0]=0;
  objects[0].object.body_vitality=0;
  CHECK(emitter_sample(0,&sample)&&sample.strength==0,"dead Jackal has no shield illumination");
  objects[0].object.body_vitality=1;
@@ -101,6 +127,9 @@ int main(int argc,char **argv)
  CHECK(!emitter_sample(0,&sample),"stationary setting independent");stationary_on=1;
  objects[0].object.maximum_body_vitality=objects[0].object.body_vitality=0;
  CHECK(emitter_sample(0,&sample)&&sample.strength>0&&sample.kind==2,"indestructible shield base eligible");
+ objects[0].object.outgoing_function_values[0]=1;
+ CHECK(emitter_sample(0,&sample)&&sample.color.red==1&&sample.color.blue==0,"stationary flash matches shader too");
+ objects[0].object.outgoing_function_values[0]=0;
  objects[0].object.region_permutations[0]=1;
  CHECK(emitter_sample(0,&sample)&&sample.strength==0,"shield-off permutation overrides marker");
  objects[0].object.region_permutations[0]=0;
@@ -126,7 +155,7 @@ int main(int argc,char **argv)
  marker_x=2;frame(1.0f/120);CHECK(storage[allocs-1].position.x==2,"rendered marker follows light");
  covenant_emitter_lighting_submitted(emitters[0].light,3);
  CHECK(covenant_emitter_lighting_selected(3),"submitted emitter selects soft path without projectile setting");
- CHECK(covenant_emitter_lighting_radius(emitters[0].light,.1f)==2.6f,"bounds cover full light");
+ CHECK(covenant_emitter_lighting_radius(emitters[0].light,.1f)==3.6f,"bounds cover full light");
  objects[0].object.shield_vitality=0;frame(1.0f/120);
  CHECK(emitters[0].strength>0&&emitters[0].strength<fast,"collapse fades instead of popping");
  for(i=0;i<120;i++)frame(1.0f/120);
@@ -154,7 +183,7 @@ int main(int argc,char **argv)
  objects[0].object.type=_object_type_weapon;names[0]="weapons\\assault rifle\\assault rifle";
  objects[0].object.parent_object_index=42;inventory=0;marker_x=1;
  CHECK(!emitter_sample(0,&sample),"ammo setting independent and off");ammo_on=1;
- CHECK(emitter_sample(0,&sample)&&sample.kind==3&&sample.radius<1&&sample.strength<.3f,"subtle counter profile");
+ CHECK(emitter_sample(0,&sample)&&sample.kind==3&&sample.radius>.9f&&sample.strength>.6f,"visible counter spill");
  CHECK(fabs(sample.position.x-.82f)<.0001&&fabs(sample.position.z-.027744f)<.0001,"third person counter offset");
  first_person=1;
  CHECK(emitter_sample(0,&sample)&&sample.position.x==5&&fabs(sample.position.y+.18f)<.0001,"first person follows rotated rendered marker");

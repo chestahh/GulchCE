@@ -91,10 +91,31 @@ static int emitter_sample(long index, struct emitter_sample *sample)
 		(object->object.type == _object_type_scenery && !strcmp(name, "scenery\\c_field_generator\\c_field_generator")))
 	{
 		sample->kind = object->object.type == _object_type_scenery ? 2 : 0;
-		sample->radius = sample->kind == 2 ? 2.8f : 2.6f;
+		sample->radius = sample->kind == 2 ? 2.8f : 3.6f;
 		marker_name = "shield light";
 		/* The stock shield shader's colour source is change colour C. */
 		sample->color = object->object.outgoing_change_colors[2];
+		if (sample->kind == 0 && sample->color.blue > sample->color.red * 2.0f)
+		{
+			/* Blue needs more luminance and reach to illuminate nearby walls. */
+			sample->color.red = MAX(sample->color.red, 0.30f);
+			sample->color.green = MAX(sample->color.green, 0.42f);
+		}
+		if (sample->kind == 0 && sample->color.red > sample->color.blue * 2.0f)
+		{
+			/* Gold shares the blue shield's reach, with brighter warm spill. */
+			sample->color.green = MAX(sample->color.green, 0.78f);
+			sample->color.blue = MAX(sample->color.blue, 0.24f);
+		}
+		{
+			/* Both stock shield combiners blend change colour C towards red
+			   using A-out (stage 3). Use that evaluated animation value, not
+			   vitality or our own hit timer, so damage/recovery stay in sync. */
+			real flash = PIN(object->object.outgoing_function_values[0], 0.0f, 1.0f);
+			sample->color.red += (1.0f - sample->color.red) * flash;
+			sample->color.green *= 1.0f - flash;
+			sample->color.blue *= 1.0f - flash;
+		}
 		sample->strength = emitter_shield_visible(object) ?
 			0.7f + 0.15f * PIN(object->object.shield_vitality, 0.0f, 1.0f) +
 			0.15f * PIN(object->object.recent_shield_damage, 0.0f, 1.0f) : 0.0f;
@@ -122,11 +143,11 @@ static int emitter_sample(long index, struct emitter_sample *sample)
 	else if (object->object.type == _object_type_weapon && ammo_counter_lighting_position(index, &sample->position))
 	{
 		sample->kind = 3;
-		sample->radius = 0.55f;
-		sample->color.red = 0.15f;
-		sample->color.green = 0.55f;
+		sample->radius = 0.95f;
+		sample->color.red = 0.24f;
+		sample->color.green = 0.65f;
 		sample->color.blue = 1.0f;
-		sample->strength = 0.22f;
+		sample->strength = 0.65f;
 		marker_name = NULL;
 	}
 	else
@@ -259,6 +280,7 @@ void covenant_emitter_lighting_frame_end(void)
 
 void covenant_emitter_lighting_forget(void)
 {
+	ammo_counter_lighting_forget();
 	memset(emitters, 0, sizeof(emitters));
 }
 

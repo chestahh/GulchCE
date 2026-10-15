@@ -20,12 +20,17 @@ established these identities; no third-party implementation was copied.
 
 | Emitter | Exact tag | Marker | Radius |
 | --- | --- | --- | --- |
-| Jackal minor / major | `characters\jackal\jackal`, `characters\jackal\jackal major` | `shield light` | 2.6 |
+| Jackal minor / major | `characters\jackal\jackal`, `characters\jackal\jackal major` | `shield light` | 3.6 |
 | Stationary shield | `scenery\c_field_generator\c_field_generator` | `shield light` | 2.8 |
 | Fuel rods | `weapons\fuel rod gun\fuel rod` (weapon group) | `lens flare` | 1.6 |
 
 Shield colour comes from runtime change colour C, the stock shield shader's
-colour source: minor blue, major gold and stationary violet. Both shield models
+colour source: minor blue, major gold and stationary violet. Blue Jackals use a
+wider radius and a (0.30, 0.42, 1) minimum blue profile for more visible spill.
+Both stock generic shield shaders blend this colour towards red with A-out in
+stage 3. The feature samples the same evaluated outgoing function, without a
+separate hit timer or colour smoothing that would lag behind the shield. Gold shares the 3.6-unit reach, with green/blue floors of 0.78/0.24 for
+brighter warm spill. The resting stationary violet profile is unchanged. Both shield models
 have a `shield` region with visible permutation zero and `~shield_off` permutation
 one. The marker also exists with the shield off, so marker presence alone is
 insufficient. Depleted vitality, depleted flags, shield permutation, destroyed
@@ -69,15 +74,26 @@ bump is needed.
 `display.ammo_counter_lighting` / `HALO_AMMO_COUNTER_LIGHTING` is independently
 off by default. `ammo_counter_lighting.c` supplies the rendered source position;
 the existing emitter module owns its bounded light, easing and cleanup. No new
-shared-engine hooks are needed. The radius is 0.55 world units, colour
-(0.15, 0.55, 1.0), and strength 0.22. This is a subtle display glow, not a flashlight.
+light-allocation hooks are needed. The radius is 0.95 world units, colour
+(0.24, 0.65, 1.0), and strength 0.65, increased after playtest feedback.
+
+A minimal marked hook in `rasterizer_xbox_models.c` lets the feature adjust the
+self-illumination colour before shader selection and constant submission. A
+feature-only light cannot brighten the screen's own emissive mask, hence this
+addition to the shared Xbox/CE/MCC model drawing path. The helper matches only
+`weapons\assault rifle\fp\shaders\display`, shared by both stock models, and
+raises its emissive minimum to (0.22, 0.75, 1). The authored multipurpose texture
+still masks the emission. It does not add global bloom or alter tag data. The
+cached shader identity is cleared by the existing map/light-storage lifecycle.
+The setting-off path returns before looking up or changing any shader.
 
 Only the exact `weapons\assault rifle\assault rifle` weapon currently held by a
 visible unit participates. That includes Marines and remote players without
 depending on player ownership. Holstered, dropped, missing-marker and unfamiliar
 weapons are excluded. The existing first-person marker API selects the local
 visible model; other views use the third-person weapon marker. No tag, ammo,
-display shader, animation, or networking state is changed.
+animation, or networking state is changed. The screen shader receives only the
+optional per-draw emissive adjustment described above.
 
 Read-only Xbox c40 geometry inspection found counter-digit part centroids near
 (0.04706, +/-0.00160, 0.06850) in first person and
@@ -166,3 +182,55 @@ exceptions (`build/ammo-transitions`). These checks do not establish full visual
 compatibility for arbitrary MCC assets. The exact normal release executable
 passed a hidden OpenGL startup smoke test with stock defaults; its SHA-256 is
 recorded in `build/ammo-playtest-smoke/report.json` and checked against the ZIP.
+
+
+## Shield colour and counter refinement validation (2026-10-15)
+
+The normal Windows x86 portable release builds successfully. All 52 focused
+emitter/projectile/muzzle/occlusion/falloff/model-shader harness checks pass,
+including a negative control removing the shader-driven damage colour. The
+screen tests cover disabled behavior, unrelated shaders, missing tags and cache
+reset across maps; the profile tests cover both brighter Jackal colours.
+
+`build/colour-capture-summary.json` records 24 accepted cases: blue Jackal, gold
+Jackal, stationary shield, first-person AR, player-model AR and Marine AR, each
+on at 30/60/120 FPS and off at 60 FPS. All sustain the requested rate within 5%.
+Captured RGB telemetry verifies resting and red damage colours for all nine
+shield/FPS combinations. The fixture applies stock damage-network state, which
+then drives the actual object functions and shield shader; it does not force the
+light colour. It also exercises depletion, recovery and deletion. One gold
+60-FPS run failed due to a long hitch; its retry passed at approximately 60 FPS.
+The failed report is retained rather than counted as a pass.
+
+Images show broader blue/gold spill, matching red shield/light states and stronger
+AR housing illumination with readable first-person digits. Third-person captures
+show illumination on the held models, but shoulder occlusion and the counter's
+small screen size limit assessment of its readability. An additional close
+player capture exposes the weapon; the close Marine experiment was off-screen
+and is not evidence of screen readability. The standard fixture placement is
+retained. These are bounded visual checks, not exhaustive gameplay acceptance.
+
+Source manifests are in `build/emitter-colour-visual` and
+`build/emitter-colour-final`; gold uses the latter after its extra brightness
+change. The unchanged blue/AR/stationary paths use the former captures. Final
+production sources match the final manifest. The normal executable was rebuilt
+without fixtures and smoke-tested separately in `build/colour-playtest-final-smoke`.
+Its hash is checked against the packaged executable; no capture markers remain.
+
+Xbox c40 -> CE Death Island -> MCC Mercury Falling -> Xbox Blood Gulch
+transitions pass off at 30 FPS and on at 120 FPS, with clean exit and no logged
+exceptions (`build/colour-transitions`). This checks lifecycle/loading boundaries,
+not full map-family compatibility or every custom shader. Android and web builds
+were attempted but the generated build has neither target; Linux and browser
+transport testing remain unavailable locally. No network format, simulation
+contract, map loader, CStencil or Modern implementation changed.
+
+
+A two-instance native loopback AR session passed with both options enabled:
+84 shared snapshots, 83 exact matches and one differing `ed` value (221 vs 220).
+Positions, health and ammo matched in that sample. Both instances exited cleanly;
+only the host fixture equipped the AR, and the client recorded 856 emitter
+samples from the replicated weapon. See `build/colour-network-rifle`. This is a
+bounded multiplayer smoke/regression check, not a proof of deterministic or
+internet/browser compatibility. All test map copies were confined to private
+run folders and removed; original maps and saves were preserved.

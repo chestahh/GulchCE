@@ -31,3 +31,9 @@ def test_first_person_counter_pose_is_required():
     code = source().replace('if (first_person_weapon_adjust_light(index, "primary trigger", position, &forward, &up))', 'if (FALSE)')
     status, output = run(build('covenant_emitter_lighting', (('under_test.inc', code),)), 'emitters')
     assert status == CHECK_FAILED, output
+
+
+def test_shield_damage_colour_is_required():
+    code = source().replace('PIN(object->object.outgoing_function_values[0], 0.0f, 1.0f)', '0.0f')
+    status, output = run(build('covenant_emitter_lighting', (('under_test.inc', code),)), 'emitters')
+    assert status == CHECK_FAILED, output
