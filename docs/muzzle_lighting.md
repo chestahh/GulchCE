@@ -9,7 +9,7 @@ Keep render interpolation enabled for smooth fades between simulation ticks.
 ## Supported weapons
 
 Profiles match exact stock weapon tag names, including both Xbox and Custom
-Edition Needler names. Unknown custom weapons and vehicle weapons keep their
+Edition Needler names and the stock Warthog chaingun. Unknown custom weapons keep their
 authored behaviour. Radii below are engine world units, durations are seconds.
 
 | Weapon | Colour | Radius | Duration |
@@ -24,6 +24,14 @@ authored behaviour. Radii below are engine world units, durations are seconds.
 | Needler | Pink | 1.3 | 0.09 |
 | Rocket launcher | Orange | 2.0 | 0.14 |
 | Flamethrower | Orange | 1.4 | 0.08 |
+| Warthog chaingun | Warm amber | 5.0 | 0.16 |
+
+The Warthog profile matches `vehicles\warthog\warthog gun`. Read-only Xbox
+Blood Gulch tag inspection confirms that this weapon has no model; the vehicle
+model provides `primary trigger` on its animated gun. The existing invisible
+weapon fallback follows that rendered vehicle marker. Its broader warm pulse
+illuminates the hull and nearby ground; rapid shots refresh one bounded light.
+No new shared-engine hook or stock flash changes are needed.
 
 ## Ownership and integration
 
@@ -76,7 +84,7 @@ tick-only fading, broken cleanup and a non-moving light fail the tests.
 The focused muzzle/projectile/falloff/model/occlusion suite has 42 passing
 tests. The light-storage ordinary COFF and full-LTO checks also pass.
 
-Windows hidden OpenGL captures on 2026-10-14 exercised all listed weapon
+Windows hidden OpenGL captures on 2026-10-14 exercised the handheld weapon
 profiles at 30, 60 and 120 FPS, Blood Gulch and Carousel, CE Death Island,
 disabled controls and combined projectile/muzzle lighting. Firing/decay image
 sequences were inspected at each frame rate. Frame logs show intermediate
@@ -127,4 +135,23 @@ executable afterward. `tools/plasma_visual_run.py --muzzle ar` selects a weapon;
 use `--both-lighting` to combine it with projectile lighting. Captures retain
 source hashes, images, logs and timing reports under `build/plasma-visual`.
 Only private copied maps and generated map caches are removed after a run.
+
+## Warthog extension validation
+
+The new stock Warthog profile uses radius 5.0 and a 0.16-second warm pulse.
+Capture fixtures confirmed the model-less weapon resolves the vehicle's
+`primary trigger` marker and enters the actual `W-gunner` seat before firing.
+Final captures at 30, 60 and 120 FPS passed the 5% timing threshold, with a
+60 FPS disabled control submitting no muzzle lights. Images show broad warm
+ground spill; hull illumination varies with viewing angle. Stock flash and
+explosion paths were not changed.
+
+A hidden native Blood Gulch loopback run connected two players for 82 reported
+snapshots, with host lighting on and client lighting off. The host logged actual
+Warthog shots; the client submitted no muzzle lights. All 82 non-position player
+states matched. Vehicle position components differed by up to 0.015 world units,
+so this is not a claim of bit-identical simulation. Both exited normally. The
+earlier 45-second run timed out before gameplay and is excluded. Logs are in
+`build/emitter-network-retry-warthog`; final turret images are in
+`build/plasma-visual/*-emitter-release-warthog`.
 

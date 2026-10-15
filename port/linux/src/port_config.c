@@ -312,8 +312,19 @@ static const struct config_setting config_settings[] =
 		"Your own legs in first person, seen looking down: your body as others\n"
 		"see it, drawn from the waist down, moving as it moves." },
 	{ "display.plasma_occlusion", _config_boolean, "false", "HALO_PLASMA_OCCLUSION", _environment_value, _platform_all,
-		"Prototype collision-filtered projectile visibility. Requires plasma_lighting.\n"
+		"Prototype collision-filtered projectile and Covenant emitter visibility.\n"
 		"Off preserves unoccluded plasma lighting. At most eight occluded lights." },
+	{ "display.jackal_shield_lighting", _config_boolean, "false", "HALO_JACKAL_SHIELD_LIGHTING", _environment_value, _platform_all,
+		"Soft illumination from visible Jackal shields, following their colour and pose.\n"
+		"Stock shield effects remain intact. Optional occlusion uses plasma_occlusion." },
+	{ "display.ammo_counter_lighting", _config_boolean, "false", "HALO_AMMO_COUNTER_LIGHTING", _environment_value, _platform_all,
+	  "Subtle blue light from held Assault Rifle ammo counters (experimental, off by default)." },
+	{ "display.fuel_rod_lighting", _config_boolean, "false", "HALO_FUEL_ROD_LIGHTING", _environment_value, _platform_all,
+		"Soft green illumination from the Grunt fuel-rod weapon's exposed rods.\n"
+		"Stock weapon effects remain intact. Optional occlusion uses plasma_occlusion." },
+	{ "display.covenant_shield_lighting", _config_boolean, "false", "HALO_COVENANT_SHIELD_LIGHTING", _environment_value, _platform_all,
+		"Soft illumination from active stationary Covenant shield emitters.\n"
+		"Stock shield effects remain intact. Optional occlusion uses plasma_occlusion." },
 	{ "display.muzzle_lighting", _config_boolean, "false", "HALO_MUZZLE_LIGHTING", _environment_value, _platform_all,
 		"Optional soft muzzle illumination with a smooth render-time fade.\n"
 		"Stock flash effects remain intact. Off keeps stock lighting." },

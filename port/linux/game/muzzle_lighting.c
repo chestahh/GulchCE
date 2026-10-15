@@ -35,6 +35,9 @@ static const struct muzzle_profile
 	{"weapons\\needler\\needler", {0.85f, 0.20f, 1.0f}, 1.3f, 0.09f},
 	{"weapons\\rocket launcher\\rocket launcher", {1.0f, 0.50f, 0.15f}, 2.0f, 0.14f},
 	{"weapons\\flamethrower\\flamethrower", {1.0f, 0.40f, 0.10f}, 1.4f, 0.08f},
+	/* The model-less turret weapon uses the vehicle's rendered muzzle marker.
+	   A wider warm pulse lights the hull and ground without changing its flash. */
+	{"vehicles\\warthog\\warthog gun", {1.0f, 0.75f, 0.35f}, 5.0f, 0.16f},
 };
 enum { MUZZLE_LIGHTS = 8 };
 static struct muzzle_pulse

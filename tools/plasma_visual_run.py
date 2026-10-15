@@ -14,13 +14,16 @@ import statistics
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--data-root', required=True, type=Path)
+parser.add_argument('--capture-dir', type=Path, help='Directory containing halo-capture.exe and its build manifest')
 parser.add_argument('--fps', required=True, type=int, choices=[30, 60, 120])
 parser.add_argument('--enabled', required=True, type=int, choices=[0, 1])
 parser.add_argument('--label', default='')
 parser.add_argument('--map', default='bloodgulch', choices=['bloodgulch', 'carousel', 'a10', 'b40', 'c40', 'ce-deathisland'])
 parser.add_argument('--kind', choices=['rifle','pistol','charged','rocket','needle','ghost','banshee','banshee-fuel','shade','fuel','wraith','mp-needle','mp-banshee-fuel','mp-shade','ce-fuel'], default='rifle')
-parser.add_argument('--muzzle', choices=['ar','handgun','shotgun','sniper','rifle','pistol','charged','needler','rocket','flamethrower'])
+parser.add_argument('--muzzle', choices=['ar','handgun','shotgun','sniper','rifle','pistol','charged','needler','rocket','flamethrower','warthog'])
 parser.add_argument('--both-lighting', action='store_true')
+parser.add_argument('--emitter', choices=['jackal','major','fuel','stationary','ammo-fp','ammo-marine','ammo-player'])
+parser.add_argument('--hide-viewmodel', action='store_true', help='Keep the local rifle from obscuring third-person receivers')
 parser.add_argument('--mixed', action='store_true')
 parser.add_argument('--model', action='store_true')
 parser.add_argument('--occlusion', type=int, choices=[0,1], default=0)
@@ -46,7 +49,8 @@ out = root / f'build/plasma-visual/{args.fps}-{args.enabled}{"-" + args.label if
 out.mkdir(parents=True, exist_ok=False)
 (out / 'maps').mkdir()
 (out / 'screenshots').mkdir()
-manifest = root/'build/plasma-visual/build-manifest.json'
+capture_dir = args.capture_dir.resolve() if args.capture_dir else root/'build/plasma-visual'
+manifest = capture_dir/'build-manifest.json'
 if manifest.exists():
     shutil.copy2(manifest, out/'build-manifest.json')
 shutil.copy2(args.data_root/'maps/ui.map',out/'maps/ui.map')
@@ -73,6 +77,16 @@ env.update(HALO_DATA_ROOT=str(out), HALO_SAVE_ROOT=str(out/'saves'), HALO_HIDDEN
 if args.map in ('b40', 'c40'):
     env['HALO_COVENANT_CAPTURE_CAMPAIGN'] = '1'
     env['HALO_EXIT_AFTER'] = '70'
+if args.hide_viewmodel:
+    env['HALO_VIEWMODEL_VISIBLE'] = '0'
+if args.emitter:
+    env['HALO_EXIT_AFTER'] = '70' if args.map == 'b40' else '35'
+    env['HALO_EMITTER_CAPTURE'] = args.emitter
+    env['HALO_PLASMA_LIGHTING'] = '0'
+    env[{'jackal':'HALO_JACKAL_SHIELD_LIGHTING', 'major':'HALO_JACKAL_SHIELD_LIGHTING',
+         'fuel':'HALO_FUEL_ROD_LIGHTING', 'stationary':'HALO_COVENANT_SHIELD_LIGHTING',
+         'ammo-fp':'HALO_AMMO_COUNTER_LIGHTING','ammo-marine':'HALO_AMMO_COUNTER_LIGHTING',
+         'ammo-player':'HALO_AMMO_COUNTER_LIGHTING'}[args.emitter]] = str(args.enabled)
 if args.muzzle:
     muzzle_tags = {
         'ar': r'weapons\assault rifle\assault rifle', 'handgun': r'weapons\pistol\pistol',
@@ -81,10 +95,16 @@ if args.muzzle:
         'charged': r'weapons\plasma pistol\plasma pistol',
         'needler': r'weapons\needler\mp_needler' if args.map == 'ce-deathisland' else r'weapons\needler\needler',
         'rocket': r'weapons\rocket launcher\rocket launcher', 'flamethrower': r'weapons\flamethrower\flamethrower',
+        'warthog': r'vehicles\warthog\warthog gun',
     }
     env['HALO_MUZZLE_CAPTURE_WEAPON'] = muzzle_tags[args.muzzle]
     env['HALO_MUZZLE_LIGHTING'] = str(args.enabled)
     env['HALO_PLASMA_LIGHTING'] = str(int(args.both_lighting))
+    if args.muzzle == 'warthog':
+        env['HALO_WARTHOG_CAPTURE'] = '1'
+        # The vehicle fixture equips its own weapon. Use the combat fixture's
+        # sustained bursts rather than the handheld muzzle fixture's tap input.
+        env.pop('HALO_MUZZLE_CAPTURE_WEAPON')
     if args.muzzle == 'charged':
         env['HALO_MUZZLE_CAPTURE_CHARGED'] = '1'
         args.kind = 'charged'
@@ -104,7 +124,8 @@ if args.model:
 if args.per_pixel:
     env['HALO_PER_PIXEL_LIGHTING'] = '1'
 with (out/'stdout.log').open('wb') as so, (out/'stderr.log').open('wb') as se:
-    process = subprocess.Popen([str(root/'build/plasma-visual/halo-capture.exe')], cwd=out,
+    capture_executable = capture_dir/'halo-capture.exe'
+    process = subprocess.Popen([str(capture_executable)], cwd=out,
                                env=env, stdout=so, stderr=se, creationflags=subprocess.CREATE_NO_WINDOW)
     try:
         process.wait(timeout=145 if args.map in ('b40', 'c40') else 45)
@@ -134,6 +155,10 @@ report['active_p95_ms'] = sorted(active_deltas)[int((len(active_deltas)-1)*.95)]
 report['homing_shots'] = len(re.findall('PLASMA homing', logs))
 report['selected_tags'] = sorted(set(re.findall(r'PLASMA prepare [^\r\n]+ tag ([^\r\n]+)', logs)))
 report['muzzle'] = args.muzzle
+report['emitter'] = args.emitter
+report['hide_viewmodel'] = args.hide_viewmodel
+report['emitter_samples'] = len(re.findall('EMITTER sample', logs))
+report['emitter_created'] = bool(re.search(r'EMITTER created (?!-1 )', logs))
 report['both_lighting'] = args.both_lighting
 report['muzzle_submissions'] = len(re.findall('MUZZLE submit', logs))
 report['muzzle_fade_samples'] = sum(0 < float(x) < .99 for x in re.findall(r'MUZZLE sample[^\r\n]+ strength ([0-9.]+)', logs))
@@ -142,8 +167,10 @@ print(json.dumps(report), flush=True)
 for path in out.rglob('*.map'):
     assert path.resolve().is_relative_to(out.resolve())
     path.unlink()
-if process.returncode or (report['shots'] != 3 and not args.combat) or (not args.no_images and not report['screenshots']):
+if process.returncode or (report['shots'] != 3 and not args.combat and not args.emitter) or (not args.no_images and not report['screenshots']):
     raise SystemExit('Capture incomplete; inspect report.json and logs')
+if args.emitter and (not report['emitter_created'] or bool(report['emitter_samples']) != bool(args.enabled)):
+    raise SystemExit('Emitter creation or activation failed')
 if bool(report['selected_frames']) != bool(args.enabled or (args.muzzle and args.both_lighting)):
     raise SystemExit('Lighting selection did not match the requested mode')
 if report['average_fps'] is None or report['average_fps'] < args.fps * .95:
@@ -196,7 +223,7 @@ expected_tags = {
     'mp-shade': 'vehicles\\c gun turret\\mp gun turret',
     'ce-fuel': 'weapons\\plasma_cannon\\plasma_cannon',
 }
-if args.enabled and not args.muzzle:
+if args.enabled and not args.muzzle and not args.emitter:
     expected = {expected_tags[args.kind]}
     if args.mixed:
         expected = {expected_tags[kind] for kind in ('rifle', 'pistol', 'charged', 'rocket') if args.kind == 'rocket' or kind != 'rocket'}
@@ -211,3 +238,6 @@ if args.muzzle and args.enabled and (not report['muzzle_submissions'] or not rep
     raise SystemExit('Muzzle capture did not exercise submission and smooth fade')
 if args.muzzle and not args.enabled and report['muzzle_submissions']:
     raise SystemExit('Disabled muzzle feature still submitted lights')
+
+if args.muzzle == "warthog" and args.enabled and r"MUZZLE profile vehicles\warthog\warthog gun" not in logs:
+    raise SystemExit("Capture did not fire the Warthog turret")

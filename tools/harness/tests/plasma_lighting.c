@@ -8,7 +8,7 @@ enum { _point_light_dynamic_bit = 0 };
 struct object_datum { long definition_index; struct { short type; } object; };
 static struct object_datum projectile = { 1, { _object_type_projectile } };
 static const char *tag_name = "weapons\\plasma rifle\\bolt";
-static int muzzle_on;
+static int muzzle_on, emitter_on;
 static int enabled = 1, refreshes, present = 1, interpolation_rendering = 1;
 static int rendered_pose;
 static float connected_radius;
@@ -57,6 +57,12 @@ void plasma_lighting_reset(void);
 int plasma_lighting_selected(long index);
 void plasma_falloff_dispose(void) {}
 void plasma_falloff_end(void) {}
+int covenant_emitter_lighting_enabled(void) { return emitter_on; }
+void covenant_emitter_lighting_frame_end(void) {}
+void covenant_emitter_lighting_window_begin(void) {}
+void covenant_emitter_lighting_submitted(long i,long r) {}
+int covenant_emitter_lighting_selected(long i) { return emitter_on && i == 22; }
+float covenant_emitter_lighting_radius(long l,float r) { return r; }
 void covenant_lighting_frame_end(void) {}
 void covenant_lighting_window_begin(void) {}
 void covenant_lighting_submitted(long i,long r) {}
@@ -246,6 +252,11 @@ int main(int argc, char **argv)
 		plasma_lighting_submitted(1, 0);
 		enabled = 0;
 		CHECK(!plasma_lighting_selected(0), "disable immediately restores stock selection");
+		emitter_on = 1;
+		CHECK(plasma_lighting_selected(22) && !plasma_lighting_selected(0), "emitter-only option selects only emitter lights");
+		plasma_model_lighting_reset();
+		plasma_model_lighting_slot(22, 0);
+		CHECK(plasma_model_lighting_mask() == 1, "emitter-only option reaches model lighting");
 	}
 	else if (!strcmp(test, "existing"))
 	{

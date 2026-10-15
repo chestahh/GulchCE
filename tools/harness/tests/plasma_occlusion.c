@@ -40,11 +40,16 @@ static int on = 1, queries, allocations, blocked = 1, door, fail_upload;
 static unsigned long time_ms = 1000;
 static int uploads;
 static real specular_scale = 1;
-static int muzzle_on;
+static int muzzle_on, emitter_on, emitter_occlusion;
+static long last_ignore;
+long covenant_emitter_lighting_occlusion_ignore(long i) { return emitter_on && i == 502 ? 42 : NONE; }
+int covenant_emitter_lighting_enabled(void) { return emitter_on; }
+int covenant_emitter_lighting_selected(long i) { return emitter_on && i == 0; }
 int muzzle_lighting_selected(long i) { return muzzle_on && i == 0; }
 int config_boolean(const char *name)
 {
 	if (!strcmp(name, "display.muzzle_lighting")) return muzzle_on;
+	if (!strcmp(name, "display.plasma_occlusion") && emitter_on) return emitter_occlusion;
 	return on;
 }
 static unsigned long GetTickCount(void)
@@ -60,6 +65,7 @@ static int collision_test_vector(unsigned long flags, const real_point3d *p, con
 {
 	float t, y;
 	queries++;
+	last_ignore = ignore;
 	if (!blocked || v->i == 0)
 		return 0;
 	t = (0.3f - p->x) / v->i;
@@ -312,5 +318,12 @@ int main(int argc, char **argv)
 	plasma_occlusion_window(); plasma_occlusion_submit(501,1);
 	CHECK(!plasma_occlusion_texture(1,0), "muzzle option cannot enable unrelated projectile occlusion");
 	muzzle_on=0; plasma_occlusion_reset();
+	emitter_on=1; emitter_occlusion=1; time_ms+=200;
+	plasma_occlusion_window(); plasma_occlusion_submit(502,0);
+	CHECK(plasma_occlusion_texture(0,0), "emitter occlusion works with projectile lighting off");
+	CHECK(last_ignore==42, "luminous source is excluded from its own visibility rays");
+	emitter_occlusion=0; plasma_occlusion_reset();
+	plasma_occlusion_window(); plasma_occlusion_submit(503,0);
+	CHECK(!plasma_occlusion_texture(0,0), "emitter occlusion remains independently optional");
 	return 0;
 }

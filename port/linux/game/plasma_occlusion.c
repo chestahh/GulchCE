@@ -6,6 +6,7 @@
 #include "physics/collisions.h"
 #include "plasma_lighting.h"
 #include "muzzle_lighting.h"
+#include "covenant_emitter_lighting.h"
 #include "rasterizer/rasterizer.h"
 #include "rasterizer/rasterizer_lights.h"
 #include "rasterizer/rasterizer_swizzle.h"
@@ -72,7 +73,8 @@ static unsigned long current_window;
 static long model_slots[2] = {NONE, NONE};
 static int enabled(void)
 {
-	return (config_boolean("display.plasma_lighting") && config_boolean("display.plasma_occlusion")) ||
+	return ((config_boolean("display.plasma_lighting") || covenant_emitter_lighting_enabled()) &&
+		config_boolean("display.plasma_occlusion")) ||
 		config_boolean("display.muzzle_lighting");
 }
 static real sample_field(const real *values, real x, real y, real z)
@@ -99,7 +101,7 @@ static real sample_field(const real *values, real x, real y, real z)
 }
 /* One depth ray per cubemap texel serves every radial cell on that ray.
    Interpolate visibility comparisons, never distances across a doorway. */
-static void trace_depths(real const extent, real_point3d const *from, real depths[6][OCC_SIZE * OCC_SIZE])
+static void trace_depths(real const extent, real_point3d const *from, long ignore, real depths[6][OCC_SIZE * OCC_SIZE])
 {
 	int face, x, y, axis;
 	unsigned long flags =
@@ -122,7 +124,7 @@ static void trace_depths(real const extent, real_point3d const *from, real depth
 				ray.k = component[2];
 				/* A clear ray must not become a blocker when reprojection crosses its endpoint. */
 				depths[face][y * OCC_SIZE + x] =
-					collision_test_vector(flags, from, &ray, NONE, &hit) ? hit.t : 2.0f;
+					collision_test_vector(flags, from, &ray, ignore, &hit) ? hit.t : 2.0f;
 			}
 }
 static real depth_visibility(real depths[6][OCC_SIZE * OCC_SIZE], real_vector3d const *ray, real extent)
@@ -235,7 +237,7 @@ static struct occlusion_field *field_for(long rasterizer_index)
 	if (!field->valid || now - field->traced >= 12 || field->trace_extent != extent ||
 		trace_dx * trace_dx + trace_dy * trace_dy + trace_dz * trace_dz > extent * extent * 0.015625f)
 	{
-		trace_depths(extent, &light->position, field->depths);
+		trace_depths(extent, &light->position, covenant_emitter_lighting_occlusion_ignore(field->identity), field->depths);
 		field->traced = now;
 		field->trace_extent = extent;
 		field->trace_center[0] = light->position.x;
@@ -353,7 +355,9 @@ void plasma_occlusion_window(void)
 void plasma_occlusion_submit(long light, long rasterizer_index)
 {
 	if (((config_boolean("display.plasma_lighting") && config_boolean("display.plasma_occlusion")) ||
-		muzzle_lighting_selected(rasterizer_index)) && submitted_count < OCC_SUBMITTED)
+		muzzle_lighting_selected(rasterizer_index) ||
+		(covenant_emitter_lighting_selected(rasterizer_index) && config_boolean("display.plasma_occlusion"))) &&
+		submitted_count < OCC_SUBMITTED)
 	{
 		submitted[submitted_count].identity = light;
 		submitted[submitted_count++].rasterizer = rasterizer_index;

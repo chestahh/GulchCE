@@ -4,8 +4,11 @@
 #include <xtl.h>
 #include "objects/objects.h"
 #include "objects/object_definitions.h"
+#include "objects/damage.h"
+#include "physics/collisions.h"
 #include "items/projectiles.h"
 #include "items/projectile_definitions.h"
+#include "items/weapons.h"
 #include "camera/observer.h"
 #include "tag_files/tag_groups.h"
 #include "rasterizer/rasterizer.h"
@@ -32,6 +35,161 @@ static int capture_model, capture_probe, capture_burst = 1;
 static long capture_bolts[32], capture_door = NONE;
 static int capture_combat, capture_toggle;
 static long capture_target = NONE;
+static long capture_emitter = NONE;
+static long capture_emitter_holder = NONE;
+static int capture_emitter_attached;
+static void ammo_capture_tick(const char *kind)
+{
+	struct object_placement_data placement;
+	long tag, holder;
+	int i;
+	if (capture_ticks == 65)
+	{
+		holder = player_control_get_unit_index(0);
+		if (strcmp(kind, "ammo-fp"))
+		{
+			tag = tag_loaded('bipd', !strcmp(kind, "ammo-marine") ? "characters\\marine_armored\\marine_armored" : "characters\\cyborg\\cyborg");
+			if (tag == NONE) { platform_log("EMITTER missing actor"); return; }
+			object_placement_data_new(&placement, tag, NONE);
+			placement.position = capture_camera.position;
+			placement.position.x += capture_camera.forward.i * 1.5f;
+			placement.position.y += capture_camera.forward.j * 1.5f;
+			placement.position.z -= 0.6f;
+			placement.forward = capture_camera.forward;
+			placement.forward.k = 0;
+			normalize3d(&placement.forward);
+			observer_up_from_forward(&placement.forward, &placement.up);
+			holder = object_new(&placement);
+		}
+		tag = tag_loaded('weap', "weapons\\assault rifle\\assault rifle");
+		if (holder == NONE || tag == NONE) return;
+		capture_emitter_holder = holder;
+		unit_drop_current_weapon(holder, TRUE);
+		unit_drop_current_weapon(holder, TRUE);
+		object_placement_data_new(&placement, tag, NONE);
+		placement.position = object_get(holder)->object.position;
+		capture_emitter = object_new(&placement);
+		if (capture_emitter != NONE && unit_add_weapon_to_inventory(holder, capture_emitter, TRUE))
+		{
+			if (!strcmp(kind, "ammo-fp"))
+				for (i = 0; i < MAXIMUM_WEAPONS_PER_UNIT; i++)
+					if (unit_inventory_get_weapon(holder, (short)i) == capture_emitter)
+						player_control_set_desired_weapon(holder, (short)i);
+			platform_log("EMITTER created %ld tag ammo holder %ld mode %s", capture_emitter, holder, kind);
+		}
+	}
+	if (capture_ticks == 200 && capture_emitter_holder != NONE)
+	{
+		unit_drop_current_weapon(capture_emitter_holder, TRUE);
+		platform_log("EMITTER ammo dropped");
+	}
+}
+static void emitter_capture_tick(void)
+{
+	const char *kind = getenv("HALO_EMITTER_CAPTURE");
+	struct object_placement_data placement;
+	long tag;
+	if (!strncmp(kind, "ammo-", 5))
+	{
+		ammo_capture_tick(kind);
+		return;
+	}
+	if (capture_ticks == 65)
+	{
+		const char *name = !strcmp(kind, "stationary") ? "scenery\\c_field_generator\\c_field_generator" :
+			!strcmp(kind, "fuel") ? "weapons\\fuel rod gun\\fuel rod" :
+			!strcmp(kind, "major") ? "characters\\jackal\\jackal major" : "characters\\jackal\\jackal";
+		capture_emitter_attached = FALSE;
+		tag = tag_loaded(!strcmp(kind, "stationary") ? 'scen' : !strcmp(kind, "fuel") ? 'weap' : 'bipd', name);
+		if (tag == NONE) { platform_log("EMITTER missing tag %s", name); return; }
+		object_placement_data_new(&placement, tag, NONE);
+		placement.position = capture_camera.position;
+		placement.position.x += capture_camera.forward.i * 2.5f;
+		placement.position.y += capture_camera.forward.j * 2.5f;
+		placement.position.z -= 0.65f;
+		if (!strcmp(kind, "stationary"))
+		{
+			struct collision_result ground;
+			real_vector3d down = {0, 0, -5};
+			real_point3d from = placement.position;
+			from.z = capture_camera.position.z + 0.5f;
+			if (collision_test_vector(FLAG(_collision_test_structure_bit) |
+				FLAG(_collision_test_front_facing_surfaces_bit), &from, &down, NONE, &ground))
+				placement.position.z = ground.point.z + 0.03f;
+		}
+		placement.forward = capture_camera.forward;
+		placement.forward.i = -placement.forward.i;
+		placement.forward.j = -placement.forward.j;
+		placement.forward.k = 0;
+		if (!strcmp(kind, "stationary"))
+		{
+			placement.forward.i = -capture_camera.forward.j;
+			placement.forward.j = capture_camera.forward.i;
+		}
+		normalize3d(&placement.forward);
+		observer_up_from_forward(&placement.forward, &placement.up);
+		capture_emitter = object_new(&placement);
+		platform_log("EMITTER created %ld tag %s", capture_emitter, name);
+		if (!strcmp(kind, "fuel"))
+		{
+			tag = tag_loaded('bipd', "characters\\grunt\\grunt");
+			if (tag != NONE)
+			{
+				struct object_placement_data holder;
+				object_placement_data_new(&holder, tag, NONE);
+				holder.position = placement.position;
+				holder.forward = placement.forward;
+				holder.up = placement.up;
+				capture_emitter_holder = object_new(&holder);
+				if (capture_emitter_holder != NONE && capture_emitter != NONE)
+				{
+					int held = unit_add_weapon_to_inventory(capture_emitter_holder, capture_emitter, TRUE);
+					/* This fixture creates the gun loose before attaching it. Clear
+					   that spawn-time detonation; the later stock drop stays live. */
+					if (held) weapon_get(capture_emitter)->item.detonation_ticks = 0;
+					platform_log("EMITTER held %d", held);
+				}
+			}
+		}
+	}
+	if (capture_emitter != NONE && object_try_and_get(capture_emitter))
+	{
+		if (!strcmp(kind, "fuel") && !capture_emitter_attached &&
+			object_get(capture_emitter)->object.parent_object_index == capture_emitter_holder)
+		{
+			/* Inventory insertion precedes the actual hand attachment. The
+			   loose spawn can arm itself until that animation completes. */
+			weapon_get(capture_emitter)->item.detonation_ticks = 0;
+			capture_emitter_attached = TRUE;
+			platform_log("EMITTER attached");
+		}
+		if (capture_ticks == 150 && strcmp(kind, "fuel"))
+		{
+			object_deplete_shield(capture_emitter);
+			platform_log("EMITTER depleted %ld", capture_emitter);
+		}
+		if (capture_ticks == 180 && strcmp(kind, "fuel"))
+		{
+			struct damage_network_state state;
+			damage_get_network_state(capture_emitter, &state);
+			state.shield_depleted = FALSE;
+			state.shield_vitality = 1.0f;
+			damage_set_network_state(capture_emitter, &state);
+			platform_log("EMITTER recovered %ld", capture_emitter);
+		}
+		if (capture_ticks == 150 && !strcmp(kind, "fuel") && capture_emitter_holder != NONE)
+		{
+			unit_drop_current_weapon(capture_emitter_holder, TRUE);
+			platform_log("EMITTER dropped");
+		}
+		if (capture_ticks == 225)
+		{
+			object_delete(capture_emitter);
+			capture_emitter = NONE;
+			platform_log("EMITTER deleted");
+		}
+	}
+}
 static const char *capture_projectile_tags[] = {
 	"weapons\\plasma rifle\\bolt", "weapons\\plasma pistol\\bolt",
 	"weapons\\plasma rifle\\charged bolt", "weapons\\rocket launcher\\rocket",
@@ -108,6 +266,7 @@ void plasma_capture_tick(void)
 	{
 		capture_ticks = 0;
 		capture_projectile = capture_door = capture_target = NONE;
+		capture_emitter = capture_emitter_holder = NONE;
 		for (i = 0; i < 32; i++)
 			capture_bolts[i] = NONE;
 	}
@@ -144,10 +303,40 @@ void plasma_capture_tick(void)
 					 capture_camera.position.y, capture_camera.position.z, capture_camera.forward.i,
 					 capture_camera.forward.j, capture_camera.forward.k);
 	}
+	if (getenv("HALO_EMITTER_CAPTURE"))
+	{
+		emitter_capture_tick();
+		return;
+	}
 	if (capture_ticks == 65 && capture_combat)
 	{
 		long unit = player_control_get_unit_index(0);
 		const char *role = getenv("HALO_NETWORK_TEST");
+		if (getenv("HALO_WARTHOG_CAPTURE"))
+		{
+			long vehicle;
+			if (role && !strncmp(role, "join", 4)) return;
+			tag = tag_loaded('vehi', "vehicles\\warthog\\warthog");
+			if (tag == NONE || unit == NONE) return;
+			object_placement_data_new(&placement, tag, NONE);
+			placement.position = capture_camera.position;
+			placement.position.x += capture_camera.forward.i * 4.0f;
+			placement.position.y += capture_camera.forward.j * 4.0f;
+			placement.position.z -= 0.5f;
+			placement.forward = capture_camera.forward;
+			placement.forward.k = 0;
+			normalize3d(&placement.forward);
+			observer_up_from_forward(&placement.forward, &placement.up);
+			vehicle = object_new(&placement);
+			if (vehicle != NONE)
+			{
+				unit_scripting_enter_vehicle(unit, vehicle, "W-gunner");
+				platform_log("WARTHOG seat vehicle %ld parent %ld", vehicle, object_get(unit)->object.parent_object_index);
+				if (object_get(unit)->object.parent_object_index == vehicle)
+					platform_log("PLASMA combat equipped Warthog %ld", vehicle);
+			}
+			return;
+		}
 		tag = tag_loaded('weap', capture_kind() == 3 ? "weapons\\rocket launcher\\rocket launcher" : capture_kind() ? "weapons\\plasma pistol\\plasma pistol" : "weapons\\plasma rifle\\plasma rifle");
 		if (getenv("HALO_MUZZLE_CAPTURE_WEAPON"))
 			tag = tag_loaded('weap', getenv("HALO_MUZZLE_CAPTURE_WEAPON"));

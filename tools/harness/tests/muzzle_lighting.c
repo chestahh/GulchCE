@@ -9,7 +9,7 @@ struct weapon_datum { long definition_index; struct { long parent_object_index; 
 struct unit_datum { struct { short current_weapon_index; } unit; };
 struct object_marker { real_matrix4x3 matrix; };
 struct observer_result { real_point3d position; };
-static struct weapon_datum weapons[12];
+static struct weapon_datum weapons[21];
 static struct unit_datum unit;
 static struct observer_result camera;
 static const char *tag="weapons\\assault rifle\\assault rifle";
@@ -114,6 +114,17 @@ int main(int argc,char **argv)
   marker_x=4;weapons[1].object.node_matrices.size=0;tick++;
   muzzle_lighting_shot(1,0);muzzle_lighting_update();
   CHECK(allocs==1,"missing world pose stays stock");
+ }
+ else if(!strcmp(name,"warthog"))
+ {
+  tag="vehicles\\warthog\\warthog gun";marker=0;world_marker=1;
+  weapons[1].object.flags=FLAG(_object_invisible_bit);weapons[1].object.node_matrices.size=0;
+  weapons[20].object.node_matrices.size=sizeof(real_matrix4x3);
+  muzzle_lighting_shot(1,0);muzzle_lighting_update();
+  CHECK(allocs==1 && lights[0].radius==5.0f && lights[0].color.green==0.75f,"wide warm turret pulse uses vehicle marker");
+  muzzle_lighting_frame_end();marker_x=1;render_time+=1.0f/120;muzzle_lighting_update();
+  CHECK(lights[0].position.x==1 && lights[0].color.red<1,"turret follows rendered aim with smooth fade");
+  world_marker=0;muzzle_lighting_update();CHECK(deletes==1,"missing vehicle marker releases pulse");
  }
  else if(!strcmp(name,"move"))
  {

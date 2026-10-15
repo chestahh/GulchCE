@@ -11,8 +11,12 @@ import re
 import shlex
 import json
 import hashlib
+import argparse
 
 ROOT = Path(__file__).resolve().parents[1]
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument('--output-dir', type=Path, default=ROOT/'build/plasma-visual')
+args = parser.parse_args()
 source = ROOT / 'port/linux/game/render_interpolation.c'
 fixture = ROOT / 'port/linux/game/plasma_capture_fixture.c'
 original = source.read_bytes()
@@ -36,18 +40,27 @@ muzzle=ROOT/'port/linux/game/muzzle_lighting.c'
 muzzle_original=muzzle.read_bytes()
 covenant=ROOT/'port/linux/game/covenant_lighting.c'
 covenant_original=covenant.read_bytes()
+emitter=ROOT/'port/linux/game/covenant_emitter_lighting.c'
+emitter_original=emitter.read_bytes()
 assert not fixture.exists(), 'Refusing to overwrite an existing fixture'
-out = ROOT / 'build/plasma-visual'
-out.mkdir(exist_ok=True)
+out = args.output_dir.resolve()
+assert out.is_relative_to((ROOT/'build').resolve()), 'Capture output must stay under build/'
+out.mkdir(parents=True, exist_ok=True)
 saved_args = shlex.split(re.search(r'^configure_args = (.*)$',
                                   (ROOT / 'build.ninja').read_text(), re.M).group(1))
 manifest = dict(configure_args=saved_args, base_commit=subprocess.check_output(
     ['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip(), source_hashes={})
-for path in [covenant, muzzle, ROOT/'source/items/weapons.c', ROOT/'port/linux/src/port_config.c', rocket, input_source, ROOT/'tools/fixtures/plasma_lighting_capture.c', source, main, backend, plasma, ROOT/'port/linux/game/plasma_falloff.c',
+for path in [ROOT/'port/linux/game/ammo_counter_lighting.c', covenant, muzzle, ROOT/'source/items/weapons.c', ROOT/'port/linux/src/port_config.c', rocket, input_source, ROOT/'tools/fixtures/plasma_lighting_capture.c', source, main, backend, plasma, ROOT/'port/linux/game/plasma_falloff.c',
              occlusion, ROOT/'port/linux/src/plasma_occlusion_gl.c', ROOT/'source/objects/object_lights.c', ROOT/'source/rasterizer/xbox/rasterizer_xbox.c',
              ROOT/'port/linux/src/plasma_model_shader.c', ROOT/'port/linux/src/nv2a_vsh.c', ROOT/'port/linux/src/nv2a_psh.c', ROOT/'source/rasterizer/xbox/rasterizer_xbox_environment.c']:
     manifest['source_hashes'][path.relative_to(ROOT).as_posix()] = hashlib.sha256(path.read_bytes()).hexdigest()
 try:
+    manifest['source_hashes'][emitter.relative_to(ROOT).as_posix()] = hashlib.sha256(emitter_original).hexdigest()
+    text = 'void platform_log(const char *format,...);\n' + emitter_original.decode().replace('\r\n','\n')
+    marker = '\t\temitter->connected = TRUE;'
+    assert text.count(marker) == 1
+    text = text.replace(marker, marker+'\n\t\tplatform_log("EMITTER sample time %.6f strength %.6f kind %d position %.5f %.5f %.5f", now, emitter->strength, emitter->kind, sample.position.x, sample.position.y, sample.position.z);')
+    emitter.write_text(text)
     text=input_original.decode().replace('\r\n','\n')
     marker='\tif (seed < 0)'
     assert marker in text
@@ -128,7 +141,7 @@ try:
     text = 'void platform_log(const char *format,...);\n' + text
     marker = '\t\tpulse->connected = TRUE;'
     assert text.count(marker) == 1
-    text = text.replace(marker, marker+'\n\t\tplatform_log("MUZZLE sample tick %ld time %.6f strength %.6f position %.5f %.5f %.5f weapon %ld", game_time_get(), now, strength, position.x, position.y, position.z, pulse->weapon);')
+    text = text.replace(marker, marker+'\n\t\tplatform_log("MUZZLE sample tick %ld time %.6f strength %.6f position %.5f %.5f %.5f weapon %ld", game_time_get(), now, strength, position.x, position.y, position.z, pulse->weapon);\n\t\tplatform_log("MUZZLE profile %s", muzzle_profiles[pulse->profile].tag);')
     marker = '\t\t\tpulses[i].rasterizer = rasterizer_index;'
     assert text.count(marker) == 1
     text = text.replace(marker, marker+'\n\t\t\tplatform_log("MUZZLE submit %ld", rasterizer_index);')
@@ -139,6 +152,7 @@ try:
     manifest['capture_sha256'] = hashlib.sha256((out/'halo-capture.exe').read_bytes()).hexdigest()
     (out/'build-manifest.json').write_text(json.dumps(manifest, indent=2))
 finally:
+    emitter.write_bytes(emitter_original)
     covenant.write_bytes(covenant_original)
     muzzle.write_bytes(muzzle_original)
     rocket.write_bytes(rocket_original)
