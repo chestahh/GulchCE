@@ -11,6 +11,7 @@
 #include "game/players.h"
 #include "covenant_emitter_lighting.h"
 #include "ammo_counter_lighting.h"
+#include "needler_lighting.h"
 #include "plasma_occlusion.h"
 #include <math.h>
 #include <string.h>
@@ -34,7 +35,7 @@ static const real_rgb_color emitter_black = {0, 0, 0};
 struct emitter_sample
 {
 	int kind;
-	real strength, radius;
+	real strength, radius, view_gain;
 	real_rgb_color color;
 	real_point3d position;
 	real_vector3d direction;
@@ -43,12 +44,13 @@ struct emitter_sample
 int covenant_emitter_lighting_enabled(void)
 {
 	return config_boolean("display.jackal_shield_lighting") || config_boolean("display.fuel_rod_lighting") ||
-		config_boolean("display.covenant_shield_lighting") || config_boolean("display.ammo_counter_lighting");
+		config_boolean("display.covenant_shield_lighting") || config_boolean("display.ammo_counter_lighting") ||
+		config_boolean("display.needler_lighting");
 }
 
 static int emitter_kind_enabled(int kind)
 {
-	return config_boolean(kind == 3 ? "display.ammo_counter_lighting" : kind == 2 ? "display.covenant_shield_lighting" :
+	return config_boolean(kind == 4 ? "display.needler_lighting" : kind == 3 ? "display.ammo_counter_lighting" : kind == 2 ? "display.covenant_shield_lighting" :
 		kind == 1 ? "display.fuel_rod_lighting" : "display.jackal_shield_lighting");
 }
 
@@ -83,6 +85,8 @@ static int emitter_sample(long index, struct emitter_sample *sample)
 	const char *marker_name;
 	real nearest = 25.0f;
 	short player;
+	int counter_pose;
+	sample->view_gain = 1.0f;
 	if (!object || TEST_FLAG(object->object.flags, _object_invisible_bit) ||
 		object->object.node_matrices.size < sizeof(real_matrix4x3))
 		return FALSE;
@@ -143,14 +147,27 @@ static int emitter_sample(long index, struct emitter_sample *sample)
 		sample->color.blue = 0.05f;
 		sample->strength = 0.75f;
 	}
-	else if (object->object.type == _object_type_weapon && ammo_counter_lighting_position(index, &sample->position, &sample->direction))
+	else if (object->object.type == _object_type_weapon &&
+		(counter_pose = ammo_counter_lighting_position(index, &sample->position, &sample->direction)))
 	{
 		sample->kind = 3;
 		sample->radius = 0.95f;
 		sample->color.red = 0.24f;
 		sample->color.green = 0.65f;
 		sample->color.blue = 1.0f;
+		/* Keep view-specific brightness out of the shared temporal history. */
 		sample->strength = 0.65f;
+		sample->view_gain = counter_pose == 2 ? 1.0f / 0.65f : 1.0f;
+		marker_name = NULL;
+	}
+	else if (object->object.type == _object_type_weapon && needler_lighting_position(index, &sample->position, &sample->direction))
+	{
+		sample->kind = 4;
+		sample->radius = 1.5f;
+		sample->color.red = 1.0f;
+		sample->color.green = 0.24f;
+		sample->color.blue = 0.85f;
+		sample->strength = 0.9f;
 		marker_name = NULL;
 	}
 	else
@@ -234,7 +251,7 @@ void covenant_emitter_lighting_update(void)
 		emitter->strength += (sample.strength - emitter->strength) * blend;
 		emitter->last_time = now;
 		emitter->radius = sample.radius;
-		if (sample.kind == 3)
+		if (sample.kind == 3 || sample.kind == 4)
 		{
 			emitter->position = sample.position;
 			emitter->direction = sample.direction;
@@ -245,9 +262,9 @@ void covenant_emitter_lighting_update(void)
 				emitter_release(emitter);
 			continue;
 		}
-		color.red = sample.color.red * emitter->strength;
-		color.green = sample.color.green * emitter->strength;
-		color.blue = sample.color.blue * emitter->strength;
+		color.red = sample.color.red * emitter->strength * sample.view_gain;
+		color.green = sample.color.green * emitter->strength * sample.view_gain;
+		color.blue = sample.color.blue * emitter->strength * sample.view_gain;
 		if (emitter->light == NONE)
 		{
 			definition = light_port_glow_definition_get();
@@ -289,6 +306,7 @@ void covenant_emitter_lighting_frame_end(void)
 void covenant_emitter_lighting_forget(void)
 {
 	ammo_counter_lighting_forget();
+	needler_lighting_forget();
 	memset(emitters, 0, sizeof(emitters));
 }
 
@@ -345,10 +363,11 @@ long covenant_emitter_lighting_occlusion_ignore(long light)
 int covenant_emitter_lighting_cone(long rasterizer, float axis[3], float origin[3], float *radius)
 {
 	int i;
-	if (rasterizer == NONE || !emitter_kind_enabled(3))
+	if (rasterizer == NONE)
 		return FALSE;
 	for (i = 0; i < EMITTER_LIGHTS; i++)
-		if (emitters[i].active && emitters[i].kind == 3 && emitters[i].rasterizer == rasterizer)
+		if (emitters[i].active && (emitters[i].kind == 3 || emitters[i].kind == 4) &&
+			emitter_kind_enabled(emitters[i].kind) && emitters[i].rasterizer == rasterizer)
 		{
 			axis[0] = emitters[i].direction.i;
 			axis[1] = emitters[i].direction.j;
@@ -357,7 +376,7 @@ int covenant_emitter_lighting_cone(long rasterizer, float axis[3], float origin[
 			origin[1] = emitters[i].position.y;
 			origin[2] = emitters[i].position.z;
 			*radius = emitters[i].radius;
-			return TRUE;
+			return emitters[i].kind == 4 ? 2 : 1;
 		}
 	return FALSE;
 }

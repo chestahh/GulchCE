@@ -43,12 +43,15 @@ static void ammo_capture_tick(const char *kind)
 	struct object_placement_data placement;
 	long tag, holder;
 	int i;
+	int needler = !strncmp(kind, "needler-", 8);
+	const char *pose = needler ? kind + 8 : kind + 5;
 	if (capture_ticks == 65)
 	{
 		holder = player_control_get_unit_index(0);
-		if (strcmp(kind, "ammo-fp"))
+		if (strcmp(pose, "fp"))
 		{
-			tag = tag_loaded('bipd', !strcmp(kind, "ammo-marine") ? "characters\\marine_armored\\marine_armored" : "characters\\cyborg\\cyborg");
+			tag = tag_loaded('bipd', !strcmp(pose, "marine") ? "characters\\marine_armored\\marine_armored" :
+				!strcmp(pose, "grunt") ? "characters\\grunt\\grunt" : "characters\\cyborg\\cyborg");
 			if (tag == NONE) { platform_log("EMITTER missing actor"); return; }
 			object_placement_data_new(&placement, tag, NONE);
 			placement.position = capture_camera.position;
@@ -57,11 +60,16 @@ static void ammo_capture_tick(const char *kind)
 			placement.position.z -= 0.6f;
 			placement.forward = capture_camera.forward;
 			placement.forward.k = 0;
+			if (getenv("HALO_EMITTER_CAPTURE_FACE_CAMERA"))
+			{
+				placement.forward.i = -placement.forward.i;
+				placement.forward.j = -placement.forward.j;
+			}
 			normalize3d(&placement.forward);
 			observer_up_from_forward(&placement.forward, &placement.up);
 			holder = object_new(&placement);
 		}
-		tag = tag_loaded('weap', "weapons\\assault rifle\\assault rifle");
+		tag = tag_loaded('weap', needler ? "weapons\\needler\\needler" : "weapons\\assault rifle\\assault rifle");
 		if (holder == NONE || tag == NONE) return;
 		capture_emitter_holder = holder;
 		unit_drop_current_weapon(holder, TRUE);
@@ -71,7 +79,7 @@ static void ammo_capture_tick(const char *kind)
 		capture_emitter = object_new(&placement);
 		if (capture_emitter != NONE && unit_add_weapon_to_inventory(holder, capture_emitter, TRUE))
 		{
-			if (!strcmp(kind, "ammo-fp"))
+			if (!strcmp(pose, "fp"))
 				for (i = 0; i < MAXIMUM_WEAPONS_PER_UNIT; i++)
 					if (unit_inventory_get_weapon(holder, (short)i) == capture_emitter)
 						player_control_set_desired_weapon(holder, (short)i);
@@ -89,7 +97,7 @@ static void emitter_capture_tick(void)
 	const char *kind = getenv("HALO_EMITTER_CAPTURE");
 	struct object_placement_data placement;
 	long tag;
-	if (!strncmp(kind, "ammo-", 5))
+	if (!strncmp(kind, "ammo-", 5) || !strncmp(kind, "needler-", 8))
 	{
 		ammo_capture_tick(kind);
 		return;

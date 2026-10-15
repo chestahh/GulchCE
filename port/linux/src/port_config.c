@@ -317,6 +317,8 @@ static const struct config_setting config_settings[] =
 	{ "display.jackal_shield_lighting", _config_boolean, "false", "HALO_JACKAL_SHIELD_LIGHTING", _environment_value, _platform_all,
 		"Soft illumination from visible Jackal shields, following their colour and pose.\n"
 		"Stock shield effects remain intact. Optional occlusion uses plasma_occlusion." },
+	{ "display.needler_lighting", _config_boolean, "false", "HALO_NEEDLER_LIGHTING", _environment_value, _platform_all,
+	  "Soft pink-purple spill and luminous crystals on held Needlers." },
 	{ "display.ammo_counter_lighting", _config_boolean, "false", "HALO_AMMO_COUNTER_LIGHTING", _environment_value, _platform_all,
 	  "Blue spill and screen emission from held Assault Rifle ammo counters (experimental, off by default)." },
 	{ "display.fuel_rod_lighting", _config_boolean, "false", "HALO_FUEL_ROD_LIGHTING", _environment_value, _platform_all,

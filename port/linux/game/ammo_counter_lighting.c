@@ -18,6 +18,7 @@ int ammo_counter_lighting_position(long index, real_point3d *position, real_vect
 	struct object_marker marker;
 	real_vector3d forward, up;
 	real height;
+	int pose = 1;
 	const char *name;
 	if (!config_boolean("display.ammo_counter_lighting"))
 		return FALSE;
@@ -36,7 +37,10 @@ int ammo_counter_lighting_position(long index, real_point3d *position, real_vect
 	   light just behind/above that surface, using the identity-oriented muzzle
 	   marker. The FP muzzle is .002744 units higher than the world muzzle. */
 	if (first_person_weapon_adjust_light(index, "primary trigger", position, &forward, &up))
+	{
 		height = 0.025f;
+		pose = 2;
+	}
 	else
 	{
 		if (weapon->object.node_matrices.size < sizeof(real_matrix4x3) ||
@@ -55,7 +59,7 @@ int ammo_counter_lighting_position(long index, real_point3d *position, real_vect
 	position->x += -0.18f * forward.i + height * up.i;
 	position->y += -0.18f * forward.j + height * up.j;
 	position->z += -0.18f * forward.k + height * up.k;
-	return TRUE;
+	return pose;
 }
 
 /* Cache only within a loaded map; the emitter lifecycle clears this pointer. */
@@ -68,7 +72,7 @@ void ammo_counter_lighting_forget(void)
 	ammo_counter_screen_checked = FALSE;
 }
 
-void ammo_counter_lighting_screen(struct shader *shader, real_rgb_color *color)
+void ammo_counter_lighting_screen(struct shader *shader, real_rgb_color *color, int first_person)
 {
 	long index;
 	if (!config_boolean("display.ammo_counter_lighting"))
@@ -83,7 +87,7 @@ void ammo_counter_lighting_screen(struct shader *shader, real_rgb_color *color)
 		return;
 	/* The authored multipurpose-map mask confines emission to the screen.
 	   Both stock AR models share this shader; retain any brighter animation. */
-	color->red = MAX(color->red, 0.22f);
-	color->green = MAX(color->green, 0.75f);
+	color->red = MAX(color->red, first_person ? 0.45f : 0.22f);
+	color->green = MAX(color->green, first_person ? 1.0f : 0.75f);
 	color->blue = MAX(color->blue, 1.0f);
 }

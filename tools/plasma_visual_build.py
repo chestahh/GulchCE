@@ -50,7 +50,7 @@ saved_args = shlex.split(re.search(r'^configure_args = (.*)$',
                                   (ROOT / 'build.ninja').read_text(), re.M).group(1))
 manifest = dict(configure_args=saved_args, base_commit=subprocess.check_output(
     ['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip(), source_hashes={})
-for path in [ROOT/'port/linux/game/ammo_counter_falloff.c', ROOT/'source/rasterizer/xbox/rasterizer_xbox_models.c', ROOT/'port/linux/game/ammo_counter_lighting.c', covenant, muzzle, ROOT/'source/items/weapons.c', ROOT/'port/linux/src/port_config.c', rocket, input_source, ROOT/'tools/fixtures/plasma_lighting_capture.c', source, main, backend, plasma, ROOT/'port/linux/game/plasma_falloff.c',
+for path in [ROOT/'source/rasterizer/xbox/rasterizer_xbox_transparent_geometry.c', ROOT/'port/linux/game/needler_lighting.c', ROOT/'port/linux/game/ammo_counter_falloff.c', ROOT/'source/rasterizer/xbox/rasterizer_xbox_models.c', ROOT/'port/linux/game/ammo_counter_lighting.c', covenant, muzzle, ROOT/'source/items/weapons.c', ROOT/'port/linux/src/port_config.c', rocket, input_source, ROOT/'tools/fixtures/plasma_lighting_capture.c', source, main, backend, plasma, ROOT/'port/linux/game/plasma_falloff.c',
              occlusion, ROOT/'port/linux/src/plasma_occlusion_gl.c', ROOT/'source/objects/object_lights.c', ROOT/'source/rasterizer/xbox/rasterizer_xbox.c',
              ROOT/'port/linux/src/plasma_model_shader.c', ROOT/'port/linux/src/nv2a_vsh.c', ROOT/'port/linux/src/nv2a_psh.c', ROOT/'source/rasterizer/xbox/rasterizer_xbox_environment.c']:
     manifest['source_hashes'][path.relative_to(ROOT).as_posix()] = hashlib.sha256(path.read_bytes()).hexdigest()
