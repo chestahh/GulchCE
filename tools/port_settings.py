@@ -35,9 +35,9 @@ SCREENS = {
     "video_settings": {
         "screen": "video_settings_screen",
         "header": ("header_profile_video_settings", f"{PE}/video_settings/header_profile_video_settings"),
-        # the other screens' 30px step. each platform packs its own rows, so
-        # a row hidden on this machine does not leave a gap
-        "spacing": 30,
+        # Ten desktop rows fit above the help at the 28px row height. Each
+        # platform packs its own rows without gaps for hidden settings.
+        "spacing": 28,
         "help_top": 364,
         "platform_places": True,
         # (rows in the place of the row before them: Window Size in
@@ -207,7 +207,30 @@ _video["categories"] = [
     ("GRAPHICS:", "video_settings/graphics", "The HUD, text, anti-aliasing, shadows and\nlighting."),
     ("FOV AND VIEWMODELS:", "video_settings/fov_viewmodels",
      "The field of view and the first-person\nweapon. Their defaults keep the stock view."),
+    ("DYNAMIC LIGHTING:", "video_settings/dynamic_lighting",
+     "Added light from projectiles, weapons and\nCovenant shields. All options default to off."),
 ]
+SCREENS["video_settings/dynamic_lighting"] = {
+    "screen": "dynamic_lighting_settings_screen", "header": _video["header"], "spacing": 30,
+    "rows": [
+        ("PROJECTILE LIGHTS:", "display.plasma_lighting", ON_OFF,
+         "Plasma, rockets and Covenant projectiles cast\nsoft light on nearby surfaces and models.", None),
+        ("MUZZLE FLASH LIGHTS:", "display.muzzle_lighting", ON_OFF,
+         "Weapon flashes light nearby surfaces, including\nthe Warthog turret. Stock flash effects remain.", None),
+        ("JACKAL SHIELDS:", "display.jackal_shield_lighting", ON_OFF,
+         "Jackal shields light their surroundings,\nmatching their colour and damage flashes.", None),
+        ("STATIONARY SHIELDS:", "display.covenant_shield_lighting", ON_OFF,
+         "Covenant stationary shields cast coloured light\nthat follows damage flashes and shield strength.", None),
+        ("FUEL ROD GLOW:", "display.fuel_rod_lighting", ON_OFF,
+         "Exposed fuel rods on a held Grunt cannon cast\ngreen light on the holder and nearby surfaces.", None),
+        ("AR COUNTER GLOW:", "display.ammo_counter_lighting", ON_OFF,
+         "The AR ammo screen glows and lights the weapon\nand holder in first and third person.", None),
+        ("NEEDLER GLOW:", "display.needler_lighting", ON_OFF,
+         "Exposed needles glow and spill light around the\nheld weapon, with a soft fade below it.", None),
+        ("LIGHT OCCLUSION:", "display.plasma_occlusion", ON_OFF,
+         "Block added light behind walls and doors, and\nWarthog muzzle light through vehicle bodies.", None),
+    ],
+}
 SCREENS["video_settings/fov_viewmodels"] = {
     "screen": "fov_viewmodel_settings_screen", "header": _video["header"], "spacing": 30,
     "rows": [

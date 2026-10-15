@@ -503,6 +503,16 @@ the world (such as `rasterizer_wireframe`). Refer to `NETCODE.md`.
 The frame rate shows at the bottom right of the screen. It is the mean over
 half a second.
 
+## Dynamic lighting
+
+Video Setup's DYNAMIC LIGHTING submenu controls projectile lights, muzzle-flash
+lights, Jackal shields, Covenant stationary shields, held fuel rod glow, AR
+counter glow, Needler glow and light occlusion. Every option defaults to OFF.
+OK saves and applies this screen's changes; Cancel leaves them unchanged.
+Defaults selects OFF for all eight options, applied when you choose OK.
+Light occlusion affects enabled lighting effects; it does not enable them.
+These are local visual settings and do not change other players' settings.
+
 ## Field of view
 
 Video Setup's FOV AND VIEWMODELS screen sets the field of view of the
