@@ -123,6 +123,7 @@ symbols in this file:
 #include "rasterizer/xbox/rasterizer_xbox_draw_primitives.h"
 #include "rasterizer/xbox/rasterizer_xbox_internal.h"
 #include "rasterizer/xbox/rasterizer_xbox_models.h"
+#include "needler_lighting.h" /* port: port/linux/game/needler_lighting.c */
 #include "ammo_counter_lighting.h" /* port: port/linux/game/ammo_counter_lighting.c */
 #include "view_fov.h" /* port: port/linux/game/view_fov.c */
 
@@ -1993,7 +1994,10 @@ void _rasterizer_model_draw(
 				}
 
 				/* port: optional AR screen emission, confined to its authored mask. */
-				ammo_counter_lighting_screen(shader, &self_illumination_color);
+				ammo_counter_lighting_screen(shader, &self_illumination_color,
+					TEST_FLAG(local_parameters->geometry_flags, _rasterizer_geometry_first_person_bit));
+				/* port: optional masked needle emission in both weapon models. */
+				needler_lighting_material(shader, &self_illumination_color);
 
 				if (shader_model->model.change_color_source>0 &&
 					shader_model->model.change_color_source<

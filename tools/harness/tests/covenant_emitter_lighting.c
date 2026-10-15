@@ -32,7 +32,7 @@ static const char *names[10];
 static real now,marker_x=1;
 static int count=1,shield_on=1,fuel_on,stationary_on,allocs,deletes,disconnects,missing,fail,marker_missing;
 static long inventory=0;
-static int ammo_on,first_person;
+static int ammo_on,needler_on,first_person;
 #define weapon_datum object_datum
 static struct { int active,connected; real radius; real_rgb_color color; real_point3d position; } storage[64];
 static real_vector3d forward={1,0,0};
@@ -64,6 +64,7 @@ int config_boolean(const char *name)
  if (!strcmp(name,"display.fuel_rod_lighting")) return fuel_on;
  if (!strcmp(name,"display.covenant_shield_lighting")) return stationary_on;
  if (!strcmp(name,"display.ammo_counter_lighting")) return ammo_on;
+ if (!strcmp(name,"display.needler_lighting")) return needler_on;
  return 0;
 }
 long light_port_glow_definition_get(void) { return missing?NONE:99; }
@@ -78,24 +79,27 @@ static void light_disconnect_from_map(long l)
 { CHECK(storage[l-100].connected,"double disconnect");storage[l-100].connected=0;disconnects++; }
 void plasma_occlusion_submit(long l,long r) {}
 struct shader { int unused; };
-static struct shader screen_shader, other_shader;
+struct pixel_shader_definition { unsigned long rgb_outputs[8]; };
+static struct shader screen_shader, needle_shader, core_shader, crystal_shader, other_shader;
 static int screen_present=1;
-static long tag_loaded(long group,const char *name) { return screen_present&&group=='soso'&&!strcmp(name,"weapons\\assault rifle\\fp\\shaders\\display")?99:NONE; }
-static struct shader *shader_definition_get(long i) { return &screen_shader; }
+static long tag_loaded(long group,const char *name) { if (screen_present && group=='sotr') return 97; if (screen_present && group=='schi') return 96; if (screen_present && group=='soso' && !strcmp(name,"weapons\\needler\\shaders\\needler dull")) return 98; return screen_present&&group=='soso'&&!strcmp(name,"weapons\\assault rifle\\fp\\shaders\\display")?99:NONE; }
+static struct shader *shader_definition_get(long i) { return i==97?&core_shader:i==96?&crystal_shader:i==98?&needle_shader:&screen_shader; }
 #include "under_test.inc"
 static void frame(real dt) { now+=dt;covenant_emitter_lighting_update(); }
 int main(int argc,char **argv)
 {
  int i,old;real slow,fast;struct emitter_sample sample;
  real_rgb_color screen={0,.2f,.35f};
- ammo_counter_lighting_screen(&screen_shader,&screen);
+ ammo_counter_lighting_screen(&screen_shader,&screen, 0);
  CHECK(screen.blue==.35f,"disabled screen untouched");
- ammo_on=1;ammo_counter_lighting_screen(&other_shader,&screen);
+ ammo_on=1;ammo_counter_lighting_screen(&other_shader,&screen, 0);
  CHECK(screen.blue==.35f,"unrelated shaders untouched");
- ammo_counter_lighting_screen(&screen_shader,&screen);
+ ammo_counter_lighting_screen(&screen_shader,&screen, 0);
  CHECK(screen.blue==1&&screen.green==.75f,"screen uses emissive mask");
+ ammo_counter_lighting_screen(&screen_shader,&screen,1);
+ CHECK(screen.green==1&&screen.red==.45f,"first person screen enhanced independently");
  ammo_counter_lighting_forget();screen_present=0;screen.blue=.35f;
- ammo_counter_lighting_screen(&screen_shader,&screen);
+ ammo_counter_lighting_screen(&screen_shader,&screen, 0);
  CHECK(screen.blue==.35f,"missing screen after map switch stays stock");
  ammo_counter_lighting_forget();screen_present=1;ammo_on=0;
  for(i=0;i<10;i++) {
@@ -183,16 +187,43 @@ int main(int argc,char **argv)
  objects[0].object.type=_object_type_weapon;names[0]="weapons\\assault rifle\\assault rifle";
  objects[0].object.parent_object_index=42;inventory=0;marker_x=1;
  CHECK(!emitter_sample(0,&sample),"ammo setting independent and off");ammo_on=1;
- CHECK(emitter_sample(0,&sample)&&sample.kind==3&&sample.radius>.9f&&sample.strength>.6f,"visible counter spill");
+ CHECK(emitter_sample(0,&sample)&&sample.kind==3&&sample.radius>.9f&&sample.strength==.65f,"third person counter strength unchanged");
  CHECK(fabs(sample.position.x-.82f)<.0001&&fabs(sample.position.z-.027744f)<.0001,"third person counter offset");
  first_person=1;
  CHECK(emitter_sample(0,&sample)&&sample.position.x==5&&fabs(sample.position.y+.18f)<.0001,"first person follows rotated rendered marker");
  CHECK(fabs(sample.position.z-.025f)<.0001,"first person has separate offset");
+ CHECK(sample.strength==1.0f,"first person counter has brighter spill");
  CHECK(sample.direction.i==0&&fabs(sample.direction.j+.8f)<.0001&&fabs(sample.direction.k-.6f)<.0001,"screen direction rotates with rendered weapon");
  inventory=1;CHECK(!emitter_sample(0,&sample),"holstered counter rejected");inventory=0;
  objects[0].object.parent_object_index=NONE;CHECK(!emitter_sample(0,&sample),"dropped counter is off");
  objects[0].object.parent_object_index=42;marker_missing=1;CHECK(!emitter_sample(0,&sample),"missing counter marker stays stock");marker_missing=0;
  first_person=0;frame(.01f);frame(.1f);ammo_on=0;old=deletes;frame(.01f);
  CHECK(deletes>old,"counter disable releases owned light");
+ needler_on=1;names[0]="weapons\\needler\\needler";
+ CHECK(emitter_sample(0,&sample)&&sample.kind==4,"held Needler admitted independently of AR");
+ CHECK(sample.position.x==marker_x&&sample.direction.k==1,"world needle marker and up axis");
+ first_person=1;
+ CHECK(emitter_sample(0,&sample)&&sample.position.x==5&&sample.position.y==0,"first person needle marker follows rendered pose");
+ CHECK(sample.direction.k==1,"needle spill follows model up");
+ inventory=1;CHECK(!emitter_sample(0,&sample),"holstered Needler rejected");inventory=0;
+ objects[0].object.parent_object_index=NONE;CHECK(!emitter_sample(0,&sample),"dropped Needler rejected");
+ objects[0].object.parent_object_index=42;marker_missing=1;CHECK(!emitter_sample(0,&sample),"missing needle marker stays stock");marker_missing=0;
+ screen.red=screen.green=screen.blue=0;
+ needler_lighting_material(&other_shader,&screen);CHECK(screen.red==0,"other materials unchanged");
+ needler_lighting_material(&needle_shader,&screen);CHECK(screen.red==1&&screen.blue==.85f,"needle mask emits pink");
+ frame(.01f);frame(.1f);covenant_emitter_lighting_submitted(emitters[0].light,7);
+ { float axis[3],origin[3],radius;CHECK(covenant_emitter_lighting_cone(7,axis,origin,&radius)==2,"Needler uses broad exposed profile"); }
+ { struct pixel_shader_definition pixel={{0xC00,0xC00}};
+ needler_lighting_transparent(&core_shader,&pixel,1);CHECK(pixel.rgb_outputs[0]==0x10C00,"FP crystal RGB boosted");
+ needler_lighting_transparent(&crystal_shader,&pixel,2);CHECK(pixel.rgb_outputs[1]==0x10C00,"world crystal RGB boosted");
+ pixel.rgb_outputs[0]=0x18C00;needler_lighting_transparent(&core_shader,&pixel,1);CHECK(pixel.rgb_outputs[0]==0x18C00,"custom biased stage preserved");
+ pixel.rgb_outputs[0]=0xC00;needler_lighting_transparent(&core_shader,&pixel,0);needler_lighting_transparent(&core_shader,&pixel,9);CHECK(pixel.rgb_outputs[0]==0xC00,"stage bounds checked");
+ pixel.rgb_outputs[0]=0xC00;needler_lighting_transparent(&other_shader,&pixel,1);CHECK(pixel.rgb_outputs[0]==0xC00,"unrelated transparent shader preserved");
+ needler_on=0;needler_lighting_transparent(&core_shader,&pixel,1);CHECK(pixel.rgb_outputs[0]==0xC00,"disabled transparent material stock");needler_on=1;
+ }
+ needler_on=0;old=deletes;frame(.01f);CHECK(deletes>old,"Needler disable releases light");
+ screen.red=0;needler_lighting_material(&needle_shader,&screen);CHECK(screen.red==0,"disabled needle material stock");
+ needler_on=1;screen_present=0;covenant_emitter_lighting_forget();
+ needler_lighting_material(&needle_shader,&screen);CHECK(screen.red==0,"map change invalidates needle material cache");
  return 0;
 }

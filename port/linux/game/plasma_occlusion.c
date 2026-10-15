@@ -328,7 +328,8 @@ static void *field_texture(struct occlusion_field *field, int pass, long rasteri
 						0.5f + dy * scale * 0.5f, 0.5f + dz * scale * 0.5f);
 				value = 1 - field->admission + field->admission * value;
 				if (directional)
-					value *= ammo_counter_falloff_factor(axis, dx, dy, dz);
+					value *= directional == 2 ? needler_falloff_factor(axis, dx, dy, dz) :
+						ammo_counter_falloff_factor(axis, dx, dy, dz);
 				if (pass)
 					value *= remaining * remaining;
 				pixels[i] = (unsigned long)(255 * value + 0.5f) * 0x01010101UL;

@@ -347,6 +347,10 @@ int main(int argc, char **argv)
 	 CHECK(ammo_counter_falloff_factor(axis,0,0,-1)==0,"floor behind display is dark");
 	 CHECK(ammo_counter_falloff_factor(axis,.8f,0,-.6f)==0,"back hemisphere is dark");
 	 CHECK(ammo_counter_falloff_factor(axis,0,0,1)==1,"face above screen retains brightness");
+	 { float up[3]={0,0,1};
+	 CHECK(needler_falloff_factor(up,1,0,0)>.8f,"needles spill sideways");
+	 CHECK(needler_falloff_factor(up,0,0,-1)==0,"needle housing suppresses floor spill");
+	 CHECK(needler_falloff_factor(up,0,0,1)==1,"exposed tips retain full intensity"); }
 	 plasma_occlusion_model_slot(0,0);t=plasma_occlusion_model_texture(0,tr);
 	 CHECK(t&&tr[3]==.5f,"model directional mask independent of collision option");
 	 CHECK((t->pixels[(0*16+8)*16+8]&255)==0,"model floor mask dark");

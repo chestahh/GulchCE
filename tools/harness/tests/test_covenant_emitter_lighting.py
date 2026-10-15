@@ -7,7 +7,7 @@ from harness import CHECK_FAILED, build, read, run
 
 
 def source():
-    return re.sub(r'^#include.*$', '', read('port/linux/game/ammo_counter_lighting.c') + '\n' + read('port/linux/game/covenant_emitter_lighting.c'), flags=re.M)
+    return re.sub(r'^#include.*$', '', read('port/linux/game/needler_lighting.c') + '\n' + read('port/linux/game/ammo_counter_lighting.c') + '\n' + read('port/linux/game/covenant_emitter_lighting.c'), flags=re.M)
 
 
 def test_emitters():
@@ -35,5 +35,17 @@ def test_first_person_counter_pose_is_required():
 
 def test_shield_damage_colour_is_required():
     code = source().replace('PIN(object->object.outgoing_function_values[0], 0.0f, 1.0f)', '0.0f')
+    status, output = run(build('covenant_emitter_lighting', (('under_test.inc', code),)), 'emitters')
+    assert status == CHECK_FAILED, output
+
+
+def test_needle_crystal_glow_is_required():
+    code = source().replace('*output |= 0x10000UL;', '*output |= 0;')
+    status, output = run(build('covenant_emitter_lighting', (('under_test.inc', code),)), 'emitters')
+    assert status == CHECK_FAILED, output
+
+
+def test_first_person_counter_strength_is_required():
+    code = source().replace('counter_pose == 2 ? 1.0f : 0.65f', '0.65f')
     status, output = run(build('covenant_emitter_lighting', (('under_test.inc', code),)), 'emitters')
     assert status == CHECK_FAILED, output

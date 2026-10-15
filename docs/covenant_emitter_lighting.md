@@ -295,3 +295,62 @@ This is a bounded replication smoke test, not bit-identical multiplayer proof
 hidden OpenGL smoke test with stock defaults and no capture markers; its hash
 matches the final package. Final production hashes match the sweep manifest.
 Owned map copies were removed; original maps/saves and diagnostic logs remain.
+
+
+## Held Needler crystals and first-person AR refinement
+
+`display.needler_lighting` (`HALO_NEEDLER_LIGHTING`) defaults to false and is
+independent of projectile lighting. The exact stock `weapons\needler\needler`
+tag uses the shared eight-emitter pool while equipped by a visible unit. Holstered,
+dropped, deleted and markerless weapons do not retain an added light. The light
+uses the interpolated first-person pose when available and the rendered world
+marker otherwise, so players and NPCs use the same policy.
+
+Read-only inspection of the stock c40 tags found matching `smoke` markers at
+(-0.031742, 0, 0.080221) in both models, on the exposed needle cluster. The
+radius-1.5 pink-purple light has strength 0.9 and the existing render-time easing.
+Its angular mask spills broadly sideways and upwards, smoothly suppressing the
+lower sector occupied by the housing. This is an approximation, not mesh shadows;
+weapon and biped triangles are not collision blockers. The same angular mask
+applies with occlusion enabled or disabled, including model/specular passes.
+
+The masked `needler dull` material gets a pink emissive floor. The first-person
+`needler core` and world `needler luminous 3p` transparent colour stages are
+brightened 2x before fog, retaining authored colours, textures, alpha and blending.
+Already scaled/biased custom stages are left alone. No tag data is modified;
+material identities are forgotten at map cleanup. Other needle projectile and
+ammo pickup materials are not selected. This enhances existing crystal emission,
+not a new screen-space bloom effect.
+
+Minimal `port:` model and transparent-renderer hooks are necessary because the
+feature module cannot access the per-draw illumination/combiner values through
+existing engine interfaces. Shader identity checks, activation and adjustment
+logic remain in `needler_lighting.c`. The Xbox/CE/MCC loading and conversion
+paths are unchanged; matching loaded materials use the guarded render hook.
+
+For the AR, the rendered first-person pose alone raises spill strength from
+0.65 to 1.0 without increasing radius or changing its directional mask. The
+first-person geometry flag selects a brighter screen floor (0.45, 1.0, 1.0).
+World-model strength and screen colour remain exactly at the earlier tuning.
+Both changes remain under the existing off-by-default AR option. No simulation,
+weapon ammunition, packets or protocol version changed.
+
+Validation is recorded with this branch's local build reports. Windows portable
+release builds use `--release --portable --lto=off --pgo=off`. Asset-free tests
+exercise actual feature sources, shader selection, stock defaults, held/dropped
+policy, rendered poses, broad falloff, cleanup and AR world-model invariance;
+negative controls detect missing crystal emission and first-person AR intensity.
+Android and web build attempts report unavailable targets in this Windows
+configuration. Linux, cross-platform multiplayer and MCC runtime acceptance
+remain unverified for this change.
+
+The final Windows capture matrix passed all 14 cases: first-person Needler,
+third-person Needler holder and first-person AR at 30/60/120 FPS enabled, plus
+60 FPS disabled comparisons; a Marine carrying a Needler on b40 and the
+unchanged third-person AR on bloodgulch at 60 FPS. Frames were visually reviewed,
+including brighter crystal cores, AR screen/spill and NPC/world models. Measured
+average rates met each requested cap within 5 percent. All 26 related asset-free
+regressions passed, including negative controls. Capture manifests match the
+production source hashes. These are bounded Xbox-map fixtures, not campaign,
+CE/MCC, reload-animation, multiplayer or all-GPU acceptance. Temporary map
+copies/cache files were removed and only representative frames/logs retained.

@@ -26,6 +26,18 @@ float ammo_counter_falloff_factor(const float axis[3], float x, float y, float z
 	return t*t*(3.0f - 2.0f*t);
 }
 
+/* Exposed needles radiate sideways as well as up. Only the lower sector
+   is suppressed to approximate the housing; this is not a tight screen cone. */
+float needler_falloff_factor(const float axis[3], float x, float y, float z)
+{
+	float length = sqrtf(x*x + y*y + z*z);
+	float t;
+	if (length < 0.00001f)
+		return 1.0f;
+	t = PIN(((axis[0]*x + axis[1]*y + axis[2]*z) / length + 0.65f) / 0.8f, 0.0f, 1.0f);
+	return t*t*(3.0f - 2.0f*t);
+}
+
 void *ammo_counter_falloff_texture(long rasterizer, int radial, float transform[4])
 {
 	float axis[3], origin[3], radius;
@@ -33,7 +45,8 @@ void *ammo_counter_falloff_texture(long rasterizer, int radial, float transform[
 	D3DLOCKED_BOX box;
 	unsigned long pixels[COUNTER_COUNT];
 	int i, x, y, z;
-	if (!covenant_emitter_lighting_cone(rasterizer, axis, origin, &radius) || radius <= 0.0f)
+	int profile = covenant_emitter_lighting_cone(rasterizer, axis, origin, &radius);
+	if (!profile || radius <= 0.0f)
 		return NULL;
 	if (transform)
 	{
@@ -69,7 +82,8 @@ void *ammo_counter_falloff_texture(long rasterizer, int radial, float transform[
 				float dx = 2.0f*(x+0.5f)/COUNTER_SIZE - 1.0f;
 				float dy = 2.0f*(y+0.5f)/COUNTER_SIZE - 1.0f;
 				float dz = 2.0f*(z+0.5f)/COUNTER_SIZE - 1.0f;
-				float value = ammo_counter_falloff_factor(axis, dx, dy, dz);
+				float value = profile == 2 ? needler_falloff_factor(axis, dx, dy, dz) :
+					ammo_counter_falloff_factor(axis, dx, dy, dz);
 				float remaining = MAX(0.0f, 1.0f - dx*dx - dy*dy - dz*dz);
 				if (radial) value *= remaining*remaining;
 				pixels[(z*COUNTER_SIZE+y)*COUNTER_SIZE+x] = (unsigned long)(255.0f*value+0.5f)*0x01010101UL;
