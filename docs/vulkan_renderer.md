@@ -151,3 +151,10 @@ that requesting it fails clearly. GPU validation in CI uses Linux software
 Vulkan with Khronos validation enabled. Record that job's actual outcome
 separately; hardware execution without validation is not equivalent to a clean
 validation-layer run. AMD and Android GPU execution remain untested.
+
+Ubuntu's CI image does not provide an i386 validation-layer package. CI
+therefore runs the normal 32-bit test on software Vulkan, and separately
+builds the same source with `python3 tools/vulkan_build.py --host-validation`
+into `build/vulkan-host/`. That supplemental 64-bit run enables Khronos
+validation and synchronization validation. It does not change the game's
+ABI or replace 32-bit coverage.

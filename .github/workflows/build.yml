@@ -55,23 +55,33 @@ jobs:
           sudo dpkg --add-architecture i386
           sudo apt-get update -q
           sudo apt-get install -y -q clang gcc-multilib python3-pytest \
-            libvulkan1:i386 mesa-vulkan-drivers:i386 vulkan-validationlayers:i386
+            libvulkan1:i386 mesa-vulkan-drivers:i386 \
+            libvulkan1 mesa-vulkan-drivers vulkan-validationlayers
       - name: Build and test native Vulkan ownership
         run: |
           python3 tools/vulkan_build.py
+          python3 tools/vulkan_build.py --host-validation
           python3 -m pytest -q tools/test_vulkan_backend.py
-      - name: Validate offscreen rendering on software Vulkan
+      - name: Test 32-bit offscreen rendering on software Vulkan
         env:
           VK_DRIVER_FILES: /usr/share/vulkan/icd.d/lvp_icd.i686.json
         run: |
           set -o pipefail
-          build/vulkan/vulkan-smoke --validation --capture build/vulkan/depth.ppm 2>&1 | tee build/vulkan/validation.log
+          build/vulkan/vulkan-smoke --capture build/vulkan/depth.ppm 2>&1 | tee build/vulkan/gpu.log
+      - name: Validate the same backend with host validation layers
+        env:
+          VK_DRIVER_FILES: /usr/share/vulkan/icd.d/lvp_icd.x86_64.json
+          VK_LAYER_ENABLES: VK_VALIDATION_FEATURE_ENABLE_SYNCHRONIZATION_VALIDATION_EXT
+        run: |
+          set -o pipefail
+          build/vulkan-host/vulkan-smoke --validation 2>&1 | tee build/vulkan/validation.log
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: vulkan-foundation-validation
           path: |
             build/vulkan/validation.log
+            build/vulkan/gpu.log
             build/vulkan/depth.ppm
           retention-days: 3
   linux:
