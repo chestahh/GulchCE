@@ -376,6 +376,7 @@ the setting for one start of the game. It has priority over the file.
 | `display.plasma_occlusion` | `false` | `HALO_PLASMA_OCCLUSION` | Experimental collision-based visibility for supported projectile and Covenant emitter lighting; requires one of those lighting options. Up to eight lights use a filtered local visibility grid for world diffuse/specular and model lighting. Structure, scenery and machines block light; coarse edges can leak. Excess lights retain unoccluded soft lighting and fade into occlusion if admitted later. See `docs/plasma_lighting.md`. |
 | `display.shield_glow` | `false` | `HALO_SHIELD_GLOW` | `true`: as a unit's energy shield flares (hit, charging, falling), it lights what is around it and itself, as a plasma bolt does, in the shield shader's own color (a Spartan's gold, an Elite's blue), rising and falling with the flare seen on the body. An ordinary dynamic light of the game's, drawn with a light definition the map has (`shield_glow.c`). Up to 8 units near the camera. |
 | `display.shield_glow_intensity` | `default` | `HALO_SHIELD_GLOW_INTENSITY` | The shield glow's reach and brightness: `default`, or `light_show` (three times as far, and at full strength from a third of the flare: a light is no brighter than full). The units glowing are those near any local player's camera, so each of a split screen's views has the same. |
+| `display.shield_look` | `classic` | `HALO_SHIELD_LOOK` | Energy shield appearance: `classic` preserves the existing look; `enhanced` adds a patterned body shell and electrical first-person arms. A local visual setting, independent of shield glow and dynamic lighting. |
 | `audio.enabled` | `true` | `HALO_NO_AUDIO=1` sets `false` | `false`: no audio device. The sound continues without output. |
 | `audio.volume` | `1.0` | `HALO_VOLUME` | The master volume. |
 | `audio.music_volume` | `1.0` | `HALO_MUSIC_VOLUME` | The music's volume, of the master volume. |
@@ -531,6 +532,20 @@ OK saves and applies this screen's changes; Cancel leaves them unchanged.
 Defaults selects OFF for all eight options, applied when you choose OK.
 Light occlusion affects enabled lighting effects; it does not enable them.
 These are local visual settings and do not change other players' settings.
+
+## Extra effects
+
+Video Setup's EXTRA EFFECTS submenu, immediately below FOV AND VIEWMODELS,
+sets SHIELD LOOK to CLASSIC (the default) or ENHANCED. Classic keeps the
+existing shield appearance. Enhanced adds a patterned body shield and
+electrical first-person arms. This changes only this machine's visuals;
+shield strength, damage and other players' settings are unaffected.
+The effect is independent of the Dynamic Lighting options and shield glow.
+Enhanced includes arm shields while VIEWMODELS is on. ARM SHIELDS controls
+the Classic look; switching back restores that option's saved choice.
+OK saves and applies the choice. Cancel keeps the saved choice; Defaults
+selects Classic, applied when you choose OK.
+See [the implementation and validation notes](../../docs/enhanced_shields.md).
 
 ## Field of view
 

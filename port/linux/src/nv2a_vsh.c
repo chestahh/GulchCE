@@ -352,6 +352,7 @@ static const char shader_prologue[] =
 	"out vec4 xT2;\n"
 	"out vec4 xT3;\n"
 	"out float xFog;\n"
+	"out vec3 xShieldPosition;\n"
 	"invariant gl_Position;\n"
 	"vec4 unpack_normpacked3(uint p)\n"
 	"{\n"
@@ -589,6 +590,7 @@ char *nv2a_vertex_shader_to_glsl(const DWORD *instructions, unsigned long instru
 		"\txT2 = oT2;\n"
 		"\txT3 = oT3;\n"
 		"\txFog = oFog.x;\n"
+		"\txShieldPosition = v0.xyz;\n"
 		"}\n",
 		XGPU_VERTEX_CONSTANT_BIAS - 38, XGPU_VERTEX_CONSTANT_BIAS - 37
 		);

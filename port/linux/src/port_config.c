@@ -324,7 +324,8 @@ static const struct config_setting config_settings[] =
 		"(docs/custom_edition_caches.md)." },
 	{ "display.viewmodel_shield", _config_boolean, "false", "HALO_VIEWMODEL_SHIELD", _environment_value, _platform_all,
 		"The energy shield's flare on the first-person arms too, as on the body\n"
-		"(the stock game draws it on the body only)." },
+		"(the stock game draws it on the body only). Enhanced shield look\n"
+		"includes arms regardless of this setting, without changing its saved value." },
 	{ "display.first_person_legs", _config_boolean, "false", "HALO_FIRST_PERSON_LEGS", _environment_value, _platform_all,
 		"Your own legs in first person, seen looking down: your body as others\n"
 		"see it, drawn from the waist down, moving as it moves." },
@@ -350,6 +351,10 @@ static const struct config_setting config_settings[] =
 	{ "display.plasma_lighting", _config_boolean, "false", "HALO_PLASMA_LIGHTING", _environment_value, _platform_all,
 		"Prototype: supported plasma, Covenant and rocket flight lights follow rendered poses\n"
 		"with soft world/model falloff and omni highlights. Off keeps stock lighting." },
+	{ "display.shield_look", _config_string, "\"classic\"", "HALO_SHIELD_LOOK", _environment_value, _platform_all,
+		"Energy shield appearance: \"classic\" keeps the existing look;\n"
+		"\"enhanced\" adds a patterned body shell and electrical first-person arms.\n"
+		"Only this machine's visuals change." },
 	{ "display.shield_glow", _config_boolean, "false", "HALO_SHIELD_GLOW", _environment_value, _platform_all,
 		"Energy shields light what is around them as they flare, as plasma\n"
 		"does, in the shield's own color." },

@@ -203,7 +203,10 @@ def main():
     unit += HARNESS.replace('METER_SETUP', setup).replace('HEALTH_RECTS', ','.join('{' + ','.join(map(str, r)) + '}' for r in rects))
     # Compile the production translator and string builder with only platform/config stubs.
     unit += '\n' + (ROOT / 'port/linux/src/xgpu_text.c').read_text()
-    unit += '\nvoid mcc_environment_shader_emit(struct xgpu_text *text) {}\n' + (ROOT / 'port/linux/src/nv2a_psh.c').read_text()
+    unit += '\nvoid mcc_environment_shader_emit(struct xgpu_text *text) {}\n'
+    unit += (ROOT / 'port/linux/src/plasma_model_shader.c').read_text()
+    unit += (ROOT / 'port/linux/src/shield_look_gl.c').read_text()
+    unit += (ROOT / 'port/linux/src/nv2a_psh.c').read_text()
     compiler = [args.cc, '-std=gnu11', '-O2', '-fuse-ld=lld', '-I' + str(ROOT / 'port/linux/src'), '-I' + str(ROOT / 'port/linux/game'), '-iquote' + str(ROOT / 'port/linux/include')]
     env = dict(os.environ)
     if sys.platform == 'win32':

@@ -44,7 +44,7 @@ struct transparent_geometry_group;
 #define match_assert(a,b,c) ((void)0)
 #define csmemset memset
 #define TEST_FLAG(value,bit) ((value) & (1UL << (bit)))
-static int shield_visible=1;
+static int shield_visible=1, enhanced_eligible;
 static int viewmodel_shield_is_visible(void){return shield_visible;}
 ''' + constants + "\n" + types + "\n" + defines + r'''
 static int global_d3d_device=1;
@@ -63,6 +63,9 @@ static void capture(int reg,real *data){if(reg==-81)captured_offset=data[2];if(r
 #define rasterizer_set_pixel_shader(...) ((void)0)
 #define rasterizer_transparent_geometry_group_draw__internal(...) (++draws)
 #define shader_get_and_verify_type(shader,type) (shader)
+#define shield_look_eligible(...) enhanced_eligible
+#define shield_look_begin(...) ((void)0)
+#define shield_look_end() ((void)0)
 #define shield_color_override(colors,chosen) 0
 #define shield_color_apply(...) ((void)0)
 ''' + draw + r'''
@@ -101,8 +104,11 @@ int main(void){
     group.runtime_parameters=NULL;rasterizer_plasma_energy_draw(&group);CHECK(captured_offset==0);
     group.runtime_parameters=&runtime;values[1]=1;shield_visible=0;
     rasterizer_plasma_energy_draw(&group);CHECK(near(captured_offset,.03f));
-    CHECK(draws==22);
-    rasterizer_debug_options.plasma_energy_enabled=0;rasterizer_plasma_energy_draw(&group);CHECK(draws==22);
+    /* Enhanced arms apply their cap only after accepting a shield modifier. */
+    enhanced_eligible=0;rasterizer_plasma_energy_draw(&group);CHECK(near(captured_offset,.03f));
+    enhanced_eligible=1;rasterizer_plasma_energy_draw(&group);CHECK(near(captured_offset,.0075f));
+    CHECK(draws==24);
+    rasterizer_debug_options.plasma_energy_enabled=0;rasterizer_plasma_energy_draw(&group);CHECK(draws==24);
     return 0;
 }
 '''

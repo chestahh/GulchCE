@@ -40,6 +40,7 @@ symbols in this file:
 #include <xtl.h>
 #include "rasterizer/xbox/rasterizer_xbox_pixel_shader.h"
 #include "rasterizer/rasterizer_console_vars.h"
+#include "shield_look.h" /* port: port/linux/game/shield_look.c */
 #include "view_fov.h" /* port: port/linux/game/view_fov.c */
 
 /* ---------- constants */
@@ -66,7 +67,8 @@ struct plasma_runtime_parameters
 struct rasterizer_transparent_geometry_group_plasma
 {
 	unsigned long geometry_flags; /* port: (the first-person bit) */
-	byte reserved04[8];
+	long object_index; /* port: existing transparent draw identity */
+	byte reserved08[4];
 	struct shader *shader;
 	short bitmap_sequence_index;
 	byte reserved12[0x5A];
@@ -186,7 +188,10 @@ void rasterizer_plasma_energy_draw(
 		offset = 0.0f;
 		/* port: the shield on the first-person arms kept close to them */
 		offset_amount = plasma->offset_amount;
-		if (viewmodel_shield_is_visible() &&
+		/* port: Enhanced displacement applies only to the unit-owned shield. */
+		if ((viewmodel_shield_is_visible() ||
+			shield_look_eligible(group->object_index, group->shader,
+				group->runtime_parameters ? group->runtime_parameters->exponents : NULL, TRUE)) &&
 			TEST_FLAG(group->geometry_flags, PLASMA_GEOMETRY_FIRST_PERSON_BIT) &&
 			offset_amount > PLASMA_FIRST_PERSON_MAXIMUM_OFFSET)
 		{
@@ -341,9 +346,15 @@ void rasterizer_plasma_energy_draw(
 		pixel_shader.final_combiner_inputs_abcd = 0x0C0F0000;
 		pixel_shader.final_combiner_inputs_efg = 0x1C1C1400;
 		rasterizer_set_pixel_shader(&pixel_shader);
+		/* port: only unit-owned shield modifiers enter the enhanced draw scope. */
+		shield_look_begin(group->object_index, group->shader, runtime ? runtime->exponents : NULL,
+			TEST_FLAG(group->geometry_flags, PLASMA_GEOMETRY_FIRST_PERSON_BIT),
+			global_frame_parameters.game_time_sec, intensity, (real const *)&perpendicular_color, (real const *)tint,
+			plasma->parallel_alpha, plasma->perpendicular_alpha);
 		rasterizer_transparent_geometry_group_draw__internal(
 			(struct transparent_geometry_group const *)group,
 			FALSE);
+		shield_look_end(); /* port: no state inherited by later plasma/material draws */
 	}
 	return;
 }
