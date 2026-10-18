@@ -143,8 +143,9 @@ References consulted:
 
 Local Windows x86 build: clang, C89, warnings treated as errors. The real GPU
 test passed on NVIDIA RTX 5070 Ti, driver 617.42, with all 36 submitted frames
-verified. Nine Vulkan tests (including six deliberate-fault controls) and
-18 existing GL visibility regressions passed: 27 total.
+verified. Ten Vulkan tests (including seven deliberate-fault controls) and
+18 existing GL visibility regressions passed: 28 total. Validation errors
+reported during device/instance destruction also fail the smoke test.
 
 The local machine lacks the Khronos validation layer; a separate run verifies
 that requesting it fails clearly. GPU validation in CI uses Linux software

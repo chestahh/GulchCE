@@ -11,7 +11,7 @@ ROOT = Path(__file__).resolve().parents[1]
 BACKEND = ROOT / "port/linux/src/vulkan"
 
 
-@pytest.mark.parametrize("fault", [None, "early_fence", "partial", "wait", "wrong_slot", "reuse", "query_error"])
+@pytest.mark.parametrize("fault", [None, "early_fence", "partial", "wait", "wrong_slot", "reuse", "query_error", "teardown"])
 def test_completion_ownership(tmp_path, fault):
     cc = shutil.which("clang")
     if not cc:
@@ -24,6 +24,7 @@ def test_completion_ownership(tmp_path, fault):
         "wrong_slot": ("d->queries, frame->query_first,\n", "d->queries, 0,\n"),
         "reuse": ("if (frame->state != _halo_vk_frame_free && frame->state != _halo_vk_frame_ready)", "if (0)"),
         "query_error": ("if (status != VK_SUCCESS)\n\t\tgoto failed;", "if (0)\n\t\tgoto failed;"),
+        "teardown": ("d->validation_errors = validation_errors;", "(void)validation_errors;"),
     }
     if fault:
         before, after = changes[fault]

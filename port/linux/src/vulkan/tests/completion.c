@@ -8,6 +8,7 @@ static uint64_t values[2], available[2];
 static unsigned query_calls, begin_calls, submit_calls, reset_calls;
 static uint32_t queried_first;
 static VkQueryResultFlags queried_flags;
+static struct halo_vk_device *disposing;
 
 #define CHECK(expression) do { if (!(expression)) { fprintf(stderr, "line %d: %s\n", __LINE__, #expression); return 1; } } while (0)
 
@@ -71,6 +72,24 @@ static VKAPI_ATTR VkResult VKAPI_CALL submit(VkQueue queue, uint32_t count, cons
 	(void)queue; (void)count; (void)info; (void)fence;
 	submit_calls++;
 	return submit_result;
+}
+
+static VKAPI_ATTR VkResult VKAPI_CALL idle(VkDevice device)
+{
+	(void)device;
+	return VK_SUCCESS;
+}
+
+static VKAPI_ATTR void VKAPI_CALL destroy_device(VkDevice device, const VkAllocationCallbacks *allocation)
+{
+	(void)device; (void)allocation;
+	disposing->validation_errors++;
+}
+
+static VKAPI_ATTR void VKAPI_CALL destroy_instance(VkInstance instance, const VkAllocationCallbacks *allocation)
+{
+	(void)instance; (void)allocation;
+	disposing->validation_errors++;
 }
 
 int main(void)
@@ -142,5 +161,15 @@ int main(void)
 	CHECK(!halo_vk_frame_begin(&device, HALO_VK_FRAMES));
 	CHECK(!halo_vk_frame_submit(&device, HALO_VK_FRAMES));
 	CHECK(halo_vk_frame_poll(&device, HALO_VK_FRAMES) == -1);
+	disposing = &device;
+	device.device = (VkDevice)(uintptr_t)1;
+	device.instance = (VkInstance)(uintptr_t)1;
+	device.DeviceWaitIdle = idle;
+	device.DestroyDevice = destroy_device;
+	device.DestroyInstance = destroy_instance;
+	device.validation_errors = 1;
+	halo_vk_device_dispose(&device);
+	CHECK(device.validation_errors == 3);
+	CHECK(!device.device && !device.instance && !device.library);
 	return 0;
 }

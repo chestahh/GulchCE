@@ -406,9 +406,9 @@ int main(int argc, char **argv)
 	success = 1;
 done:
 	dispose(&scene);
+	halo_vk_device_dispose(&scene.device);
 	if (scene.device.validation_errors) success = 0;
 	fprintf(stderr, "vulkan smoke: %s; cycles=%u polls=%u validation_errors=%u\n",
 		success ? "PASS" : "FAIL", success ? 12u : 0u, polls, scene.device.validation_errors);
-	halo_vk_device_dispose(&scene.device);
 	return success ? 0 : 1;
 }

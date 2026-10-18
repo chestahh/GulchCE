@@ -225,7 +225,7 @@ failed:
 
 void halo_vk_device_dispose(struct halo_vk_device *d)
 {
-	unsigned i;
+	unsigned i, validation_errors;
 	if (d->device)
 	{
 		/* Only teardown waits; normal query delivery never forces completion. */
@@ -253,7 +253,10 @@ void halo_vk_device_dispose(struct halo_vk_device *d)
 		dlclose(d->library);
 #endif
 	}
+	/* Include diagnostics emitted while destroying the device/instance. */
+	validation_errors = d->validation_errors;
 	memset(d, 0, sizeof(*d));
+	d->validation_errors = validation_errors;
 }
 
 int halo_vk_frame_begin(struct halo_vk_device *d, unsigned slot)
