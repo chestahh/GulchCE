@@ -15,6 +15,7 @@ from tools.android_build import android_configure_inputs, generate_android_build
 from tools.linux_build import check_profile_options, generate_linux_build, linux_configure_inputs
 from tools.web_build import generate_web_build, web_configure_inputs
 from tools.windows_build import generate_windows_build, windows_configure_inputs
+from tools.vulkan_build import generate_build as generate_vulkan_build
 
 # arguments
 parser = argparse.ArgumentParser()
@@ -131,6 +132,7 @@ n.variable(
 n.variable("python", f'"{sys.executable}"')
 n.newline()
 
+generate_vulkan_build(n, sln)
 generate_linux_build(n, sln)
 generate_android_build(n, sln)
 generate_windows_build(n, sln)
@@ -149,6 +151,7 @@ n.build(
     implicit=[
         configure_script,
         Path("tools/ninja_syntax.py"),
+        Path("tools/vulkan_build.py"),
         *linux_configure_inputs(),
         *android_configure_inputs(),
         *windows_configure_inputs(),

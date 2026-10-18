@@ -5,3 +5,11 @@ port/android/gradlew text eol=lf
 
 # Preserve the pinned upstream decoder byte-for-byte, including its whitespace.
 port/third_party/bcdec/bcdec.h -text -whitespace
+
+# Pinned Khronos headers must retain their upstream checksums.
+port/third_party/vulkan_headers/include/** -text -whitespace
+port/third_party/vulkan_headers/LICENSE* -text -whitespace
+port/third_party/vulkan_headers/LICENSES/** -text -whitespace
+# Shader provenance hashes must match on Windows and Linux.
+port/linux/src/vulkan/tests/*.vert text eol=lf
+port/linux/src/vulkan/tests/*.frag text eol=lf
