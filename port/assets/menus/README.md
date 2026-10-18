@@ -13,6 +13,7 @@ controller, the keyboard and the mouse, on every port.
 | `NON_HANDDRAWN.md` | The pictures that are not redraws: those drawn from the Xbox's map (the player's own), and the placeholders, to be redrawn |
 | `UNWIRED.md` | The menus' functions that do nothing yet: the lists they fill are empty, and the settings they change do not change |
 | `menus.json` | The files the game embeds |
+| `ce/main_menu.changelog.port.xml` | Port-owned player notes screens and their bitmap definitions |
 
 `tools/ce_menus.py` writes all of them from the PC version's tags and the
 redraws, but the settings screens (Controls Setup, Gamepads, Mouse, Audio,
@@ -66,6 +67,64 @@ Child positions in `tools/ce_menus.py`'s `CHILD_OFFSETS` can be applied to
 the existing XML without the PC tags: `python tools/ce_menus.py --child-offsets-only`.
 This uses the same positions as a full regeneration and leaves other widget
 properties and artwork intact.
+
+The changelog artwork and player notes can be regenerated without PC tags:
+`python tools/ce_menus.py --changelog-only` (or `python tools/changelog_menu.py`).
+It uses the committed handmade letter redraws and OpenCE font, and needs
+`rsvg-convert`, Pillow, NumPy and fontTools. `tools/changelog_menu.py` owns
+the page layout and navigation. Full menu generation includes the same
+output. Both read the committed player notes in `port/assets/changelog/notes.json`.
+Each screen shows one build, headed BUILD followed by its exact GitHub build
+number and its date. Local preview notes are marked UNRELEASED. Up/Down,
+the controller's stick or the mouse wheel scrolls the reading area one line
+at a time; its UP and DOWN buttons sit together at the reading area's lower
+right and work with a pointer or touch. The visible
+line indicator shows the position. Previous and Next switch entire builds
+(older and newer, respectively), starting their reading area at the top.
+An empty history says that no player-facing changes were recorded.
+Notes are grouped under blue category headings, in the order the categories
+first appear in that build. Notes keep their order within each category.
+Uncategorized notes appear under GENERAL. Notes use normal line spacing;
+only category groups have a blank separator line.
+
+To update text without rendering artwork, run
+`python tools/changelog_menu.py --text-only`. This needs only Python's standard
+library and preserves the existing bitmap definitions. `--notes <path>` reads
+an alternate schema-version-2 notes JSON file. Invalid dates, build numbers, commit IDs,
+oversized notes and unsupported text are refused before writing the XML.
+
+Build changes use `open` with `no_history` on every changelog screen root.
+The engine checks the invoking root's history flag: opening the first page
+records the main menu, and moving between builds preserves that entry, so
+Back or Escape returns directly to the main menu.
+
+`port/linux/game/changelog_menu_runtime.inl` owns scrolling. It changes only
+the eight visible slots' indices into each build's paired immutable body and
+blue-heading string lists; its offset belongs to that screen instance. The
+two lists must have matching counts. Three event registrations
+and their dispatch in `menu_tags.c` and `menu_functions.c` connect it to the
+existing menu interfaces: generated XML alone cannot change visible text
+indices in response to input. The runtime accepts only the changelog's own
+root namespace and resets the instance offset on creation; deletion frees
+that instance normally. Xbox, Custom Edition and MCC screens outside the
+feature keep their existing paths. The footer omits horizontal tab flags so
+the mouse wheel follows the vertical scroll handlers, including over buttons.
+
+CHANGELOG occupies its own small list beneath the build labels, leaving the six original
+central buttons, coordinates and Up/Down wrapping intact. Right selects the
+corner button directly beneath the orange version labels. Its existing
+artwork is scaled uniformly to the visible text block's width.
+Both the Gulch build label and button share the original version text's
+visible centerline. Left returns to the remembered central selection. Mouse hover
+and clicks use the existing column-list target rules, including the paired
+scroll arrows. The feature runtime handles only this exact PC main root and
+its own corner container. Its small focus/update handlers are necessary because
+XML alone cannot preserve the central selection while updating the corner's
+selection frame. The same callback synchronizes only the changelog's own
+arrow/footer selection frames, since the engine updates only the active list.
+Disabling `display.changelog` unlinks only that container at
+startup; the original menu behavior remains. Changes take effect after restart.
+The additional orange Gulch build label matches the existing version label.
 
 A settings screen (Controls Setup, Gamepads, Mouse, Audio, Video or Network
 Setup) is changed in `tools/port_settings.py`, not in its XML, and written
