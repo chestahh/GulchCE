@@ -179,6 +179,7 @@ int main(int argc, char **argv)
 #endif
     write_pages(0, 1, 1);
     CHECK(draw_pages(0, 1));
+    CHECK(watch_reads && protections);
     next_frame();
     /* An ordinary reused allocation: some previously mirrored pages and
     some first-time pages. 300 pages also crosses the 256-page refresh chunk. */
