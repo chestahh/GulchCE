@@ -562,6 +562,8 @@ keep their existing paths. Desktop and web builds keep their existing behavior.
 This is a diagnostic comparison, not a confirmed surface-rendering fix; uploads
 and decoding may make it slower than Build 220.
 
+The comparison uses Android version code 220 so a CI APK signed with the
+release key can update Build 220 in place. Its automatic updater remains off.
 Install the prerelease APK and play normally. No console commands or settings
 changes are required. `android-texture-test.log` is written automatically beside
 `config.toml` in the app's external files folder. It records the test mode, GL
