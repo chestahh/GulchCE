@@ -461,6 +461,33 @@ assembly of the port is necessary:
 - The symbol aliases in `guest/libc/src_include/features.h`. The Darwin
   target does not accept alias attributes.
 
+## Android persistent-cache comparison build
+
+The `android-render-fix` branch is a launch-and-play comparison for stretched
+or missing geometry. Install its `halo-android-release` CI artifact, launch
+the app and play beyond the usual onset time, including an affected area
+and a level transition. No console commands or configuration changes are
+needed. Report the build number, device, map, approximate time played,
+whether corruption returns, and any change in frame rate.
+
+On this branch Android always uploads the persistent vertex/index mirror
+with `glBufferSubData`, including pages uploaded for the first time. GL
+orders those uploads with pending work. Streamed vertices and indices,
+their unsynchronized mapped uploads and frame fences are unchanged. CPU
+write tracking is unchanged too. This isolates the persistent-cache upload
+method; it is not confirmation of the reported cause, and uploads may cost
+more on some drivers. No per-draw `glFinish` is added.
+
+The Android-only condition is in `mirror_refresh` in
+`port/linux/src/d3d8_gl.c`, below the existing Xbox, Custom Edition and MCC
+resource paths. Their loaders and map-family boundaries are unchanged;
+desktop and web retain their existing upload paths. The focused test
+`tools/test_android_mirror_uploads.py` compiles the real cache and frame
+rotation with a simulated delayed GPU, including large ranges and counter
+rollover. It checks zero mapped mirror uploads on Android, preserved GLES
+and desktop behavior, and an isolated negative control. Device gameplay
+and visual compatibility still need player testing.
+
 ## Find problems
 
 - Enter `adb logcat -s halo` to see the log of the port and the errors of

@@ -4787,7 +4787,11 @@ static BOOL mirror_refresh(unsigned long first, unsigned long last)
 #endif
 		}
 		glBindBuffer(GL_COPY_WRITE_BUFFER, mirror.buffers[segment]);
-#ifdef HALO_GLES
+#ifdef HALO_ANDROID
+		/* Comparison build: let GL order every persistent-cache upload.
+		Streamed vertices and indices retain their existing mapped writes. */
+		(void)unused;
+#elif defined(HALO_GLES)
 		/* Mali copies the whole buffer for a glBufferSubData that queued
 		draws might read (see STREAM_BUFFER_RING); unused pages can be
 		written without waiting for them. Not while such a copy may be
