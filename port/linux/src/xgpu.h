@@ -153,8 +153,6 @@ struct nv2a_pixel_shader_key
 	unsigned char source_blend;
 	/* MCC environment lightmap pass only; part of the compiled shader key. */
 	unsigned char mcc_bump_attenuation;
-	/* Enhanced unit shield modifier, explicitly scoped around its draw. */
-	unsigned char enhanced_shield;
 };
 
 char *nv2a_pixel_shader_to_glsl(const struct nv2a_pixel_shader_key *key);

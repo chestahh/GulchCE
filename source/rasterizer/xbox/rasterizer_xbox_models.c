@@ -98,7 +98,6 @@ symbols in this file:
 
 /* ---------- headers */
 
-#include "shield_look.h" /* port: port/linux/game/shield_look.c */
 #include "cseries.h"
 #include "cseries/errors.h"
 #define REAL_MATH_EXTERNAL_POINT_FROM_LINE3D
@@ -1662,13 +1661,7 @@ void _rasterizer_model_draw(
 				intensity_exponent_source = plasma->intensity_exponent_source;
 			}
 
-			/* port: depleted/recharging enhanced shields retain their electrical patches
-			even while the stock flare function is zero (shield_look.c). */
-			if (shield_look_visible(local_parameters->unique_identifier,
-				local_parameters->effect.modifier_shader,
-				local_parameters->effect.modifier_animation.values,
-				TEST_FLAG(local_parameters->geometry_flags, _rasterizer_geometry_first_person_bit)) ||
-				intensity_exponent_source < 1 ||
+			if (intensity_exponent_source < 1 ||
 				intensity_exponent_source >
 					NUMBER_OF_SHADER_ANIMATION_FUNCTIONS ||
 				!local_parameters->effect.modifier_animation.values ||

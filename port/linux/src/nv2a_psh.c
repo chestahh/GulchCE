@@ -19,7 +19,6 @@ Register values are clamped to [-1, 1] between stages, as on the hardware.
 #include "plasma_model_shader.h"
 #include "port_config.h"
 #include "mcc_environment_shader.h"
-#include "shield_look.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -628,8 +627,6 @@ char *nv2a_pixel_shader_to_glsl(const struct nv2a_pixel_shader_key *key)
 		XGPU_PIXEL_UNIFORMS);
 	for (stage = 0; stage < 4; stage++)
 		xgpu_text_append(&text, "uniform %s tex%d;\n", sampler_declaration(key->sampler_type[stage]), stage);
-	if (key->enhanced_shield)
-		xgpu_text_append(&text, "in vec3 xShieldPosition;\nuniform vec4 shield_look_state;\nuniform vec4 shield_look_color;\nuniform vec4 shield_look_rim;\n");
 	if (key->source_blend)
 		xgpu_text_append(&text, "uniform vec4 blend_constant;\n");
 	if (key->per_pixel_lighting)
@@ -718,8 +715,6 @@ char *nv2a_pixel_shader_to_glsl(const struct nv2a_pixel_shader_key *key)
 		xgpu_text_append(&text, ";\n\tvec4 result = vec4(fA * fB + (1.0 - fA) * fC + fD, fG);\n");
 	}
 
-	if (key->enhanced_shield)
-		shield_look_emit(&text);
 	if (key->coverage_alpha)
 		xgpu_text_append(&text, "\tresult.a = mix(1.0, result.a, t0.g);\n");
 	if (key->alpha_test_function)

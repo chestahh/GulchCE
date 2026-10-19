@@ -124,7 +124,6 @@ symbols in this file:
 #include "sound/game_sound.h"
 #include "sound/sound_manager.h"
 #include "units/units.h"
-#include "shield_look.h" /* port: port/linux/game/shield_look.c */
 #include "view_fov.h" /* port: port/linux/game/view_fov.c */
 #include "shaders/shader_definitions.h" /* port: (the shield's flare on the arms) */
 #include "shaders/shaders.h"
@@ -554,7 +553,7 @@ void first_person_weapon_draw(
 					view_fov.c), in the color chosen for it as on the body
 					(display.shield_color, shield_color.c); the weapon above is
 					drawn without it */
-					if (viewmodel_shield_is_visible() || shield_look_enabled()) /* port: enhanced arms */
+					if (viewmodel_shield_is_visible())
 					{
 						struct object_definition *unit_definition= object_definition_get(object_get(unit_index)->definition_index);
 
@@ -562,11 +561,7 @@ void first_person_weapon_draw(
 						{
 							struct shader *modifier_shader= shader_definition_get(unit_definition->object.modifier_shader.index);
 
-							/* port: Enhanced only adds arms for a shielded unit
-							with its own plasma modifier (shield_look.c). */
-							if (shader_type_is_valid_for_modifier(modifier_shader->base.type) &&
-								(viewmodel_shield_is_visible() || shield_look_eligible(unit_index,
-									modifier_shader, unit->object.outgoing_function_values, TRUE)))
+							if (shader_type_is_valid_for_modifier(modifier_shader->base.type))
 							{
 								model_effect.modifier_shader= modifier_shader;
 								model_effect.modifier_animation.colors= shield_color_colors(unit_index,

@@ -45,9 +45,9 @@ SCREENS = {
     "video_settings": {
         "screen": "video_settings_screen",
         "header": ("header_profile_video_settings", f"{PE}/video_settings/header_profile_video_settings"),
-        # Eleven desktop rows fit above the help at 26px spacing. Each
+        # Ten desktop rows fit above the help at the 28px row height. Each
         # platform packs its own rows without gaps for hidden settings.
-        "spacing": 26,
+        "spacing": 28,
         "help_top": 364,
         "platform_places": True,
         # (rows in the place of the row before them: Window Size in
@@ -220,18 +220,9 @@ _video["categories"] = [
     ("GRAPHICS:", "video_settings/graphics", "The HUD, text, anti-aliasing, shadows and\nlighting."),
     ("FOV AND VIEWMODELS:", "video_settings/fov_viewmodels",
      "The field of view and the first-person\nweapon. Their defaults keep the stock view."),
-    ("EXTRA EFFECTS:", "video_settings/extra_effects",
-     "Optional visual effects. Classic keeps\nthe existing shield appearance."),
     ("DYNAMIC LIGHTING:", "video_settings/dynamic_lighting",
      "Added light from projectiles, weapons and\nCovenant shields. All options default to off."),
 ]
-SCREENS["video_settings/extra_effects"] = {
-    "screen": "extra_effects_settings_screen", "header": _video["header"], "spacing": 30,
-    "rows": [
-        ("SHIELD LOOK:", "display.shield_look", [("CLASSIC", "classic"), ("ENHANCED", "enhanced")],
-         "Enhanced adds a patterned body shield and\nelectrical arms. Only you see the change.", None),
-    ],
-}
 SCREENS["video_settings/dynamic_lighting"] = {
     "screen": "dynamic_lighting_settings_screen", "header": _video["header"], "spacing": 30,
     "rows": [
@@ -263,7 +254,7 @@ SCREENS["video_settings/fov_viewmodels"] = {
         ("VIEWMODELS:", "display.viewmodel_visible", ON_OFF,
          "Draw first-person weapons, hands and attached\nvisuals. Gameplay and sound continue when off.", None),
         ("ARM SHIELDS:", "display.viewmodel_shield", ON_OFF,
-         "Classic shields flare on your arms too.\nEnhanced shield look always includes arms.", None),
+         "The energy shield's flare on your first-person\narms too, as on your body.", None),
         ("LEGS:", "display.first_person_legs", ON_OFF,
          "Your legs in first person, seen looking down,\nmoving as you run. Your body as others see it.", None),
         ("SHIELD COLOR:", "display.shield_color", [("DEFAULT", "default")] + [(c.upper(), c) for c in SHIELD_COLORS],

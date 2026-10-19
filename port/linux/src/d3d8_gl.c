@@ -25,7 +25,6 @@ Conventions carried over from the Xbox:
 #include "plasma_model_shader.h"
 #include "plasma_occlusion.h"
 #include "mcc_environment_shader.h"
-#include "shield_look.h"
 #include "sdl_platform.h"
 #include "halo_ui_pointer.h"
 #include "port_config.h"
@@ -404,7 +403,6 @@ struct program_entry
 	/* the lights of a draw lit for each pixel (XGPU_MODEL_LIGHT_COUNT), and
 	constants_serial at their last upload */
 	GLint model_lights;
-	GLint shield_look_state, shield_look_color, shield_look_rim;
 	GLint plasma_model_slots;
 	unsigned long long model_lights_serial;
 
@@ -2995,9 +2993,6 @@ static struct program_entry *program_get(GLuint vertex_shader, GLuint fragment_s
 	entry->screen_offset = glGetUniformLocation(entry->program, "screen_offset");
 	entry->blend_constant = glGetUniformLocation(entry->program, "blend_constant");
 	entry->model_lights = glGetUniformLocation(entry->program, "model_lights");
-	entry->shield_look_state = glGetUniformLocation(entry->program, "shield_look_state");
-	entry->shield_look_color = glGetUniformLocation(entry->program, "shield_look_color");
-	entry->shield_look_rim = glGetUniformLocation(entry->program, "shield_look_rim");
 	entry->plasma_model_slots = glGetUniformLocation(entry->program, "plasma_model_slots");
 	for (stage = 0; stage < D3DTSS_MAXSTAGES; stage++)
 	{
@@ -3868,7 +3863,6 @@ static struct program_entry *prepare_draw(BOOL immediate)
 	key.combiner_state[D3DRS_PSFINALCOMBINERCONSTANT1] = 0;
 	key.texture_modes = D3D__RenderState[D3DRS_PSTEXTUREMODES];
 	key.mcc_bump_attenuation = mcc_environment_shader_active();
-	key.enhanced_shield = shield_look_active();
 	/* the textures before the targets: a render target the draw samples
 	has its multisampled pixels resolved by a blit (render_target_resolve),
 	which binds framebuffers of its own, and the back buffer can be both
@@ -4010,14 +4004,6 @@ static struct program_entry *prepare_draw(BOOL immediate)
 		unsigned int mask = plasma_model_lighting_mask();
 		plasma_occlusion_bind_model(entry->program);
 		glUniform2f(entry->plasma_model_slots, (mask & 1) ? 1.0f : 0.0f, (mask & 2) ? 1.0f : 0.0f);
-	}
-	if (key.enhanced_shield)
-	{
-		float const *shield = shield_look_uniforms();
-
-		glUniform4fv(entry->shield_look_state, 1, shield);
-		glUniform4fv(entry->shield_look_color, 1, shield + 4);
-		glUniform4fv(entry->shield_look_rim, 1, shield + 8);
 	}
 	/* the lights of a draw lit for each pixel, from the same registers, when
 	any of them changed since the program last had them */
