@@ -23,6 +23,7 @@ static struct { unsigned long frame, buffer_ring; } device;
 static struct { unsigned long mirrored_bytes; } stats;
 static unsigned long generations[PLATFORM_CONTIGUOUS_SIZE / 4096], serial;
 static unsigned mapped, subdata, overlaps, draws, mismatches, uploads;
+static unsigned watch_reads, protections;
 
 /* A subdata update may rename storage immediately and queue preservation
 of the old store plus its changed bytes. A later unsynchronized write to
@@ -90,10 +91,11 @@ static unsigned long memory_watch_generation(unsigned long address, unsigned lon
 {
     unsigned long page = (address - PLATFORM_CONTIGUOUS_BASE) / 4096;
     unsigned long last = (address - PLATFORM_CONTIGUOUS_BASE + size - 1) / 4096, newest = 0;
+    watch_reads++;
     for (; page <= last; page++) if (generations[page] > newest) newest = generations[page];
     return newest;
 }
-static void memory_watch_protect(unsigned long address, unsigned long size) { (void)address; (void)size; }
+static void memory_watch_protect(unsigned long address, unsigned long size) { (void)address; (void)size; protections++; }
 static void write_pages(unsigned first, unsigned count, unsigned char value)
 {
     unsigned page;
@@ -156,6 +158,25 @@ int main(int argc, char **argv)
     unsigned index, old_uploads;
     int rollover = argc > 1 && !strcmp(argv[1], "rollover");
     device.frame = rollover ? ~0UL - 1 : 100;
+#ifdef HALO_ANDROID
+    /* First-use and reused ranges must always go to the caller's existing
+    streaming path, without creating GPU storage or consulting tracking. */
+    for (index = 0; index < 1200; index++)
+    {
+        GLuint buffer = 99;
+        unsigned long offset = 77, generation = 55;
+        write_pages(0, 300, (unsigned char)index);
+        CHECK(!mirror_range(PLATFORM_CONTIGUOUS_BASE, 300 * 4096, &buffer, &offset, &generation));
+        CHECK(buffer == 99 && offset == 77 && generation == 55);
+        CHECK(!draw_pages(0, 1));
+        CHECK(!draw_pages(1023, 2));
+        CHECK(!draw_pages(1024, 1));
+        next_frame();
+    }
+    CHECK(!next_buffer && !uploads && !watch_reads && !protections && !stats.mirrored_bytes);
+    fprintf(stderr, "bypassed=4800 allocations=0 uploads=0 watch_reads=0 protections=0\n");
+    return 0;
+#endif
     write_pages(0, 1, 1);
     CHECK(draw_pages(0, 1));
     next_frame();

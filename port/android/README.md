@@ -463,6 +463,36 @@ assembly of the port is necessary:
 
 ## Android persistent-cache comparison build
 
+The next `android-render-fix` comparison bypasses the persistent geometry
+cache entirely on Android. Install the cache-bypass prerelease APK, launch
+the app and play normally. No console commands or configuration changes
+are needed. Try the affected area after a fresh app launch, play beyond the
+usual onset time, and include a level transition. Report the build, device,
+map, time played, whether corruption returns, and any frame-rate change.
+
+The previous comparison, `b8a59821`, synchronized persistent-cache uploads.
+A player reported immediate corruption with that APK after a fresh launch
+on a Samsung Galaxy S22+. This second comparison makes `mirror_range`
+decline every Android vertex/index range. Draws use the existing streaming
+fallback and recompute index extents from the current CPU bytes. It does
+not change the streaming uploader, its mapped writes, frame fences, CPU
+write tracking, texture caching, shaders or gameplay. More geometry is
+uploaded, so performance may change. No per-draw `glFinish` is added.
+
+The Android-only condition is in `mirror_range` in
+`port/linux/src/d3d8_gl.c`, below the existing Xbox, Custom Edition and MCC
+resource paths. Their loaders and map-family boundaries are unchanged;
+desktop and web retain their existing upload paths. The focused test
+`tools/test_android_mirror_uploads.py` compiles the real cache and frame
+rotation with a simulated delayed GPU, including large ranges and counter
+rollover. It checks that Android declines every request without allocating
+mirror buffers, uploading cache data or querying/protecting watched pages.
+GLES/desktop controls retain caching; isolated negative controls must fail
+when the bypass or the pending-copy guard is removed. This experiment does
+not establish the cause; device gameplay still needs player testing.
+
+## Android persistent-cache comparison build
+
 The `android-render-fix` branch is a launch-and-play comparison for stretched
 or missing geometry. Install its `halo-android-release` CI artifact, launch
 the app and play beyond the usual onset time, including an affected area

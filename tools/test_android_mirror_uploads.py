@@ -29,13 +29,19 @@ def mirror_uploads(tmp_path_factory):
     directory = tmp_path_factory.mktemp("android-mirror-comparison")
     target = ["--target=i686-pc-windows-msvc", "-fuse-ld=lld"] if os.name == "nt" else ["-m32"]
     binaries = {}
-    for variant, defines in (("android", ["-DHALO_ANDROID=1"]), ("gles", []),
+    for variant, defines in (("android", ["-DHALO_ANDROID=1"]), ("android-cached", ["-DHALO_ANDROID=1"]), ("gles", []),
                              ("desktop", ["-DTEST_DESKTOP=1"]), ("unguarded", [])):
         work = directory / variant
         work.mkdir()
         selected = mutated(mirror,
                            "unused && device.frame - mirror.subdata_frame[segment] >= STREAM_BUFFER_RING",
                            "unused") if variant == "unguarded" else mirror
+        if variant == "android-cached":
+            selected = mutated(selected,
+                               "/* Comparison build: bypass persistent vertex/index geometry and its\n"
+                               "\tcached index extents. Callers use the existing streaming fallback. */\n"
+                               "\treturn FALSE;",
+                               "/* Control: leave the cache enabled. */")
         (work / "mirror.inc").write_text(selected)
         (work / "rotation.inc").write_text(rotation)
         executable = work / ("test.exe" if os.name == "nt" else "test")
@@ -50,15 +56,21 @@ def mirror_uploads(tmp_path_factory):
 
 
 @pytest.mark.parametrize("case", ["reuse", "rollover"])
-@pytest.mark.parametrize("variant", ["android", "gles", "desktop", "unguarded"])
+@pytest.mark.parametrize("variant", ["android", "android-cached", "gles", "desktop", "unguarded"])
 def test_mirror_upload_ordering(mirror_uploads, case, variant):
     result = subprocess.run([str(mirror_uploads[variant]), case], capture_output=True, text=True, timeout=15)
-    if variant == "unguarded":
+    if variant == "android-cached":
+        assert result.returncode == 1, result.stdout + result.stderr
+        assert result.stderr.rstrip().endswith(
+            ": !mirror_range(PLATFORM_CONTIGUOUS_BASE, 300 * 4096, &buffer, &offset, &generation)"), result.stderr
+    elif variant == "unguarded":
         assert result.returncode == 1, result.stdout + result.stderr
         assert "repair_uploads=0" in result.stderr, result.stderr
         assert result.stderr.rstrip().endswith(": overlaps == 0 && mismatches == 0"), result.stderr
         assert "overlaps=0 " not in result.stderr and "bad_draws=0 " not in result.stderr, result.stderr
     else:
         assert result.returncode == 0, result.stdout + result.stderr
-        if variant in ("android", "desktop"):
+        if variant == "android":
+            assert "bypassed=4800 allocations=0 uploads=0 watch_reads=0 protections=0" in result.stderr, result.stderr
+        elif variant == "desktop":
             assert "mapped=0 " in result.stderr, result.stderr
