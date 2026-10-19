@@ -548,3 +548,31 @@ uninstalling the old app and installing the new one (see the backup commands
 above). Uninstalling deletes the app's data. Later releases signed with the
 permanent key can update in place. Stable signing does not guarantee that
 Google Play Protect immediately removes an unfamiliar-developer warning.
+
+
+## Texture-cache comparison prerelease
+
+The `android-texture-cache-test` branch automatically refreshes ordinary Xbox
+and Custom Edition textures on their first use in each frame, even when memory
+write tracking reports no change. It reuses them within the frame and retains
+normal invalidation for tracked writes. The permanent geometry-mirror bypass
+remains enabled. Texture decoding, channel order, shaders, streamed geometry,
+render targets, replacement HUD textures and the independently owned MCC cache
+keep their existing paths. Desktop and web builds keep their existing behavior.
+This is a diagnostic comparison, not a confirmed surface-rendering fix; uploads
+and decoding may make it slower than Build 220.
+
+Install the prerelease APK and play normally. No console commands or settings
+changes are required. `android-texture-test.log` is written automatically beside
+`config.toml` in the app's external files folder. It records the test mode, GL
+vendor/renderer/version, S3TC capability, cumulative upload/forced-refresh counts,
+CPU upload time and a sampled upload each second. GL errors are sampled before
+and after that upload; a clean sample does not prove every GL call succeeded.
+The current report is limited to about 512 KiB, and the previous launch is kept
+as `android-texture-test.log.previous`. Reports stay on the device and are not
+sent automatically. Copy the report after testing if further diagnosis is needed.
+
+Report the phone model, map, whether the colour flashes remain, how long you
+played, and whether performance changed. A successful comparison would narrow
+the fault to texture freshness/upload timing; it would not by itself establish
+which cache or driver mechanism is responsible.
