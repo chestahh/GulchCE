@@ -1017,15 +1017,6 @@ static struct
 } recent_textures[RECENT_TEXTURE_COUNT];
 static unsigned long texture_drop_serial = 1;
 static unsigned long texture_frame = 0;
-#ifdef HALO_ANDROID
-/* This comparison refreshes ordinary textures on their first use each frame.
-HUD replacements and MCC's independently owned cache keep their own paths. */
-static BOOL android_texture_test_refresh(const struct texture_entry *entry)
-{
-	return entry->last_used_frame != texture_frame && entry->override < 0 && !entry->hud_upscale;
-}
-#endif
-
 /* the frame of each of the last sweeps, a sweep apart, and when the next
 is due */
 static unsigned long texture_sweep_frames[TEXTURE_SWEEP_COUNT];
@@ -1170,11 +1161,7 @@ GLuint xgpu_texture_get(const DWORD *resource, const D3DCOLOR *palette, GLenum *
 		recent_textures[recent].drop_serial == texture_drop_serial)
 	{
 		entry = recent_textures[recent].entry;
-		if (recent_textures[recent].watch_serial == watch_serial
-#ifdef HALO_ANDROID
-			&& !android_texture_test_refresh(entry)
-#endif
-		)
+		if (recent_textures[recent].watch_serial == watch_serial)
 		{
 			entry->last_used_frame = texture_frame;
 			return texture_entry_result(entry, target, description);
@@ -1248,16 +1235,8 @@ GLuint xgpu_texture_get(const DWORD *resource, const D3DCOLOR *palette, GLenum *
 		entry->watched_serial = watch_serial;
 		entry->watched_generation = generation;
 	}
-	if (!entry->generation || generation > entry->generation || no_cache
-#ifdef HALO_ANDROID
-		|| android_texture_test_refresh(entry)
-#endif
-	)
+	if (!entry->generation || generation > entry->generation || no_cache)
 	{
-#ifdef HALO_ANDROID
-		if (entry->generation && generation <= entry->generation && !no_cache && android_texture_test_refresh(entry))
-			android_texture_test_forced++;
-#endif
 		/* protect first, so a write racing with the upload is noticed */
 		memory_watch_protect(entry->address, entry->size);
 		entry->generation = memory_watch_generation(entry->address, entry->size);

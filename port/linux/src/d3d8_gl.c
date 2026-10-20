@@ -29,6 +29,9 @@ Conventions carried over from the Xbox:
 #include "main/console.h"
 
 #include <SDL3/SDL.h>
+#ifdef HALO_ANDROID
+#include "../../android/guest/state_refresh_test.h"
+#endif
 
 #include <math.h>
 #include <stdio.h>
@@ -4262,6 +4265,17 @@ static struct program_entry *prepare_draw(BOOL immediate)
 				skip++;
 		}
 	}
+#ifdef HALO_ANDROID
+	/* Isolate upload()'s GL shadow refresh without refreshing texture pixels. */
+	android_state_test_refresh(program->id, D3D__RenderState[D3DRS_PSTEXTUREMODES], immediate);
+	for (stage = 0; stage < D3DTSS_MAXSTAGES; stage++)
+	{
+		D3DBaseTexture *texture = device.textures[stage];
+
+		if (texture)
+			android_state_test_texture((unsigned long)stage, texture->Data, texture->Format);
+	}
+#endif
 	memset(&key, 0, sizeof(key));
 	memcpy(key.combiner_state, D3D__RenderState, sizeof(key.combiner_state));
 	/* constants are uniforms, not part of the program */
@@ -4275,12 +4289,18 @@ static struct program_entry *prepare_draw(BOOL immediate)
 	which binds framebuffers of its own, and the back buffer can be both
 	sampled and drawn into */
 	bind_textures(&key, uniforms.texture_scale);
+#ifdef HALO_ANDROID
+	android_state_test_stage("after textures");
+#endif
 	if (!bind_targets(&has_depth))
 	{
 		stats.skipped_no_target++;
 		return NULL;
 	}
 	apply_raster_state(has_depth);
+#ifdef HALO_ANDROID
+	android_state_test_stage("after targets and raster state");
+#endif
 	for (stage = 0; stage < D3DTSS_MAXSTAGES; stage++)
 	{
 		key.alpha_kill[stage] = D3D__TextureState[stage][D3DTSS_ALPHAKILL] == D3DTALPHAKILL_ENABLE;
@@ -4327,6 +4347,9 @@ static struct program_entry *prepare_draw(BOOL immediate)
 		gl_check_errors("program");
 		return NULL;
 	}
+#ifdef HALO_ANDROID
+	android_state_test_stage("after program lookup");
+#endif
 	gl_check_errors("state");
 	if (immediate)
 		stats.immediate_draws++;
@@ -4511,7 +4534,12 @@ static struct program_entry *prepare_draw(BOOL immediate)
 	}
 	/* and a program that has had them since needs none of them */
 	if (entry->uniforms_serial == draw_uniforms_serial)
+	{
+#ifdef HALO_ANDROID
+		android_state_test_stage("ready (cached uniforms)");
+#endif
 		return entry;
+	}
 	entry->uniforms_serial = draw_uniforms_serial;
 	uniform_vec4(entry->viewport_scale, entry->uniforms.viewport_scale, draw_uniforms.viewport_scale, 1);
 	uniform_vec4(entry->viewport_offset, entry->uniforms.viewport_offset, draw_uniforms.viewport_offset, 1);
@@ -4529,6 +4557,9 @@ static struct program_entry *prepare_draw(BOOL immediate)
 	uniform_float(entry->screen_offset, &entry->uniforms.screen_offset, draw_uniforms.screen_offset);
 	uniform_vec4(entry->texture_lod_bias, entry->uniforms.texture_lod_bias, draw_uniforms.texture_lod_bias, 1);
 	uniform_vec4(entry->height_fade, entry->uniforms.height_fade, draw_uniforms.height_fade, 1);
+#ifdef HALO_ANDROID
+	android_state_test_stage("ready (updated uniforms)");
+#endif
 	return entry;
 }
 

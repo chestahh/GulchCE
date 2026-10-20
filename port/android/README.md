@@ -550,31 +550,33 @@ permanent key can update in place. Stable signing does not guarantee that
 Google Play Protect immediately removes an unfamiliar-developer warning.
 
 
-## Texture-cache comparison prerelease
+## Graphics-state comparison prerelease
 
-The `android-texture-cache-test` branch automatically refreshes ordinary Xbox
-and Custom Edition textures on their first use in each frame, even when memory
-write tracking reports no change. It reuses them within the frame and retains
-normal invalidation for tracked writes. The permanent geometry-mirror bypass
-remains enabled. Texture decoding, channel order, shaders, streamed geometry,
-render targets, replacement HUD textures and the independently owned MCC cache
-keep their existing paths. Desktop and web builds keep their existing behavior.
-This is a diagnostic comparison, not a confirmed surface-rendering fix; uploads
-and decoding may make it slower than Build 220.
+The `android-state-refresh-test` branch keeps normal texture caching and the
+permanent Android geometry-mirror bypass. Before each valid draw preparation,
+it invalidates the renderer's GL state shadow, making the existing renderer
+reapply bindings and raster state. This isolates the state invalidation that
+also happened during the previous texture-upload comparison, without forcing
+texture uploads or DXT decoding each frame. Per-program uniform caching,
+shader code, texture formats/decoding, streamed geometry, and map adapters stay
+unchanged. The shared Android renderer refresh applies to Xbox, Custom Edition
+and MCC draws; their separate resource/loading paths remain intact. Desktop
+and web behavior is unchanged. This is a diagnostic comparison, not a
+confirmed fix; extra GL state calls can still affect performance.
 
-The comparison uses Android version code 220 so a CI APK signed with the
-release key can update Build 220 in place. Its automatic updater remains off.
-Install the prerelease APK and play normally. No console commands or settings
-changes are required. `android-texture-test.log` is written automatically beside
-`config.toml` in the app's external files folder. It records the test mode, GL
-vendor/renderer/version, S3TC capability, cumulative upload/forced-refresh counts,
-CPU upload time and a sampled upload each second. GL errors are sampled before
-and after that upload; a clean sample does not prove every GL call succeeded.
-The current report is limited to about 512 KiB, and the previous launch is kept
-as `android-texture-test.log.previous`. Reports stay on the device and are not
-sent automatically. Copy the report after testing if further diagnosis is needed.
+The APK uses version code 220 and the release signing key to update Build 220
+or the previous comparison in place. Its automatic updater remains off.
+Install and play normally, without console commands or configuration changes.
+`android-state-test.log` is written automatically beside `config.toml` in the
+app's external files folder. It records GPU/driver details, cumulative normal
+texture uploads, DXT decoding, elapsed conversion/upload time and state-refresh
+counts every ten seconds. Once per second it samples draw preparation (shader
+ID, texture resource addresses/formats, and GL errors at preparation stages).
+Uploads are sampled separately. These are not complete draw captures; errors
+from earlier work are labelled separately, and clean samples cannot prove
+that every GL call succeeded. Shader-uniform caches are deliberately retained.
 
-Report the phone model, map, whether the colour flashes remain, how long you
-played, and whether performance changed. A successful comparison would narrow
-the fault to texture freshness/upload timing; it would not by itself establish
-which cache or driver mechanism is responsible.
+Each report is bounded to about 512 KiB; the previous launch is retained as
+`android-state-test.log.previous`. Reports stay local and are not sent
+elsewhere. Report the phone model, map, ground flicker, other colour corruption,
+play duration and performance, and include the log if accessible.
