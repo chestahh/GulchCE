@@ -125,6 +125,7 @@ symbols in this file:
 #include "mcc_texture_cache.h"
 #ifdef HALO_ANDROID
 #include "android_cache_test.h" /* port: port/linux/game/android_cache_test.c */
+#include "android_texture_compact.h" /* port: port/linux/game/android_texture_compact.c */
 #endif
 
 /* ---------- constants */
@@ -822,6 +823,21 @@ static boolean texture_cache_bitmap_valid(
 	return valid;
 }
 
+#ifdef HALO_ANDROID
+/* port: CE reads and drawing share this thread. Keep the header itself in
+place for already-bound stages, updating only its registered pixel address. */
+static void texture_cache_move_android_block(long index, long first_page, long page_count)
+{
+	struct xbox_texture_cache_texture *texture = datum_get(xbox_texture_cache_globals.textures, index);
+	byte *destination = xbox_texture_cache_globals.base_address + (first_page << 14);
+
+	android_texture_move_texels(destination, texture->bitmap->base_address, (unsigned long)page_count << 14);
+	texture->bitmap->base_address = destination;
+	texture->hardware_format.Data = 0;
+	IDirect3DBaseTexture8_Register(&texture->hardware_format, destination);
+}
+#endif
+
 static boolean texture_cache_start_loading_bitmap(
 	struct bitmap_data *bitmap,
 	boolean block)
@@ -848,7 +864,20 @@ static boolean texture_cache_start_loading_bitmap(
 		xbox_texture_cache_globals.cache,
 		size);
 #ifdef HALO_ANDROID
-	/* port: record the real allocator result, without retrying or evicting. */
+	/* port: compact only Android CE's synchronous cache path after a miss.
+	Xbox async reads and MCC's separate texture storage retain their paths. */
+	if (cache_block_index == NONE && custom_edition_cache_tags_loaded() && !mcc_cache_tags_loaded())
+	{
+		struct android_texture_compact_result result;
+		unsigned long started;
+
+		android_cache_test_record(xbox_texture_cache_globals.cache, bitmap, _android_cache_test_retry, size);
+		started = system_milliseconds();
+		android_texture_compact(xbox_texture_cache_globals.cache, size, texture_cache_move_android_block, &result);
+		if (result.status == 1)
+			cache_block_index = lruv_block_new(xbox_texture_cache_globals.cache, size);
+		android_cache_test_compaction(&result, system_milliseconds() - started, cache_block_index != NONE);
+	}
 	android_cache_test_record(xbox_texture_cache_globals.cache, bitmap,
 		cache_block_index == NONE ? _android_cache_test_allocation_failed : _android_cache_test_allocated, size);
 #endif

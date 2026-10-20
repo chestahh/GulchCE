@@ -699,6 +699,25 @@ void halo_custom_edition_texels_forget(void)
 	custom_edition_texel_capacity = 0;
 }
 
+#ifdef HALO_ANDROID
+/* CE cache compaction runs between draws on this thread. Client texture
+uploads have consumed their source before returning; headers are stable.
+Move the channel annotation with its bytes and invalidate destination pages
+before reuse so normal GPU caching observes the new contents. Removing the
+old annotation first also leaves room for the new one without allocation. */
+void android_texture_move_texels(void *destination, const void *source, unsigned long size)
+{
+	unsigned char order = custom_edition_texels_order((unsigned long)source);
+
+	halo_custom_edition_texels_channels(source, _custom_edition_channels_xbox);
+	halo_custom_edition_texels_channels(destination, order);
+	memory_watch_prepare_write(destination, size);
+	memmove(destination, source, size);
+	/* Also invalidate same-frame hash snapshots when protection is unused. */
+	memory_watch_forget(destination, size);
+}
+#endif
+
 static void upload(GLuint texture, GLenum target, const struct xgpu_texture_description *description,
 	const unsigned char *base, const D3DCOLOR *palette, unsigned char channel_order)
 {

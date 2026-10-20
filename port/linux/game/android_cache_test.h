@@ -9,6 +9,7 @@ enum android_cache_test_event
 	_android_cache_test_rejected,
 	_android_cache_test_allocation_failed,
 	_android_cache_test_fallback,
+	_android_cache_test_retry,
 	_android_cache_test_event_count
 };
 void android_cache_test_reset(struct lruv_cache *cache, const char *reason);
@@ -16,4 +17,7 @@ void android_cache_test_tick(struct lruv_cache *cache);
 void android_cache_test_record(struct lruv_cache *cache, struct bitmap_data const *bitmap,
 	int event, long requested_bytes);
 void android_cache_test_memory(unsigned long *free_bytes, unsigned long *largest_bytes);
+struct android_texture_compact_result;
+void android_cache_test_compaction(const struct android_texture_compact_result *result,
+	unsigned long elapsed, int recovered);
 #endif

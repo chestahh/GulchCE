@@ -9,7 +9,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 @pytest.mark.parametrize('define,expected', [
-    ('HALO_ARM64_GUEST', 32), ('HALO_WEB', 22), ('HALO_WINDOWS', 256), ('', 256)])
+    ('HALO_ARM64_GUEST', 36), ('HALO_WEB', 22), ('HALO_WINDOWS', 256), ('', 256)])
 def test_platform_budget(tmp_path, define, expected):
     header = ROOT / 'port/linux/include/halo_port_capacity.h'
     code = (f'#define {define} 1\n' if define else '') + f'#include "{header.as_posix()}"\n'
@@ -26,7 +26,7 @@ def test_pressure_accounting_and_lifecycle(tmp_path):
     header = (ROOT/'port/linux/game/android_cache_test.h').read_text()
     # Compile the entire diagnostic implementation with only its dependencies stubbed.
     source = re.sub(r'^#include .*$', '', source, flags=re.M)
-    code = r'''
+    code = (ROOT/'port/linux/game/android_texture_compact.h').read_text() + r'''
 #include <string.h>
 #include <stdio.h>
 #include <stdarg.h>
@@ -54,6 +54,7 @@ void android_texture_test_log(const char *f,...) {
 ''' + header + source + r'''
 int main(void) {
  struct lruv_cache cache={8,14}; struct bitmap_data b={1024,1024,1,15,8,2,7,1398096,-1}; int before;
+ struct android_texture_compact_result moved={20,3,2,1};
  android_cache_test_reset(&cache,"open");
  android_cache_test_tick(&cache);
  if(!strstr(last,"occupied=4 locked=2 largest_free_pages=2 largest_evictable_span_pages=4")) return 1;
@@ -71,6 +72,16 @@ int main(void) {
  android_cache_test_reset(&cache,"close");if(cache_events[0] || cache_events[2] || cache_next_summary) return 8;
  mcc=ce=0;android_cache_test_tick(&cache);if(!strstr(last,"family=xbox/menu")) return 9;
  cache.page_count=9;before=snapshots;android_cache_test_snapshot(&cache,"bad");if(snapshots!=before) return 10;
+ cache.page_count=8;android_cache_test_record(&cache,&b,_android_cache_test_retry,1398096);
+ android_cache_test_compaction(&moved,7,1);
+ if(compact_recovered!=1 || compact_pages!=20 || compact_evicted!=2 || compact_ms!=7) return 11;
+ before=lines;android_cache_test_compaction(&moved,5,1);
+ if(lines!=before || compact_recovered!=2 || compact_ms!=12) return 12;
+ moved.status=2;android_cache_test_compaction(&moved,0,0);
+ moved.status=0;android_cache_test_compaction(&moved,0,0);
+ if(compact_busy!=1 || compact_capacity!=1) return 13;
+ android_cache_test_reset(&cache,"close");
+ if(compact_recovered || compact_pages || compact_evicted || compact_ms || compact_busy || compact_capacity || cache_events[4]) return 14;
  return 0;
 }
 '''
@@ -118,11 +129,11 @@ int main(void) {
  if(!platform_contiguous_alloc(HALO_PORT_GAME_STATE_SIZE,0,HALO_PORT_GAME_STATE_BASE_ADDRESS-PLATFORM_CONTIGUOUS_BASE,4)) return 2;
  if(!platform_contiguous_alloc(0x1600000,0,0x3a6000,4)) return 3;
  texture=platform_contiguous_alloc(HALO_PORT_TEXTURE_CACHE_SIZE,0,PLATFORM_ANY_PHYSICAL_ADDRESS,4);
- if(texture!=(void *)0x86000000UL) return 4;
+ if(texture!=(void *)0x85c00000UL) return 4;
  if(!platform_contiguous_alloc(HALO_PORT_SOUND_CACHE_SIZE,0,PLATFORM_ANY_PHYSICAL_ADDRESS,4)) return 5;
  android_cache_test_memory(&free_bytes,&largest);
- if(largest!=46UL*1024*1024 || free_bytes<largest || locks) return 6;
- if(platform_contiguous_alloc(47UL*1024*1024,0,PLATFORM_ANY_PHYSICAL_ADDRESS,4)) return 7;
+ if(largest!=42UL*1024*1024 || free_bytes<largest || locks) return 6;
+ if(platform_contiguous_alloc(43UL*1024*1024,0,PLATFORM_ANY_PHYSICAL_ADDRESS,4)) return 7;
  if(!platform_contiguous_alloc(40UL*1024*1024,0,PLATFORM_ANY_PHYSICAL_ADDRESS,4)) return 8;
  arena_reserved=0;android_cache_test_memory(&free_bytes,&largest);
  if(free_bytes || largest || locks) return 9;
@@ -137,7 +148,7 @@ def test_hooks_preserve_mcc_and_record_real_failure():
     load = function(source,'texture_cache_start_loading_bitmap')
     assert '_android_cache_test_rejected' in load
     assert load.index('lruv_block_new(') < load.index('_android_cache_test_allocation_failed')
-    assert load.count('lruv_block_new(') == 1
+    assert load.count('lruv_block_new(') == 2
     get = function(source,'_texture_cache_bitmap_get_hardware_format')
     assert get.index('return hardware_format;') < get.index('_android_cache_test_fallback')
     assert get.index('if (block && !hardware_format)') < get.index('_android_cache_test_fallback')

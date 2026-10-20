@@ -550,22 +550,47 @@ permanent key can update in place. Stable signing does not guarantee that
 Google Play Protect immediately removes an unfamiliar-developer warning.
 
 
-## Android cache budget diagnostic prerelease
+## Android cache fragmentation diagnostic prerelease
 
-The `android-cache-budget-test` branch retains normal texture caching,
+The `android-cache-fragmentation-test` branch retains normal texture caching,
 the Android geometry-mirror bypass, and GL state refresh before every draw.
 It observes Extinction's authored terrain material by its base bitmap name
 (`levels\extinction\bitmaps\extinction_terrain2`) only while Custom Edition
 tags are loaded. Scoped hooks identify the lightmap (pass 1) and diffuse
 (pass 2) draw functions, and clear the scope on return. Other materials, Xbox
 and MCC maps do not select terrain samples; their existing paths remain intact.
-The only rendering-policy change is a larger Android bitmap cache: 32 MiB
-instead of 22 MiB. Desktop remains 256 MiB and web remains 22 MiB. The
+The Android bitmap cache is 36 MiB (the preceding budget test used 32 MiB). Desktop remains 256 MiB and web remains 22 MiB. The
 128 MiB Android physical window and guest image address are unchanged, as
 are game-state layouts, networking, and MCC-owned texture storage. After
 reserving texture/sound caches, the address range above fixed game state
-has 46 MiB left before other allocations (not guaranteed runtime free memory).
+has 42 MiB left before other allocations (not guaranteed runtime free memory).
 A compile-time guard requires at least 40 MiB of that layout headroom.
+
+After an allocation miss, Android Custom Edition maps compact the bitmap
+cache only if its free and evictable pages together can satisfy the request.
+The oldest entries not used this frame are evicted only until there is enough
+space. Remaining pixels move downward with overlapping copies supported;
+their cache IDs, ages and hardware-header pointers stay stable. The bitmap
+address and header's registered address are updated together. CE channel
+annotations move with the pixels, and destination memory-watch generations
+are invalidated, including the hash fallback. Normal GPU caching remains on;
+moved textures may need uploading again. Nothing is compacted every frame.
+
+CE reads finish synchronously on the render thread. The recovery rejects any
+pending/busy resource before changing the cache. Xbox asynchronous loading
+and MCC-owned storage do not enter compaction. It uses the current cache size,
+including any temporary reduction for stolen memory. No scratch pixel buffer
+or extra physical reservation is required. The small shared hooks are needed
+to update the cache's private bitmap/header ownership and renderer-owned
+channel annotations; the allocator policy lives in android_texture_compact.c.
+
+`bitmap_cache` summaries also count retries, recovered allocations, moved pages,
+evictions, compaction CPU milliseconds, and skips for insufficient capacity or
+pending reads. Rate-limited `bitmap_compact` records give individual outcomes.
+Allocation failures count final failures after recovery; retries count initial
+misses. These diagnostics distinguish fragmentation from a working set that
+exceeds 36 MiB, which compaction cannot fix. Movement and reuploads may cause
+hitches; player testing must measure both flicker and performance.
 
 Automatic `bitmap_cache` records every five seconds report occupied/locked
 pages, largest free hole, largest span available after evicting unlocked
@@ -578,7 +603,7 @@ The physical statistics are collected under the allocator lock. No textures
 or shader values are replaced by the diagnostics.
 
 Each terrain pass is sampled at most once every two seconds, so menu/HUD draws
-cannot consume its samples. `android-cache-budget-test.log` is created automatically
+cannot consume its samples. `android-cache-fragmentation-test.log` is created automatically
 beside `config.toml`. It records GPU information, normal upload counts/timing,
 pass counts, texture resource/GL identities, dimensions/formats, memory-watch
 generations and source fingerprints. Fingerprints cover at most the first
@@ -596,10 +621,10 @@ preparation boundaries and after selected terrain pass draws. Queries and
 fingerprints may cause brief diagnostic overhead, without per-frame uploads.
 
 Reports are bounded to about 2 MiB with the previous launch retained as
-`android-cache-budget-test.log.previous`; reports stay local. The APK uses version
+`android-cache-fragmentation-test.log.previous`; reports stay local. The APK uses version
 code 220 and the existing signing key, updating Build 220 or earlier tests
 in place. The updater stays off. Install and play without console commands
 or configuration changes. Report terrain flicker, other surface errors,
 performance, phone/map and play duration, and attach the log. This build is
-a cache-capacity comparison, not a confirmed fix. Report crashes/loading
+a fragmentation comparison, not a confirmed fix. Report crashes/loading
 failures as well as remaining flicker and performance.

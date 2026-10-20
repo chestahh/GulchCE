@@ -8,11 +8,14 @@
 #include "custom_edition_cache.h"
 #include "mcc_cache.h"
 #include "android_cache_test.h"
+#include "android_texture_compact.h"
 
 void android_texture_test_log(const char *format, ...);
 static unsigned long cache_events[_android_cache_test_event_count];
 static unsigned long cache_next_summary, cache_next_detail[_android_cache_test_event_count];
 static unsigned long cache_session;
+static unsigned long compact_recovered, compact_pages, compact_evicted, compact_ms;
+static unsigned long compact_busy, compact_capacity, compact_next_detail;
 
 static void android_cache_test_snapshot(struct lruv_cache *cache, const char *reason)
 {
@@ -36,11 +39,13 @@ static void android_cache_test_snapshot(struct lruv_cache *cache, const char *re
 	android_cache_test_memory(&physical_free, &physical_largest);
 	android_texture_test_log("bitmap_cache: ms=%lu session=%lu reason=%s family=%s pages=%ld occupied=%lu "
 		"locked=%lu largest_free_pages=%lu largest_evictable_span_pages=%lu page_bytes=%lu "
-		"allocations=%lu rejected=%lu allocation_failed=%lu fallback=%lu physical_free=%lu physical_largest=%lu",
+		"allocations=%lu rejected=%lu allocation_failed=%lu fallback=%lu physical_free=%lu physical_largest=%lu "
+		"retries=%lu recovered=%lu moved_pages=%lu evicted=%lu compact_ms=%lu busy_skips=%lu capacity_skips=%lu",
 		(unsigned long)system_milliseconds(), cache_session, reason,
 		mcc_cache_tags_loaded() ? "mcc" : custom_edition_cache_tags_loaded() ? "ce" : "xbox/menu",
 		cache->page_count, occupied, locked, largest_free, largest_available, 1UL << cache->page_size_bits,
-		cache_events[0], cache_events[1], cache_events[2], cache_events[3], physical_free, physical_largest);
+		cache_events[0], cache_events[1], cache_events[2], cache_events[3], physical_free, physical_largest,
+		cache_events[4], compact_recovered, compact_pages, compact_evicted, compact_ms, compact_busy, compact_capacity);
 }
 
 void android_cache_test_reset(struct lruv_cache *cache, const char *reason)
@@ -49,6 +54,8 @@ void android_cache_test_reset(struct lruv_cache *cache, const char *reason)
 	memset(cache_events, 0, sizeof(cache_events));
 	memset(cache_next_detail, 0, sizeof(cache_next_detail));
 	cache_next_summary = 0;
+	compact_recovered = compact_pages = compact_evicted = compact_ms = 0;
+	compact_busy = compact_capacity = compact_next_detail = 0;
 	cache_session++;
 }
 
@@ -66,7 +73,7 @@ void android_cache_test_tick(struct lruv_cache *cache)
 void android_cache_test_record(struct lruv_cache *cache, struct bitmap_data const *bitmap,
 	int event, long requested_bytes)
 {
-	static const char *names[] = { "allocated", "rejected", "allocation_failed", "fallback" };
+	static const char *names[] = { "allocated", "rejected", "allocation_failed", "fallback", "retry" };
 	unsigned long now = (unsigned long)system_milliseconds();
 	const char *name;
 
@@ -83,5 +90,24 @@ void android_cache_test_record(struct lruv_cache *cache, struct bitmap_data cons
 		bitmap->width, bitmap->height, bitmap->depth, bitmap->format, (unsigned int)bitmap->flags,
 		bitmap->mipmap_count, bitmap->pixels_size, bitmap->cache_block_index);
 	android_cache_test_snapshot(cache, names[event]);
+}
+
+void android_cache_test_compaction(const struct android_texture_compact_result *result,
+	unsigned long elapsed, int recovered)
+{
+	unsigned long now = system_milliseconds();
+
+	compact_recovered += recovered != 0;
+	compact_pages += result->moved_pages;
+	compact_evicted += result->evicted_blocks;
+	compact_ms += elapsed;
+	compact_busy += result->status == 2;
+	compact_capacity += result->status == 0;
+	if (now < compact_next_detail)
+		return;
+	compact_next_detail = now + 1000;
+	android_texture_test_log("bitmap_compact: ms=%lu session=%lu status=%d recovered=%d moved_pages=%ld "
+		"moved_blocks=%ld evicted=%ld elapsed_ms=%lu", now, cache_session, result->status, recovered,
+		result->moved_pages, result->moved_blocks, result->evicted_blocks, elapsed);
 }
 #endif
