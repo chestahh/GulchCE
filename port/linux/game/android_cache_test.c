@@ -80,6 +80,9 @@ void android_cache_test_record(struct lruv_cache *cache, struct bitmap_data cons
 	if (event < 0 || event >= _android_cache_test_event_count)
 		return;
 	cache_events[event]++;
+	if (event == _android_cache_test_retry || event == _android_cache_test_allocation_failed || event == _android_cache_test_fallback)
+		android_texture_test_pressure(event == _android_cache_test_retry, event == _android_cache_test_allocation_failed,
+			event == _android_cache_test_fallback, 0, 0);
 	if (event == _android_cache_test_allocated || now < cache_next_detail[event] || !bitmap)
 		return;
 	cache_next_detail[event] = now + 1000;
@@ -103,6 +106,7 @@ void android_cache_test_compaction(const struct android_texture_compact_result *
 	compact_ms += elapsed;
 	compact_busy += result->status == 2;
 	compact_capacity += result->status == 0;
+	android_texture_test_pressure(0, 0, 0, recovered != 0, elapsed);
 	if (now < compact_next_detail)
 		return;
 	compact_next_detail = now + 1000;

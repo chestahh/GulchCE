@@ -55,6 +55,24 @@ static struct lruv_cache cache;
 static unsigned char pixels[20*16384];
 static int busy=-1,deleted[16],write_calls,forget_calls;
 static unsigned long write_generation;
+static unsigned long android_texture_reuse_moves,android_texture_reuse_kept;
+static unsigned long long android_texture_reuse_bytes;
+#define D3DFORMAT_FORMAT_MASK 255
+#define D3DFORMAT_FORMAT_SHIFT 0
+#define PLATFORM_VIRTUAL_TO_PHYSICAL(x) (x)
+typedef unsigned long DWORD;
+struct texture_entry {
+ struct texture_entry *next;unsigned long data,format_word,size_word,address,size,generation;
+ long override;unsigned long hud_upscale,texture,watched_serial,watched_generation;int hud_upscale_checked;
+};
+static struct texture_entry *texture_buckets[1];
+static unsigned long texture_drop_serial;
+static unsigned long bucket_index(unsigned long d,unsigned long f,unsigned long s) {return 0;}
+static int config_boolean(const char *s) {return 0;}
+static unsigned long memory_watch_generation(unsigned long a,unsigned long n) {return write_generation;}
+static void memory_watch_protect(unsigned long a,unsigned long n) {}
+static void glDeleteTextures(int n,unsigned long *t) {}
+static void xgpu_gl_state_invalidate(void) {}
 static boolean locked(long i) {return i==busy;}
 static void deleted_block(long i) {assert(blocks.items[i].last_used_tick!=cache.tick);deleted[i]++;}
 struct bitmap_data {byte *base_address;};
@@ -139,7 +157,7 @@ assert(r.status==1 && !r.moved_pages && !r.evicted_blocks);verify_pixels();
 setup();android_texture_compact(&cache,6*16384,texture_cache_move_android_block,&r);verify_pixels();''',
         'overlap': '''/* Exercise overlapping memmove plus channel annotation replacement. */
 memset(pixels,9,3*16384);halo_custom_edition_texels_channels(pixels+16384,2);
-android_texture_move_texels(pixels,pixels+16384,3*16384);
+android_texture_move_texels(pixels,pixels+16384,3*16384,123,456);
 assert(pixels[0]==9 && pixels[2*16384]==2 && custom_edition_texels_order((unsigned long)pixels)==2);
 assert(custom_edition_texels_order((unsigned long)(pixels+16384))==0 && write_generation==1);''',
         'invalid': '''android_texture_compact(&cache,0,texture_cache_move_android_block,&r);

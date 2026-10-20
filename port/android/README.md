@@ -550,16 +550,17 @@ permanent key can update in place. Stable signing does not guarantee that
 Google Play Protect immediately removes an unfamiliar-developer warning.
 
 
-## Android cache fragmentation diagnostic prerelease
+## Android texture reuse diagnostic prerelease
 
-The `android-cache-fragmentation-test` branch retains normal texture caching,
+The `android-texture-reuse-test` branch retains normal texture caching,
 the Android geometry-mirror bypass, and GL state refresh before every draw.
 It observes Extinction's authored terrain material by its base bitmap name
 (`levels\extinction\bitmaps\extinction_terrain2`) only while Custom Edition
 tags are loaded. Scoped hooks identify the lightmap (pass 1) and diffuse
 (pass 2) draw functions, and clear the scope on return. Other materials, Xbox
 and MCC maps do not select terrain samples; their existing paths remain intact.
-The Android bitmap cache is 36 MiB (the preceding budget test used 32 MiB). Desktop remains 256 MiB and web remains 22 MiB. The
+The Android bitmap cache remains 36 MiB, as in the fragmentation test.
+Desktop remains 256 MiB and web remains 22 MiB. The
 128 MiB Android physical window and guest image address are unchanged, as
 are game-state layouts, networking, and MCC-owned texture storage. After
 reserving texture/sound caches, the address range above fixed game state
@@ -574,7 +575,25 @@ their cache IDs, ages and hardware-header pointers stay stable. The bitmap
 address and header's registered address are updated together. CE channel
 annotations move with the pixels, and destination memory-watch generations
 are invalidated, including the hash fallback. Normal GPU caching remains on;
-moved textures may need uploading again. Nothing is compacted every frame.
+eligible moved textures now keep their GPU copy. Nothing is compacted every frame.
+
+The renderer rekeys an existing raw GPU entry only when its physical address,
+format and size match the moved resource, its byte extent fits the allocation,
+and its nonzero memory-watch generation still matches the source. It removes
+obsolete destination entries, invalidates recent lookups, and registers the
+same GL object at the destination with fresh write tracking. Later writes
+still trigger normal uploads. Palette variants, HUD replacements/upscales,
+stale entries and explicit texture-no-cache mode use the existing upload path.
+Normal idle eviction and map-lifecycle behavior are retained. No extra GPU
+copy, scratch pixels or cross-frame relocation table is allocated. The helper
+lives beside the renderer's private buckets because those keys and recent
+lookup pointers cannot be safely updated from a game-only module.
+
+This targets an observed upload-heavy interval in the prior player log:
+330.869-340.884 seconds averaged about 19.77 presents/second, with 3,188
+uploads and 4,279 milliseconds inside the upload path. Some slow intervals
+had few uploads. The log does not prove all those uploads came from compaction,
+or that upload reuse will fix every direction-dependent slowdown.
 
 CE reads finish synchronously on the render thread. The recovery rejects any
 pending/busy resource before changing the cache. Xbox asynchronous loading
@@ -602,8 +621,22 @@ the existing read-only page-usage API; it does not load, touch or evict data.
 The physical statistics are collected under the allocator lock. No textures
 or shader values are replaced by the diagnostics.
 
+Automatic `frame_cost` records relate consecutive presentation intervals to
+uploads, upload-call elapsed time, cache retries/failures/fallbacks, recoveries,
+recovery elapsed time and retained GPU copies in that interval. Details are
+limited to one per second for intervals of at least 34 ms, recovery, or at
+least 8 ms of upload work. Ten-second `frame_window` records cover every
+interval, giving count, total duration, worst interval and count over 33 ms.
+`texture_reuse` records cumulative moved resources, retained GPU copies/source
+bytes and allocation pressure. A retained copy is not necessarily drawn later;
+these are not counts of guaranteed avoided uploads. Frame intervals include
+loading, pacing, GPU waits and diagnostic overhead; they are not GPU timings
+or exclusively gameplay samples. Compare with map-session records and player
+feedback. The renderer clock is SDL milliseconds; existing cache records use
+system milliseconds. No GPU timer queries, fences or finishes are added.
+
 Each terrain pass is sampled at most once every two seconds, so menu/HUD draws
-cannot consume its samples. `android-cache-fragmentation-test.log` is created automatically
+cannot consume its samples. `android-texture-reuse-test.log` is created automatically
 beside `config.toml`. It records GPU information, normal upload counts/timing,
 pass counts, texture resource/GL identities, dimensions/formats, memory-watch
 generations and source fingerprints. Fingerprints cover at most the first
@@ -621,10 +654,10 @@ preparation boundaries and after selected terrain pass draws. Queries and
 fingerprints may cause brief diagnostic overhead, without per-frame uploads.
 
 Reports are bounded to about 2 MiB with the previous launch retained as
-`android-cache-fragmentation-test.log.previous`; reports stay local. The APK uses version
+`android-texture-reuse-test.log.previous`; reports stay local. The APK uses version
 code 220 and the existing signing key, updating Build 220 or earlier tests
 in place. The updater stays off. Install and play without console commands
 or configuration changes. Report terrain flicker, other surface errors,
 performance, phone/map and play duration, and attach the log. This build is
-a fragmentation comparison, not a confirmed fix. Report crashes/loading
+a texture-reuse performance comparison, not a confirmed performance fix. Report crashes/loading
 failures as well as remaining flicker and performance.

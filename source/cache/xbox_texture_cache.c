@@ -831,7 +831,8 @@ static void texture_cache_move_android_block(long index, long first_page, long p
 	struct xbox_texture_cache_texture *texture = datum_get(xbox_texture_cache_globals.textures, index);
 	byte *destination = xbox_texture_cache_globals.base_address + (first_page << 14);
 
-	android_texture_move_texels(destination, texture->bitmap->base_address, (unsigned long)page_count << 14);
+	android_texture_move_texels(destination, texture->bitmap->base_address, (unsigned long)page_count << 14,
+		texture->hardware_format.Format, texture->hardware_format.Size); /* port: retain eligible GPU copies. */
 	texture->bitmap->base_address = destination;
 	texture->hardware_format.Data = 0;
 	IDirect3DBaseTexture8_Register(&texture->hardware_format, destination);

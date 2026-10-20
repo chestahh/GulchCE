@@ -10,5 +10,6 @@ struct android_texture_compact_result
 typedef void (*android_texture_move_proc)(long block, long first_page, long page_count);
 void android_texture_compact(struct lruv_cache *cache, long size,
 	android_texture_move_proc move, struct android_texture_compact_result *result);
-void android_texture_move_texels(void *destination, const void *source, unsigned long size);
+void android_texture_move_texels(void *destination, const void *source, unsigned long size,
+	unsigned long format_word, unsigned long size_word);
 #endif

@@ -699,25 +699,6 @@ void halo_custom_edition_texels_forget(void)
 	custom_edition_texel_capacity = 0;
 }
 
-#ifdef HALO_ANDROID
-/* CE cache compaction runs between draws on this thread. Client texture
-uploads have consumed their source before returning; headers are stable.
-Move the channel annotation with its bytes and invalidate destination pages
-before reuse so normal GPU caching observes the new contents. Removing the
-old annotation first also leaves room for the new one without allocation. */
-void android_texture_move_texels(void *destination, const void *source, unsigned long size)
-{
-	unsigned char order = custom_edition_texels_order((unsigned long)source);
-
-	halo_custom_edition_texels_channels(source, _custom_edition_channels_xbox);
-	halo_custom_edition_texels_channels(destination, order);
-	memory_watch_prepare_write(destination, size);
-	memmove(destination, source, size);
-	/* Also invalidate same-frame hash snapshots when protection is unused. */
-	memory_watch_forget(destination, size);
-}
-#endif
-
 static void upload(GLuint texture, GLenum target, const struct xgpu_texture_description *description,
 	const unsigned char *base, const D3DCOLOR *palette, unsigned char channel_order)
 {
@@ -1055,6 +1036,86 @@ static unsigned long bucket_index(DWORD data, DWORD format_word, DWORD size_word
 
 	return ((hash & 0xffffffffUL) >> 20) % TEXTURE_BUCKET_COUNT;
 }
+
+#ifdef HALO_ANDROID
+/* Only synchronous CE compaction calls this, between draws. A current raw
+GPU copy can follow its pixels without decoding/uploading them again. Other
+formats, palette variants, replacements and stale copies use normal lookup.
+The destination's former entries must not shadow the moved entry, and recent
+lookups must not retain freed pointers or the old address key. */
+void android_texture_move_texels(void *destination, const void *source, unsigned long size,
+	unsigned long format_word, unsigned long size_word)
+{
+	unsigned char order = custom_edition_texels_order((unsigned long)source);
+	DWORD old_data = PLATFORM_VIRTUAL_TO_PHYSICAL((unsigned long)source);
+	DWORD new_data = PLATFORM_VIRTUAL_TO_PHYSICAL((unsigned long)destination);
+	struct texture_entry **link, *entry, *retained = NULL;
+	unsigned long current;
+
+	if (source == destination)
+		return;
+	android_texture_reuse_moves++;
+	/* Palettes and HUD replacements have additional state; deliberately leave
+	 * their existing upload path intact for this comparison. */
+	if (((format_word & D3DFORMAT_FORMAT_MASK) >> D3DFORMAT_FORMAT_SHIFT) != 0x0b &&
+		!config_boolean("debug.texture_no_cache"))
+	{
+		link = &texture_buckets[bucket_index(old_data, format_word, size_word)];
+		while ((entry = *link) != NULL)
+		{
+			if (entry->data == old_data && entry->format_word == format_word && entry->size_word == size_word &&
+				entry->address == (unsigned long)source && entry->size && entry->size <= size &&
+				entry->generation && entry->override < 0 && !entry->hud_upscale)
+			{
+				current = memory_watch_generation(entry->address, entry->size);
+				if (current && current == entry->generation)
+				{
+					*link = entry->next;
+					retained = entry;
+					break;
+				}
+			}
+			link = &entry->next;
+		}
+	}
+	/* Preserve channel annotations and explicitly invalidate changed bytes,
+	 * including same-frame hash snapshots when protection is unused. */
+	halo_custom_edition_texels_channels(source, _custom_edition_channels_xbox);
+	halo_custom_edition_texels_channels(destination, order);
+	memory_watch_prepare_write(destination, size);
+	memmove(destination, source, size);
+	memory_watch_forget(destination, size);
+	if (!retained)
+		return;
+	link = &texture_buckets[bucket_index(new_data, format_word, size_word)];
+	while ((entry = *link) != NULL)
+	{
+		if (entry->data == new_data && entry->format_word == format_word && entry->size_word == size_word)
+		{
+			*link = entry->next;
+			glDeleteTextures(1, &entry->texture);
+			if (entry->hud_upscale)
+				glDeleteTextures(1, &entry->hud_upscale);
+			xgpu_gl_state_invalidate();
+			free(entry);
+		}
+		else
+			link = &entry->next;
+	}
+	retained->data = new_data;
+	retained->address = (unsigned long)destination;
+	memory_watch_protect(retained->address, retained->size);
+	retained->generation = memory_watch_generation(retained->address, retained->size);
+	retained->watched_serial = 0;
+	retained->watched_generation = 0;
+	retained->hud_upscale_checked = FALSE;
+	retained->next = texture_buckets[bucket_index(new_data, format_word, size_word)];
+	texture_buckets[bucket_index(new_data, format_word, size_word)] = retained;
+	texture_drop_serial++;
+	android_texture_reuse_kept++;
+	android_texture_reuse_bytes += retained->size;
+}
+#endif
 
 /* palettized textures are cached per palette contents: the game rewrites
 palettes freely, and often cycles a texture through a few of them */
