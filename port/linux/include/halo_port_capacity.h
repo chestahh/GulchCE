@@ -44,9 +44,12 @@ is drawn as the default one ("YOU GOT STABBED" in debug.txt; Elite_Alpha_Siege
 did at 22 MB), and a frame of bigass_v3 draws more than 64 MB (DamnationCE's
 measurement). The desktop builds' cache is 256 MB, half their 512 MB memory
 window (port/linux/src/platform.h), whose pages are backed as they are used.
-Android's window is 128 MB, as the web build's, and its cache the Xbox's. */
+Android's window remains 128 MB. This Android comparison uses a 32 MB
+cache; the web build retains the Xbox's 22 MB cache. */
 
-#if defined(HALO_ARM64_GUEST) || defined(HALO_WEB)
+#if defined(HALO_ARM64_GUEST)
+#define HALO_PORT_TEXTURE_CACHE_PAGE_COUNT 0x800 /* Android comparison: 32 MB */
+#elif defined(HALO_WEB)
 #define HALO_PORT_TEXTURE_CACHE_PAGE_COUNT 0x580 /* (0x580) */
 #else
 #define HALO_PORT_TEXTURE_CACHE_PAGE_COUNT 0x4000 /* (0x580) */

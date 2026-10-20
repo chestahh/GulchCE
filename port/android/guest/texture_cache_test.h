@@ -52,7 +52,7 @@ static void android_texture_test_begin_frame(unsigned long frame)
 		int length;
 
 		initialized = TRUE;
-		length = snprintf(path, sizeof(path), "%s/android-terrain-test.log", root && *root ? root : ".");
+		length = snprintf(path, sizeof(path), "%s/android-cache-budget-test.log", root && *root ? root : ".");
 		if (length >= 0 && (size_t)length < sizeof(path))
 		{
 			length = snprintf(previous, sizeof(previous), "%s.previous", path);
@@ -63,7 +63,7 @@ static void android_texture_test_begin_frame(unsigned long frame)
 				android_texture_test_file = fopen(path, "wb");
 			}
 		}
-		android_texture_test_log("mode=extinction-terrain-diagnostics; state refresh and normal texture cache; geometry mirror bypass retained; "
+		android_texture_test_log("mode=cache-budget-32m-diagnostics; state refresh and normal texture cache; geometry mirror bypass retained; "
 			"terrain lightmap/diffuse samples; texture decoding and uniforms unchanged; file=%s",
 			android_texture_test_file ? "ready" : "unavailable (logcat only)");
 		android_texture_test_log("vendor=%s; renderer=%s; GL=%s; S3TC=%d; GLSL=%s",

@@ -50,6 +50,40 @@ static BOOL arena_reserved = FALSE;
 static pthread_mutex_t arena_lock = PTHREAD_MUTEX_INITIALIZER;
 static void *custom_edition_tag_cache = NULL;
 
+#ifdef HALO_ANDROID
+#include "../game/android_cache_test.h"
+/* Keep the comparison inside the unchanged guest window, with at least
+40 MB above game state after the texture and sound cache reservations.
+This is an address-layout guard, not a guarantee for every map workload. */
+typedef char android_cache_test_headroom[
+	PLATFORM_CONTIGUOUS_BASE + PLATFORM_CONTIGUOUS_SIZE -
+	(HALO_PORT_GAME_STATE_BASE_ADDRESS + HALO_PORT_GAME_STATE_SIZE) -
+	HALO_PORT_TEXTURE_CACHE_SIZE - HALO_PORT_SOUND_CACHE_SIZE >= 40UL * 1024UL * 1024UL ? 1 : -1];
+
+void android_cache_test_memory(unsigned long *free_bytes, unsigned long *largest_bytes)
+{
+	unsigned long page, run = 0, largest = 0, free_pages = 0;
+
+	pthread_mutex_lock(&arena_lock);
+	if (arena_reserved)
+	{
+		for (page = 0; page < CONTIGUOUS_PAGE_COUNT; page++)
+		{
+			if (!page_protection[page])
+			{
+				free_pages++;
+				run++;
+				if (run > largest) largest = run;
+			}
+			else run = 0;
+		}
+	}
+	pthread_mutex_unlock(&arena_lock);
+	*free_bytes = free_pages * PAGE_SIZE_BYTES;
+	*largest_bytes = largest * PAGE_SIZE_BYTES;
+}
+#endif
+
 static int protection_to_host(DWORD protect)
 {
 	switch (protect & 0xff)

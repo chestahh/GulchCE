@@ -123,6 +123,9 @@ symbols in this file:
 #include "custom_edition_cache.h" /* port: port/linux/game/custom_edition_cache.c */
 #include "mcc_cache.h"
 #include "mcc_texture_cache.h"
+#ifdef HALO_ANDROID
+#include "android_cache_test.h" /* port: port/linux/game/android_cache_test.c */
+#endif
 
 /* ---------- constants */
 
@@ -358,6 +361,10 @@ void texture_cache_open(
 	void)
 {
 	data_make_valid(xbox_texture_cache_globals.textures);
+#ifdef HALO_ANDROID
+	/* port: reset diagnostic counters at the cache lifecycle boundary. */
+	android_cache_test_reset(xbox_texture_cache_globals.cache, "open");
+#endif
 
 	return;
 }
@@ -365,6 +372,10 @@ void texture_cache_open(
 void texture_cache_idle(
 	void)
 {
+#ifdef HALO_ANDROID
+	/* port: observe current-frame locks before advancing the cache tick. */
+	android_cache_test_tick(xbox_texture_cache_globals.cache);
+#endif
 	lruv_idle(xbox_texture_cache_globals.cache);
 
 	return;
@@ -728,6 +739,10 @@ void texture_cache_new(
 void texture_cache_close(
 	void)
 {
+#ifdef HALO_ANDROID
+	/* port: retain final counters before flushing this map's cache. */
+	android_cache_test_reset(xbox_texture_cache_globals.cache, "close");
+#endif
 	match_assert(
 		"c:\\halo\\SOURCE\\cache\\xbox_texture_cache.c",
 		133,
@@ -819,6 +834,11 @@ static boolean texture_cache_start_loading_bitmap(
 	map's fields) */
 	if (!texture_cache_bitmap_valid(bitmap))
 	{
+#ifdef HALO_ANDROID
+		/* port: distinguish malformed admission from allocation pressure. */
+		android_cache_test_record(xbox_texture_cache_globals.cache, bitmap,
+			_android_cache_test_rejected, 0);
+#endif
 		return FALSE;
 	}
 	size = rasterizer_xbox_bitmap_get_pixel_data_size(bitmap);
@@ -827,6 +847,11 @@ static boolean texture_cache_start_loading_bitmap(
 	cache_block_index = lruv_block_new(
 		xbox_texture_cache_globals.cache,
 		size);
+#ifdef HALO_ANDROID
+	/* port: record the real allocator result, without retrying or evicting. */
+	android_cache_test_record(xbox_texture_cache_globals.cache, bitmap,
+		cache_block_index == NONE ? _android_cache_test_allocation_failed : _android_cache_test_allocated, size);
+#endif
 	if (cache_block_index != NONE)
 	{
 		long new_texture_index;
@@ -1097,6 +1122,11 @@ void *_texture_cache_bitmap_get_hardware_format(
 
 	if (block && !hardware_format)
 	{
+#ifdef HALO_ANDROID
+		/* port: count actual substitutions, including those outside Extinction. */
+		android_cache_test_record(xbox_texture_cache_globals.cache, bitmap,
+			_android_cache_test_fallback, bitmap->pixels_size);
+#endif
 		if (system_milliseconds() - texture_cache_last_failure_time > 10000)
 		{
 			/* (port: chatter, shown as config.toml's game.console_log says) */

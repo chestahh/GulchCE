@@ -550,19 +550,35 @@ permanent key can update in place. Stable signing does not guarantee that
 Google Play Protect immediately removes an unfamiliar-developer warning.
 
 
-## Extinction terrain diagnostic prerelease
+## Android cache budget diagnostic prerelease
 
-The `android-terrain-diagnostics-test` branch retains normal texture caching,
+The `android-cache-budget-test` branch retains normal texture caching,
 the Android geometry-mirror bypass, and GL state refresh before every draw.
 It observes Extinction's authored terrain material by its base bitmap name
 (`levels\extinction\bitmaps\extinction_terrain2`) only while Custom Edition
 tags are loaded. Scoped hooks identify the lightmap (pass 1) and diffuse
 (pass 2) draw functions, and clear the scope on return. Other materials, Xbox
 and MCC maps do not select terrain samples; their existing paths remain intact.
-No textures or shader values are replaced. Desktop and web rendering is unchanged.
+The only rendering-policy change is a larger Android bitmap cache: 32 MiB
+instead of 22 MiB. Desktop remains 256 MiB and web remains 22 MiB. The
+128 MiB Android physical window and guest image address are unchanged, as
+are game-state layouts, networking, and MCC-owned texture storage. After
+reserving texture/sound caches, the address range above fixed game state
+has 46 MiB left before other allocations (not guaranteed runtime free memory).
+A compile-time guard requires at least 40 MiB of that layout headroom.
+
+Automatic `bitmap_cache` records every five seconds report occupied/locked
+pages, largest free hole, largest span available after evicting unlocked
+blocks, allocation successes/failures, admission rejections, fallback uses,
+and physical free/largest-block bytes. Each failure kind logs at most once
+per second with the bitmap name and requested size; counters count every
+event. Open/close boundaries report and reset counters. The diagnostic uses
+the existing read-only page-usage API; it does not load, touch or evict data.
+The physical statistics are collected under the allocator lock. No textures
+or shader values are replaced by the diagnostics.
 
 Each terrain pass is sampled at most once every two seconds, so menu/HUD draws
-cannot consume its samples. `android-terrain-test.log` is created automatically
+cannot consume its samples. `android-cache-budget-test.log` is created automatically
 beside `config.toml`. It records GPU information, normal upload counts/timing,
 pass counts, texture resource/GL identities, dimensions/formats, memory-watch
 generations and source fingerprints. Fingerprints cover at most the first
@@ -580,9 +596,10 @@ preparation boundaries and after selected terrain pass draws. Queries and
 fingerprints may cause brief diagnostic overhead, without per-frame uploads.
 
 Reports are bounded to about 2 MiB with the previous launch retained as
-`android-terrain-test.log.previous`; reports stay local. The APK uses version
+`android-cache-budget-test.log.previous`; reports stay local. The APK uses version
 code 220 and the existing signing key, updating Build 220 or earlier tests
 in place. The updater stays off. Install and play without console commands
 or configuration changes. Report terrain flicker, other surface errors,
 performance, phone/map and play duration, and attach the log. This build is
-diagnostic evidence collection, not a claimed fix for the green floor.
+a cache-capacity comparison, not a confirmed fix. Report crashes/loading
+failures as well as remaining flicker and performance.
