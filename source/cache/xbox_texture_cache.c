@@ -126,6 +126,7 @@ symbols in this file:
 #ifdef HALO_ANDROID
 #include "android_cache_test.h" /* port: port/linux/game/android_cache_test.c */
 #include "android_texture_compact.h" /* port: port/linux/game/android_texture_compact.c */
+#include "android_texture_priority.h" /* port: port/linux/game/android_texture_priority.c */
 #endif
 
 /* ---------- constants */
@@ -352,6 +353,9 @@ static unsigned long texture_cache_last_failure_time = 0;
 void texture_cache_delete(
 	void)
 {
+#ifdef HALO_ANDROID
+	android_texture_priority_reset(); /* port: discard HUD tag pointers before teardown. */
+#endif
 	data_dispose(xbox_texture_cache_globals.textures);
 	lruv_delete(xbox_texture_cache_globals.cache);
 
@@ -363,6 +367,7 @@ void texture_cache_open(
 {
 	data_make_valid(xbox_texture_cache_globals.textures);
 #ifdef HALO_ANDROID
+	android_texture_priority_reset(); /* port: each cache lifetime starts with no HUD history. */
 	/* port: reset diagnostic counters at the cache lifecycle boundary. */
 	android_cache_test_reset(xbox_texture_cache_globals.cache, "open");
 #endif
@@ -378,6 +383,10 @@ void texture_cache_idle(
 	android_cache_test_tick(xbox_texture_cache_globals.cache);
 #endif
 	lruv_idle(xbox_texture_cache_globals.cache);
+#ifdef HALO_ANDROID
+	/* port: previous-frame HUD requests get normal cache access before world draws. */
+	android_texture_priority_begin(xbox_texture_cache_globals.cache);
+#endif
 
 	return;
 }
@@ -412,6 +421,9 @@ void texture_cache_bitmap_delete(
 {
 	long cache_block_index;
 
+#ifdef HALO_ANDROID
+	android_texture_priority_forget(bitmap); /* port: never retain deleted bitmap pointers. */
+#endif
 	if (TEST_FLAG(bitmap->flags, _bitmap_cached_bit))
 	{
 		cache_block_index = bitmap->cache_block_index;
@@ -562,6 +574,9 @@ static boolean compare(
 void texture_cache_flush(
 	void)
 {
+#ifdef HALO_ANDROID
+	android_texture_priority_reset(); /* port: flush, resize and map transitions invalidate HUD history. */
+#endif
 	IDirect3DDevice8_KickPushBuffer(global_d3d_device);
 	IDirect3DDevice8_IsBusy(global_d3d_device);
 	lruv_flush(xbox_texture_cache_globals.cache);
@@ -873,7 +888,12 @@ static boolean texture_cache_start_loading_bitmap(
 
 		android_cache_test_record(xbox_texture_cache_globals.cache, bitmap, _android_cache_test_retry, size);
 		started = system_milliseconds();
-		android_texture_compact(xbox_texture_cache_globals.cache, size, texture_cache_move_android_block, &result);
+		/* port: keep normal allocation above; bound only recovery work per frame. */
+		memset(&result, 0, sizeof(result));
+		if (android_texture_priority_recover(xbox_texture_cache_globals.cache))
+			android_texture_compact(xbox_texture_cache_globals.cache, size, texture_cache_move_android_block, &result);
+		else
+			result.status = 3; /* port: deferred; distinguish from insufficient capacity. */
 		if (result.status == 1)
 			cache_block_index = lruv_block_new(xbox_texture_cache_globals.cache, size);
 		android_cache_test_compaction(&result, system_milliseconds() - started, cache_block_index != NONE);
@@ -1149,6 +1169,15 @@ void *_texture_cache_bitmap_get_hardware_format(
 		hardware_format = bitmap->hardware_format;
 	}
 
+#ifdef HALO_ANDROID
+	/* port: observe actual HUD requests, including failed first-frame loads. */
+	if (load && android_texture_priority_collecting() &&
+		texture_cache_bitmap_valid(bitmap))
+	{
+		android_texture_priority_note(bitmap);
+		android_texture_priority_result(bitmap, hardware_format != NULL);
+	}
+#endif
 	if (block && !hardware_format)
 	{
 #ifdef HALO_ANDROID

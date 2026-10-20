@@ -550,81 +550,77 @@ permanent key can update in place. Stable signing does not guarantee that
 Google Play Protect immediately removes an unfamiliar-developer warning.
 
 
-## Android cache fragmentation diagnostic prerelease
+## Android HUD cache diagnostic prerelease
 
-The `android-cache-fragmentation-test` branch retains normal texture caching,
-the Android geometry-mirror bypass, and GL state refresh before every draw.
-It observes Extinction's authored terrain material by its base bitmap name
-(`levels\extinction\bitmaps\extinction_terrain2`) only while Custom Edition
-tags are loaded. Scoped hooks identify the lightmap (pass 1) and diffuse
-(pass 2) draw functions, and clear the scope on return. Other materials, Xbox
-and MCC maps do not select terrain samples; their existing paths remain intact.
-The Android bitmap cache is 36 MiB (the preceding budget test used 32 MiB). Desktop remains 256 MiB and web remains 22 MiB. The
-128 MiB Android physical window and guest image address are unchanged, as
-are game-state layouts, networking, and MCC-owned texture storage. After
-reserving texture/sound caches, the address range above fixed game state
-has 42 MiB left before other allocations (not guaranteed runtime free memory).
-A compile-time guard requires at least 40 MiB of that layout headroom.
+The `android-hud-cache-test` branch starts from the 36 MiB fragmentation
+comparison. It retains the Android geometry-mirror bypass, normal texture
+caching and GL state refresh before every draw. The unsuccessful GPU texture
+rekey/reuse experiment is excluded. Desktop/web behavior, Xbox asynchronous
+texture loading and MCC-owned storage remain unchanged. Game state layouts,
+network protocol and the 128 MiB guest physical window are unchanged.
 
-After an allocation miss, Android Custom Edition maps compact the bitmap
-cache only if its free and evictable pages together can satisfy the request.
-The oldest entries not used this frame are evicted only until there is enough
-space. Remaining pixels move downward with overlapping copies supported;
-their cache IDs, ages and hardware-header pointers stay stable. The bitmap
-address and header's registered address are updated together. CE channel
-annotations move with the pixels, and destination memory-watch generations
-are invalidated, including the hash fallback. Normal GPU caching remains on;
-moved textures may need uploading again. Nothing is compacted every frame.
+The last affected-player log recorded 62,779 final allocation failures,
+41,776 fallback events and 297 recoveries in about 187 seconds of CE activity.
+All 51 detailed failures lacked sufficient unlocked pages; several named HUD
+meters and numbers. One 238 ms presentation interval contained 117 ms of
+recovery and 55 ms of upload calls. The video showed meter fills disappearing.
+These observations support testing cache availability and recovery work;
+they do not prove every stall or visual error has that cause.
 
-CE reads finish synchronously on the render thread. The recovery rejects any
-pending/busy resource before changing the cache. Xbox asynchronous loading
-and MCC-owned storage do not enter compaction. It uses the current cache size,
-including any temporary reduction for stolen memory. No scratch pixel buffer
-or extra physical reservation is required. The small shared hooks are needed
-to update the cache's private bitmap/header ownership and renderer-owned
-channel annotations; the allocator policy lives in android_texture_compact.c.
+Actual requests made inside `hud_draw_screen` are remembered for the next
+frame, including custom-named bitmaps and first-frame misses. After the normal
+LRU tick advances, already-resident recent HUD entries are touched first,
+then missing ones are loaded through the existing cache and CE reader.
+Thus world allocation cannot evict those current-frame HUD entries.
+The priority list holds at most 128 bitmaps and 4 MiB of page-rounded pixel
+storage, **inside the existing 36 MiB cache**, not in a new arena.
+Entries expire after two frames without a HUD request. Bitmap deletion,
+cache flush, opening and teardown clear stale pointers. Reduced/stolen caches
+skip preloading and recovery. New HUD elements can still miss on their first
+frame, and HUDs exceeding the priority limit retain normal cache behavior.
 
-`bitmap_cache` summaries also count retries, recovered allocations, moved pages,
-evictions, compaction CPU milliseconds, and skips for insufficient capacity or
-pending reads. Rate-limited `bitmap_compact` records give individual outcomes.
-Allocation failures count final failures after recovery; retries count initial
-misses. These diagnostics distinguish fragmentation from a working set that
-exceeds 36 MiB, which compaction cannot fix. Movement and reuploads may cause
-hitches; player testing must measure both flicker and performance.
+Normal allocation is always attempted. After a miss, at most one compaction
+attempt is allowed between cache-frame boundaries. Further misses follow the
+existing failure/fallback path and retry on later requests/frames. No busy
+resource moves and no current-frame locks are relaxed. Compaction preserves
+bitmap IDs, hardware-header pointers, pixel bytes and CE channel annotations.
+This comparison deliberately bounds recovery work; it cannot guarantee
+every world texture fits. HUD priority or deferred recovery may increase
+world fallbacks, which must be measured along with HUD stability and FPS.
 
-Automatic `bitmap_cache` records every five seconds report occupied/locked
-pages, largest free hole, largest span available after evicting unlocked
-blocks, allocation successes/failures, admission rejections, fallback uses,
-and physical free/largest-block bytes. Each failure kind logs at most once
-per second with the bitmap name and requested size; counters count every
-event. Open/close boundaries report and reset counters. The diagnostic uses
-the existing read-only page-usage API; it does not load, touch or evict data.
-The physical statistics are collected under the allocator lock. No textures
-or shader values are replaced by the diagnostics.
+The policy lives in `port/linux/game/android_texture_priority.c`. Small
+Android-only hooks are needed in the private texture-cache lifecycle/getter
+and the HUD draw scope: those are the points that identify real HUD requests,
+advance LRU ages before world drawing and invalidate bitmap pointers.
+MCC's early texture-storage dispatch and all non-Android paths remain intact.
+No asset names, lower-resolution substitutes, shader changes or extra
+physical-memory reservation are introduced.
 
-Each terrain pass is sampled at most once every two seconds, so menu/HUD draws
-cannot consume its samples. `android-cache-fragmentation-test.log` is created automatically
-beside `config.toml`. It records GPU information, normal upload counts/timing,
-pass counts, texture resource/GL identities, dimensions/formats, memory-watch
-generations and source fingerprints. Fingerprints cover at most the first
-4 MiB of a resource; `hash_bytes` gives coverage. `observed=1` means the source
-was fingerprinted just before its latest normal upload in a terrain scope.
-Otherwise there is no upload baseline, and `changed` cannot establish staleness.
-These hashes do not read GPU texture contents or prove absence of collisions.
+`android-hud-cache-test.log` is created automatically beside `config.toml`,
+with the previous launch kept as `.previous`. Logs remain local and are
+bounded to about 2 MiB. No console commands or configuration changes:
+install over Build 220 or the preceding test with the existing signing key
+and version code 220; the updater remains off.
 
-Selected active vertex and pixel uniforms are read back from GL and compared
-with the renderer's expected values. Environment transform registers are
-always selected; other vertex registers rotate between samples. A summary
-counts mismatches and logs up to four value differences per sample. This is
-partial uniform coverage, not a full GPU capture. GL errors are sampled at
-preparation boundaries and after selected terrain pass draws. Queries and
-fingerprints may cause brief diagnostic overhead, without per-frame uploads.
+`hud_cache` reports tracked count/bytes, observed HUD requests/misses,
+preload requests/readiness, priority-limit rejections, allowed recovery
+attempts and deferred recoveries. Counts are cumulative within a cache
+lifetime. A ready preload means the CPU/header path is available, not proof
+of final GPU output. Reports occur every 300 cache frames and on reset.
+`bitmap_cache` continues reporting allocation pressure, fallbacks, memory
+headroom, moves/evictions and recovery time. `bitmap_compact` status 3 means
+deferred, distinct from capacity failure (0), recovery (1) and busy (2).
+Event details are rate-limited, while counters count every event.
 
-Reports are bounded to about 2 MiB with the previous launch retained as
-`android-cache-fragmentation-test.log.previous`; reports stay local. The APK uses version
-code 220 and the existing signing key, updating Build 220 or earlier tests
-in place. The updater stays off. Install and play without console commands
-or configuration changes. Report terrain flicker, other surface errors,
-performance, phone/map and play duration, and attach the log. This build is
-a fragmentation comparison, not a confirmed fix. Report crashes/loading
-failures as well as remaining flicker and performance.
+`frame_cost` correlates consecutive presentation intervals with uploads,
+retries/failures/fallbacks and recovery time. Details are at most once per
+second; ten-second `frame_window` summaries count all intervals and slow
+frames. These include loading, pacing and diagnostics, not GPU timings.
+Existing Extinction terrain hashes and partial uniform checks remain enabled
+and sampled. They cannot establish HUD or GPU correctness on their own.
+
+Test Extinction and Garden CE for at least 20 minutes, including the problem
+views, weapon changes, death/respawn and a map reload/change. Report HUD
+flicker, world corruption, pauses/FPS drops, loading failures, phone model
+and duration, and attach the log. Player validation is required before
+promoting this experimental comparison.

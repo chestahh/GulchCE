@@ -47,6 +47,7 @@ static void lruv_cache_get_page_usage(struct lruv_cache *c, byte *u) {
  byte values[8]={3,1,0,9,0,0,1,0}; memcpy(u,values,8); snapshots++;
 }
 void android_cache_test_memory(unsigned long *a,unsigned long *b) { *a=100;*b=50; }
+void android_texture_test_pressure(unsigned long r,unsigned long f,unsigned long b,unsigned long c,unsigned long t) { }
 void android_texture_test_log(const char *f,...) {
  va_list v; va_start(v,f);vsnprintf(last,sizeof(last),f,v);va_end(v);lines++;
  if(strstr(f,"bitmap_cache_event")) strcpy(detail,last);

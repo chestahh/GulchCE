@@ -5,7 +5,7 @@ struct lruv_cache;
 struct android_texture_compact_result
 {
 	long moved_pages, moved_blocks, evicted_blocks;
-	int status; /* 0: insufficient capacity, 1: compacted, 2: pending/busy */
+	int status; /* 0: insufficient capacity, 1: compacted, 2: pending/busy, 3: deferred */
 };
 typedef void (*android_texture_move_proc)(long block, long first_page, long page_count);
 void android_texture_compact(struct lruv_cache *cache, long size,

@@ -116,6 +116,10 @@ symbols in this file:
 #include "units/unit_definitions.h"
 #include "units/units.h"
 
+#ifdef HALO_ANDROID
+#include "android_texture_priority.h" /* port: port/linux/game/android_texture_priority.c */
+#endif
+
 /* ---------- constants */
 
 enum
@@ -1471,6 +1475,10 @@ void hud_draw_screen(
 	long player_index = local_player_get_player_index(render.local_player_index);
 	director_perspective perspective = director_get_perspective(render.local_player_index);
 
+#ifdef HALO_ANDROID
+	/* port: identify real HUD bitmap requests for next-frame cache priority. */
+	android_texture_priority_scope(TRUE);
+#endif
 	rasterizer_hud_begin();
 	if (player_index != NONE)
 	{
@@ -1540,6 +1548,9 @@ void hud_draw_screen(
 		temporary_hud_draw();
 	}
 
+#ifdef HALO_ANDROID
+	android_texture_priority_scope(FALSE); /* port: world and menu draws are not HUD requests. */
+#endif
 	return;
 }
 

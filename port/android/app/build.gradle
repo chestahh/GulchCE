@@ -28,7 +28,7 @@ android {
         // This comparison must install over stable Build 220 without removing data.
         // Keep HALO_BUILD_NUMBER at zero so the test does not self-update away.
         versionCode Math.max(220, buildNumber)
-        versionName buildNumber > 0 ? "build " + buildNumber : "Android cache fragmentation test"
+        versionName buildNumber > 0 ? "build " + buildNumber : "Android HUD cache test"
         buildConfigField "int", "HALO_BUILD_NUMBER", "${buildNumber}"
         ndk {
             abiFilters "arm64-v8a"

@@ -39,6 +39,8 @@ void android_texture_test_log(const char *format, ...)
 	}
 }
 
+#include "texture_perf_test.h"
+
 static void android_texture_test_begin_frame(unsigned long frame)
 {
 	static BOOL initialized;
@@ -52,7 +54,7 @@ static void android_texture_test_begin_frame(unsigned long frame)
 		int length;
 
 		initialized = TRUE;
-		length = snprintf(path, sizeof(path), "%s/android-cache-fragmentation-test.log", root && *root ? root : ".");
+		length = snprintf(path, sizeof(path), "%s/android-hud-cache-test.log", root && *root ? root : ".");
 		if (length >= 0 && (size_t)length < sizeof(path))
 		{
 			length = snprintf(previous, sizeof(previous), "%s.previous", path);
@@ -63,13 +65,14 @@ static void android_texture_test_begin_frame(unsigned long frame)
 				android_texture_test_file = fopen(path, "wb");
 			}
 		}
-		android_texture_test_log("mode=cache-fragmentation-36m-diagnostics; state refresh and normal texture cache; geometry mirror bypass retained; "
+		android_texture_test_log("mode=hud-cache-36m-diagnostics; state refresh and normal texture cache; geometry mirror bypass retained; "
 			"terrain lightmap/diffuse samples; texture decoding and uniforms unchanged; file=%s",
 			android_texture_test_file ? "ready" : "unavailable (logcat only)");
 		android_texture_test_log("vendor=%s; renderer=%s; GL=%s; S3TC=%d; GLSL=%s",
 			(const char *)glGetString(GL_VENDOR), (const char *)glGetString(GL_RENDERER),
 			(const char *)glGetString(GL_VERSION), xgpu_capabilities.s3tc, xgpu_capabilities.shading_language);
 	}
+	android_texture_perf_frame(frame, now);
 	if (now >= android_texture_test_next_summary)
 	{
 		android_texture_test_log("ms=%llu frame=%lu totals: uploads=%lu state_refreshes=%lu decoded_DXT=%lu "
