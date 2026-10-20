@@ -140,6 +140,9 @@ symbols in this file:
 
 #define REAL_MATH_EXTERNAL_POINT_FROM_LINE3D
 #include "cseries.h"
+#ifdef HALO_ANDROID
+#include "android_terrain_test.h" /* port: port/linux/game/android_terrain_test.c */
+#endif
 #include "mcc_environment_shader.h" /* port: port/linux/game/mcc_environment_shader.c */
 #include "bitmaps/bitmaps.h"
 #include "cseries/errors.h"
@@ -516,6 +519,12 @@ void _rasterizer_environment_lightmap_draw(
 	long triangle_count,
 	struct vertex_buffer const *vertex_buffer)
 {
+#ifdef HALO_ANDROID
+	/* port: identify the terrain pass before its texture and shader setup. */
+	android_terrain_test_begin(shader && shader->base.type == _shader_type_environment ?
+		((struct shader_environment_definition const *)shader)->environment.diffuse.base_map.index : NONE, 1);
+#endif
+
 	match_assert(
 		"c:\\halo\\SOURCE\\rasterizer\\xbox\\rasterizer_xbox_environment.c",
 		135,
@@ -1032,6 +1041,9 @@ void _rasterizer_environment_lightmap_draw(
 					triangle_count);
 		}
 	}
+#ifdef HALO_ANDROID
+	android_terrain_test_end(); /* port: clear scope before other materials/maps. */
+#endif
 	return;
 }
 
@@ -1478,6 +1490,12 @@ void _rasterizer_environment_diffuse_texture_draw(
 	long triangle_count,
 	struct vertex_buffer const *vertex_buffer)
 {
+#ifdef HALO_ANDROID
+	/* port: identify the terrain pass before its texture and shader setup. */
+	android_terrain_test_begin(shader && shader->base.type == _shader_type_environment ?
+		((struct shader_environment_definition const *)shader)->environment.diffuse.base_map.index : NONE, 2);
+#endif
+
 	match_assert(
 		"c:\\halo\\SOURCE\\rasterizer\\xbox\\rasterizer_xbox_environment.c",
 		968,
@@ -1754,6 +1772,9 @@ void _rasterizer_environment_diffuse_texture_draw(
 			}
 		}
 	}
+#ifdef HALO_ANDROID
+	android_terrain_test_end(); /* port: clear scope before other materials/maps. */
+#endif
 	return;
 }
 

@@ -3,11 +3,14 @@ The renderer owns this state. Files are local, bounded and flushed as written;
 the previous launch is kept so restarting does not discard the last report. */
 #include <stdarg.h>
 
-#define ANDROID_TEXTURE_TEST_LOG_LIMIT (512UL * 1024UL)
+#define ANDROID_TEXTURE_TEST_LOG_LIMIT (2UL * 1024UL * 1024UL)
 static FILE *android_texture_test_file;
 static unsigned long android_texture_test_log_bytes;
 static unsigned long android_state_test_refreshes;
-static Uint64 android_state_test_now, android_state_test_next_sample;
+static Uint64 android_state_test_now, android_terrain_test_next_sample[3];
+static int android_terrain_test_pass;
+static BOOL android_terrain_test_scope_sampled;
+static unsigned long android_terrain_test_samples[3];
 static BOOL android_state_test_sample;
 static unsigned long android_texture_test_uploads, android_texture_test_decoded;
 static unsigned long android_texture_test_errors;
@@ -15,7 +18,7 @@ static Uint64 android_texture_test_upload_ms, android_texture_test_next_summary;
 static Uint64 android_texture_test_next_sample;
 static BOOL android_texture_test_sample;
 
-static void android_texture_test_log(const char *format, ...)
+void android_texture_test_log(const char *format, ...)
 {
 	char line[768];
 	va_list arguments;
@@ -28,7 +31,7 @@ static void android_texture_test_log(const char *format, ...)
 	va_end(arguments);
 	length = strlen(line);
 	android_texture_test_log_bytes += (unsigned long)length + 1;
-	platform_log("state-test: %s", line);
+	platform_log("terrain-test: %s", line);
 	if (android_texture_test_file)
 	{
 		fprintf(android_texture_test_file, "%s\n", line);
@@ -49,7 +52,7 @@ static void android_texture_test_begin_frame(unsigned long frame)
 		int length;
 
 		initialized = TRUE;
-		length = snprintf(path, sizeof(path), "%s/android-state-test.log", root && *root ? root : ".");
+		length = snprintf(path, sizeof(path), "%s/android-terrain-test.log", root && *root ? root : ".");
 		if (length >= 0 && (size_t)length < sizeof(path))
 		{
 			length = snprintf(previous, sizeof(previous), "%s.previous", path);
@@ -57,11 +60,11 @@ static void android_texture_test_begin_frame(unsigned long frame)
 			{
 				remove(previous);
 				rename(path, previous);
-				android_texture_test_file = fopen(path, "w");
+				android_texture_test_file = fopen(path, "wb");
 			}
 		}
-		android_texture_test_log("mode=state-refresh-each-draw; normal texture cache; geometry mirror bypass retained; "
-			"texture decoding, uniforms and map adapters unchanged; file=%s",
+		android_texture_test_log("mode=extinction-terrain-diagnostics; state refresh and normal texture cache; geometry mirror bypass retained; "
+			"terrain lightmap/diffuse samples; texture decoding and uniforms unchanged; file=%s",
 			android_texture_test_file ? "ready" : "unavailable (logcat only)");
 		android_texture_test_log("vendor=%s; renderer=%s; GL=%s; S3TC=%d; GLSL=%s",
 			(const char *)glGetString(GL_VENDOR), (const char *)glGetString(GL_RENDERER),
@@ -74,6 +77,8 @@ static void android_texture_test_begin_frame(unsigned long frame)
 			(unsigned long long)now, frame, android_texture_test_uploads, android_state_test_refreshes,
 			android_texture_test_decoded, (unsigned long long)android_texture_test_upload_ms,
 			android_texture_test_errors);
+		android_texture_test_log("terrain_samples: lightmap=%lu diffuse=%lu",
+			android_terrain_test_samples[1], android_terrain_test_samples[2]);
 		android_texture_test_next_summary = now + 10000;
 	}
 }
@@ -127,11 +132,15 @@ uniform caches. It isolates the GL shadow invalidation done by upload(). */
 void android_state_test_refresh(unsigned long shader, unsigned long modes, BOOL immediate)
 {
 	android_state_test_refreshes++;
-	android_state_test_sample = android_state_test_now >= android_state_test_next_sample;
+	android_state_test_sample = android_terrain_test_pass > 0 &&
+		android_state_test_now >= android_terrain_test_next_sample[android_terrain_test_pass];
 	if (android_state_test_sample)
 	{
-		android_state_test_next_sample = android_state_test_now + 1000;
-		android_texture_test_log("draw=%lu vertex_shader=%lu texture_modes=%08lx immediate=%d",
+		android_terrain_test_next_sample[android_terrain_test_pass] = android_state_test_now + 2000;
+		android_terrain_test_scope_sampled = TRUE;
+		android_terrain_test_samples[android_terrain_test_pass]++;
+		android_texture_test_log("ms=%llu terrain_pass=%d draw=%lu vertex_shader=%lu texture_modes=%08lx immediate=%d",
+			(unsigned long long)android_state_test_now, android_terrain_test_pass,
 			android_state_test_refreshes, shader, modes, immediate);
 		android_texture_test_error("before draw preparation (earlier GL work)");
 	}
@@ -152,4 +161,30 @@ void android_state_test_texture(unsigned long stage, unsigned long data, unsigne
 	if (android_state_test_sample)
 		android_texture_test_log("draw=%lu texture_stage=%lu data=%08lx format=%08lx",
 			android_state_test_refreshes, stage, data, format);
+}
+
+void android_terrain_test_scope(int pass)
+{
+	if (android_terrain_test_scope_sampled)
+		android_texture_test_error("after terrain pass draws");
+	android_terrain_test_pass = pass >= 1 && pass <= 2 ? pass : 0;
+	android_state_test_sample = FALSE;
+	android_terrain_test_scope_sampled = FALSE;
+}
+
+int android_terrain_test_sampling(void)
+{
+	return android_state_test_sample;
+}
+
+/* Bounded source fingerprint, not a GPU readback or proof against collisions. */
+static unsigned long android_terrain_test_hash(const unsigned char *bytes, unsigned long count)
+{
+	unsigned long hash = 2166136261UL, index;
+
+	if (count > 4UL * 1024UL * 1024UL)
+		count = 4UL * 1024UL * 1024UL;
+	for (index = 0; index < count; index++)
+		hash = ((hash ^ bytes[index]) * 16777619UL) & 0xffffffffUL;
+	return hash;
 }

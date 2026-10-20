@@ -992,6 +992,10 @@ struct texture_entry
 	memory watch serial read before it was found: the same while no watched
 	page has been written since (0: never found) */
 	unsigned long watched_serial, watched_generation;
+#ifdef HALO_ANDROID
+	unsigned long terrain_upload_hash;
+	BOOL terrain_upload_observed;
+#endif
 };
 
 #define TEXTURE_BUCKET_COUNT 4096
@@ -1051,6 +1055,22 @@ with the bitmap's own size (which its coordinates are in) */
 static GLuint texture_entry_result(struct texture_entry *entry, GLenum *target,
 	struct xgpu_texture_description *description)
 {
+#ifdef HALO_ANDROID
+	if (android_terrain_test_sampling() && entry->size &&
+		platform_is_contiguous((void *)entry->address) &&
+		platform_is_contiguous((void *)(entry->address + entry->size - 1)))
+	{
+		unsigned long current = android_terrain_test_hash((const unsigned char *)entry->address, entry->size);
+
+		android_texture_test_log("terrain_texture: gl=%u data=%08lx format=%02lx size=%lux%lu levels=%lu "
+			"bytes=%lu hash_bytes=%lu generation=%lu current_hash=%08lx upload_hash=%08lx observed=%d changed=%d",
+			entry->texture, (unsigned long)entry->data, (unsigned long)entry->description.format,
+			entry->description.width, entry->description.height, entry->description.levels,
+			entry->size, entry->size < 4UL*1024UL*1024UL ? entry->size : 4UL*1024UL*1024UL,
+			entry->generation, current, entry->terrain_upload_hash, entry->terrain_upload_observed,
+			entry->terrain_upload_observed && current != entry->terrain_upload_hash);
+	}
+#endif
 	*target = entry->target;
 	*description = entry->description;
 	/* (the high-res text's atlas, for its placeholder bitmap: text_hires.h) */
@@ -1279,6 +1299,11 @@ GLuint xgpu_texture_get(const DWORD *resource, const D3DCOLOR *palette, GLenum *
 					entry->description.height, entry->size, entry->generation,
 					ones * 100 / entry->size, zeros * 100 / entry->size);
 			}
+#ifdef HALO_ANDROID
+			entry->terrain_upload_observed = android_terrain_test_pass != 0;
+			if (entry->terrain_upload_observed)
+				entry->terrain_upload_hash = android_terrain_test_hash((const unsigned char *)entry->address, entry->size);
+#endif
 			upload(entry->texture, entry->target, &entry->description, (const unsigned char *)entry->address, palette,
 				custom_edition_texels_order(entry->address));
 			xgpu_statistics_texture_upload(entry->size);

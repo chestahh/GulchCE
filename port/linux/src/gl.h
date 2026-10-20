@@ -126,6 +126,7 @@ this list to generate the guest's entry points */
 	X(glGetProgramiv) \
 	X(glGetProgramInfoLog) \
 	X(glUseProgram) \
+	X(glGetUniformfv) \
 	X(glGetUniformLocation) \
 	X(glUniform1i) \
 	X(glUniform1iv) \
@@ -376,6 +377,7 @@ pointers, sees the declarations without these aliases */
 #define glGetProgramiv halo_glGetProgramiv
 #define glGetProgramInfoLog halo_glGetProgramInfoLog
 #define glUseProgram halo_glUseProgram
+#define glGetUniformfv halo_glGetUniformfv
 #define glGetUniformLocation halo_glGetUniformLocation
 #define glUniform1i halo_glUniform1i
 #define glUniform1iv halo_glUniform1iv

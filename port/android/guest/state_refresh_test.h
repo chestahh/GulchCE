@@ -4,4 +4,6 @@
 void android_state_test_refresh(unsigned long shader, unsigned long modes, BOOL immediate);
 void android_state_test_stage(const char *stage);
 void android_state_test_texture(unsigned long stage, unsigned long data, unsigned long format);
+int android_terrain_test_sampling(void);
+void android_texture_test_log(const char *format, ...);
 #endif

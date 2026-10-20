@@ -4234,6 +4234,10 @@ static unsigned long model_light_register(int light)
 	return (unsigned long)(XGPU_VERTEX_CONSTANT_BIAS + (light ? -80 + light : -82));
 }
 
+#ifdef HALO_ANDROID
+#include "../../android/guest/terrain_uniform_test.h"
+#endif
+
 static struct program_entry *prepare_draw(BOOL immediate)
 {
 	/* (the fixed-function program compiled only with OpenGL there: not by
@@ -4537,6 +4541,7 @@ static struct program_entry *prepare_draw(BOOL immediate)
 	{
 #ifdef HALO_ANDROID
 		android_state_test_stage("ready (cached uniforms)");
+		android_terrain_uniform_capture(entry);
 #endif
 		return entry;
 	}
@@ -4559,6 +4564,7 @@ static struct program_entry *prepare_draw(BOOL immediate)
 	uniform_vec4(entry->height_fade, entry->uniforms.height_fade, draw_uniforms.height_fade, 1);
 #ifdef HALO_ANDROID
 	android_state_test_stage("ready (updated uniforms)");
+	android_terrain_uniform_capture(entry);
 #endif
 	return entry;
 }

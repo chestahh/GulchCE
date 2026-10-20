@@ -550,33 +550,39 @@ permanent key can update in place. Stable signing does not guarantee that
 Google Play Protect immediately removes an unfamiliar-developer warning.
 
 
-## Graphics-state comparison prerelease
+## Extinction terrain diagnostic prerelease
 
-The `android-state-refresh-test` branch keeps normal texture caching and the
-permanent Android geometry-mirror bypass. Before each valid draw preparation,
-it invalidates the renderer's GL state shadow, making the existing renderer
-reapply bindings and raster state. This isolates the state invalidation that
-also happened during the previous texture-upload comparison, without forcing
-texture uploads or DXT decoding each frame. Per-program uniform caching,
-shader code, texture formats/decoding, streamed geometry, and map adapters stay
-unchanged. The shared Android renderer refresh applies to Xbox, Custom Edition
-and MCC draws; their separate resource/loading paths remain intact. Desktop
-and web behavior is unchanged. This is a diagnostic comparison, not a
-confirmed fix; extra GL state calls can still affect performance.
+The `android-terrain-diagnostics-test` branch retains normal texture caching,
+the Android geometry-mirror bypass, and GL state refresh before every draw.
+It observes Extinction's authored terrain material by its base bitmap name
+(`levels\extinction\bitmaps\extinction_terrain2`) only while Custom Edition
+tags are loaded. Scoped hooks identify the lightmap (pass 1) and diffuse
+(pass 2) draw functions, and clear the scope on return. Other materials, Xbox
+and MCC maps do not select terrain samples; their existing paths remain intact.
+No textures or shader values are replaced. Desktop and web rendering is unchanged.
 
-The APK uses version code 220 and the release signing key to update Build 220
-or the previous comparison in place. Its automatic updater remains off.
-Install and play normally, without console commands or configuration changes.
-`android-state-test.log` is written automatically beside `config.toml` in the
-app's external files folder. It records GPU/driver details, cumulative normal
-texture uploads, DXT decoding, elapsed conversion/upload time and state-refresh
-counts every ten seconds. Once per second it samples draw preparation (shader
-ID, texture resource addresses/formats, and GL errors at preparation stages).
-Uploads are sampled separately. These are not complete draw captures; errors
-from earlier work are labelled separately, and clean samples cannot prove
-that every GL call succeeded. Shader-uniform caches are deliberately retained.
+Each terrain pass is sampled at most once every two seconds, so menu/HUD draws
+cannot consume its samples. `android-terrain-test.log` is created automatically
+beside `config.toml`. It records GPU information, normal upload counts/timing,
+pass counts, texture resource/GL identities, dimensions/formats, memory-watch
+generations and source fingerprints. Fingerprints cover at most the first
+4 MiB of a resource; `hash_bytes` gives coverage. `observed=1` means the source
+was fingerprinted just before its latest normal upload in a terrain scope.
+Otherwise there is no upload baseline, and `changed` cannot establish staleness.
+These hashes do not read GPU texture contents or prove absence of collisions.
 
-Each report is bounded to about 512 KiB; the previous launch is retained as
-`android-state-test.log.previous`. Reports stay local and are not sent
-elsewhere. Report the phone model, map, ground flicker, other colour corruption,
-play duration and performance, and include the log if accessible.
+Selected active vertex and pixel uniforms are read back from GL and compared
+with the renderer's expected values. Environment transform registers are
+always selected; other vertex registers rotate between samples. A summary
+counts mismatches and logs up to four value differences per sample. This is
+partial uniform coverage, not a full GPU capture. GL errors are sampled at
+preparation boundaries and after selected terrain pass draws. Queries and
+fingerprints may cause brief diagnostic overhead, without per-frame uploads.
+
+Reports are bounded to about 2 MiB with the previous launch retained as
+`android-terrain-test.log.previous`; reports stay local. The APK uses version
+code 220 and the existing signing key, updating Build 220 or earlier tests
+in place. The updater stays off. Install and play without console commands
+or configuration changes. Report terrain flicker, other surface errors,
+performance, phone/map and play duration, and attach the log. This build is
+diagnostic evidence collection, not a claimed fix for the green floor.

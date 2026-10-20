@@ -37,6 +37,8 @@ struct xgpu_texture_description {
  BOOL cube_map;
 };
 static unsigned long serial=1, generation=1, uploads, next_texture;
+static int android_terrain_test_pass;
+static unsigned long android_terrain_test_hash(const unsigned char *b,unsigned long n) { return 123; }
 static BOOL mcc;
 static unsigned long memory_watch_serial(void) { return serial; }
 static unsigned long memory_watch_generation(unsigned long a,unsigned long s) { return generation; }
@@ -150,6 +152,7 @@ int main(void) {
  d.width=d.height=16;d.depth=d.levels=1;
  started=android_texture_test_upload_begin();clock_ms=5;
  android_texture_test_upload_end(&d,TRUE,0,started);
+ android_terrain_test_scope(1);
  pending_error=0x502;
  android_state_test_refresh(42,0x1234,FALSE);
  android_state_test_texture(0,0x12340000,12);
@@ -159,6 +162,12 @@ int main(void) {
  android_state_test_refresh(43,0,FALSE);
  android_state_test_stage("not sampled");
  if (invalidations!=2 || error_queries!=i) return 5;
+ android_terrain_test_scope(0);
+ if (android_terrain_test_sampling()) return 6;
+ android_terrain_test_scope(2);
+ android_state_test_refresh(44,0,FALSE);
+ if (!android_terrain_test_sampling()) return 7;
+ android_terrain_test_scope(0);
  clock_ms=10000;android_texture_test_begin_frame(2);
  if (android_texture_test_uploads!=1 || android_texture_test_decoded!=1 || android_texture_test_upload_ms!=5) return 1;
  for (i=0;i<100000;i++) android_texture_test_log("bounded test report padding");
@@ -174,7 +183,7 @@ int main(void) {
     target = ["--target=i686-pc-windows-msvc", "-fuse-ld=lld", "-D_CRT_SECURE_NO_WARNINGS"] if os.name == "nt" else []
     result = subprocess.run([compiler, *target, "-std=gnu89", "-Werror=format", str(path), "-o", str(binary)], capture_output=True, text=True)
     assert result.returncode == 0, result.stderr
-    report = tmp_path / "android-state-test.log"
+    report = tmp_path / "android-terrain-test.log"
     report.write_text("previous launch evidence")
     result = subprocess.run([str(binary)], env={**os.environ, "HALO_DATA_ROOT": str(tmp_path)}, capture_output=True, text=True)
     assert result.returncode == 0, result.stderr
@@ -182,12 +191,12 @@ int main(void) {
     text = report.read_text()
     assert "geometry mirror bypass retained" in text
     assert "vendor=test GPU" in text
-    assert "mode=state-refresh-each-draw; normal texture cache" in text
+    assert "mode=extinction-terrain-diagnostics; state refresh and normal texture cache" in text
     assert "before draw preparation (earlier GL work) GL error=0x502" in text
     assert "texture_stage=0 data=12340000 format=0000000c" in text
     assert "not sampled" not in text
-    assert "uploads=1 state_refreshes=2 decoded_DXT=1 upload_CPU_ms=5" in text
-    assert report.stat().st_size < 600 * 1024
+    assert "uploads=1 state_refreshes=3 decoded_DXT=1 upload_CPU_ms=5" in text
+    assert report.stat().st_size < 2100 * 1024
 
 
 def test_state_refresh_integration():
@@ -204,3 +213,4 @@ def test_state_refresh_integration():
     for guarded in re.findall(r"#ifdef HALO_ANDROID\n(.*?)#endif", prepare, re.S):
         prepare = prepare.replace("#ifdef HALO_ANDROID\n" + guarded + "#endif", "")
     assert "android_state_test_" not in prepare
+    assert "android_terrain_uniform_capture" not in prepare
