@@ -17,6 +17,8 @@ void android_cache_test_tick(struct lruv_cache *cache);
 void android_cache_test_record(struct lruv_cache *cache, struct bitmap_data const *bitmap,
 	int event, long requested_bytes);
 void android_cache_test_memory(unsigned long *free_bytes, unsigned long *largest_bytes);
+void android_texture_test_pressure(unsigned long retries, unsigned long failed, unsigned long fallback,
+	unsigned long recoveries, unsigned long elapsed);
 struct android_texture_compact_result;
 void android_cache_test_compaction(const struct android_texture_compact_result *result,
 	unsigned long elapsed, int recovered);

@@ -20,7 +20,13 @@ static struct {int title;} hud_hires_embedded[2]={{0},{1}};
 static long hud_hires_asset_count(void){return 2;}
 static long hud_hires_asset_at(unsigned long a,long w,long h){return w==32 && h==32 && a<2?(long)a:-1;}
 #define TEXTURE_BUCKET_COUNT 4
-#define TEXTURE_IDLE_FRAMES 1800
+#define TEXTURE_SWEEP_SECONDS 10
+#define TEXTURE_IDLE_SECONDS 30
+#define TEXTURE_SWEEP_COUNT 3
+typedef unsigned long long Uint64;
+static unsigned long texture_sweep_frames[3],texture_sweep_count;
+static Uint64 texture_next_sweep;
+static Uint64 SDL_GetTicks(void){return 0;}
 struct texture_entry {
  struct texture_entry *next; unsigned long address,generation,last_used_frame;
  struct {unsigned long width,height;} description;

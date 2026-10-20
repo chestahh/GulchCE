@@ -61,11 +61,13 @@ static long hud_hires_override_find(unsigned long a,unsigned long w,unsigned lon
 static GLuint hud_hires_override_texture(long i,unsigned long *l) { return 0; }
 static BOOL platform_is_contiguous(void *p) { return TRUE; }
 static unsigned char custom_edition_texels_order(unsigned long a) { return 0; }
+static const void *android_ce_texture_pixels(const void *r,unsigned long *s) { *s=0;return NULL; }
 static void xgpu_statistics_texture_upload(unsigned long s) {}
 static void upload(GLuint t,GLenum g,const struct xgpu_texture_description *d,const unsigned char *b,const D3DCOLOR *p,unsigned char c) { uploads++; }
 '''
     code += source[source.index("struct texture_entry\n"):source.index("/* (every bit of the three mixed")]
     code += function(source, "bucket_index") + "\n" + function(source, "palette_hash")
+    code += function(source, "texture_entry_pixels_valid")
     code += r'''
 static GLuint texture_entry_result(struct texture_entry *e,GLenum *t,struct xgpu_texture_description *d) {
  *t=e->target;*d=e->description;return e->texture;
@@ -144,7 +146,7 @@ static void xgpu_gl_state_invalidate(void) { invalidations++; }
 static const unsigned char *glGetString(GLenum e) { return (const unsigned char *)"test GPU"; }
 static void platform_log(const char *s, ...) {}
 static struct { int s3tc;const char *shading_language; } xgpu_capabilities={0,"310 es"};
-''' + description + "\n" + (ROOT / "port/android/guest/texture_cache_test.h").read_text(encoding="utf-8")
+''' + description + "\n" + (ROOT / "port/android/guest/texture_cache_test.h").read_text(encoding="utf-8").replace('#include "texture_perf_test.h"', (ROOT / "port/android/guest/texture_perf_test.h").read_text())
     code += r'''
 int main(void) {
  struct xgpu_texture_description d={0};Uint64 started;int i;
@@ -183,7 +185,7 @@ int main(void) {
     target = ["--target=i686-pc-windows-msvc", "-fuse-ld=lld", "-D_CRT_SECURE_NO_WARNINGS"] if os.name == "nt" else []
     result = subprocess.run([compiler, *target, "-std=gnu89", "-Werror=format", str(path), "-o", str(binary)], capture_output=True, text=True)
     assert result.returncode == 0, result.stderr
-    report = tmp_path / "android-cache-fragmentation-test.log"
+    report = tmp_path / "android-cache-pressure-test.log"
     report.write_text("previous launch evidence")
     result = subprocess.run([str(binary)], env={**os.environ, "HALO_DATA_ROOT": str(tmp_path)}, capture_output=True, text=True)
     assert result.returncode == 0, result.stderr
@@ -191,7 +193,7 @@ int main(void) {
     text = report.read_text()
     assert "geometry mirror bypass retained" in text
     assert "vendor=test GPU" in text
-    assert "mode=cache-fragmentation-36m-diagnostics; state refresh and normal texture cache" in text
+    assert "mode=ce-stable-storage-128m-diagnostics; state refresh and normal texture cache" in text
     assert "before draw preparation (earlier GL work) GL error=0x502" in text
     assert "texture_stage=0 data=12340000 format=0000000c" in text
     assert "not sampled" not in text
