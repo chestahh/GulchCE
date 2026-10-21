@@ -7,6 +7,7 @@ already have host types by then. Only strings need copying back.
 */
 
 #include "host.h"
+#include "geometry_diagnostics.h"
 
 #include <EGL/egl.h>
 #include <GLES3/gl32.h>
@@ -94,6 +95,8 @@ void host_gl_fence_frame(uint32_t slot)
 	if (frame_fences[slot])
 		glDeleteSync(frame_fences[slot]);
 	frame_fences[slot] = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
+	if (!frame_fences[slot])
+		host_geometry_event("geometry-test: fence creation failed slot=%u", slot);
 }
 
 void host_gl_wait_frame(uint32_t slot)
@@ -101,7 +104,11 @@ void host_gl_wait_frame(uint32_t slot)
 	if (slot >= FRAME_FENCE_SLOTS || !frame_fences[slot])
 		return;
 	/* at most a second: a lost context must not hang the game */
-	glClientWaitSync(frame_fences[slot], GL_SYNC_FLUSH_COMMANDS_BIT, 1000000000ull);
+	{
+		GLenum status = glClientWaitSync(frame_fences[slot], GL_SYNC_FLUSH_COMMANDS_BIT, 1000000000ull);
+		if (status != GL_ALREADY_SIGNALED && status != GL_CONDITION_SATISFIED)
+			host_geometry_event("geometry-test: fence wait slot=%u result=%04x; original reuse behavior retained", slot, status);
+	}
 	glDeleteSync(frame_fences[slot]);
 	frame_fences[slot] = NULL;
 }
@@ -129,9 +136,13 @@ void host_gl_buffer_write(uint32_t target, uint32_t offset, uint32_t size, const
 
 	if (!mapping)
 	{
+		static unsigned int failures;
+		if (failures++ < 32)
+			host_geometry_event("geometry-test: map write failed target=%04x offset=%u size=%u; existing subdata fallback", target, offset, size);
 		glBufferSubData(target, offset, size, data);
 		return;
 	}
 	memcpy(mapping, data, size);
-	glUnmapBuffer(target);
+	if (!glUnmapBuffer(target))
+		host_geometry_event("geometry-test: unmap write failed target=%04x offset=%u size=%u", target, offset, size);
 }

@@ -91,7 +91,7 @@ jobs:
 
       - name: Test
         run: |
-          python -m pytest -q tools/test_linux_port.py tools/test_android_asm_convert.py tools/test_android_mirror_uploads.py tools/test_android_ce_texture_cache.py tools/test_host_watch_hash.py tools/test_touch_menu.py tools/harness tools/test_profile.py tools/stagekit/tests tools/test_net_compare.py
+          python -m pytest -q tools/test_linux_port.py tools/test_android_asm_convert.py tools/test_android_mirror_uploads.py tools/test_android_ce_texture_cache.py tools/test_android_geometry_diagnostics.py tools/test_host_watch_hash.py tools/test_touch_menu.py tools/harness tools/test_profile.py tools/stagekit/tests tools/test_net_compare.py
           python tools/test_light_storage.py
 
       - name: Compile cache
@@ -154,6 +154,9 @@ jobs:
       # the key's, alias halo): every build signed with it installs over the
       # one before, as the app's self-updater (Updater.java) needs. Without
       # them each build is signed with the runner's own debug key.
+      - name: Diagnostic build identity
+        run: printf '#define GEOMETRY_BUILD "%s"\n' "$GITHUB_SHA" > port/android/host/geometry_build.h
+
       - name: Signing key
         env:
           KEYSTORE: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}

@@ -25,6 +25,7 @@ Conventions carried over from the Xbox:
 #include "sdl_platform.h"
 #include "halo_ui_pointer.h"
 #include "port_config.h"
+#include "android_geometry_diagnostics.h"
 #include "main/console.h"
 
 #include <SDL3/SDL.h>
@@ -3873,6 +3874,12 @@ static void bind_textures(struct nv2a_pixel_shader_key *key, float texture_scale
 					texture_scale[stage][1] = 1.0f / (float)description.height;
 				}
 			}
+#ifdef HALO_GEOMETRY_DIAGNOSTICS
+			if (geometry_test_sample && geometry_test_draw <= 8 && !(geometry_test_frame % 30))
+				geometry_test_log("stage=%d mode=%lu header=%p data=%08lx format=%08lx GLtexture=%u target=%04x dimensions=%lux%lu levels=%lu render_target=%d",
+					stage, mode, (void *)texture, (unsigned long)texture->Data, (unsigned long)texture->Format,
+					gl_texture, (unsigned int)gl_target, description.width, description.height, description.levels, target != NULL);
+#endif
 			gl_targets[stage] = gl_target;
 			gl_textures[stage] = gl_texture;
 			configure_sampler(stage, description.levels > 1, description.hires, target != NULL);
@@ -4250,6 +4257,9 @@ static struct program_entry *prepare_draw(BOOL immediate)
 		(device.fixed_function && !immediate))
 	{
 		stats.skipped_no_program++;
+#ifdef HALO_GEOMETRY_DIAGNOSTICS
+		if (stats.skipped_no_program <= 16) geometry_test_log("skipped_no_program total=%lu", stats.skipped_no_program);
+#endif
 		return NULL;
 	}
 	{
@@ -4268,6 +4278,17 @@ static struct program_entry *prepare_draw(BOOL immediate)
 	/* Refresh GL shadow state before binding this draw, without reloading pixels. */
 	xgpu_gl_state_invalidate();
 #endif
+#ifdef HALO_GEOMETRY_DIAGNOSTICS
+	geometry_test_draw++;
+	geometry_test_error("before draw preparation", 0);
+	if (geometry_test_sample && geometry_test_draw <= 8 && !(geometry_test_frame % 30))
+		geometry_test_log("state shader=%lu immediate=%d base=%u z=%lu zfunc=%lu zwrite=%lu cull=%lu alpha=%lu ref=%lu fog=%lu viewport=%lu,%lu,%lu,%lu",
+			program->id, immediate, device.base_vertex_index, (unsigned long)D3D__RenderState[D3DRS_ZENABLE],
+			(unsigned long)D3D__RenderState[D3DRS_ZFUNC], (unsigned long)D3D__RenderState[D3DRS_ZWRITEENABLE],
+			(unsigned long)D3D__RenderState[D3DRS_CULLMODE], (unsigned long)D3D__RenderState[D3DRS_ALPHATESTENABLE],
+			(unsigned long)D3D__RenderState[D3DRS_ALPHAREF], (unsigned long)D3D__RenderState[D3DRS_FOGENABLE],
+			(unsigned long)device.viewport.X, (unsigned long)device.viewport.Y, (unsigned long)device.viewport.Width, (unsigned long)device.viewport.Height);
+#endif
 	memset(&key, 0, sizeof(key));
 	memcpy(key.combiner_state, D3D__RenderState, sizeof(key.combiner_state));
 	/* constants are uniforms, not part of the program */
@@ -4280,12 +4301,21 @@ static struct program_entry *prepare_draw(BOOL immediate)
 	which binds framebuffers of its own, and the back buffer can be both
 	sampled and drawn into */
 	bind_textures(&key, uniforms.texture_scale);
+#ifdef HALO_GEOMETRY_DIAGNOSTICS
+	geometry_test_error("textures bound", 0);
+#endif
 	if (!bind_targets(&has_depth))
 	{
 		stats.skipped_no_target++;
+#ifdef HALO_GEOMETRY_DIAGNOSTICS
+		if (stats.skipped_no_target <= 16) geometry_test_log("skipped_no_target total=%lu", stats.skipped_no_target);
+#endif
 		return NULL;
 	}
 	apply_raster_state(has_depth);
+#ifdef HALO_GEOMETRY_DIAGNOSTICS
+	geometry_test_error("targets and raster state", 0);
+#endif
 	for (stage = 0; stage < D3DTSS_MAXSTAGES; stage++)
 	{
 		key.alpha_kill[stage] = D3D__TextureState[stage][D3DTSS_ALPHAKILL] == D3DTALPHAKILL_ENABLE;
@@ -4329,6 +4359,9 @@ static struct program_entry *prepare_draw(BOOL immediate)
 	if (!entry)
 	{
 		stats.skipped_link++;
+#ifdef HALO_GEOMETRY_DIAGNOSTICS
+		if (stats.skipped_link <= 16) geometry_test_log("skipped_link total=%lu", stats.skipped_link);
+#endif
 		gl_check_errors("program");
 		return NULL;
 	}
@@ -4514,6 +4547,24 @@ static struct program_entry *prepare_draw(BOOL immediate)
 			memcpy(converted->height_fade, height_fade_value, sizeof(converted->height_fade));
 		}
 	}
+#ifdef HALO_GEOMETRY_DIAGNOSTICS
+	if (geometry_test_sample && geometry_test_draw <= 8 && !(geometry_test_frame % 30))
+	{
+		unsigned long i, bits, nonfinite = 0, hash = 2166136261UL;
+		for (i = 0; i < XGPU_VERTEX_CONSTANT_COUNT * 4; i++)
+		{
+			memcpy(&bits, (const unsigned char *)device.constants + i * sizeof(float), sizeof(float));
+			hash = (hash ^ bits) * 16777619UL;
+			nonfinite += (bits & 0x7f800000UL) == 0x7f800000UL;
+		}
+		geometry_test_log("program=%u constants=%lu serial=%llu uniform_serial=%llu nonfinite_constants=%lu constant_hash=%08lx fog=%g,%g,%g,%g alpha=%g",
+			entry->program, entry->constant_count, (unsigned long long)entry->constants_serial,
+			(unsigned long long)entry->uniforms_serial, nonfinite, hash,
+			(double)draw_uniforms.fog_parameters[0], (double)draw_uniforms.fog_parameters[1],
+			(double)draw_uniforms.fog_parameters[2], (double)draw_uniforms.fog_parameters[3], (double)draw_uniforms.alpha_reference);
+	}
+	geometry_test_error("vertex constants and uniform preparation", 0);
+#endif
 	/* and a program that has had them since needs none of them */
 	if (entry->uniforms_serial == draw_uniforms_serial)
 		return entry;
@@ -5017,6 +5068,9 @@ static void stream_reserve(unsigned long size)
 #else
 	if (device.stream_offset + size > STREAM_BUFFER_SIZE)
 	{
+#ifdef HALO_GEOMETRY_DIAGNOSTICS
+		if (geometry_test_sample) geometry_test_log("stream rollover offset=%lu requested=%lu capacity=%u", device.stream_offset, size, STREAM_BUFFER_SIZE);
+#endif
 		/* orphan the buffer and start again */
 		state_array_buffer(device.stream_buffer);
 		glBufferData(GL_ARRAY_BUFFER, STREAM_BUFFER_SIZE, NULL, GL_STREAM_DRAW);
@@ -5123,6 +5177,9 @@ static unsigned long index_upload(const void *data, unsigned long size)
 	state_element_array_buffer(device.index_buffer);
 	if (device.index_offset + size > INDEX_BUFFER_SIZE)
 	{
+#ifdef HALO_GEOMETRY_DIAGNOSTICS
+		if (geometry_test_sample) geometry_test_log("index rollover offset=%lu requested=%lu capacity=%u", device.index_offset, size, INDEX_BUFFER_SIZE);
+#endif
 		glBufferData(GL_ELEMENT_ARRAY_BUFFER, INDEX_BUFFER_SIZE, NULL, GL_STREAM_DRAW);
 		device.index_offset = 0;
 	}
@@ -5450,6 +5507,12 @@ static void setup_streams(unsigned long first, unsigned long count)
 		vertex_array_cache_bind(NULL);
 	}
 #endif
+#ifdef HALO_GEOMETRY_DIAGNOSTICS
+	if (geometry_test_sample && geometry_test_draw <= 8 && !(geometry_test_frame % 30))
+		geometry_test_log("streams first=%lu count=%lu upload_bytes=%lu offset=%lu capacity=%u", first, count, total, device.stream_offset, STREAM_BUFFER_SIZE);
+	if (total > STREAM_BUFFER_SIZE)
+		geometry_test_log("stream draw exceeds capacity bytes=%lu capacity=%u", total, STREAM_BUFFER_SIZE);
+#endif
 	stream_reserve(total);
 	for (index = 0; index < declaration->element_count; index++)
 	{
@@ -5599,6 +5662,9 @@ void WINAPI D3DDevice_DrawVertices(D3DPRIMITIVETYPE primitive_type, UINT start_v
 		glDrawArrays(primitive_mode(primitive_type), 0, (GLsizei)vertex_count);
 	}
 	gl_check_errors("draw");
+#ifdef HALO_GEOMETRY_DIAGNOSTICS
+	geometry_test_error("D3DDevice_DrawVertices submitted", 0);
+#endif
 }
 
 #ifdef HALO_WEB
@@ -5808,6 +5874,11 @@ void WINAPI D3DDevice_DrawIndexedVertices(D3DPRIMITIVETYPE primitive_type, UINT 
 	}
 #endif
 	index_extent(index_data, vertex_count, generation, mirrored, &minimum, &maximum);
+#ifdef HALO_GEOMETRY_DIAGNOSTICS
+	if (geometry_test_sample && geometry_test_draw <= 8 && !(geometry_test_frame % 30))
+		geometry_test_log("indexed primitive=%u indices=%u min=%lu max=%lu base=%u mirrored=%d base_vertex=%d",
+			(unsigned int)primitive_type, vertex_count, minimum, maximum, device.base_vertex_index, mirrored, xgpu_capabilities.base_vertex);
+#endif
 	trace_draw("indexed", primitive_type, vertex_count, NULL);
 	/* (the streams from the base vertex on: index i is vertex base + i) */
 	setup_streams(device.base_vertex_index + minimum, maximum - minimum + 1);
@@ -5817,6 +5888,9 @@ void WINAPI D3DDevice_DrawIndexedVertices(D3DPRIMITIVETYPE primitive_type, UINT 
 		state_element_array_buffer(index_buffer);
 		glDrawElementsBaseVertex(primitive_mode(primitive_type), (GLsizei)vertex_count, GL_UNSIGNED_SHORT,
 			(const void *)index_offset, -(GLint)minimum);
+#ifdef HALO_GEOMETRY_DIAGNOSTICS
+		geometry_test_error("indexed draw submitted", 0);
+#endif
 		return;
 	}
 	stats.streamed_bytes += vertex_count * sizeof(WORD);
@@ -5838,6 +5912,9 @@ void WINAPI D3DDevice_DrawIndexedVertices(D3DPRIMITIVETYPE primitive_type, UINT 
 			(const void *)index_upload(rebased, count * sizeof(WORD)));
 		free(rebased);
 		free(indices);
+#ifdef HALO_GEOMETRY_DIAGNOSTICS
+		geometry_test_error("indexed draw submitted", 0);
+#endif
 		return;
 	}
 #endif
@@ -5845,6 +5922,9 @@ void WINAPI D3DDevice_DrawIndexedVertices(D3DPRIMITIVETYPE primitive_type, UINT 
 	glDrawElementsBaseVertex(primitive_mode(primitive_type), (GLsizei)count, GL_UNSIGNED_SHORT,
 		(const void *)index_upload(source, count * sizeof(WORD)), -(GLint)minimum);
 	free(indices);
+#ifdef HALO_GEOMETRY_DIAGNOSTICS
+	geometry_test_error("D3DDevice_DrawIndexedVertices submitted", 0);
+#endif
 }
 
 /* ---------- immediate mode */
@@ -6064,6 +6144,9 @@ void WINAPI D3DDevice_End(void)
 		glDrawArrays(primitive_mode(type), (GLint)first_vertex, (GLsizei)count);
 	}
 	gl_check_errors("immediate draw");
+#ifdef HALO_GEOMETRY_DIAGNOSTICS
+	geometry_test_error("D3DDevice_End submitted", 0);
+#endif
 }
 
 static void set_attribute(INT reg, float a, float b, float c, float d)
@@ -6817,6 +6900,9 @@ void WINAPI D3DDevice_Present(CONST RECT *source_rectangle, CONST RECT *destinat
 		device.index_offset = INDEX_BUFFER_SIZE;
 #endif
 	}
+#ifdef HALO_GEOMETRY_DIAGNOSTICS
+	geometry_test_present(device.frame);
+#endif
 	device.frame++;
 	stats.presents++;
 	if (debug_settings.statistics)

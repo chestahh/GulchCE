@@ -17,6 +17,7 @@ The exceptions are
 */
 
 #include "host.h"
+#include "geometry_diagnostics.h"
 
 #include <errno.h>
 #include <fcntl.h>
@@ -100,6 +101,7 @@ static void log_bytes(int fd, const char *bytes, size_t size)
 		if (c == '\n' || stream->length == sizeof(stream->line) - 1)
 		{
 			stream->line[stream->length] = 0;
+			host_geometry_log(stream->line);
 			__android_log_write(fd == 2 ? ANDROID_LOG_WARN : ANDROID_LOG_INFO, "halo", stream->line);
 			stream->length = 0;
 			if (c == '\n')

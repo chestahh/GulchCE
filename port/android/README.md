@@ -463,6 +463,21 @@ assembly of the port is necessary:
 
 ## Find problems
 
+This investigation branch records `android-geometry-test.log` automatically
+beside `config.toml` in `Android/data/com.halo.decomp/files/`. Install the APK,
+launch the game and play the affected map; no console commands or settings
+changes are needed. Share the log after reproducing the problem. The previous
+launch is retained as `android-geometry-test.log.previous`; each log is capped
+at 8 MiB. Logs stay on the device until the player shares them.
+
+The capture includes build/device/GPU identity, shader failures, GL errors,
+buffer-upload and fence failures, and sampled draw, texture and uniform state.
+Detailed checks run for 60 frames after a map loads, then one frame in 120;
+frame-end GL checks continue. These checks cannot detect every visual error.
+The existing geometry bypass, normal texture caching, Android CE cache
+allocations and graphics-state refresh are unchanged. Desktop and web builds
+do not enable this capture.
+
 - Enter `adb logcat -s halo` to see the log of the port and the errors of
   the game. `files/debug.txt` is the log of the game.
 - If the guest code stops, the log shows the registers and the frame chain.

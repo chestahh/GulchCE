@@ -15,6 +15,7 @@ memory_watch.c detects that by write-protecting the pages.
 */
 
 #include "xgpu.h"
+#include "android_geometry_diagnostics.h"
 #include "hud_hires.h"
 #include "menu_files.h"
 #include "text_hires.h"
@@ -1139,7 +1140,12 @@ GLuint xgpu_texture_get(const DWORD *resource, const D3DCOLOR *palette, GLenum *
 		{
 			entry->address = (unsigned long)ce_pixels;
 			if (entry->size > ce_bytes)
+			{
+#ifdef HALO_GEOMETRY_DIAGNOSTICS
+				geometry_test_log("CE upload rejected resource=%p required=%lu owned=%lu fmt=%08lx sizeword=%08lx", resource, entry->size, ce_bytes, (unsigned long)format_word, (unsigned long)size_word);
+#endif
 				entry->size = 0;
+			}
 		}
 #endif
 		if (!entry->size)
@@ -1222,11 +1228,23 @@ GLuint xgpu_texture_get(const DWORD *resource, const D3DCOLOR *palette, GLenum *
 					entry->description.height, entry->size, entry->generation,
 					ones * 100 / entry->size, zeros * 100 / entry->size);
 			}
+#ifdef HALO_GEOMETRY_DIAGNOSTICS
+			geometry_test_error("before texture upload", 0);
+			if (geometry_test_sample && geometry_test_draw <= 8 && !(geometry_test_frame % 30))
+				geometry_test_log("upload texture=%u resource=%p address=%08lx bytes=%lu fmt=%02x width=%lu height=%lu levels=%lu ce=%d",
+					entry->texture, resource, entry->address, entry->size, entry->description.format, entry->description.width,
+					entry->description.height, entry->description.levels, entry->ce_resource != NULL);
+#endif
 			upload(entry->texture, entry->target, &entry->description, (const unsigned char *)entry->address, palette,
 				custom_edition_texels_order(entry->address));
 			xgpu_statistics_texture_upload(entry->size);
 		}
 	}
+#ifdef HALO_GEOMETRY_DIAGNOSTICS
+	geometry_test_error("texture lookup/upload completed", 0);
+	if (geometry_test_sample && !texture_entry_pixels_valid(entry))
+		geometry_test_log("texture pixels rejected resource=%p address=%08lx bytes=%lu ce=%d", resource, entry->address, entry->size, entry->ce_resource != NULL);
+#endif
 	entry->last_used_frame = texture_frame;
 	if (!palettized && !no_cache)
 	{

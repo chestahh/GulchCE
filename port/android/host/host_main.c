@@ -20,6 +20,7 @@ that runs here.
 */
 
 #include "host.h"
+#include "geometry_diagnostics.h"
 #include "tomlc17.h"
 
 #include <SDL3/SDL.h>
@@ -332,6 +333,7 @@ static void *game_main(void *unused)
 	if (!external)
 		host_fatal("Android storage is unavailable: %s", SDL_GetError());
 	snprintf(data_root, sizeof(data_root), "%s", external);
+	host_geometry_begin(data_root);
 	snprintf(save_root, sizeof(save_root), "%s/save", external);
 	/* readable by adb (the shell user), for managing saves */
 	mkdir(save_root, 0775);

@@ -29,6 +29,7 @@ where its offset falls in their combined offset space.
 #include "scenario/scenario_definitions.h"
 #include "cache_file_formats.h"
 #include "custom_edition_cache.h"
+#include "../src/android_geometry_diagnostics.h"
 #include "tag_schema.h"
 #include "map_share.h"
 
@@ -1201,6 +1202,9 @@ struct cache_file_tag_header *custom_edition_cache_tags_load(
 	globals->tag_cache_bytes = report.tag_cache_bytes;
 	globals->file_length = report.identity.file_length;
 	globals->tags_loaded = TRUE;
+#ifdef HALO_GEOMETRY_DIAGNOSTICS
+	geometry_test_map(map_name);
+#endif
 
 	return (struct cache_file_tag_header *)tag_cache;
 }
