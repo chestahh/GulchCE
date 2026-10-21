@@ -3967,16 +3967,21 @@ static short gametype_bank(long profile_index)
 	return GAMETYPE_BANK_STANDARD;
 }
 
-/* the settings of the gametype a list shows the rules of (its own list's
-or Edit Gametypes'), read once each time it changes rather than every
-frame: a saved gametype's are its file on the card, opened, read and its
-checksum worked out, which kept the game thread busy on those screens */
+/* what the gametype lists (their own and Edit Gametypes') show of the
+gametypes, read once rather than every frame: the settings of the one whose
+rules are shown (a saved gametype's are its file on the card, opened, read
+and its checksum worked out), and the rows' names (each read from the saved
+games' index file, z:\saved\hdmu.map, opened for every name: ten rows of
+them took some 50 ms a frame on the Switch) */
 static struct
 {
 	long profile;
 	boolean valid;
 	struct game_variant variant;
 	struct game_variant_options options;
+	short name_count;
+	long name_profiles[MAXIMUM_GAMETYPES];
+	wchar_t names[MAXIMUM_GAMETYPES][ROW_TEXT_LENGTH];
 } gametype_shown = { NONE };
 
 static struct game_variant const *gametype_shown_get(long profile)
@@ -3996,6 +4001,7 @@ static void gametype_shown_forget(void)
 {
 	gametype_shown.profile = NONE;
 	gametype_shown.valid = FALSE;
+	gametype_shown.name_count = 0;
 }
 
 static void gametype_bank_read(short bank)
@@ -4073,12 +4079,29 @@ playlist_profile_get_display_name fills MAX_GAMENAME characters) */
 static void gametype_display_name(long profile_index, wchar_t *text)
 {
 	wchar_t name[MAX_GAMENAME];
+	short index;
 
+	for (index = 0; index < gametype_shown.name_count; index++)
+	{
+		if (gametype_shown.name_profiles[index] == profile_index)
+		{
+			ustrncpy(text, gametype_shown.names[index], ROW_TEXT_LENGTH - 1);
+			text[ROW_TEXT_LENGTH - 1] = 0;
+			return;
+		}
+	}
 	text[0] = 0;
 	if (playlist_profile_get_display_name(profile_index, name))
 	{
 		ustrncpy(text, name, ROW_TEXT_LENGTH - 1);
 		text[ROW_TEXT_LENGTH - 1] = 0;
+	}
+	if (gametype_shown.name_count < MAXIMUM_GAMETYPES)
+	{
+		gametype_shown.name_profiles[gametype_shown.name_count] = profile_index;
+		ustrncpy(gametype_shown.names[gametype_shown.name_count], text, ROW_TEXT_LENGTH - 1);
+		gametype_shown.names[gametype_shown.name_count][ROW_TEXT_LENGTH - 1] = 0;
+		gametype_shown.name_count++;
 	}
 }
 
