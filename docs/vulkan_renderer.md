@@ -267,3 +267,25 @@ recorded as a passing web check.
 No simulation, networking or map-family semantics are changed, so no network
 version increment is required. Vulkan map compatibility remains untested
 because this stage deliberately does not render maps.
+
+### Published stage two checks
+
+Implementation commit `d6aef94e` and CI dependency correction `000cf3f6` were
+checked in [Build run 39677484208](https://github.com/chestahh/GulchCE/actions/runs/39677484208):
+
+- Windows, Linux, Android and inherited web debug/release builds passed.
+- The actual 32-bit Linux game's native presentation dispatch passed under
+  Xvfb. The first run needed the container's missing 32-bit X11 runtime;
+  the correction installs it without changing renderer code.
+- The Vulkan job passed all 15 ownership tests, the 32-bit offscreen test,
+  and supplemental host-ABI offscreen/window tests with Khronos and
+  synchronization validation. Both window lifetimes verified all 60 frames.
+- The Linux regression suite recorded 901 passes with 6 skips; the changelog
+  suite recorded another 177 passes. Ordinary and full-LTO light-storage
+  checks passed.
+- The web build-graph/socket suite passed all 11 tests on Linux, resolving
+  the local Windows-environment check limitation. Browser checks passed too.
+
+The separate [MCC map validation run](https://github.com/chestahh/GulchCE/actions/runs/39676468383)
+passed for `d6aef94e`; the subsequent code change only adds CI dependencies.
+This is build/test evidence, not AMD or Android Vulkan hardware coverage.
