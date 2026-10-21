@@ -24,6 +24,8 @@ Conventions carried over from the Xbox:
 #include "xgpu.h"
 #ifdef HALO_NATIVE_VULKAN
 #include "vulkan/vulkan_dispatch.h"
+#include "vulkan/vulkan_game.h"
+#include "vulkan/vulkan_scene.h"
 #endif
 #include "mcc_environment_shader.h"
 #include "sdl_platform.h"
@@ -239,6 +241,9 @@ static void screen_mode_choose(long *width, float scale[2])
 
 long halo_screen_width(void)
 {
+#ifdef HALO_NATIVE_VULKAN
+	if (halo_vulkan_scene_active) { return 640; }
+#endif
 	if (!screen_width)
 	{
 		screen_mode_choose(&screen_width, screen_scale);
@@ -2313,6 +2318,9 @@ have changed; between frames, since the game's layout and the targets must
 agree for a whole frame. Returns the width the game draws. */
 long halo_screen_commit(void)
 {
+#ifdef HALO_NATIVE_VULKAN
+	if (halo_vulkan_scene_active) return 640;
+#endif
 	long width;
 	float scale[2];
 
@@ -2406,6 +2414,9 @@ static BOOL front_buffer_ready(void);
 
 void WINAPI D3DDevice_GetBackBuffer(INT back_buffer, D3DBACKBUFFER_TYPE type, D3DSurface **result)
 {
+#ifdef HALO_NATIVE_VULKAN
+	if (halo_vulkan_scene_active) { *result = halo_vk_game_surface(0); (*result)->Common++; return; }
+#endif
 	(void)type;
 	/* -1: the front buffer, the frame shown last, which the loading screen
 	blurs into its light's trails (progress_bar.c) */
@@ -2422,6 +2433,9 @@ void WINAPI D3DDevice_GetBackBuffer(INT back_buffer, D3DBACKBUFFER_TYPE type, D3
 
 HRESULT WINAPI D3DDevice_GetDepthStencilSurface(D3DSurface **result)
 {
+#ifdef HALO_NATIVE_VULKAN
+	if (halo_vulkan_scene_active) { *result = halo_vk_game_surface(1); (*result)->Common++; return S_OK; }
+#endif
 	*result = device.depth_stencil;
 	if (!*result)
 		return D3DERR_NOTFOUND;
@@ -2433,6 +2447,9 @@ static BOOL trace_frame(void);
 
 void WINAPI D3DDevice_SetRenderTarget(D3DSurface *render_target, D3DSurface *depth_stencil)
 {
+#ifdef HALO_NATIVE_VULKAN
+	if (halo_vulkan_scene_active) { halo_vk_game_target(render_target, depth_stencil); return; }
+#endif
 	if (trace_frame())
 		platform_log("set render target %08lx depth %08lx", render_target ? (unsigned long)render_target->Data : 0,
 			depth_stencil ? (unsigned long)depth_stencil->Data : 0);
@@ -2459,18 +2476,27 @@ void WINAPI D3DDevice_SetRenderTarget(D3DSurface *render_target, D3DSurface *dep
 
 void WINAPI D3DDevice_SetViewport(CONST D3DVIEWPORT8 *viewport)
 {
+#ifdef HALO_NATIVE_VULKAN
+	if (halo_vulkan_scene_active) { halo_vk_game_viewport(viewport); return; }
+#endif
 	device.viewport = *viewport;
 	viewport_update_constants();
 }
 
 void WINAPI D3DDevice_SetTransform(D3DTRANSFORMSTATETYPE state, CONST D3DMATRIX *matrix)
 {
+#ifdef HALO_NATIVE_VULKAN
+	if (halo_vulkan_scene_active) { halo_vk_game_transform(state, matrix, NULL); return; }
+#endif
 	if ((unsigned long)state < D3DTS_MAX)
 		device.transforms[state] = *matrix;
 }
 
 void WINAPI D3DDevice_GetTransform(D3DTRANSFORMSTATETYPE state, D3DMATRIX *matrix)
 {
+#ifdef HALO_NATIVE_VULKAN
+	if (halo_vulkan_scene_active) { halo_vk_game_transform(state, NULL, matrix); return; }
+#endif
 	if ((unsigned long)state < D3DTS_MAX)
 		*matrix = device.transforms[state];
 }
@@ -2480,6 +2506,9 @@ void WINAPI D3DDevice_SetSoftDisplayFilter(BOOL enable) { (void)enable; }
 
 void WINAPI D3DDevice_SetShaderConstantMode(D3DSHADERCONSTANTMODE mode)
 {
+#ifdef HALO_NATIVE_VULKAN
+	if (halo_vulkan_scene_active) { halo_vk_game_constant_mode(mode); return; }
+#endif
 	device.shader_constant_mode = mode;
 	viewport_update_constants();
 }
@@ -2605,6 +2634,9 @@ static BOOL visibility_readback_gl_ok(const char *phase)
 
 void WINAPI D3DDevice_BeginVisibilityTest(void)
 {
+#ifdef HALO_NATIVE_VULKAN
+	if (halo_vulkan_scene_active) { halo_vk_scene_query_begin(); return; }
+#endif
 	if (!device.gl_ready || device.visibility_test_active)
 		return;
 	/* the test's slot is given only when it ends */
@@ -2651,6 +2683,9 @@ void WINAPI D3DDevice_BeginVisibilityTest(void)
 
 HRESULT WINAPI D3DDevice_EndVisibilityTest(DWORD index)
 {
+#ifdef HALO_NATIVE_VULKAN
+	if (halo_vulkan_scene_active) { return halo_vk_scene_query_end(index) ? S_OK : E_FAIL; }
+#endif
 #ifdef HALO_GLES
 	GLuint scratch;
 #endif
@@ -2715,6 +2750,9 @@ HRESULT WINAPI D3DDevice_EndVisibilityTest(DWORD index)
 
 HRESULT WINAPI D3DDevice_GetVisibilityTestResult(DWORD index, UINT *result, ULONGLONG *time_stamp)
 {
+#ifdef HALO_NATIVE_VULKAN
+	if (halo_vulkan_scene_active) { if (time_stamp) *time_stamp = 0; return halo_vk_scene_query_result(index, result) ? S_OK : D3DERR_TESTINCOMPLETE; }
+#endif
 #ifdef HALO_GLES
 	GLuint available = 0, samples = 0;
 #endif
@@ -2865,6 +2903,9 @@ void WINAPI D3DDevice_SetTextureState_BumpEnv(DWORD stage, D3DTEXTURESTAGESTATET
 
 void WINAPI D3DDevice_SetTexture(DWORD stage, D3DBaseTexture *texture)
 {
+#ifdef HALO_NATIVE_VULKAN
+	if (halo_vulkan_scene_active) { halo_vk_game_texture(stage, texture); return; }
+#endif
 	if (stage < D3DTSS_MAXSTAGES)
 		device.textures[stage] = texture;
 }
@@ -2880,6 +2921,9 @@ void xgpu_mcc_texture_unbind(DWORD const *resource)
 
 void WINAPI D3DDevice_SetPalette(DWORD stage, D3DPalette *palette)
 {
+#ifdef HALO_NATIVE_VULKAN
+	if (halo_vulkan_scene_active) { halo_vk_game_palette(stage, palette); return; }
+#endif
 	if (stage < D3DTSS_MAXSTAGES)
 		device.palettes[stage] = palette;
 }
@@ -2986,6 +3030,9 @@ static void parse_declaration(struct vertex_shader_object *object, const DWORD *
 
 HRESULT WINAPI D3DDevice_CreateVertexShader(CONST DWORD *declaration, CONST DWORD *function, DWORD *handle, DWORD usage)
 {
+#ifdef HALO_NATIVE_VULKAN
+	if (halo_vulkan_scene_active) { return halo_vk_game_shader_create(declaration, function, handle); }
+#endif
 	struct vertex_shader_object *object = calloc(1, sizeof(*object));
 
 	(void)usage;
@@ -3021,6 +3068,9 @@ for each pixel (display.per_pixel_lighting); one whose lighting is not as
 the pixel shader computes it stays lit for each vertex */
 void halo_vertex_shader_lighting(unsigned long handle)
 {
+#ifdef HALO_NATIVE_VULKAN
+	if (halo_vulkan_scene_active) { return; }
+#endif
 	struct vertex_shader_object *object = vertex_shader_from_handle((DWORD)handle);
 
 	if (!object || !object->instructions)
@@ -3035,12 +3085,18 @@ void halo_vertex_shader_lighting(unsigned long handle)
 
 void WINAPI D3DDevice_DeleteVertexShader(DWORD handle)
 {
+#ifdef HALO_NATIVE_VULKAN
+	if (halo_vulkan_scene_active) { return; }
+#endif
 	/* programs stay cached; the object is small */
 	(void)handle;
 }
 
 void WINAPI D3DDevice_SetVertexShader(DWORD handle)
 {
+#ifdef HALO_NATIVE_VULKAN
+	if (halo_vulkan_scene_active) { halo_vk_game_shader_set(handle); return; }
+#endif
 	struct vertex_shader_object *object = vertex_shader_from_handle(handle);
 
 	if (object)
@@ -3059,12 +3115,18 @@ void WINAPI D3DDevice_SetVertexShader(DWORD handle)
 
 void WINAPI D3DDevice_LoadVertexShader(DWORD handle, DWORD address)
 {
+#ifdef HALO_NATIVE_VULKAN
+	if (halo_vulkan_scene_active) { halo_vk_game_shader_load(handle, address); return; }
+#endif
 	if (address < VERTEX_PROGRAM_SLOTS)
 		device.program_slots[address] = vertex_shader_from_handle(handle);
 }
 
 void WINAPI D3DDevice_SelectVertexShader(DWORD handle, DWORD address)
 {
+#ifdef HALO_NATIVE_VULKAN
+	if (halo_vulkan_scene_active) { halo_vk_game_shader_select(handle, address); return; }
+#endif
 	struct vertex_shader_object *object = vertex_shader_from_handle(handle);
 
 	/* (a program, loaded or packed at the address: never the fixed-function
@@ -3078,6 +3140,9 @@ void WINAPI D3DDevice_SelectVertexShader(DWORD handle, DWORD address)
 
 void WINAPI D3DDevice_GetVertexShaderSize(DWORD handle, UINT *size)
 {
+#ifdef HALO_NATIVE_VULKAN
+	if (halo_vulkan_scene_active) { *size = halo_vk_game_shader_size(handle); return; }
+#endif
 	struct vertex_shader_object *object = vertex_shader_from_handle(handle);
 
 	*size = object ? object->instruction_count : 0;
@@ -3085,6 +3150,9 @@ void WINAPI D3DDevice_GetVertexShaderSize(DWORD handle, UINT *size)
 
 void WINAPI D3DDevice_SetVertexShaderConstant(INT reg, CONST void *constant_data, DWORD constant_count)
 {
+#ifdef HALO_NATIVE_VULKAN
+	if (halo_vulkan_scene_active) { halo_vk_game_constants(reg, constant_data, constant_count); return; }
+#endif
 	long first = reg + XGPU_VERTEX_CONSTANT_BIAS;
 
 	if (first < 0 || first >= XGPU_VERTEX_CONSTANT_COUNT)
@@ -4173,6 +4241,9 @@ shader's noise coordinate, rasterizer_xbox_plasma_energy.c). A scale of zero
 turns it off, as it is for every other draw. */
 void d3d8_gl_set_height_fade(float inverse_softness, float height, float offset, float scale)
 {
+#ifdef HALO_NATIVE_VULKAN
+	if (halo_vulkan_scene_active) { halo_vk_game_height(inverse_softness, height, offset, scale); return; }
+#endif
 	height_fade_value[0] = inverse_softness;
 	height_fade_value[1] = height;
 	height_fade_value[2] = offset;
@@ -5568,6 +5639,9 @@ static WORD *quad_indices(const WORD *indices, unsigned long count, unsigned lon
 
 void WINAPI D3DDevice_SetStreamSource(UINT stream_number, D3DVertexBuffer *stream_data, UINT stride)
 {
+#ifdef HALO_NATIVE_VULKAN
+	if (halo_vulkan_scene_active) { halo_vk_game_stream(stream_number, stream_data, stride); return; }
+#endif
 	if (stream_number >= 16)
 		return;
 	device.streams[stream_number].data = stream_data ? stream_data->Data : 0;
@@ -5576,12 +5650,18 @@ void WINAPI D3DDevice_SetStreamSource(UINT stream_number, D3DVertexBuffer *strea
 
 void WINAPI D3DDevice_SetIndices(D3DIndexBuffer *index_data, UINT base_vertex_index)
 {
+#ifdef HALO_NATIVE_VULKAN
+	if (halo_vulkan_scene_active) { halo_vk_game_base(base_vertex_index); D3D__IndexData = index_data ? (WORD *)index_data->Data : NULL; return; }
+#endif
 	device.base_vertex_index = base_vertex_index;
 	D3D__IndexData = index_data ? (WORD *)index_data->Data : NULL;
 }
 
 void WINAPI D3DDevice_DrawVertices(D3DPRIMITIVETYPE primitive_type, UINT start_vertex, UINT vertex_count)
 {
+#ifdef HALO_NATIVE_VULKAN
+	if (halo_vulkan_scene_active) { halo_vk_game_draw(primitive_type, start_vertex, vertex_count, NULL); return; }
+#endif
 	if (!vertex_count || !prepare_draw(FALSE))
 		return;
 	trace_draw("draw", primitive_type, vertex_count, NULL);
@@ -5783,6 +5863,9 @@ static BOOL index_cache_get(const WORD *indices, unsigned long count, unsigned l
 
 void WINAPI D3DDevice_DrawIndexedVertices(D3DPRIMITIVETYPE primitive_type, UINT vertex_count, CONST WORD *index_data)
 {
+#ifdef HALO_NATIVE_VULKAN
+	if (halo_vulkan_scene_active) { halo_vk_game_draw(primitive_type, 0, vertex_count, index_data); return; }
+#endif
 	unsigned long minimum, maximum, index, count, generation = 0, index_offset = 0;
 	WORD *indices = NULL;
 	const WORD *source = index_data;
@@ -5852,6 +5935,9 @@ void WINAPI D3DDevice_DrawIndexedVertices(D3DPRIMITIVETYPE primitive_type, UINT 
 
 void WINAPI D3DDevice_Begin(D3DPRIMITIVETYPE primitive_type)
 {
+#ifdef HALO_NATIVE_VULKAN
+	if (halo_vulkan_scene_active) { halo_vk_game_begin(primitive_type); return; }
+#endif
 	device.immediate_active = TRUE;
 	device.immediate_type = primitive_type;
 	device.immediate_count = 0;
@@ -5879,6 +5965,9 @@ static void immediate_emit(void)
 
 void WINAPI D3DDevice_End(void)
 {
+#ifdef HALO_NATIVE_VULKAN
+	if (halo_vulkan_scene_active) { halo_vk_game_end(); return; }
+#endif
 	unsigned long stride = XGPU_VERTEX_ATTRIBUTE_COUNT * 4 * sizeof(float);
 	unsigned long offset, index, count = device.immediate_count;
 	D3DPRIMITIVETYPE type = device.immediate_type;
@@ -6069,6 +6158,9 @@ void WINAPI D3DDevice_End(void)
 
 static void set_attribute(INT reg, float a, float b, float c, float d)
 {
+#ifdef HALO_NATIVE_VULKAN
+	if (halo_vulkan_scene_active) { halo_vk_game_attribute(reg, a, b, c, d); return; }
+#endif
 	BOOL emit = FALSE;
 
 	if (reg == D3DVSDE_VERTEX)

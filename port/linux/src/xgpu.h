@@ -212,6 +212,10 @@ void xgpu_texture_describe(DWORD format_word, DWORD size_word, struct xgpu_textu
 unsigned long xgpu_texture_face_size(const struct xgpu_texture_description *description);
 unsigned long xgpu_texture_level_offset(const struct xgpu_texture_description *description, unsigned long level);
 unsigned long xgpu_texture_level_pitch(const struct xgpu_texture_description *description, unsigned long level);
+/* CPU-only decode for native renderers. Destination holds width*height*depth
+BGRA texels; compressed levels remain in their native block format. */
+BOOL xgpu_texture_decode_level(const struct xgpu_texture_description *description, unsigned long level,
+	const unsigned char *source, const D3DCOLOR *palette, unsigned long *destination);
 
 /* the GL texture for an Xbox texture header, uploading or refreshing it
 from guest memory as needed; *target receives GL_TEXTURE_2D etc. */

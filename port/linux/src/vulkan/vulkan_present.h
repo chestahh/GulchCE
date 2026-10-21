@@ -17,6 +17,9 @@ struct halo_vk_present_frame
 
 struct halo_vk_present
 {
+    /* Optional native scene output. Its producer submits on the same queue. */
+    VkImage source_image;
+    VkExtent2D source_extent;
 	struct halo_vk_device *device;
 	VkSwapchainKHR swapchain;
 	VkImage *images;

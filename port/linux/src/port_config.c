@@ -744,6 +744,8 @@ static const struct config_setting config_settings[] =
 	{ "debug.voice_test", _config_boolean, "false", "HALO_VOICE_TEST", _environment_set_is_true, _platform_all,
 		"Voice chat's automated tests: a tone instead of the microphone, and\n"
 		"each voice heard logged once a second." },
+	{ "debug.vulkan_scene", _config_boolean, "false", "HALO_VULKAN_SCENE", _environment_set_is_true, _platform_desktop,
+		"Experimental native Vulkan scene renderer (Xbox scene milestone)." },
 	{ "debug.vulkan_presentation", _config_boolean, "false", "HALO_VULKAN_PRESENTATION", _environment_set_is_true, _platform_desktop,
 		"Run the native Vulkan presentation lifecycle test and exit, without\n"
 		"loading a map. This is not a playable Vulkan renderer." },

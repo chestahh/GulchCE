@@ -17,7 +17,7 @@
 
 #define HALO_VK_DEVICE_FUNCTIONS(X) \
 	X(DestroyDevice) X(GetDeviceQueue) X(DeviceWaitIdle) X(CreateCommandPool) \
-	X(DestroyCommandPool) X(AllocateCommandBuffers) X(ResetCommandBuffer) \
+	X(DestroyCommandPool) X(FreeCommandBuffers) X(AllocateCommandBuffers) X(ResetCommandBuffer) \
 	X(BeginCommandBuffer) X(EndCommandBuffer) X(CreateFence) X(DestroyFence) \
 	X(GetFenceStatus) X(ResetFences) X(QueueSubmit) X(CreateQueryPool) \
 	X(DestroyQueryPool) X(CmdResetQueryPool) X(CmdBeginQuery) X(CmdEndQuery) \
@@ -29,8 +29,13 @@
 	X(CreateShaderModule) X(DestroyShaderModule) X(CreatePipelineLayout) \
 	X(DestroyPipelineLayout) X(CreateGraphicsPipelines) X(DestroyPipeline) \
 	X(CmdBeginRenderPass) X(CmdEndRenderPass) X(CmdBindPipeline) X(CmdPushConstants) \
-	X(CmdDraw) X(CmdPipelineBarrier) X(CmdCopyImageToBuffer) \
-	X(CreateSemaphore) X(DestroySemaphore) X(WaitForFences) X(CmdClearColorImage)
+	X(CmdDraw) X(CmdDrawIndexed) X(CmdBindIndexBuffer) X(CmdPipelineBarrier) X(CmdCopyImageToBuffer) \
+	X(CreateSemaphore) X(DestroySemaphore) X(WaitForFences) X(CmdClearColorImage) \
+	X(CreateSampler) X(DestroySampler) X(CreateDescriptorSetLayout) X(DestroyDescriptorSetLayout) \
+	X(CreateDescriptorPool) X(DestroyDescriptorPool) X(ResetDescriptorPool) X(AllocateDescriptorSets) \
+	X(UpdateDescriptorSets) X(CmdBindDescriptorSets) X(CmdBindVertexBuffers) X(CmdSetViewport) \
+	X(CmdSetScissor) X(CmdSetBlendConstants) X(CmdCopyBufferToImage) X(CmdBlitImage) X(CmdCopyImage) \
+	X(CmdClearAttachments) X(CmdClearDepthStencilImage)
 
 enum halo_vk_frame_state
 {

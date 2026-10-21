@@ -424,6 +424,14 @@ static BOOL decode_level(const struct xgpu_texture_description *description, uns
 	return TRUE;
 }
 
+BOOL xgpu_texture_decode_level(const struct xgpu_texture_description *description, unsigned long level,
+	const unsigned char *source, const D3DCOLOR *palette, unsigned long *destination)
+{
+	if (!description || !source || !destination || description->compressed || level >= description->levels)
+		return FALSE;
+	return decode_level(description, level, source, palette, destination);
+}
+
 #ifdef HALO_GLES
 /* ---------- DXT decoding, for ES drivers without S3TC (Mali) */
 

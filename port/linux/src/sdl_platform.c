@@ -1184,7 +1184,7 @@ void platform_display_apply(void)
 	if (!platform_window)
 		return;
 #endif
-	SDL_GL_SetSwapInterval(config_boolean("display.vsync") ? 1 : 0);
+	if (platform_gl_context) SDL_GL_SetSwapInterval(config_boolean("display.vsync") ? 1 : 0);
 }
 
 void platform_video_drawable_size(int *width, int *height)
@@ -2425,3 +2425,17 @@ void platform_input_read(struct platform_input_state *state, BOOL consume_motion
 	}
 	pthread_mutex_unlock(&input_lock);
 }
+
+#ifdef HALO_NATIVE_VULKAN
+/* The optional native renderer owns this window. Register it only for the
+existing input/event services; detachment precedes the owner's destruction. */
+BOOL platform_video_external_window(void *window)
+{
+    if (window && platform_window && platform_window != window) return FALSE;
+    if (window && !platform_sdl_initialize()) return FALSE;
+    platform_window = window;
+    platform_event_thread = window ? SDL_GetCurrentThreadID() : 0;
+    platform_video_tried = TRUE;
+    return TRUE;
+}
+#endif

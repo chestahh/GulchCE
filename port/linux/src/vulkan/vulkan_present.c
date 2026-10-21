@@ -37,11 +37,11 @@ static int verify_frame(struct halo_vk_present *p, struct halo_vk_present_frame 
 		return 1;
 	count = (size_t)p->extent.width * p->extent.height;
 	for (i = 0; i < count; i++)
-		if (memcmp(f->pixels + i * 4, f->expected, 4))
+		if (p->verify_pixels == 1 && memcmp(f->pixels + i * 4, f->expected, 4))
 			return fail(p, VK_ERROR_UNKNOWN, "presentation pixel comparison");
 	f->capture_pending = 0;
 	p->verified++;
-	if (p->capture_path && *p->capture_path && !p->capture_written && p->submitted >= 60)
+	if (p->capture_path && *p->capture_path && (!p->capture_written || (p->verify_pixels == 2 && !(p->submitted % 120))) && p->submitted >= 60)
 	{
 		file = fopen(p->capture_path, "wb");
 		if (!file)
@@ -310,7 +310,32 @@ int halo_vk_present_color(struct halo_vk_present *p, unsigned width, unsigned he
 	d->CmdPipelineBarrier(frame->command, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
 		0, 0, NULL, 0, NULL, 1, &barrier);
 	memcpy(clear.float32, color, sizeof(clear.float32));
-	d->CmdClearColorImage(frame->command, barrier.image, barrier.newLayout, &clear, 1, &barrier.subresourceRange);
+	if (p->source_image)
+	{
+		VkImageMemoryBarrier source = { VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
+		VkImageBlit blit = { 0 };
+		source.oldLayout = VK_IMAGE_LAYOUT_GENERAL;
+		source.newLayout = VK_IMAGE_LAYOUT_GENERAL;
+		source.srcQueueFamilyIndex = source.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+		source.srcAccessMask = VK_ACCESS_MEMORY_WRITE_BIT;
+		source.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+		source.image = p->source_image;
+		source.subresourceRange = barrier.subresourceRange;
+		d->CmdPipelineBarrier(frame->command, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
+			0, 0, NULL, 0, NULL, 1, &source);
+		blit.srcSubresource.aspectMask = blit.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+		blit.srcSubresource.layerCount = blit.dstSubresource.layerCount = 1;
+		blit.srcOffsets[1].x = p->source_extent.width;
+		blit.srcOffsets[1].y = p->source_extent.height;
+		blit.srcOffsets[1].z = blit.dstOffsets[1].z = 1;
+		blit.dstOffsets[1].x = p->extent.width;
+		blit.dstOffsets[1].y = p->extent.height;
+		d->CmdBlitImage(frame->command, source.image, VK_IMAGE_LAYOUT_GENERAL, barrier.image,
+			VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &blit, VK_FILTER_LINEAR);
+	}
+	else {
+		d->CmdClearColorImage(frame->command, barrier.image, barrier.newLayout, &clear, 1, &barrier.subresourceRange);
+	}
 	barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
 	barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
 	if (p->verify_pixels)

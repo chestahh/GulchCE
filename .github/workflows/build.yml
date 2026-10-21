@@ -54,14 +54,14 @@ jobs:
         run: |
           sudo dpkg --add-architecture i386
           sudo apt-get update -q
-          sudo apt-get install -y -q clang gcc-multilib python3-pytest \
+          sudo apt-get install -y -q clang gcc-multilib g++-multilib python3-pytest \
             libvulkan1:i386 mesa-vulkan-drivers:i386 \
             libvulkan1 mesa-vulkan-drivers vulkan-validationlayers cmake ninja-build libx11-dev libxext-dev libxrandr-dev libxcursor-dev libxi-dev libxfixes-dev libxss-dev libxtst-dev xvfb xauth pkg-config
       - name: Build and test native Vulkan ownership
         run: |
           python3 tools/vulkan_build.py
           python3 tools/vulkan_build.py --host-validation
-          python3 -m pytest -q tools/test_vulkan_backend.py
+          python3 -m pytest -q tools/test_vulkan_backend.py tools/test_vulkan_scene.py
       - name: Test 32-bit offscreen rendering on software Vulkan
         env:
           VK_DRIVER_FILES: /usr/share/vulkan/icd.d/lvp_icd.json
@@ -100,11 +100,23 @@ jobs:
           python3 tools/vulkan_build.py --host-validation --window
           set -o pipefail
           xvfb-run -a build/vulkan-host/vulkan-window --validation 2>&1 | tee build/vulkan/window-validation.log
+      - name: Validate scene shaders, textures and indexed draws
+        env:
+          VK_DRIVER_FILES: /usr/share/vulkan/icd.d/lvp_icd.json
+          VK_LAYER_ENABLES: VK_VALIDATION_FEATURE_ENABLE_SYNCHRONIZATION_VALIDATION_EXT
+        run: |
+          export PKG_CONFIG_PATH="$PWD/build/vulkan/sdl/lib/pkgconfig:$PWD/build/vulkan/sdl/lib64/pkgconfig"
+          export LD_LIBRARY_PATH="$PWD/build/vulkan/sdl/lib:$PWD/build/vulkan/sdl/lib64"
+          python3 tools/vulkan_compiler.py --host-validation
+          python3 tools/vulkan_build.py --host-validation --scene
+          set -o pipefail
+          build/vulkan-host/vulkan-scene --validation 2>&1 | tee build/vulkan/scene-validation.log
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: vulkan-foundation-validation
           path: |
+            build/vulkan/scene-validation.log
             build/vulkan/window-validation.log
             build/vulkan/validation.log
             build/vulkan/gpu.log

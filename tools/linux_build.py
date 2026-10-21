@@ -610,7 +610,8 @@ def generate_linux_build(n: Writer, sln: Any) -> None:
         # Vulkan owns its device/window; only the D3D8 adapter uses the game ABI.
         vulkan_dir = Path("port/linux/src/vulkan")
         add_object(vulkan_dir / "vulkan_dispatch.c", platform_cflags)
-        for filename in ("vulkan_device.c", "vulkan_present.c", "vulkan_window.c"):
+        add_object(vulkan_dir / "vulkan_game.c", platform_cflags)
+        for filename in ("vulkan_device.c", "vulkan_present.c", "vulkan_window.c", "vulkan_scene.c", "vulkan_shader.c"):
             add_object(vulkan_dir / filename, posix_cflags + " -std=gnu89 -Iport/third_party/vulkan_headers/include", posix=True)
         for source in embedded_assets:
             add_object(source, platform_cflags)

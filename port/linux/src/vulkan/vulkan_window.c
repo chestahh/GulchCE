@@ -1,5 +1,6 @@
 #include "vulkan_window.h"
 #include "vulkan_present.h"
+#include "vulkan_scene.h"
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_vulkan.h>
 #include <stdio.h>
@@ -9,7 +10,7 @@ static struct halo_vk_device device;
 static struct halo_vk_present presentation;
 static SDL_Window *window;
 static float clear_color[4];
-static int video_owned, suspended;
+static int video_owned, suspended, scene_owned;
 
 static int create_surface(VkInstance instance, void *context, VkSurfaceKHR *surface)
 {
@@ -22,6 +23,7 @@ int halo_vulkan_window_close(void)
 	/* A failed wait retains ownership rather than destroying live objects. */
 	if (presentation.device)
 		return 0;
+	if (scene_owned) { ok &= halo_vk_scene_close(); if (halo_vk_scene_owned()) return 0; scene_owned = 0; }
 	halo_vk_device_dispose(&device);
 	ok &= device.validation_errors == 0;
 	if (window) SDL_DestroyWindow(window);
@@ -109,3 +111,47 @@ void halo_vulkan_window_suspend(int suspend)
 
 unsigned long long halo_vulkan_window_ticks(void) { return SDL_GetTicks(); }
 void halo_vulkan_window_delay(void) { SDL_Delay(1); }
+
+int halo_vulkan_window_scene(void)
+{
+    scene_owned = 1;
+    presentation.verify_pixels = presentation.capture_path && *presentation.capture_path ? 2 : 0;
+    SDL_SetWindowTitle(window, "GulchCE - experimental Vulkan scene");
+    return halo_vk_scene_open(&device);
+}
+int halo_vulkan_window_scene_present(unsigned back)
+{
+    if (!halo_vk_scene_finish(back, &presentation, NULL)) return -1;
+    return halo_vulkan_window_present();
+}
+
+void *halo_vulkan_window_handle(void) { return window; }
+void halo_vulkan_window_pace(long maximum, int vsync)
+{
+    static Uint64 deadline;
+    Uint64 now = SDL_GetTicksNS(), interval;
+    const SDL_DisplayMode *mode;
+    float rate = (float)maximum;
+    if (maximum < 0 && !vsync) return;
+    if (vsync || !maximum) {
+        mode = SDL_GetCurrentDisplayMode(SDL_GetDisplayForWindow(window));
+        rate = (mode && mode->refresh_rate > 0 ? mode->refresh_rate : 60) * (vsync ? 1 : 2);
+    }
+    interval = (Uint64)(1000000000.0 / rate);
+    if (deadline > now) SDL_DelayPrecise(deadline-now);
+    now = SDL_GetTicksNS(); deadline = now + interval;
+}
+
+int halo_vulkan_window_scene_reset(void)
+{
+    const char *path = presentation.capture_path;
+    int capture = presentation.verify_pixels;
+    /* Map boundaries may wait. Every reference from presentation and scene
+       commands is retired before either resource owner is reinitialized. */
+    if (!halo_vk_scene_finish(0, &presentation, NULL)) return 0;
+    if (!halo_vk_present_dispose(&presentation)) return 0;
+    if (!halo_vk_scene_close()) return 0;
+    if (halo_vk_present_initialize(&presentation, &device) < 0) return 0;
+    presentation.capture_path = path; presentation.verify_pixels = capture;
+    return halo_vk_scene_open(&device);
+}

@@ -96,6 +96,8 @@ void halo_screen_tone_map(short x0, short y0, short x1, short y1);
 #ifdef HALO_NATIVE_VULKAN
 /* port/linux/src/vulkan/vulkan_dispatch.c: -1 continues ordinary startup. */
 int halo_vulkan_startup_test(void);
+/* port/linux/src/vulkan/vulkan_game.c: no-op with the feature disabled. */
+void halo_vulkan_map_reset(void);
 #endif
 
 #endif

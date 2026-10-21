@@ -36,8 +36,8 @@ ROOT = Path(__file__).resolve().parent.parent
 OUTPUTS = {
     # (and the SDL3 the portable build brings, tools/linux_build.py, with its
     # zlib license, as the release carries the other libraries')
-    "linux": ["build/linux/halo", "build/linux/libSDL3.so.0", "build/linux/SDL3-LICENSE.txt"],
-    "windows": ["build/windows/halo.exe", "build/windows/SDL3.dll"],
+    "linux": ["build/linux/halo", "build/linux/libSDL3.so.0", "build/linux/SDL3-LICENSE.txt", "build/linux/libhalo_vulkan_compiler.so", "build/linux/glslang-LICENSE.txt", "build/linux/gcc-runtime-copyright.txt", "build/linux/gcc-COPYING3", "build/linux/gcc-COPYING.RUNTIME"],
+    "windows": ["build/windows/halo.exe", "build/windows/SDL3.dll", "build/windows/halo_vulkan_compiler.dll", "build/windows/glslang-LICENSE.txt"],
     "android": [],  # the APK, below
     "web": [],  # the site, below
 }
@@ -95,6 +95,7 @@ def main() -> int:
         outputs = [APKS[variant]]
     else:
         run(["ninja", args.platform])
+        run([sys.executable, "tools/vulkan_compiler.py"])
         outputs = OUTPUTS[args.platform]
 
     dist = ROOT / "dist" / f"halo-{args.platform}-{args.config}"

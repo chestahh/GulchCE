@@ -5,12 +5,118 @@ for integration. Its base is `e5347765275bf324513eca4d044b15b3f6fc12b8` on
 `render-fix-optimisation`, retaining the working AMD readback and NVIDIA
 optimisation for comparisons. Neither `testing` nor OpenGL is replaced.
 
-## Current status: native presentation milestone
+## Current status: first native Halo scene
 
-The foundation establishes the native Vulkan device and independently
-authored rendering tests. Stage two adds opt-in native D3D8 lifecycle dispatch
-and SDL window presentation. **The game still renders through OpenGL. There is
-no playable Vulkan mode yet, and the first Halo-scene milestone is not complete.**
+Stage three adds opt-in native Xbox D3D8 draw translation, shader compilation,
+textures and render targets. Xbox A10's opening space cinematic and ship
+interior render through Vulkan on the local Windows NVIDIA test machine.
+**OpenGL remains the default. This is an experimental scene milestone, not
+full renderer parity or a completed Vulkan port.**
+
+To build the normal game and its optional compiler on Windows:
+
+```sh
+python configure.py --portable --release
+ninja windows vulkan_compiler
+```
+
+Use `ninja linux vulkan_compiler` on Linux. The compiler build needs CMake,
+Ninja and a C++ toolchain (clang-cl with the existing MSVC environment on
+Windows; clang/clang++ and lld on Linux). It fetches checksum-pinned glslang
+16.6.0. CI native packages include the compiler library and licence notices.
+OpenGL neither loads the compiler nor requires a Vulkan loader.
+
+To opt in for a manual game run, launch from the normal game data folder:
+
+```bat
+set HALO_VULKAN_SCENE=1
+halo.exe
+```
+
+Remove that variable to return to OpenGL. `HALO_VULKAN_CAPTURE=scene.ppm`
+optionally saves periodic completed GPU images to one PPM file. Capturing
+adds readback work and is not suitable for benchmarking. Validation is
+optional with `HALO_VULKAN_VALIDATION=1`, requiring a matching 32-bit layer.
+The separate `HALO_VULKAN_PRESENTATION` test remains available.
+
+### What stage three implements
+
+- Dedicated native game state and dispatch in `vulkan_game.c`; no NV2A
+  register/FIFO/DMA emulation, and no OpenGL context or fallback.
+- Existing pure NV2A vertex/combiner GLSL translators consumed through their
+  public interfaces. `vulkan_shader.c` supplies explicit Vulkan bindings,
+  varying locations and a shared std140 uniform block; glslang produces
+  SPIR-V for Vulkan 1.1. The translator arithmetic is unchanged.
+- Vertex declarations, packed normals, colors, streams, indexed and immediate
+  draws, primitive conversion, shader program slots, constants and transforms.
+  Indices remain indices at GPU submission to avoid duplicating triangle data.
+- Swizzled/linear Xbox textures, mip levels, cubes/volumes and native BC1/2/3;
+  independent Vulkan texture caching uses the existing CPU memory-watch API
+  to notice writes, including changes within one frame.
+- Color/depth targets, blend/depth/stencil state, viewport and bias translation.
+  Sampling the current color target uses a separate snapshot. Depth feedback
+  is explicitly unsupported. Offscreen scene color is presented by the
+  stage-two window owner.
+- Three fenced upload/descriptor/query slots. A busy slot defers the whole
+  frame. Direct CPU query reads happen only after completion and availability;
+  previous completed counts remain usable, and legitimate zero counts are
+  published. Normal draws use no queue-idle or forced query waits.
+- Map teardown retires scene and presentation references before clearing
+  map caches. Shutdown handles partial creation and retains ownership if a
+  wait fails. Waiting is allowed at these lifecycle boundaries.
+
+The D3D8 entry points need small guarded dispatch hooks because the game calls
+those exports directly. A CPU texture decode wrapper exposes the established
+pure decoder without calling its GL cache. The SDL external-window hook
+connects the independently owned window to existing input/event services.
+The `port:` hook in `game_dispose_from_old_map` is necessary because a draw
+module alone cannot know when map storage will be reused. All feature logic
+stays in the Vulkan directory; disabled hooks preserve the established path.
+Xbox, CE and MCC loading/ownership rules are unchanged. No network protocol or
+simulation rule changes, so no network version increment is needed.
+
+### Scope and remaining work
+
+The scene uses the stock 640x480 SDR render size, scaled to the window. HDR,
+MSAA/postprocessing, replacement high-resolution HUD handling, per-pixel
+lighting enhancements, mouse-menu coordinate mapping, full settings parity and broad map compatibility are
+not implemented. MCC's independently owned textures are not treated as Xbox
+physical addresses and are not supported by this milestone. CE remains
+available through OpenGL; a Vulkan compatibility claim needs separate tests.
+
+Resource limits fail explicitly: 64 MiB of upload space per frame, 512 MiB of
+scene image allocations, bounded shader/pipeline/descriptor/query caches.
+There is no streaming eviction within a map yet. First-use shader/pipeline
+compilation can stall; this stage is not a performance optimisation. Older
+drivers without stage two's presentation-maintenance extension remain
+unsupported. AMD hardware and Android Vulkan have not been validated here.
+
+### Stage-three validation
+
+- Windows 32-bit build and real NVIDIA A10 rendering, including captured ship
+  geometry, textures and interior characters; normal timed shutdown.
+- Vulkan A10 -> menu -> A10 with cache retirement, no GL context, and clean exit.
+- Default OpenGL Xbox -> CE -> MCC -> Xbox load/transition checks, with captures
+  and no logged GL/shader failures. This is smoke coverage, not full map parity.
+- Asset-free GPU test: shader uniforms, textures, indexed draws, depth rejection,
+  visible/occluded precise queries, repeated slot reuse, target feedback and
+  checked image pixels. `tools/vulkan_build.py --scene` builds it; put the
+  matching compiler library beside the executable before running it.
+- Delayed-GPU regression tests compile the real scene implementation. Fault
+  mutations demonstrate detection of early reuse, unavailable samples,
+  blocking query flags and late stale results. Failed teardown retains ownership.
+- A local Windows Blood Gulch match with an OpenGL host and Vulkan client: 41
+  seconds compared by the existing network log judge, no mismatched samples
+  under its established tolerances, both processes exited normally.
+- Existing foundation/presentation ownership tests remain in the suite.
+  CI additionally runs 64-bit software-Vulkan synchronization validation of
+  the scene, and the normal Windows/Linux/Android/web build matrix.
+
+```sh
+python -m pytest -q tools/test_vulkan_backend.py tools/test_vulkan_scene.py
+```
+
+## Foundation and presentation milestones
 
 The native foundation provides:
 

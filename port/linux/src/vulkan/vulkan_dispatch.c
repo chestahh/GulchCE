@@ -3,10 +3,12 @@
 #include "port_config.h"
 #include "vulkan_dispatch.h"
 #include "vulkan_window.h"
+#include "vulkan_game.h"
 #include <stdio.h>
 #include <string.h>
 
 int halo_vulkan_dispatch_active;
+int halo_vulkan_scene_active;
 static int created, failed;
 static unsigned device_identity;
 
@@ -22,6 +24,12 @@ HRESULT halo_vulkan_create(D3DPRESENT_PARAMETERS *parameters, D3DDevice **result
 		failed = 1;
 		return E_FAIL;
 	}
+	if (halo_vulkan_scene_active && !halo_vk_game_create(parameters->BackBufferWidth, parameters->BackBufferHeight))
+	{
+		halo_vk_game_shutdown();
+		failed = 1;
+		return E_FAIL;
+	}
 	created = 1;
 	*result = (D3DDevice *)&device_identity;
 	return S_OK;
@@ -31,6 +39,7 @@ void halo_vulkan_clear(DWORD count, CONST D3DRECT *rectangles, DWORD flags,
 	D3DCOLOR color, float depth, DWORD stencil)
 {
 	float rgba[4];
+	if (halo_vulkan_scene_active) { halo_vk_game_clear(count, rectangles, flags, color, depth, stencil); return; }
 	(void)depth; (void)stencil;
 	/* This milestone has a color presentation target only. Reject other
 	clear contracts explicitly until stage three implements game targets. */
@@ -49,6 +58,7 @@ void halo_vulkan_clear(DWORD count, CONST D3DRECT *rectangles, DWORD flags,
 
 void halo_vulkan_present(CONST RECT *source, CONST RECT *destination, void *unused, void *unused2)
 {
+	if (halo_vulkan_scene_active) { halo_vk_game_present(); return; }
 	if (!created || source || destination || unused || unused2 || failed)
 	{
 		failed = 1;
@@ -60,6 +70,7 @@ void halo_vulkan_present(CONST RECT *source, CONST RECT *destination, void *unus
 
 ULONG halo_vulkan_release(void)
 {
+	if (halo_vulkan_scene_active) { halo_vk_game_shutdown(); created = 0; return 0; }
 	if (created)
 	{
 		failed |= !halo_vulkan_window_close();
@@ -77,6 +88,7 @@ int halo_vulkan_startup_test(void)
 	unsigned session, frames, pause_ticks, generations, pause_frame = 0;
 	unsigned long long start;
 	int resized, paused, restored;
+	if (config_boolean("debug.vulkan_scene")) { halo_vulkan_scene_active = halo_vulkan_dispatch_active = 1; return -1; }
 	if (!config_boolean("debug.vulkan_presentation"))
 		return -1;
 	platform_log("Vulkan presentation test: native D3D8 create/clear/present/release; no Halo scene or OpenGL fallback");

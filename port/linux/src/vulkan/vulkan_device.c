@@ -259,6 +259,12 @@ int halo_vk_device_initialize_surface(struct halo_vk_device *d, int validation,
 	queue.queueFamilyIndex = d->queue_family;
 	queue.queueCount = 1;
 	queue.pQueuePriorities = &priority;
+	{
+		VkPhysicalDeviceFeatures supported;
+		d->GetPhysicalDeviceFeatures(d->physical, &supported);
+		features.textureCompressionBC = supported.textureCompressionBC;
+		features.largePoints = supported.largePoints;
+	}
 	features.occlusionQueryPrecise = VK_TRUE;
 	info.queueCreateInfoCount = 1;
 	info.pQueueCreateInfos = &queue;

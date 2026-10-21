@@ -941,6 +941,9 @@ void game_dispose_from_old_map(
 	game_time_dispose_from_old_map();
 	ui_widgets_close_all();
 	ui_widgets_safe_to_load(FALSE);
+#ifdef HALO_NATIVE_VULKAN
+	halo_vulkan_map_reset(); /* port: retire optional Vulkan map resources before storage reuse. */
+#endif
 	game_globals->active = FALSE;
 
 	return;

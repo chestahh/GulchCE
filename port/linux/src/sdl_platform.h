@@ -61,6 +61,9 @@ struct platform_keystroke
 };
 
 BOOL platform_sdl_initialize(void);
+#ifdef HALO_NATIVE_VULKAN
+BOOL platform_video_external_window(void *window);
+#endif
 /* creates the window and makes its OpenGL context current on this thread */
 BOOL platform_video_initialize(unsigned long width, unsigned long height);
 #ifndef HALO_ANDROID

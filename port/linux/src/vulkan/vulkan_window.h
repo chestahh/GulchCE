@@ -13,4 +13,9 @@ void halo_vulkan_window_resize(unsigned width, unsigned height);
 void halo_vulkan_window_suspend(int suspend);
 unsigned long long halo_vulkan_window_ticks(void);
 void halo_vulkan_window_delay(void);
+int halo_vulkan_window_scene(void);
+int halo_vulkan_window_scene_present(unsigned back);
+void *halo_vulkan_window_handle(void);
+void halo_vulkan_window_pace(long maximum, int vsync);
+int halo_vulkan_window_scene_reset(void);
 #endif
