@@ -79,8 +79,9 @@ simulation rule changes, so no network version increment is needed.
 
 The scene uses the stock 640x480 SDR render size, scaled to the window. HDR,
 MSAA/postprocessing, replacement high-resolution HUD handling, per-pixel
-lighting enhancements, mouse-menu coordinate mapping, full settings parity and broad map compatibility are
-not implemented. MCC's independently owned textures are not treated as Xbox
+lighting enhancements, mouse-menu coordinate mapping, full settings parity and
+broad map compatibility are not implemented. Previous-frame front-buffer
+snapshots also need a dedicated implementation. MCC's independently owned textures are not treated as Xbox
 physical addresses and are not supported by this milestone. CE remains
 available through OpenGL; a Vulkan compatibility claim needs separate tests.
 
@@ -115,6 +116,28 @@ unsupported. AMD hardware and Android Vulkan have not been validated here.
 ```sh
 python -m pytest -q tools/test_vulkan_backend.py tools/test_vulkan_scene.py
 ```
+
+### Published stage-three checks
+
+Implementation `a65d5e56` passed [Build run 39684530855](https://github.com/chestahh/GulchCE/actions/runs/39684530855):
+
+- Windows, Linux, Android and inherited web debug/release builds, including
+  native compiler libraries and their licence notices.
+- Twenty Vulkan ownership/completion tests; 32-bit offscreen rendering;
+  supplemental host-ABI window and scene runs with Khronos synchronization
+  validation. The scene checked all GPU pixels, depth rejection, completed
+  queries, texture sampling and target feedback. Unused vertex-input warnings
+  remain; no validation errors were reported.
+- Linux's regression suite: 901 passed, 6 skipped; changelog suite: 177 passed;
+  ordinary/full-LTO light-storage checks and both native presentation lifetimes.
+- Web build-graph/socket and Chromium/Firefox checks.
+- [MCC map validation](https://github.com/chestahh/GulchCE/actions/runs/39684531329)
+  also passed. This does not establish Vulkan compatibility with MCC maps.
+
+Local Windows checks finished with 38 passing Vulkan/GL visibility tests. The
+final A10 run presented 6,239 frames and 992,705 draws, then shut down normally.
+Temporary map copies and caches were removed; inactive test saves and captures
+were archived losslessly and verified. The original game data was untouched.
 
 ## Foundation and presentation milestones
 
@@ -295,7 +318,7 @@ Xbox compatibility path. Vulkan alone is not a performance guarantee.
 No xemu code, shaders or generated output were copied or adapted. The backend
 and test shaders were independently written against the Vulkan API. Existing
 OpenCE translations remain the source of Halo behaviour for future integration.
-The only vendored material in this increment is the pinned, unchanged Khronos
+The only vendored material in the foundation increment was the pinned, unchanged Khronos
 C declarations and their licenses (`port/third_party/vulkan_headers/`).
 
 References consulted:

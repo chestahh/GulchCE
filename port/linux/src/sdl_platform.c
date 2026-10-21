@@ -2428,14 +2428,14 @@ void platform_input_read(struct platform_input_state *state, BOOL consume_motion
 
 #ifdef HALO_NATIVE_VULKAN
 /* The optional native renderer owns this window. Register it only for the
-existing input/event services; detachment precedes the owner's destruction. */
+existing input/event services; detachment completes the owner's shutdown. */
 BOOL platform_video_external_window(void *window)
 {
-    if (window && platform_window && platform_window != window) return FALSE;
-    if (window && !platform_sdl_initialize()) return FALSE;
-    platform_window = window;
-    platform_event_thread = window ? SDL_GetCurrentThreadID() : 0;
-    platform_video_tried = TRUE;
-    return TRUE;
+	if (window && platform_window && platform_window != window) return FALSE;
+	if (window && !platform_sdl_initialize()) return FALSE;
+	platform_window = window;
+	platform_event_thread = window ? SDL_GetCurrentThreadID() : 0;
+	platform_video_tried = TRUE;
+	return TRUE;
 }
 #endif
