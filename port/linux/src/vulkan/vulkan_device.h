@@ -12,7 +12,8 @@
 	X(DestroyInstance) X(EnumeratePhysicalDevices) X(GetPhysicalDeviceProperties) \
 	X(GetPhysicalDeviceFeatures) X(GetPhysicalDeviceQueueFamilyProperties) \
 	X(GetPhysicalDeviceMemoryProperties) X(GetPhysicalDeviceFormatProperties) \
-	X(CreateDevice) X(GetDeviceProcAddr)
+	X(CreateDevice) X(GetDeviceProcAddr) X(GetPhysicalDeviceFeatures2) \
+	X(EnumerateDeviceExtensionProperties)
 
 #define HALO_VK_DEVICE_FUNCTIONS(X) \
 	X(DestroyDevice) X(GetDeviceQueue) X(DeviceWaitIdle) X(CreateCommandPool) \
@@ -28,7 +29,8 @@
 	X(CreateShaderModule) X(DestroyShaderModule) X(CreatePipelineLayout) \
 	X(DestroyPipelineLayout) X(CreateGraphicsPipelines) X(DestroyPipeline) \
 	X(CmdBeginRenderPass) X(CmdEndRenderPass) X(CmdBindPipeline) X(CmdPushConstants) \
-	X(CmdDraw) X(CmdPipelineBarrier) X(CmdCopyImageToBuffer)
+	X(CmdDraw) X(CmdPipelineBarrier) X(CmdCopyImageToBuffer) \
+	X(CreateSemaphore) X(DestroySemaphore) X(WaitForFences) X(CmdClearColorImage)
 
 enum halo_vk_frame_state
 {
@@ -60,6 +62,16 @@ struct halo_vk_device
 	VkDebugUtilsMessengerEXT debug_messenger;
 	unsigned validation_errors;
 	VkInstance instance;
+	VkSurfaceKHR surface;
+	PFN_vkDestroySurfaceKHR DestroySurfaceKHR;
+	PFN_vkGetPhysicalDeviceSurfaceSupportKHR GetPhysicalDeviceSurfaceSupportKHR;
+	PFN_vkGetPhysicalDeviceSurfaceCapabilitiesKHR GetPhysicalDeviceSurfaceCapabilitiesKHR;
+	PFN_vkGetPhysicalDeviceSurfaceFormatsKHR GetPhysicalDeviceSurfaceFormatsKHR;
+	PFN_vkCreateSwapchainKHR CreateSwapchainKHR;
+	PFN_vkDestroySwapchainKHR DestroySwapchainKHR;
+	PFN_vkGetSwapchainImagesKHR GetSwapchainImagesKHR;
+	PFN_vkAcquireNextImageKHR AcquireNextImageKHR;
+	PFN_vkQueuePresentKHR QueuePresentKHR;
 	VkPhysicalDevice physical;
 	VkPhysicalDeviceProperties properties;
 	VkPhysicalDeviceMemoryProperties memory;
@@ -72,6 +84,10 @@ struct halo_vk_device
 };
 
 int halo_vk_device_initialize(struct halo_vk_device *device, int validation);
+/* Surface belongs to the device. The callback runs after instance creation. */
+int halo_vk_device_initialize_surface(struct halo_vk_device *device, int validation,
+	const char *const *extensions, unsigned count,
+	int (*create_surface)(VkInstance, void *, VkSurfaceKHR *), void *context);
 void halo_vk_device_dispose(struct halo_vk_device *device);
 int halo_vk_frame_begin(struct halo_vk_device *device, unsigned slot);
 /* The caller must record both queries in the slot's disjoint range before

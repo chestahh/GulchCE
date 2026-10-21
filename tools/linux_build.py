@@ -544,6 +544,7 @@ def generate_linux_build(n: Writer, sln: Any) -> None:
             )
 
         game_cflags = " ".join([
+            "-DHALO_NATIVE_VULKAN",
             abi,
             " ".join(GAME_FLAGS),
             f"-include {prefix_header}",
@@ -573,6 +574,7 @@ def generate_linux_build(n: Writer, sln: Any) -> None:
 
         platform_dir = Path(config["platform_sources"])
         platform_cflags = " ".join([
+            "-DHALO_NATIVE_VULKAN",
             abi,
             " ".join(PLATFORM_FLAGS),
             f"-include {prefix_header}",
@@ -605,6 +607,11 @@ def generate_linux_build(n: Writer, sln: Any) -> None:
                 add_object(source, f"{platform_cflags} {updater_defines(getattr(sln, 'port_release', False))}")
             else:
                 add_object(source, platform_cflags)
+        # Vulkan owns its device/window; only the D3D8 adapter uses the game ABI.
+        vulkan_dir = Path("port/linux/src/vulkan")
+        add_object(vulkan_dir / "vulkan_dispatch.c", platform_cflags)
+        for filename in ("vulkan_device.c", "vulkan_present.c", "vulkan_window.c"):
+            add_object(vulkan_dir / filename, posix_cflags + " -std=gnu89 -Iport/third_party/vulkan_headers/include", posix=True)
         for source in embedded_assets:
             add_object(source, platform_cflags)
         # the self-updater's TLS and internet play's DTLS with browsers

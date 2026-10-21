@@ -93,4 +93,9 @@ void halo_screen_tone_map(short x0, short y0, short x1, short y1);
 /* the mouse in the menus (source/interface/ui_widget.c) */
 #include "halo_ui_pointer.h"
 
+#ifdef HALO_NATIVE_VULKAN
+/* port/linux/src/vulkan/vulkan_dispatch.c: -1 continues ordinary startup. */
+int halo_vulkan_startup_test(void);
+#endif
+
 #endif

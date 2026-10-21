@@ -123,6 +123,11 @@ def main() -> int:
         # internet play's DTLS with browsers, and the Linux self-updater's TLS
         # (port/third_party/mbedtls), whose Apache license asks the same
         shutil.copy2(ROOT / "port/third_party/mbedtls/LICENSE", dist / "mbedtls-LICENSE.txt")
+    if args.platform in ("linux", "windows"):
+        # The optional native Vulkan backend uses Khronos declarations.
+        for name in ("MIT.txt", "Apache-2.0.txt"):
+            shutil.copy2(ROOT / "port/third_party/vulkan_headers/LICENSES" / name,
+                         dist / ("vulkan-headers-" + name))
     # internet play's UPnP (port/third_party/miniupnpc), in every build,
     # whose BSD license asks binaries to carry its notice
     shutil.copy2(ROOT / "port/third_party/miniupnpc/LICENSE", dist / "miniupnpc-LICENSE.txt")

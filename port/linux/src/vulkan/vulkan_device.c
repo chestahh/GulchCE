@@ -11,8 +11,11 @@ DMA commands or a virtual GPU. All functions run on one rendering thread.
 #include <stdlib.h>
 #include <string.h>
 #ifdef _WIN32
+#ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
+#endif
 #include <windows.h>
+#undef CreateSemaphore
 #else
 #include <dlfcn.h>
 #endif
@@ -37,7 +40,8 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL vk_debug_message(
 	return VK_FALSE;
 }
 
-static int vk_create_instance(struct halo_vk_device *d, int validation)
+static int vk_create_instance(struct halo_vk_device *d, int validation,
+	const char *const *surface_extensions, unsigned surface_count)
 {
 	PFN_vkCreateInstance create_instance;
 	PFN_vkEnumerateInstanceLayerProperties enumerate_layers;
@@ -46,7 +50,7 @@ static int vk_create_instance(struct halo_vk_device *d, int validation)
 	VkInstanceCreateInfo info = { VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO };
 	VkDebugUtilsMessengerCreateInfoEXT debug = { VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT };
 	const char *layer = "VK_LAYER_KHRONOS_validation";
-	const char *extension = VK_EXT_DEBUG_UTILS_EXTENSION_NAME;
+	const char *extensions[32];
 	VkLayerProperties *layers = NULL;
 	uint32_t count = 0, i;
 	int found = 0;
@@ -92,10 +96,22 @@ static int vk_create_instance(struct halo_vk_device *d, int validation)
 		debug.pUserData = d;
 		info.enabledLayerCount = 1;
 		info.ppEnabledLayerNames = &layer;
-		info.enabledExtensionCount = 1;
-		info.ppEnabledExtensionNames = &extension;
 		info.pNext = &debug;
 	}
+	if (surface_count > 29)
+		return 0;
+	for (i = 0; i < surface_count; i++)
+		extensions[i] = surface_extensions[i];
+	count = surface_count;
+	if (surface_count)
+	{
+		extensions[count++] = VK_KHR_GET_SURFACE_CAPABILITIES_2_EXTENSION_NAME;
+		extensions[count++] = VK_EXT_SURFACE_MAINTENANCE_1_EXTENSION_NAME;
+	}
+	if (validation)
+		extensions[count++] = VK_EXT_DEBUG_UTILS_EXTENSION_NAME;
+	info.enabledExtensionCount = count;
+	info.ppEnabledExtensionNames = extensions;
 	application.pApplicationName = "GulchCE native Vulkan milestone";
 	application.apiVersion = VK_API_VERSION_1_1;
 	info.pApplicationInfo = &application;
@@ -117,6 +133,34 @@ static int vk_create_instance(struct halo_vk_device *d, int validation)
 	return 1;
 }
 
+static int vk_presentation_supported(struct halo_vk_device *d, VkPhysicalDevice physical)
+{
+	VkExtensionProperties *extensions;
+	VkPhysicalDeviceSwapchainMaintenance1FeaturesEXT maintenance = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SWAPCHAIN_MAINTENANCE_1_FEATURES_EXT };
+	VkPhysicalDeviceFeatures2 features = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2 };
+	uint32_t count = 0, i;
+	int swapchain = 0, lifetime = 0;
+	if (!d->surface)
+		return 1;
+	if (d->EnumerateDeviceExtensionProperties(physical, NULL, &count, NULL) != VK_SUCCESS)
+		return 0;
+	extensions = calloc(count ? count : 1, sizeof(*extensions));
+	if (!extensions)
+		return 0;
+	if (d->EnumerateDeviceExtensionProperties(physical, NULL, &count, extensions) == VK_SUCCESS)
+		for (i = 0; i < count; i++)
+		{
+			swapchain |= !strcmp(extensions[i].extensionName, VK_KHR_SWAPCHAIN_EXTENSION_NAME);
+			lifetime |= !strcmp(extensions[i].extensionName, VK_EXT_SWAPCHAIN_MAINTENANCE_1_EXTENSION_NAME);
+		}
+	free(extensions);
+	if (!swapchain || !lifetime)
+		return 0;
+	features.pNext = &maintenance;
+	d->GetPhysicalDeviceFeatures2(physical, &features);
+	return maintenance.swapchainMaintenance1 != 0;
+}
+
 static int vk_choose_device(struct halo_vk_device *d)
 {
 	VkPhysicalDevice *devices;
@@ -125,6 +169,7 @@ static int vk_choose_device(struct halo_vk_device *d)
 	VkQueueFamilyProperties *families;
 	uint32_t count = 0, family_count, i, j;
 	int selected = 0;
+	VkBool32 present;
 
 	if (!vk_result_ok(d->EnumeratePhysicalDevices(d->instance, &count, NULL), "enumerate devices") || !count)
 		return 0;
@@ -141,7 +186,7 @@ static int vk_choose_device(struct halo_vk_device *d)
 		d->GetPhysicalDeviceProperties(devices[i], &properties);
 		d->GetPhysicalDeviceFeatures(devices[i], &features);
 		/* Precise counts are part of the Xbox visibility contract. */
-		if (properties.apiVersion < VK_API_VERSION_1_1 || !features.occlusionQueryPrecise)
+		if (properties.apiVersion < VK_API_VERSION_1_1 || !features.occlusionQueryPrecise || !vk_presentation_supported(d, devices[i]))
 			continue;
 		d->GetPhysicalDeviceQueueFamilyProperties(devices[i], &family_count, NULL);
 		families = calloc(family_count ? family_count : 1, sizeof(*families));
@@ -151,6 +196,9 @@ static int vk_choose_device(struct halo_vk_device *d)
 		for (j = 0; j < family_count; j++)
 			if (families[j].queueCount && (families[j].queueFlags & VK_QUEUE_GRAPHICS_BIT))
 			{
+				present = VK_FALSE;
+				if (d->surface && (d->GetPhysicalDeviceSurfaceSupportKHR(devices[i], j, d->surface, &present) != VK_SUCCESS || !present))
+					continue;
 				d->physical = devices[i];
 				d->properties = properties;
 				d->queue_family = j;
@@ -161,11 +209,18 @@ static int vk_choose_device(struct halo_vk_device *d)
 	}
 	free(devices);
 	if (!selected)
-		fprintf(stderr, "vulkan: need Vulkan 1.1, a graphics queue and precise occlusion queries\n");
+		fprintf(stderr, "vulkan: need Vulkan 1.1, a graphics queue and precise occlusion queries (windowed: present support and EXT_swapchain_maintenance1)\n");
 	return selected;
 }
 
 int halo_vk_device_initialize(struct halo_vk_device *d, int validation)
+{
+	return halo_vk_device_initialize_surface(d, validation, NULL, 0, NULL, NULL);
+}
+
+int halo_vk_device_initialize_surface(struct halo_vk_device *d, int validation,
+	const char *const *extensions, unsigned count,
+	int (*create_surface)(VkInstance, void *, VkSurfaceKHR *), void *context)
 {
 	VkDeviceQueueCreateInfo queue = { VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO };
 	VkDeviceCreateInfo info = { VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO };
@@ -174,11 +229,32 @@ int halo_vk_device_initialize(struct halo_vk_device *d, int validation)
 	VkCommandBufferAllocateInfo allocation = { VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO };
 	VkQueryPoolCreateInfo queries = { VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO };
 	VkFenceCreateInfo fence = { VK_STRUCTURE_TYPE_FENCE_CREATE_INFO };
+	VkPhysicalDeviceSwapchainMaintenance1FeaturesEXT maintenance = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SWAPCHAIN_MAINTENANCE_1_FEATURES_EXT };
+	const char *device_extensions[] = { VK_KHR_SWAPCHAIN_EXTENSION_NAME, VK_EXT_SWAPCHAIN_MAINTENANCE_1_EXTENSION_NAME };
 	float priority = 1.0f;
 	unsigned i;
 
 	memset(d, 0, sizeof(*d));
-	if (!vk_create_instance(d, validation) || !vk_choose_device(d))
+	if (!vk_create_instance(d, validation, extensions, count))
+		goto failed;
+	if (create_surface)
+	{
+#define LOAD_SURFACE(name) \
+	d->name = (PFN_vk##name)d->GetInstanceProcAddr(d->instance, "vk" #name); \
+	if (!d->name) goto failed;
+		LOAD_SURFACE(DestroySurfaceKHR)
+		LOAD_SURFACE(GetPhysicalDeviceSurfaceSupportKHR)
+		LOAD_SURFACE(GetPhysicalDeviceSurfaceCapabilitiesKHR)
+		LOAD_SURFACE(GetPhysicalDeviceSurfaceFormatsKHR)
+#undef LOAD_SURFACE
+		if (!create_surface(d->instance, context, &d->surface))
+			goto failed;
+		maintenance.swapchainMaintenance1 = VK_TRUE;
+		info.pNext = &maintenance;
+		info.enabledExtensionCount = 2;
+		info.ppEnabledExtensionNames = device_extensions;
+	}
+	if (!vk_choose_device(d))
 		goto failed;
 	queue.queueFamilyIndex = d->queue_family;
 	queue.queueCount = 1;
@@ -193,6 +269,14 @@ int halo_vk_device_initialize(struct halo_vk_device *d, int validation)
 	d->name = (PFN_vk##name)d->GetDeviceProcAddr(d->device, "vk" #name); \
 	if (!d->name) { fprintf(stderr, "vulkan: missing vk%s\n", #name); goto failed; }
 	HALO_VK_DEVICE_FUNCTIONS(HALO_VK_LOAD_DEVICE)
+	if (d->surface)
+	{
+		HALO_VK_LOAD_DEVICE(CreateSwapchainKHR)
+		HALO_VK_LOAD_DEVICE(DestroySwapchainKHR)
+		HALO_VK_LOAD_DEVICE(GetSwapchainImagesKHR)
+		HALO_VK_LOAD_DEVICE(AcquireNextImageKHR)
+		HALO_VK_LOAD_DEVICE(QueuePresentKHR)
+	}
 #undef HALO_VK_LOAD_DEVICE
 	d->GetDeviceQueue(d->device, d->queue_family, 0, &d->queue);
 	d->GetPhysicalDeviceMemoryProperties(d->physical, &d->memory);
@@ -241,6 +325,8 @@ void halo_vk_device_dispose(struct halo_vk_device *d)
 		if (d->DestroyDevice)
 			d->DestroyDevice(d->device, NULL);
 	}
+	if (d->surface && d->DestroySurfaceKHR)
+		d->DestroySurfaceKHR(d->instance, d->surface, NULL);
 	if (d->debug_messenger)
 		d->DestroyDebugUtilsMessengerEXT(d->instance, d->debug_messenger, NULL);
 	if (d->instance && d->DestroyInstance)

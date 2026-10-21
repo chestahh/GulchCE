@@ -744,6 +744,13 @@ static const struct config_setting config_settings[] =
 	{ "debug.voice_test", _config_boolean, "false", "HALO_VOICE_TEST", _environment_set_is_true, _platform_all,
 		"Voice chat's automated tests: a tone instead of the microphone, and\n"
 		"each voice heard logged once a second." },
+	{ "debug.vulkan_presentation", _config_boolean, "false", "HALO_VULKAN_PRESENTATION", _environment_set_is_true, _platform_desktop,
+		"Run the native Vulkan presentation lifecycle test and exit, without\n"
+		"loading a map. This is not a playable Vulkan renderer." },
+	{ "debug.vulkan_capture", _config_string, "\"\"", "HALO_VULKAN_CAPTURE", _environment_value, _platform_desktop,
+		"Optional PPM output path for the verified Vulkan presentation test image." },
+	{ "debug.vulkan_validation", _config_boolean, "false", "HALO_VULKAN_VALIDATION", _environment_set_is_true, _platform_desktop,
+		"Require Khronos validation for the Vulkan presentation test." },
 	{ "debug.null_renderer", _config_boolean, "false", "HALO_NULL_RENDERER", _environment_set_is_true, _platform_all,
 		"Run without a window, drawing nothing." },
 	{ "debug.gl_debug", _config_boolean, "false", "HALO_GL_DEBUG", _environment_set_is_true, _platform_all,

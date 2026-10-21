@@ -38,7 +38,7 @@ def test_completion_ownership(tmp_path, fault):
     source = tmp_path / "device.c"
     source.write_text(code)
     output = tmp_path / ("completion.exe" if os.name == "nt" else "completion")
-    flags = ["-std=gnu89", "-Werror", "-Wno-missing-field-initializers",
+    flags = ["-std=gnu89", "-Werror", "-D_CRT_SECURE_NO_WARNINGS", "-Wno-missing-field-initializers",
              "-I" + str(BACKEND), "-I" + str(ROOT / "port/third_party/vulkan_headers/include")]
     flags += ["--target=i686-pc-windows-msvc", "-fuse-ld=lld"] if os.name == "nt" else ["-m32"]
     libs = [] if os.name == "nt" else ["-ldl"]
@@ -60,3 +60,29 @@ def test_vendored_headers_unchanged():
     for line in (root / "SHA256SUMS").read_text().splitlines():
         digest, name = line.split("  ", 1)
         assert hashlib.sha256((root / name).read_bytes()).hexdigest() == digest
+
+@pytest.mark.parametrize("fault", [None, "presentation_early", "acquire_wait", "retire_early", "missing_present_fence"])
+def test_presentation_ownership(tmp_path, fault):
+    cc = shutil.which("clang")
+    if not cc:
+        pytest.skip("clang required")
+    code = (BACKEND / "vulkan_present.c").read_text()
+    changes = {
+        "presentation_early": ("return a < 0 || b < 0 || c < 0 ? -1 : a && b && c;", "return a < 0 || b < 0 ? -1 : a && b;"),
+        "acquire_wait": ("p->swapchain, 0, f->acquired", "p->swapchain, UINT64_MAX, f->acquired"),
+        "retire_early": ("ready = frame_ready(p, i, 0);", "ready = 1;"),
+        "missing_present_fence": ("present.pNext = &completion;", "present.pNext = NULL;"),
+    }
+    if fault:
+        before, after = changes[fault]
+        assert before in code
+        code = code.replace(before, after, 1)
+    source = tmp_path / "presentation.c"
+    source.write_text(code)
+    output = tmp_path / ("presentation.exe" if os.name == "nt" else "presentation")
+    flags = ["-std=gnu89", "-Werror", "-D_CRT_SECURE_NO_WARNINGS", "-Wno-missing-field-initializers",
+             "-I" + str(BACKEND), "-I" + str(ROOT / "port/third_party/vulkan_headers/include")]
+    flags += ["--target=i686-pc-windows-msvc", "-fuse-ld=lld"] if os.name == "nt" else ["-m32"]
+    subprocess.run([cc, *flags, str(source), str(BACKEND / "tests/presentation.c"), str(BACKEND / "vulkan_device.c"), *([] if os.name == "nt" else ["-ldl"]), "-o", str(output)], check=True, capture_output=True)
+    result = subprocess.run([str(output)], capture_output=True, timeout=15)
+    assert (result.returncode == 0) == (fault is None), result.stdout.decode(errors="replace") + result.stderr.decode(errors="replace")

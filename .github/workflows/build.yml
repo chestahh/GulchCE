@@ -56,7 +56,7 @@ jobs:
           sudo apt-get update -q
           sudo apt-get install -y -q clang gcc-multilib python3-pytest \
             libvulkan1:i386 mesa-vulkan-drivers:i386 \
-            libvulkan1 mesa-vulkan-drivers vulkan-validationlayers
+            libvulkan1 mesa-vulkan-drivers vulkan-validationlayers cmake ninja-build libx11-dev libxext-dev libxrandr-dev libxcursor-dev libxi-dev libxfixes-dev libxss-dev libxtst-dev xvfb xauth pkg-config
       - name: Build and test native Vulkan ownership
         run: |
           python3 tools/vulkan_build.py
@@ -75,11 +75,37 @@ jobs:
         run: |
           set -o pipefail
           build/vulkan-host/vulkan-smoke --validation 2>&1 | tee build/vulkan/validation.log
+      - name: Build SDL for supplemental host window validation
+        run: |
+          python3 - <<'PY'
+          from tools.linux_sysroot import download, SDL_URLS, SDL_SHA256
+          from pathlib import Path
+          Path("build/vulkan/SDL.tar.gz").write_bytes(download(SDL_URLS, SDL_SHA256))
+          PY
+          mkdir -p build/vulkan/sdl-source
+          tar -xf build/vulkan/SDL.tar.gz -C build/vulkan/sdl-source --strip-components=1
+          cmake -S build/vulkan/sdl-source -B build/vulkan/sdl-build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="$PWD/build/vulkan/sdl" \
+            -DSDL_TEST_LIBRARY=OFF -DSDL_TESTS=OFF -DSDL_EXAMPLES=OFF -DSDL_WAYLAND=OFF
+          cmake --build build/vulkan/sdl-build --parallel 4
+          cmake --install build/vulkan/sdl-build
+      - name: Validate window presentation and resource retirement
+        env:
+          VK_DRIVER_FILES: /usr/share/vulkan/icd.d/lvp_icd.json
+          VK_LAYER_ENABLES: VK_VALIDATION_FEATURE_ENABLE_SYNCHRONIZATION_VALIDATION_EXT
+          SDL_VIDEO_DRIVER: x11
+        run: |
+          export PKG_CONFIG_PATH="$PWD/build/vulkan/sdl/lib/pkgconfig:$PWD/build/vulkan/sdl/lib64/pkgconfig"
+          export LD_LIBRARY_PATH="$PWD/build/vulkan/sdl/lib:$PWD/build/vulkan/sdl/lib64"
+          python3 tools/vulkan_build.py --host-validation --window
+          set -o pipefail
+          xvfb-run -a build/vulkan-host/vulkan-window --validation 2>&1 | tee build/vulkan/window-validation.log
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: vulkan-foundation-validation
           path: |
+            build/vulkan/window-validation.log
             build/vulkan/validation.log
             build/vulkan/gpu.log
             build/vulkan/depth.ppm
@@ -142,7 +168,7 @@ jobs:
         run: |
           printf '\n[multilib]\nInclude = /etc/pacman.d/mirrorlist\n' >> /etc/pacman.conf
           pacman -Syu --noconfirm --needed git zstd python python-pytest python-pillow python-numpy python-fonttools ninja ccache \
-            clang lld gcc lib32-glibc lib32-gcc-libs cmake pkgconf wayland
+            clang lld gcc lib32-glibc lib32-gcc-libs cmake pkgconf wayland lib32-vulkan-icd-loader lib32-vulkan-swrast xorg-server-xvfb xorg-xauth
 
       - uses: actions/checkout@v4
 
@@ -186,6 +212,12 @@ jobs:
           python -m pytest -q tools/test_linux_port.py tools/test_android_asm_convert.py tools/test_host_watch_hash.py tools/test_touch_menu.py tools/harness tools/test_profile.py tools/stagekit/tests tools/test_net_compare.py tools/test_visibility_readback.py
           python -m pytest -q tools/test_changelog_layout.py tools/test_changelog_menu.py tools/test_gulch_build_label.py tools/test_player_notes.py tools/test_changelog_release_base.py
           python tools/test_light_storage.py
+
+      - name: Test the game native Vulkan presentation dispatch
+        env:
+          HALO_VULKAN_PRESENTATION: "1"
+          SDL_VIDEO_DRIVER: x11
+        run: xvfb-run -a build/linux/halo
 
       - name: Compile cache
         run: ccache --show-stats

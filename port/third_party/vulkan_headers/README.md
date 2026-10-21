@@ -13,8 +13,9 @@ and the upstream license files. The C++ wrappers, platform-specific
 declarations, generators and registry are not needed by this initial target.
 The headers carry Apache-2.0 OR MIT terms; retain the notices and licenses.
 
-Used only by the native Vulkan foundation and its tests under
-`port/linux/src/vulkan/`. They do not supply an implementation, require an
-installed SDK, or change the game's existing OpenGL/GLES builds. The backend
+Used by the native Vulkan backend and its tests under
+`port/linux/src/vulkan/`, including the optional Windows/Linux presentation
+test in the game executable. They do not supply an implementation or require
+an installed SDK. OpenGL/GLES remains the normal rendering path. The backend
 loads the operating system's Vulkan loader at runtime. Header version is
 independent of the initial runtime baseline, Vulkan 1.1.

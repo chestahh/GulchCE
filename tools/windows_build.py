@@ -394,6 +394,7 @@ def generate_windows_build(n: Writer, sln: Any) -> None:
             )
 
         game_cflags = " ".join([
+            "-DHALO_NATIVE_VULKAN",
             abi,
             " ".join(GAME_FLAGS),
             f"-include {prefix_header}",
@@ -428,6 +429,7 @@ def generate_windows_build(n: Writer, sln: Any) -> None:
 
         linux_platform = Path(linux_config["platform_sources"])
         platform_cflags = " ".join([
+            "-DHALO_NATIVE_VULKAN",
             abi,
             " ".join(PLATFORM_FLAGS),
             f"-include {prefix_header}",
@@ -480,6 +482,11 @@ def generate_windows_build(n: Writer, sln: Any) -> None:
         for source in miniupnpc_sources():
             add_object(source, " ".join([abi, *WIN32_FLAGS, miniupnpc_include, f"-I{MINIUPNPC_DIR / 'src'}",
                                          "-D_CRT_SECURE_NO_WARNINGS", "-D_WINSOCK_DEPRECATED_NO_WARNINGS", "-w"]))
+        # Vulkan owns its device/window; only the D3D8 adapter uses the game ABI.
+        vulkan_dir = Path("port/linux/src/vulkan")
+        add_object(vulkan_dir / "vulkan_dispatch.c", platform_cflags)
+        for filename in ("vulkan_device.c", "vulkan_present.c", "vulkan_window.c"):
+            add_object(vulkan_dir / filename, win32_cflags + " -std=gnu89 -Iport/third_party/vulkan_headers/include")
         for source in embedded_assets:
             add_object(source, platform_cflags)
         # the settings file's parser (port/third_party/tomlc17), with the

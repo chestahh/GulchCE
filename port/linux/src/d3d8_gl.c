@@ -22,6 +22,9 @@ Conventions carried over from the Xbox:
 */
 
 #include "xgpu.h"
+#ifdef HALO_NATIVE_VULKAN
+#include "vulkan/vulkan_dispatch.h"
+#endif
 #include "mcc_environment_shader.h"
 #include "sdl_platform.h"
 #include "halo_ui_pointer.h"
@@ -2144,6 +2147,10 @@ HRESULT WINAPI Direct3D_CreateDevice(UINT adapter, D3DDEVTYPE device_type, void 
 	unsigned long width, height;
 	int index;
 
+#ifdef HALO_NATIVE_VULKAN
+	if (halo_vulkan_dispatch_active)
+		return halo_vulkan_create(presentation_parameters, returned_device);
+#endif
 	(void)adapter;
 	(void)device_type;
 	(void)unused;
@@ -2363,6 +2370,10 @@ long halo_screen_commit(void)
 
 ULONG WINAPI D3DDevice_Release(void)
 {
+#ifdef HALO_NATIVE_VULKAN
+	if (halo_vulkan_dispatch_active)
+		return halo_vulkan_release();
+#endif
 	return 1;
 }
 
@@ -6128,6 +6139,13 @@ void WINAPI D3DDevice_Clear(DWORD count, CONST D3DRECT *rectangles, DWORD flags,
 	BOOL has_depth = FALSE;
 	DWORD index;
 
+#ifdef HALO_NATIVE_VULKAN
+	if (halo_vulkan_dispatch_active)
+	{
+		halo_vulkan_clear(count, rectangles, flags, color, z, stencil);
+		return;
+	}
+#endif
 	if (!device.gl_ready || !bind_targets(&has_depth))
 		return;
 	if (trace_frame())
@@ -6702,6 +6720,14 @@ void WINAPI D3DDevice_Present(CONST RECT *source_rectangle, CONST RECT *destinat
 	void *unused, void *unused2)
 {
 	static long screenshot_every = -1;
+
+#ifdef HALO_NATIVE_VULKAN
+	if (halo_vulkan_dispatch_active)
+	{
+		halo_vulkan_present(source_rectangle, destination_rectangle, unused, unused2);
+		return;
+	}
+#endif
 
 	(void)source_rectangle;
 	(void)destination_rectangle;

@@ -104,6 +104,12 @@ shell_idle(
 int main(
 	void)
 {
+#ifdef HALO_NATIVE_VULKAN
+	/* port: opt-in native presentation test exits before game/map initialization. */
+	int vulkan_test = halo_vulkan_startup_test();
+	if (vulkan_test >= 0)
+		return vulkan_test;
+#endif
 	fuck_code_in_the_eye();
 	rasterizer_preinitialize__fill_you_up_with_the_devils_cock();
 	physical_memory_allocate();
