@@ -140,14 +140,12 @@ static const struct config_setting config_settings[] =
 		"Third-person Warthog and Scorpion passengers. Weapon zoom is disabled." },
 	{ "display.shield_look", _config_string, "\"classic\"", "HALO_SHIELD_LOOK", _environment_value, _platform_all,
 		"Shield appearance (saved values retain their existing profiles):\n"
-		"\"classic\" (CLASSIC) keeps the map's own look.\n"
+		"\"classic\" (DEFAULT) keeps the map's own look.\n"
 		"\"classic_with_sprinkles\" (CLASSIC WITH SPRINKLES) adds layers, arcs\n"
 		"and recharge to the classic surface. \"classic_honeycomb2\"\n"
-		"(CLASSIC HONEYCOMB) lights hexagonal links with flowing classic plasma.\n"
+		"(INFINITE HONEYCOMB) lights hexagonal links with flowing classic plasma.\n"
 		"\"enhanced\" (MARK VI) uses CMT body and first-person shields.\n"
-		"\"classic_honeycomb\" (HONEYCOMB LAYERED) overlays pulsing links on\n"
-		"the classic surface. \"honeycomb\" (HONEYCOMB CLEAR) uses a hexagonal\n"
-		"energy surface. Non-CLASSIC looks preserve custom map colour.\n"
+		"Non-default looks preserve custom map colour.\n"
 		"Arm Shields controls all arms. Local drawing only; independent of mods." },
 	{ "display.viewmodel_shield", _config_boolean, "false", "HALO_VIEWMODEL_SHIELD", _environment_value, _platform_all,
 		"The energy shield's flare on the first-person arms too, as on the body\n"
@@ -1512,7 +1510,7 @@ static const struct
 	{ "display.resolution_scaling", { "native", "original", NULL }, NULL },
 	{ "display.anti_aliasing", { "off", "fxaa", "smaa", "ssaa2x", "msaa2x", "msaa4x", "msaa8x", NULL }, NULL },
 	{ "display.hud_button_style", { "classic", "gems", "menu_gems", NULL }, NULL },
-	{ "display.shield_look", { "classic", "enhanced", "classic_with_sprinkles", "honeycomb", "classic_honeycomb", "classic_honeycomb2", NULL }, NULL },
+	{ "display.shield_look", { "classic", "classic_with_sprinkles", "enhanced", "classic_honeycomb2", NULL }, NULL },
 	{ "display.menus", { "pc", "xbox", NULL }, NULL },
 	{ "display.player_names", { "all", "allies", "enemies", "none", NULL }, NULL },
 	{ "display.scoreboard_team_layout", { "teams", "score", NULL }, NULL },
@@ -1558,6 +1556,14 @@ static void config_check_words(void)
 		{
 			free(value->string);
 			value->string = strdup("enhanced");
+		}
+		/* Retired shield presets return to the stock selection. */
+		if (!strcmp(config_words[word_index].name, "display.shield_look") &&
+			(config_word_is(value->string, strlen(value->string), "honeycomb") ||
+			config_word_is(value->string, strlen(value->string), "classic_honeycomb")))
+		{
+			free(value->string);
+			value->string = strdup("classic");
 		}
 		for (word = 0; words[word] && !config_word_is(value->string, strlen(value->string), words[word]); word++)
 		{

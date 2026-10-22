@@ -181,76 +181,46 @@ int main(int argc, char **argv)
         reference_pixels[0] ^= 1; read_failed = 1; CHECK(!shield_look_read_noise(3)); free(reference_pixels);
         return 0;
     }
-    if (!strcmp(argv[1], "honeycomb")) {
-        struct shader *enhanced, *honeycomb, *arms;
-        struct shield_look_plasma saved;
-        enhanced = shield_look_body(0, &stock.shader);
-        saved = *(struct shield_look_plasma *)enhanced;
-        CHECK(!shield_look_honeycomb_scale(enhanced));
+    if (!strcmp(argv[1], "removed")) {
         setting = "honeycomb";
-        honeycomb = shield_look_body(0, &stock.shader);
-        CHECK(honeycomb != enhanced && shield_look_honeycomb_scale(honeycomb) == 87.5f);
-        CHECK(!memcmp(honeycomb, &saved, sizeof(saved)));
-        CHECK(draw_arms(0, 0, 7, &effect));
-        arms = effect.modifier_shader;
-        CHECK(shield_look_honeycomb_scale(arms) == 225.f);
-        CHECK(effect.modifier_animation.values == arm_values[0]);
-        arm_setting = 0; CHECK(!draw_arms(0, 0, 7, &effect));
-        CHECK(!effect.modifier_shader);
-        setting = "classic_with_sprinkles";
-        CHECK(!shield_look_honeycomb_scale(shield_look_body(0, &stock.shader)));
-        CHECK(shield_look_honeycomb_scale(honeycomb));
-        setting = "enhanced";
-        CHECK(shield_look_body(0, &stock.shader) == enhanced);
-        CHECK(!memcmp(enhanced, &saved, sizeof(saved)));
-        setting = "classic";
+        CHECK(!shield_look_enabled());
         CHECK(shield_look_body(0, &stock.shader) == &stock.shader);
-        CHECK(!shield_look_honeycomb_scale(&stock.shader));
-        shield_look_reset(); CHECK(!shield_look_honeycomb_scale(honeycomb));
+        setting = "classic_honeycomb";
+        CHECK(!shield_look_enabled());
+        CHECK(shield_look_body(0, &stock.shader) == &stock.shader);
         return 0;
     }
     if (!strcmp(argv[1], "classic-honeycomb")) {
         struct shield_look_plasma saved_body, saved_arms;
-        struct shader *sprinkles, *mixed, *hands, *flow;
+        struct shader *sprinkles, *mixed, *hands;
         real_rgb_color a, b;
         setting = "classic_with_sprinkles";
         sprinkles = shield_look_body(0, &stock.shader);
         saved_body = *(struct shield_look_plasma *)sprinkles;
         CHECK(draw_arms(0, 0, 7, &effect));
         saved_arms = *(struct shield_look_plasma *)effect.modifier_shader;
-        setting = "classic_honeycomb";
+        setting = "classic_honeycomb2";
         mixed = shield_look_body(0, &stock.shader);
         CHECK(mixed != sprinkles && !memcmp(mixed, &saved_body, sizeof(saved_body)));
         CHECK(shield_look_honeycomb_scale(mixed) == 87.5f);
-        CHECK(shield_look_honeycomb_classic_mode(mixed) == 2);
+        CHECK(shield_look_honeycomb_classic_mode(mixed) == 3);
         CHECK(!shield_look_honeycomb_classic_mode(sprinkles));
         CHECK(draw_arms(0, 0, 7, &effect)); hands = effect.modifier_shader;
         CHECK(!memcmp(hands, &saved_arms, sizeof(saved_arms)));
         CHECK(shield_look_honeycomb_scale(hands) == 225.f && shield_look_honeycomb_classic_mode(hands) == 1);
         CHECK(effect.modifier_animation.values == arm_values[0]);
-        setting = "classic_honeycomb2";
-        flow = shield_look_body(0, &stock.shader);
-        CHECK(flow != mixed && !memcmp(flow, &saved_body, sizeof(saved_body)));
-        CHECK(shield_look_honeycomb_classic_mode(flow) == 3);
-        CHECK(shield_look_honeycomb_classic_mode(mixed) == 2);
-        CHECK(shield_look_honeycomb_scale(flow) == 87.5f);
-        CHECK(draw_arms(0, 0, 7, &effect));
-        CHECK(!memcmp(effect.modifier_shader, &saved_arms, sizeof(saved_arms)));
-        CHECK(shield_look_honeycomb_classic_mode(effect.modifier_shader) == 1);
-        CHECK(shield_look_honeycomb_scale(effect.modifier_shader) == 225.f);
         stock.perpendicular_color.red = 0.f; stock.perpendicular_color.green = 1.f; stock.perpendicular_color.blue = 0.f;
         a = saved_body.perpendicular_color; b = saved_body.parallel_color;
         CHECK(shield_look_colors(mixed, NULL, &a, &b));
         CHECK(a.red == 0.f && a.green == 1.f && a.blue == 0.f);
         arm_setting = 0; CHECK(!draw_arms(0, 0, 7, &effect)); CHECK(!effect.modifier_shader);
         setting = "honeycomb"; CHECK(!shield_look_honeycomb_classic_mode(shield_look_body(0, &stock.shader)));
-        CHECK(shield_look_honeycomb_classic_mode(mixed) == 2); /* queued draw retains identity */
+        CHECK(shield_look_honeycomb_classic_mode(mixed) == 3); /* queued draw retains identity */
         setting = "classic_with_sprinkles";
         CHECK(shield_look_body(0, &stock.shader) == sprinkles && !memcmp(sprinkles, &saved_body, sizeof(saved_body)));
         setting = "classic"; CHECK(shield_look_body(0, &stock.shader) == &stock.shader);
         shield_look_reset(); CHECK(!shield_look_honeycomb_classic_mode(mixed));
         CHECK(!shield_look_honeycomb_scale(hands));
-        CHECK(!shield_look_honeycomb_classic_mode(flow));
         return 0;
     }
     if (!strcmp(argv[1], "sprinkles")) {
@@ -291,8 +261,8 @@ int main(int argc, char **argv)
         body = shield_look_body(0, &stock.shader);
         saved = *(struct shield_look_plasma *)body;
         original_a = saved.perpendicular_color; original_b = saved.parallel_color;
-        peak_a = (!strcmp(setting, "classic_honeycomb") || !strcmp(setting, "classic_honeycomb2")) ? 1.f : original_a.red;
-        peak_b = (!strcmp(setting, "classic_honeycomb") || !strcmp(setting, "classic_honeycomb2")) ? 1.f : original_b.red;
+        peak_a = (!strcmp(setting, "classic_honeycomb2")) ? 1.f : original_a.red;
+        peak_b = (!strcmp(setting, "classic_honeycomb2")) ? 1.f : original_b.red;
         a = original_a; b = original_b;
         CHECK(!shield_look_colors(body, NULL, &a, &b));
         CHECK(!memcmp(&a, &original_a, sizeof(a)));
@@ -454,7 +424,7 @@ int main(int argc, char **argv)
         shield_look_count = SHIELD_LOOK_MAXIMUM; object.definition_index = 6; tags[6] = &definition;
         CHECK(shield_look_body(0, &stock.shader) == &stock.shader);
         CHECK(((struct shield_look_plasma *)body)->primary_scale ==
-            ((!strcmp(setting, "classic_honeycomb") || !strcmp(setting, "classic_honeycomb2")) ? 10.f : 18.f));
+            ((!strcmp(setting, "classic_honeycomb2")) ? 10.f : 18.f));
     } else { fprintf(stderr, "unknown case: %s\n", argv[1]); return 1; }
     return 0;
 }

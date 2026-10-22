@@ -40,24 +40,11 @@ static const char shield_honeycomb_glsl[] =
 	"        vec3 colour = clamp(xD1.rgb,0.0,1.0);\n"
 	"        return vec4(original.rgb*(0.45+pattern*1.5)+colour*pattern*0.08,original.a);\n"
 	"    }\n"
-	/* The Classic RGB already carries the plasma's dark gaps. Body links
-	need the same resolved vertex colour before that noise mask, otherwise
-	the plasma erases them. Keep the approved first-person formula below. */
-	"    if (shield_honeycomb[0].x == 2.0)\n"
-	"    {\n"
-	"        vec3 colour = clamp(xD1.rgb,0.0,1.0);\n"
-	"        return vec4(original.rgb*0.45+colour*pattern*0.85,original.a);\n"
-	"    }\n"
 	/* Classic owns the fully resolved RGB, including its view-angle blend.
 	Only opacity combines here; neither layer introduces a second palette. */
-	"    if (shield_honeycomb[0].x != 0.0)\n"
-	"    {\n"
-	"        float plasma = max(original.a,0.0)*0.65;\n"
-	"        float links = energy*pattern*0.65;\n"
-	"        return vec4(original.rgb,plasma+links);\n"
-	"    }\n"
-	"    float membrane = min(max(original.a,0.0),energy)*0.04;\n"
-	"    return vec4(shield_honeycomb[2].rgb + shield_honeycomb[1].rgb*0.65,energy*pattern+membrane);\n"
+	"    float plasma = max(original.a,0.0)*0.65;\n"
+	"    float links = energy*pattern*0.65;\n"
+	"    return vec4(original.rgb,plasma+links);\n"
 	"}\n";
 
 #endif
