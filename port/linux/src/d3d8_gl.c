@@ -4180,8 +4180,9 @@ static float shield_honeycomb_value[3][4];
 /* Draw-local extension for shield_honeycomb_gl.h. A zero scale disables it;
 the caller restores that state immediately after the owned plasma draw. */
 void d3d8_gl_set_shield_honeycomb(float scale, float time,
-	const float *difference, const float *parallel)
+	const float *difference, const float *parallel, float classic_surface)
 {
+	shield_honeycomb_value[0][0] = scale != 0.f ? classic_surface : 0.f;
 	shield_honeycomb_value[0][3] = scale;
 	if (scale != 0.f)
 	{

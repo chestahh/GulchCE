@@ -209,6 +209,50 @@ int main(int argc, char **argv)
         shield_look_reset(); CHECK(!shield_look_honeycomb_scale(honeycomb));
         return 0;
     }
+    if (!strcmp(argv[1], "classic-honeycomb")) {
+        struct shield_look_plasma saved_body, saved_arms;
+        struct shader *sprinkles, *mixed, *hands, *flow;
+        real_rgb_color a, b;
+        setting = "classic_with_sprinkles";
+        sprinkles = shield_look_body(0, &stock.shader);
+        saved_body = *(struct shield_look_plasma *)sprinkles;
+        CHECK(draw_arms(0, 0, 7, &effect));
+        saved_arms = *(struct shield_look_plasma *)effect.modifier_shader;
+        setting = "classic_honeycomb";
+        mixed = shield_look_body(0, &stock.shader);
+        CHECK(mixed != sprinkles && !memcmp(mixed, &saved_body, sizeof(saved_body)));
+        CHECK(shield_look_honeycomb_scale(mixed) == 87.5f);
+        CHECK(shield_look_honeycomb_classic_mode(mixed) == 2);
+        CHECK(!shield_look_honeycomb_classic_mode(sprinkles));
+        CHECK(draw_arms(0, 0, 7, &effect)); hands = effect.modifier_shader;
+        CHECK(!memcmp(hands, &saved_arms, sizeof(saved_arms)));
+        CHECK(shield_look_honeycomb_scale(hands) == 225.f && shield_look_honeycomb_classic_mode(hands) == 1);
+        CHECK(effect.modifier_animation.values == arm_values[0]);
+        setting = "classic_honeycomb2";
+        flow = shield_look_body(0, &stock.shader);
+        CHECK(flow != mixed && !memcmp(flow, &saved_body, sizeof(saved_body)));
+        CHECK(shield_look_honeycomb_classic_mode(flow) == 3);
+        CHECK(shield_look_honeycomb_classic_mode(mixed) == 2);
+        CHECK(shield_look_honeycomb_scale(flow) == 87.5f);
+        CHECK(draw_arms(0, 0, 7, &effect));
+        CHECK(!memcmp(effect.modifier_shader, &saved_arms, sizeof(saved_arms)));
+        CHECK(shield_look_honeycomb_classic_mode(effect.modifier_shader) == 1);
+        CHECK(shield_look_honeycomb_scale(effect.modifier_shader) == 225.f);
+        stock.perpendicular_color.red = 0.f; stock.perpendicular_color.green = 1.f; stock.perpendicular_color.blue = 0.f;
+        a = saved_body.perpendicular_color; b = saved_body.parallel_color;
+        CHECK(shield_look_colors(mixed, NULL, &a, &b));
+        CHECK(a.red == 0.f && a.green == 1.f && a.blue == 0.f);
+        arm_setting = 0; CHECK(!draw_arms(0, 0, 7, &effect)); CHECK(!effect.modifier_shader);
+        setting = "honeycomb"; CHECK(!shield_look_honeycomb_classic_mode(shield_look_body(0, &stock.shader)));
+        CHECK(shield_look_honeycomb_classic_mode(mixed) == 2); /* queued draw retains identity */
+        setting = "classic_with_sprinkles";
+        CHECK(shield_look_body(0, &stock.shader) == sprinkles && !memcmp(sprinkles, &saved_body, sizeof(saved_body)));
+        setting = "classic"; CHECK(shield_look_body(0, &stock.shader) == &stock.shader);
+        shield_look_reset(); CHECK(!shield_look_honeycomb_classic_mode(mixed));
+        CHECK(!shield_look_honeycomb_scale(hands));
+        CHECK(!shield_look_honeycomb_classic_mode(flow));
+        return 0;
+    }
     if (!strcmp(argv[1], "sprinkles")) {
         struct shield_look_plasma enhanced, saved, *p;
         struct shader *previous;
@@ -243,15 +287,18 @@ int main(int argc, char **argv)
     if (!strcmp(argv[1], "colors")) {
         struct shield_look_plasma saved;
         real_rgb_color a, b, original_a, original_b;
+        real peak_a, peak_b;
         body = shield_look_body(0, &stock.shader);
         saved = *(struct shield_look_plasma *)body;
         original_a = saved.perpendicular_color; original_b = saved.parallel_color;
+        peak_a = (!strcmp(setting, "classic_honeycomb") || !strcmp(setting, "classic_honeycomb2")) ? 1.f : original_a.red;
+        peak_b = (!strcmp(setting, "classic_honeycomb") || !strcmp(setting, "classic_honeycomb2")) ? 1.f : original_b.red;
         a = original_a; b = original_b;
         CHECK(!shield_look_colors(body, NULL, &a, &b));
         CHECK(!memcmp(&a, &original_a, sizeof(a)));
         stock.perpendicular_color.red = 0.243137f; stock.perpendicular_color.blue = 1.f;
         CHECK(shield_look_colors(body, NULL, &a, &b));
-        CHECK(a.blue == original_a.red && b.blue == original_b.red);
+        CHECK(a.blue == peak_a && b.blue == peak_b);
         CHECK(a.red < a.green && a.green < a.blue);
         CHECK(!memcmp(body, &saved, sizeof(saved)));
         CHECK(!shield_look_colors(&stock.shader, NULL, &a, &b));
@@ -261,14 +308,14 @@ int main(int argc, char **argv)
         unit.object.outgoing_change_colors[2].blue = 0.4f;
         a = original_a; b = original_b;
         CHECK(shield_look_colors(body, unit.object.outgoing_change_colors, &a, &b));
-        CHECK(a.red == 0.f && a.green == 0.f && a.blue == original_a.red);
-        CHECK(b.blue == original_b.red);
+        CHECK(a.red == 0.f && a.green == 0.f && a.blue == peak_a);
+        CHECK(b.blue == peak_b);
         CHECK(draw_arms(0, 0, 7, &effect));
         unit.object.outgoing_change_colors[2].blue = 0.f;
         unit.object.outgoing_change_colors[2].green = 1.f;
         a = original_a; b = original_b;
         CHECK(shield_look_colors(effect.modifier_shader, unit.object.outgoing_change_colors, &a, &b));
-        CHECK(a.green == original_a.red && a.blue == 0.f);
+        CHECK(a.green == peak_a && a.blue == 0.f);
         CHECK(!shield_look_colors(body, NULL, &a, &b));
         stock.color_source = 5;
         CHECK(!shield_look_colors(body, unit.object.outgoing_change_colors, &a, &b));
@@ -278,7 +325,7 @@ int main(int argc, char **argv)
         stock.perpendicular_color.blue = 1.e-39f;
         a = original_a; b = original_b;
         CHECK(shield_look_colors(body, NULL, &a, &b));
-        CHECK(a.blue == original_a.red && a.red == 0.f);
+        CHECK(a.blue == peak_a && a.red == 0.f);
         stock.perpendicular_color.blue = 1.f;
         stock.shader.base.type = 6;
         CHECK(!shield_look_colors(body, NULL, &a, &b));
@@ -406,7 +453,8 @@ int main(int argc, char **argv)
         }
         shield_look_count = SHIELD_LOOK_MAXIMUM; object.definition_index = 6; tags[6] = &definition;
         CHECK(shield_look_body(0, &stock.shader) == &stock.shader);
-        CHECK(((struct shield_look_plasma *)body)->primary_scale == 18.f);
+        CHECK(((struct shield_look_plasma *)body)->primary_scale ==
+            ((!strcmp(setting, "classic_honeycomb") || !strcmp(setting, "classic_honeycomb2")) ? 10.f : 18.f));
     } else { fprintf(stderr, "unknown case: %s\n", argv[1]); return 1; }
     return 0;
 }

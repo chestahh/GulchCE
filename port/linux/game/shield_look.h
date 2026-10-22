@@ -18,6 +18,7 @@ void shield_recharge_prepare(long object_index, struct render_model_effect const
 boolean shield_recharge_visible(struct shader const *shader, real const *values);
 void shield_recharge_draw(struct shader const *shader, real const *values, real *intensity, real *offset);
 real shield_look_honeycomb_scale(struct shader const *shader);
+short shield_look_honeycomb_classic_mode(struct shader const *shader);
 void shield_look_reset(void);
 boolean shield_look_skip_shell(struct model const *model, struct shader const *surface);
 struct shader *shield_look_body(long object_index, struct shader *original);

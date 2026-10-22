@@ -84,6 +84,7 @@ struct shield_look_entry
 	boolean eligible;
 	boolean sprinkles;
 	boolean honeycomb;
+	boolean honeycomb_flow;
 	struct shield_look_plasma body;
 	struct shield_look_plasma arms;
 };
@@ -99,7 +100,8 @@ static boolean shield_look_enabled(void)
 {
 	char const *value = config_string("display.shield_look");
 	return value && (!strcmp(value, "enhanced") || !strcmp(value, "enhanced2") ||
-		!strcmp(value, "classic_with_sprinkles") || !strcmp(value, "honeycomb"));
+		!strcmp(value, "classic_with_sprinkles") || !strcmp(value, "honeycomb") ||
+		!strcmp(value, "classic_honeycomb") || !strcmp(value, "classic_honeycomb2"));
 }
 
 static uint32_t shield_look_hash(uint32_t hash, void const *data, size_t size)
@@ -238,11 +240,17 @@ static struct shield_look_entry *shield_look_for_unit(long object_index, long ha
 	long noise_index;
 	boolean sprinkles;
 	boolean honeycomb;
+	boolean honeycomb_flow;
 
 	if (!shield_look_enabled())
 		return NULL;
-	sprinkles = !strcmp(config_string("display.shield_look"), "classic_with_sprinkles");
-	honeycomb = !strcmp(config_string("display.shield_look"), "honeycomb");
+	sprinkles = !strcmp(config_string("display.shield_look"), "classic_with_sprinkles") ||
+		!strcmp(config_string("display.shield_look"), "classic_honeycomb") ||
+		!strcmp(config_string("display.shield_look"), "classic_honeycomb2");
+	honeycomb = !strcmp(config_string("display.shield_look"), "honeycomb") ||
+		!strcmp(config_string("display.shield_look"), "classic_honeycomb") ||
+		!strcmp(config_string("display.shield_look"), "classic_honeycomb2");
+	honeycomb_flow = !strcmp(config_string("display.shield_look"), "classic_honeycomb2");
 	object = object_try_and_get(object_index);
 	if (!object || object->object.type != _object_type_biped)
 		return NULL;
@@ -250,7 +258,8 @@ static struct shield_look_entry *shield_look_for_unit(long object_index, long ha
 	{
 		entry = &shield_looks[index];
 		if (entry->definition_index == object->definition_index && entry->hands_index == hands_index &&
-			entry->sprinkles == sprinkles && entry->honeycomb == honeycomb)
+			entry->sprinkles == sprinkles && entry->honeycomb == honeycomb &&
+			entry->honeycomb_flow == honeycomb_flow)
 			return entry->eligible ? entry : NULL;
 	}
 	/* Refuse overflow rather than recycling memory still used by a draw. */
@@ -261,6 +270,7 @@ static struct shield_look_entry *shield_look_for_unit(long object_index, long ha
 	entry->hands_index = hands_index;
 	entry->sprinkles = sprinkles;
 	entry->honeycomb = honeycomb;
+	entry->honeycomb_flow = honeycomb_flow;
 	definition = object_definition_get(object->definition_index);
 	if (!cache_file_tag_cache_contains(definition, sizeof(*definition)))
 		return NULL;
@@ -414,6 +424,20 @@ real shield_look_honeycomb_scale(struct shader const *shader)
 			return shader == &entry->arms.shader ? 225.f : 87.5f;
 	}
 	return 0.f;
+}
+
+/* Draw-local composition: 0 is disabled, 1 is arms, 2 is the body, 3 follows body plasma. */
+short shield_look_honeycomb_classic_mode(struct shader const *shader)
+{
+	short index;
+	for (index = 0; index < shield_look_count; index++)
+	{
+		struct shield_look_entry const *entry = &shield_looks[index];
+		if (entry->eligible && entry->honeycomb && entry->sprinkles &&
+			(shader == &entry->body.shader || shader == &entry->arms.shader))
+			return shader == &entry->arms.shader ? 1 : (entry->honeycomb_flow ? 3 : 2);
+	}
+	return 0;
 }
 
 void shield_look_reset(void)
