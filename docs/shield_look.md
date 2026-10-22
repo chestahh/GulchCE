@@ -4,19 +4,24 @@ Video Setup > FOV and Viewmodels > SHIELD LOOK offers these presets in order:
 
 | Menu label | Saved configuration value | Previous menu label |
 | --- | --- | --- |
-| CLASSIC (default) | `classic` | CLASSIC |
+| DEFAULT (default) | `classic` | CLASSIC |
 | CLASSIC WITH SPRINKLES | `classic_with_sprinkles` | CLASSIC WITH SPRINKLES |
-| CLASSIC HONEYCOMB | `classic_honeycomb2` | CLASSIC HONEYCOMB 2 |
 | MARK VI | `enhanced` | ENHANCED |
-| HONEYCOMB LAYERED | `classic_honeycomb` | CLASSIC HONEYCOMB |
-| HONEYCOMB CLEAR | `honeycomb` | ENHANCED HONEYCOMB |
+| INFINITE HONEYCOMB | `classic_honeycomb2` | CLASSIC HONEYCOMB |
 
-Only the displayed names and order changed. Saved values retain their exact
-profiles, so existing selections do not change appearance. The menu/default
-regression passes, Windows/Android/web builds pass, and all six labels were
-visually checked in the Windows FOV and Viewmodels menu. This rename changes
-no shader, profile, network or map-family behaviour. Historical design
+The retained presets keep their saved values and exact visual formulas.
+HONEYCOMB CLEAR and HONEYCOMB LAYERED have been removed, including their
+exclusive shader paths. Saved `honeycomb` and `classic_honeycomb` selections
+return to DEFAULT. Offsets, map-colour inheritance, Arm Shields authority,
+arcs, recharge and overshield precedence are unchanged. Historical design
 and validation notes below retain the names used when those checks were run.
+The four-preset cleanup passed 118 focused shield tests and Windows, Android
+and web release builds. Hidden Windows UI runs verified all four labels and
+both retired-value fallbacks. The retained GLSL grid, body and arm formulas
+were compared against the previous revision and are unchanged. Map-colour,
+Arm Shields and lifecycle harness checks pass; gameplay captures, multiplayer
+and physical Android/web rendering were not repeated for this removal.
+
 The former ENHANCED 2 profile is the current MARK VI look.
 
 `display.shield_look = "enhanced"`, or `HALO_SHIELD_LOOK=enhanced`, selects

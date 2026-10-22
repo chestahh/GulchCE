@@ -170,13 +170,7 @@ int main() {
         assert(bright.x==original.x && bright.y==original.y && bright.z==original.z);
         assert(bright.a>dim.a && dim.a>=original.a*.65f);
         assert(fabs(bright.a-(original.a*.65f+.5f*grid*.65f))<.00001f);
-        shield_honeycomb[0].x=2.f; xD1=vec4({0.f,.6f,1.f},.5f);
-        vec4 gap=shield_honeycomb_surface(vec4({0.f,0.f,0.f},original.a));
-        assert(gap.x==0.f && gap.y>0.f && gap.z>gap.y && gap.a==original.a);
-        assert(fabs(gap.y/gap.z-.6f)<.00001f);
-        grid=.2f; vec4 body_dim=shield_honeycomb_surface(original);
-        grid=.9f; vec4 body_bright=shield_honeycomb_surface(original);
-        assert(body_bright.z>body_dim.z && body_bright.a==original.a);
+        xD1=vec4({0.f,.6f,1.f},.5f);
         shield_honeycomb[0].x=3.f;
         // Keep the grid fixed: only the real plasma changes over time.
         vec4 dark({0.f,0.f,0.f},original.a);
@@ -200,10 +194,6 @@ int main() {
         shield_honeycomb[0].x=1.f;
         vec4 arms_again=shield_honeycomb_surface(original);
         assert(arms_again.x==bright.x && arms_again.y==bright.y && arms_again.z==bright.z && arms_again.a==bright.a);
-        shield_honeycomb[0].x=0.f;
-        vec4 enhanced=shield_honeycomb_surface(original);
-        float expected=.5f*grid+min(max(original.a,0.f),.5f)*.04f;
-        assert(fabs(enhanced.a-expected)<.00001f);
     }
     shield_honeycomb[0].x=1.f; xD0.a=0.f;
     assert(shield_honeycomb_surface(vec4({1.f,1.f,1.f},0.f)).a==0.f);
