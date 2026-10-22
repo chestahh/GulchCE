@@ -98,6 +98,13 @@ def test_six_button_styles_toggle_and_dispose(tmp_path, mcc):
             if a['name'] in ['a_butn__0','b_butn__0','x_butn__0','y_butn__0','black_butn__0','white_butn__0',
                              'mcc_black_butn__0','mcc_white_butn__0'] or 'classic' in a or 'source_png' in a]
     prelude = r'''
+#define ce_hud_buttons_stock(icon, index) 1
+static int ce,stock_sheet=1;
+static int lowres_draws;
+#define ce_hud_buttons_forget() ((void)0)
+#define ce_hud_button_draw(icon,cursor,color) (++lowres_draws,1)
+#define custom_edition_cache_tags_loaded() ce
+#define custom_edition_cache_stock_tag(index) stock_sheet
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
@@ -108,7 +115,7 @@ typedef struct {short x0,y0,x1,y1;} rectangle2d;
 #define csmemset memset
 struct bitmap_data {unsigned long *hardware_format;};
 struct icon_hud_element_definition {unsigned flags;pixel32 color;short frame_rate;};
-struct {struct {struct {int count;void *address;}button_icons;}messaging;} globals,*hud_globals=&globals;
+struct {struct {struct {int count;void *address;}button_icons;struct {long index;}messaging_icons;}messaging;} globals,*hud_globals=&globals;
 struct dynamic_screen_vertex {struct {float x,y;}position,texture_coordinates;pixel32 color;};
 struct rasterizer_dynamic_screen_geometry_parameters {
     struct bitmap_data *map[3];struct {float i,j;}map_texture_scale[3],map_scale[3];int framebuffer_blend_function;
@@ -155,6 +162,16 @@ static void rasterizer_psuedo_dynamic_screen_quad_draw(struct rasterizer_dynamic
     check_off = (r'''enabled=0;gems=0;assert(mcc_hud_button_bitmap(0));
         assert(!strstr(tags[last_asset],"classic"));''' if mcc else r'''
         enabled=0;assert(!hud_hires_button_draw(&buttons[0],&cursor,0xffffffff));
+        ce=1;assert(!hud_hires_button_draw(&buttons[0],&cursor,0xffffffff));
+        stock_sheet=0;assert(hud_hires_button_draw(&buttons[0],&cursor,0xffffffff));
+        assert(lowres_draws==1);
+        for(i=1;i<18;i++) assert(hud_hires_button_draw(&buttons[i],&cursor,0xffffffff));
+        assert(lowres_draws==18);
+        enabled=1;assert(hud_hires_button_draw(&buttons[0],&cursor,0xffffffff));
+        assert(lowres_draws==18);
+        enabled=0;
+        assert(!hud_hires_button_draw(&unrelated,&cursor,0xffffffff));
+        ce=0;assert(!hud_hires_button_draw(&buttons[0],&cursor,0xffffffff));
         enabled=1;assert(!hud_hires_button_draw(&unrelated,&cursor,0xffffffff));''')
     run_c(tmp_path, prelude + state + routines + r'''
 int main(void) {
