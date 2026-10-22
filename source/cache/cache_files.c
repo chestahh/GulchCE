@@ -598,6 +598,11 @@ char const *cache_files_map_directory(
 void scenario_tags_unload(
 	void)
 {
+	/* port: forget draw-only shield copies before any map tags go away. */
+	{
+		extern void shield_look_reset(void); /* port/linux/game/shield_look.c */
+		shield_look_reset();
+	}
 	/* port: the high-res HUD forgets this map's bitmaps (port/linux/game/hud_hires_tags.c) */
 	{
 		extern void hud_hires_tags_unloaded(void);
@@ -606,6 +611,11 @@ void scenario_tags_unload(
 	}
 	sound_cache_close();
 	texture_cache_close();
+	/* port: shield sprite assets unwind before other appended tag tables. */
+	{
+		extern void shield_arcs_unload(void); /* port/linux/game/shield_arcs.inl */
+		shield_arcs_unload();
+	}
 	/* port: the mods' tags go, after the sound and texture caches that held
 	their sounds and bitmaps (port/linux/game/mods.c) */
 	{
@@ -1218,6 +1228,11 @@ long scenario_tags_load(
 	void *tag_cache_base_address;
 	boolean read_complete;
 
+	/* port: a failed or different map load must not inherit shield eligibility. */
+	{
+		extern void shield_look_reset(void); /* port/linux/game/shield_look.c */
+		shield_look_reset();
+	}
 	stripped_scenario_name = tag_name_strip_path(scenario_name);
 	result = NONE;
 	/* port: the map being loaded, by its name (cache_file_loaded_map_name) */
@@ -1252,6 +1267,11 @@ long scenario_tags_load(
 		{
 			sound_cache_close();
 			texture_cache_close();
+			/* port: shield sprite assets unwind before other appended tag tables. */
+			{
+				extern void shield_arcs_unload(void); /* port/linux/game/shield_arcs.inl */
+				shield_arcs_unload();
+			}
 		}
 		return result;
 	}

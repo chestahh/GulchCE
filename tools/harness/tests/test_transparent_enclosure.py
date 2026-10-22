@@ -8,12 +8,15 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from harness import CHECK_FAILED, build, constant, enum_with, function, mutated, read, run, structure
 from harness.render_types import transparent_types
 
-CASES = ["closed", "open", "outside", "reversed", "invalid", "strips", "uncompressed",
+CASES = ["legs-on", "legs-off", "legs-shadow", "legs-empty", "legs-stripped",
+         "closed", "open", "outside", "reversed", "invalid", "strips", "uncompressed",
          "materials", "authored-links", "part-zero", "glass-zero", "opaque-part", "skinned",
          "additional-transparent", "frame-cost", "map-reload", "render-links",
          "lod-regions", "lod-shadows", "lod-off", "lod-empty", "lod-invalid",
          "lod-interior-inside", "lod-interior-outside", "lod-interior-inside-shadow", "lod-interior-outside-shadow"]
 CONTROLS = {
+    "legs-in-shadow": (("&& !TEST_FLAG(flags, _render_model_shadow_bit)", "&& TRUE"), "legs-shadow"),
+    "legs-always": (("(flags & FIRST_PERSON_LEGS_RENDER_FLAG)", "TRUE"), "legs-off"),
     "lost-lod-fallback": (("if (rules==_model_detail_rules_stock)", "if (TRUE)"), "lod-regions"),
     "stock-lod-fallback": (("if (rules==_model_detail_rules_stock)", "if (FALSE)"), "lod-off"),
     "shown-interior": (("rules==_model_detail_rules_inside ||", "TRUE ||"), "lod-interior-outside-shadow"),
@@ -42,6 +45,8 @@ def generated(control=None):
     types += "\n" + enum_with(read("source/models/model_definitions.h"), "MODELS_GROUP_TAG")
     types += "\n" + enum_with(read("port/linux/game/model_detail.h"), "_model_detail_rules_stock")
     types += "\n" + enum_with(read("port/linux/game/model_detail.c"), "MODEL_DETAIL_INTERIOR_CUTOFF_PIXELS")
+    types += "\n" + next(line for line in read("port/linux/game/first_person_legs.h").splitlines()
+                        if line.startswith("#define FIRST_PERSON_LEGS_RENDER_FLAG "))
     code = read("source/rasterizer/rasterizer_transparent_enclosure.h")
     code += "\n" + function(raster, "rasterizer_transparent_geometry_is_enclosure")
     code += "\n" + function(read("port/linux/game/model_detail.c"), "model_detail_geometry_index")

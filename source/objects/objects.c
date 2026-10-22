@@ -1080,9 +1080,7 @@ void objects_initialize_for_new_map(
 	widgets_initialize_for_new_map();
 	object_types_initialize_for_new_map();
 	lights_initialize_for_new_map();
-	/* port: the last map's waist and mesh forgotten
-	(port/linux/game/first_person_legs.c) */
-	first_person_legs_reset();
+	first_person_legs_reset(); /* port: (the last map's legs forgotten) */
 	
 	data_make_valid(object_header_data);
 	object_name_list_clear();
@@ -1108,6 +1106,7 @@ void objects_dispose_from_old_map(
 	widgets_dispose_from_old_map();
 	object_types_dispose_from_old_map();
 	lights_dispose_from_old_map();
+	first_person_legs_reset(); /* port: (and on a failed load's way out) */
 
 	if (object_header_data->valid)
 	{

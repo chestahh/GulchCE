@@ -190,7 +190,6 @@ symbols in this file:
 #include "covenant_emitter_lighting.h" /* port: port/linux/game/covenant_emitter_lighting.c */
 #include "rocket_lighting.h" /* port: port/linux/game/rocket_lighting.c */
 #include "plasma_lighting.h" /* port: port/linux/game/plasma_lighting.c */
-void shield_glow_update(void); /* port: port/linux/game/shield_glow.c */
 
 /* port: port/linux/src (halo.log) */
 void platform_log(const char *format, ...);
@@ -728,7 +727,7 @@ void lights_dispose(
 	return;
 }
 
-/* port: glows the port lights itself (port/linux/game/shield_glow.c): an
+/* port: glows owned by the optional dynamic lighting modules: an
 unattached light (light_new_unattached) on an object's node, kept alive and
 colored and sized each frame by its maker, gone a moment after its maker
 stops. Drawn with a light definition the map has (one without a lens flare
@@ -1075,7 +1074,6 @@ void lights_preprocess_scene(
 	/* port: the lights in order before they are drawn (a frame can come
 	between ticks: lights_port_recover) */
 	lights_port_recover();
-	shield_glow_update(); /* port: port/linux/game/shield_glow.c */
 	muzzle_lighting_update(); /* port: render-time muzzle poses and pulse fade */
 	covenant_lighting_update(); /* port: missing Covenant flight lights */
 	covenant_emitter_lighting_update(); /* port: rendered shield and exposed-rod poses */

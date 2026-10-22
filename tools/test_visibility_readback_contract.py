@@ -24,28 +24,29 @@ def test_visibility_readback(tmp_path, negative_control):
     source = (ROOT / "port/linux/src/d3d8_gl.c").read_text(encoding="utf-8")
     code = source.split("/* ---------- visibility (occlusion) tests */", 1)[1]
     code = code.split("/* ---------- render and texture stage state */", 1)[0]
-    read_code = function(source, "visibility_read_batch")
+    read_code = "\n".join(function(source, name) for name in (
+        "visibility_fall_back_to_queries", "visibility_send_batch", "visibility_read_batch"))
     batch_type = structure(source, "visibility_batch")
     for forbidden in ("glFinish", "glWaitSync"):
         assert forbidden not in code + read_code
     buffered = negative_control in ("buffered", "early_buffer", "wrong_offset", "blocking_wait",
-                                    "early_fence", "unchecked_copy", "unchecked_wait")
+                                    "early_fence", "unchecked_copy", "unchecked_wait", "no_flush")
     if negative_control == "early_buffer":
-        read_code = mutated(read_code, "GLenum status = glClientWaitSync(batch->fence, 0, 0);",
+        read_code = mutated(read_code, "GLenum status = glClientWaitSync(batch->fence, GL_SYNC_FLUSH_COMMANDS_BIT, 0);",
                             "GLenum status = GL_ALREADY_SIGNALED;")
     if negative_control == "wrong_offset":
         read_code = mutated(read_code, "device.visibility_batch * VISIBILITY_TEST_SLOTS + i", "i")
     if negative_control == "blocking_wait":
-        read_code = mutated(read_code, "glClientWaitSync(batch->fence, 0, 0)", "glClientWaitSync(batch->fence, 0, 1)")
+        read_code = mutated(read_code, "glClientWaitSync(batch->fence, GL_SYNC_FLUSH_COMMANDS_BIT, 0)", "glClientWaitSync(batch->fence, GL_SYNC_FLUSH_COMMANDS_BIT, 1)")
     if negative_control == "early_fence":
         statement = "batch->fence = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);"
         read_code = mutated(read_code, statement, "((void)0);")
-        read_code = mutated(read_code, "for (i = 0; i < batch->count; i++)",
-                            statement + "\nfor (i = 0; i < batch->count; i++)")
+        loop = "for (i = 0; i < batch->count; i++)\n\t\t\tglGetQueryBufferObjectuiv"
+        read_code = mutated(read_code, loop, statement + "\n" + loop)
     if negative_control == "unchecked_copy":
-        read_code = mutated(read_code, "if (!success || !batch->fence)", "if (!batch->fence)")
+        read_code = mutated(read_code, 'if (!batch->fence || (device.visibility_logging && !visibility_readback_gl_ok("query copies")))', "if (!batch->fence)")
     if negative_control == "unchecked_wait":
-        read_code = mutated(read_code, "if (!success || (status != GL_ALREADY_SIGNALED && status != GL_CONDITION_SATISFIED))",
+        read_code = mutated(read_code, "if (status != GL_ALREADY_SIGNALED && status != GL_CONDITION_SATISFIED)",
                             "if (FALSE)")
     if negative_control == "untyped_pool":
         code = mutated(code, "glCreateQueries(VISIBILITY_QUERY, (GLsizei)count, queries)",
@@ -65,7 +66,8 @@ def test_visibility_readback(tmp_path, negative_control):
         code = mutated(code, "if (!batch->sealed && !batch->failed && batch->count < VISIBILITY_TEST_SLOTS)",
                        "if ((batch->count = 0) == 0)")
     if negative_control == "no_flush":
-        read_code = mutated(read_code, "glFlush();", "((void)0);")
+        read_code = mutated(read_code, "glClientWaitSync(batch->fence, GL_SYNC_FLUSH_COMMANDS_BIT, 0)",
+                            "glClientWaitSync(batch->fence, 0, 0)")
     if negative_control == "no_unbind":
         read_code = mutated(read_code, "glBindBuffer(GL_QUERY_BUFFER, 0);", "((void)0);")
     if negative_control == "ignore_error":
@@ -99,6 +101,9 @@ typedef int BOOL, HRESULT, GLsizei, GLint;
 #define GL_QUERY_BUFFER 4
 #define GL_QUERY_BUFFER_BINDING 5
 #define GL_VENDOR 6
+#define GL_MAP_WRITE_BIT 8
+#define VISIBILITY_UNCOPIED 0xFFFFFFFFUL
+#define GL_SYNC_FLUSH_COMMANDS_BIT 1
 #define GL_MAP_READ_BIT 1
 #define GL_MAP_PERSISTENT_BIT 2
 #define GL_MAP_COHERENT_BIT 4
@@ -226,10 +231,10 @@ static void glGenBuffers(GLsizei n, GLuint *buffer) {
 }
 static void glBufferStorage(GLenum target, GLsizeiptr size, void *data, GLbitfield flags) {
     assert(target == GL_QUERY_BUFFER && query_buffer == 123 && size == sizeof(mapped));
-    assert(!data && flags == 7); buffer_calls++;
+    assert(!data && flags == 15); buffer_calls++;
 }
 static void *glMapBufferRange(GLenum target, GLintptr offset, GLsizeiptr size, GLbitfield flags) {
-    assert(target == GL_QUERY_BUFFER && !offset && size == sizeof(mapped) && flags == 7);
+    assert(target == GL_QUERY_BUFFER && !offset && size == sizeof(mapped) && flags == 15);
     buffer_calls++; if (map_error) gpu_error = 0x502;
     return map_null ? NULL : mapped;
 }
@@ -247,7 +252,7 @@ static GLsync glFenceSync(GLenum condition, GLbitfield flags) {
     return &fences[fence_count++];
 }
 static GLenum glClientWaitSync(GLsync fence, GLbitfield flags, ULONGLONG timeout) {
-    assert(fence && !flags && !timeout); /* Never flush or wait in the CPU poll. */
+    assert(fence && flags == GL_SYNC_FLUSH_COMMANDS_BIT && !timeout); /* Submit without waiting. */
     return wait_error ? GL_WAIT_FAILED : !fence->complete ? GL_TIMEOUT_EXPIRED :
         (fence_count & 1) ? GL_ALREADY_SIGNALED : GL_CONDITION_SATISFIED;
 }
@@ -273,7 +278,8 @@ static void submit(unsigned slot, unsigned samples) {
     D3DDevice_BeginVisibilityTest();
     D3DDevice_EndVisibilityTest(slot);
 }
-static void present(void) { visibility_read_batch(); device.frame++; }
+/* Swap submits the queued work between send and read. */
+static void present(void) { visibility_send_batch(); glFlush(); visibility_read_batch(); device.frame++; }
 static UINT result(unsigned slot) {
     UINT value = 999;
     unsigned before = reads + polls;
@@ -304,7 +310,7 @@ int main(void) {
         submit(0, 999); present();
         CHECK(result(0) == 0 && query_buffer == 91);
     }
-    CHECK(!reads && device.visibility_stats.dropped == 12 && flushes == 3);
+    CHECK(!reads && device.visibility_stats.dropped == 12 && flushes >= 3);
     ready(2, 0); /* Later availability cannot publish ahead of older work. */
     present(); CHECK(!reads && result(0) == 0);
     ready(0, 0); present();
@@ -402,7 +408,7 @@ int main(void) {
     target_samples = 1;
     submit(0, 120); present(); submit(0, 180); present();
     for (i = 0; i < 12; i++) { submit(0, 999); present(); CHECK(result(0) == 0); }
-    CHECK(device.visibility_stats.dropped == 12 && flushes == 3);
+    CHECK(device.visibility_stats.dropped == 12 && flushes >= 3);
     complete_buffer(2); present(); CHECK(result(0) == 0);
     complete_buffer(0); present(); CHECK(result(0) == 10 && result(1) == 0);
     CHECK(device.visibility_stats.completed == 1);
@@ -425,11 +431,17 @@ int main(void) {
     present(); complete_buffer(b); present();
     CHECK(copies == before + VISIBILITY_TEST_SLOTS && result(0) == 1 && result(7) == 8);
     b = device.visibility_batch; submit(0, 600);
+    device.visibility_logging = TRUE;
     copy_error = TRUE; present(); copy_error = FALSE;
     CHECK(device.visibility_batches[b].failed && result(0) == 1);
+    CHECK(!device.visibility_mapped);
+    /* Re-enable mapped delivery only to inject the next independent fault. */
+    device.visibility_mapped = mapped;
     b = device.visibility_batch; submit(0, 1200); present();
+    complete_buffer(b); /* A failed wait must reject even plausible copied data. */
     wait_error = TRUE; present(); wait_error = FALSE;
     CHECK(device.visibility_batches[b].failed && result(0) == 1);
+    CHECK(!device.visibility_mapped); device.visibility_mapped = mapped;
     b = device.visibility_batch; submit(0, 240); present(); complete_buffer(b); present();
     CHECK(result(0) == 40);
     b = device.visibility_batch; submit(0, 600);

@@ -127,6 +127,8 @@ symbols in this file:
 #include "ammo_counter_lighting.h" /* port: port/linux/game/ammo_counter_lighting.c */
 #include "view_fov.h" /* port: port/linux/game/view_fov.c */
 
+#include "shield_look.h" /* port: port/linux/game/shield_look.c */
+
 /* ---------- constants */
 
 enum
@@ -1666,7 +1668,10 @@ void _rasterizer_model_draw(
 					NUMBER_OF_SHADER_ANIMATION_FUNCTIONS ||
 				!local_parameters->effect.modifier_animation.values ||
 				local_parameters->effect.modifier_animation.values[
-					intensity_exponent_source-1] != 0.0f)
+					intensity_exponent_source-1] != 0.0f ||
+				/* port: a recharge layer can outlast the hit intensity function. */
+				shield_recharge_visible(local_parameters->effect.modifier_shader,
+					local_parameters->effect.modifier_animation.values))
 			{
 				group = _rasterizer_model_transparent_geometry_submit(
 					local_parameters->effect.modifier_shader,

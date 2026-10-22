@@ -28,9 +28,6 @@ MODS_ITEM_PLACE = (192, 391)
 QUIT_ITEM_PLACE = (192, 427)
 YES_NO = [("YES", "true"), ("NO", "false")]
 ON_OFF = [("ON", "true"), ("OFF", "false")]
-# the multiplayer armor colors, in the profile's order (player_profile.c)
-SHIELD_COLORS = ["white", "black", "red", "blue", "gray", "yellow", "green", "pink", "purple", "cyan", "cobalt",
-                 "orange", "teal", "sage", "brown", "tan", "maroon", "salmon"]
 SENSITIVITIES = [(f"{value:g}", f"{value:g}") for value in (0.1, 0.15, 0.25, 0.4, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 2.5, 3, 4)]
 VOLUMES = [(str(step), f"{step / 10:g}") for step in range(11)]
 
@@ -45,8 +42,8 @@ SCREENS = {
     "video_settings": {
         "screen": "video_settings_screen",
         "header": ("header_profile_video_settings", f"{PE}/video_settings/header_profile_video_settings"),
-        # Ten desktop rows fit above the help at the 28px row height. Each
-        # platform packs its own rows without gaps for hidden settings.
+        # Desktop rows and categories fit above the help text.
+        # Each platform packs its own rows without gaps for hidden entries.
         "spacing": 26,
         "help_top": 364,
         "platform_places": True,
@@ -108,10 +105,6 @@ SCREENS = {
              "The overshield rises up the body as it charges\nand stays lit, in its own color. Off: stock.", None),
             ("MODEL DETAIL:", "display.model_detail", [("STOCK", "stock"), ("NATIVE", "native"), ("HIGHEST", "highest")],
              "Stock picks models' detail by the Xbox's 480 lines;\nnative by this display's; highest, always the best.", None),
-            ("SHIELD GLOW:", "display.shield_glow", ON_OFF,
-             "Shields light their surroundings as they flare,\nin the shield's own color.", None),
-            ("GLOW INTENSITY:", "display.shield_glow_intensity", [("DEFAULT", "default"), ("LIGHT SHOW", "light_show")],
-             "Light Show: the shield glow three times as far,\nat full from a third of the flare.", None),
             ("MATCH TIMER:", "display.match_timer", ON_OFF,
              "Draw a clock at the bottom right in multiplayer,\ncounting up from the start of the game.", None),
             ("HDR:", "display.hdr", ON_OFF,
@@ -224,8 +217,7 @@ _graphics = {"display.high_res_hud", "display.hud_button_style", "display.high_r
              "display.anisotropic_filtering", "display.shadow_resolution", "display.per_pixel_lighting", "display.match_timer",
              "display.model_detail"}
 # (the visual modifiers: a screen of their own, Extra Effects)
-_extra_effects = {"display.shield_glow", "display.shield_glow_intensity",
-                  "display.overshield_effect", "display.hdr", "display.hdr_output"}
+_extra_effects = {"display.overshield_effect", "display.hdr", "display.hdr_output"}
 SCREENS["video_settings/graphics"] = {
     "screen": "graphics_settings_screen", "header": _video["header"], "spacing": 30,
     "same_place": ["anti_aliasing_android"],
@@ -243,7 +235,7 @@ _video["categories"] = [
     ("DYNAMIC LIGHTING:", "video_settings/dynamic_lighting",
      "Added light from projectiles, weapons and\nCovenant shields. All options default to off."),
     ("EXTRA EFFECTS:", "video_settings/extra_effects",
-     "Visual modifiers the stock game does not\nhave, such as the shield glow."),
+     "Visual modifiers the stock game does not\nhave, such as HDR and overshields."),
 ]
 SCREENS["video_settings/dynamic_lighting"] = {
     "screen": "dynamic_lighting_settings_screen", "header": _video["header"], "spacing": 30,
@@ -277,12 +269,12 @@ SCREENS["video_settings/fov_viewmodels"] = {
          "Draw first-person weapons, hands and attached\nvisuals. Gameplay and sound continue when off.", None),
         ("PASSENGER THIRD PERSON:", "display.passenger_third_person", ON_OFF,
          "Third-person Warthog and Scorpion passengers in\nthe campaign and co-op. Weapon zoom is disabled.", None),
+        ("SHIELD LOOK:", "display.shield_look", [("CLASSIC", "classic"), ("CLASSIC WITH SPRINKLES", "classic_with_sprinkles"), ("ENHANCED", "enhanced"), ("ENHANCED HONEYCOMB", "honeycomb")],
+         "Classic keeps map shields. Other looks keep custom colour.\nSprinkles adds layers, arcs and recharge to the classic surface.", None),
         ("ARM SHIELDS:", "display.viewmodel_shield", ON_OFF,
          "The energy shield's flare on your first-person\narms too, as on your body.", None),
         ("LEGS:", "display.first_person_legs", ON_OFF,
          "Your legs in first person, seen looking down,\nmoving as you run. Your body as others see it.", None),
-        ("SHIELD COLOR:", "display.shield_color", [("DEFAULT", "default")] + [(c.upper(), c) for c in SHIELD_COLORS],
-         "Your shield's flare in an armor color, whatever\nyour armor. Only you see it. Default: its own.", None),
     ],
 }
 
@@ -387,7 +379,7 @@ CONTROL_ROWS = 7
 
 # the settings whose rows have the wider spinner (a device's name)
 WIDE_SETTINGS = {"audio.output_device", "audio.input_device", "streamer.slurs", "streamer.swearing",
-                 "streamer.insults"}
+                 "streamer.insults", "display.shield_look"}
 
 # the host's voice chat and vote kicks, on Teamplay Options
 # (_teamplay_options_extras): each row's key, its label, its choices' words
@@ -536,23 +528,24 @@ def _setting_screen(folder: str, spec: dict) -> list:
         # (a device's name wants the wider spinner Server Setup's co-op rows
         # have: WIDE_SETTINGS)
         wide = setting in WIDE_SETTINGS
+        shield_look = setting == "display.shield_look"
         extra += _widget(row, [("width", 512), ("height", 28), ("flags", "pass_unhandled_to_focused_child"),
                                ("bitmap", "bitmaps/option_bkds"), ("color", "#FF2896FF"), ("platform", platform)],
                          [f'<child{attributes([("widget", f"{base}/{key}_label")])}/>',
-                          f'<child{attributes([("widget", f"{base}/{key}_spinner"), ("x", 286 if wide else 320), ("y", 1)])}/>'])
+                          f'<child{attributes([("widget", f"{base}/{key}_spinner"), ("x", 240 if shield_look else 286 if wide else 320), ("y", 1)])}/>'])
         extra += _widget(f"{base}/{key}_label",
                          [("type", "text"), ("controller", 1), ("width", 300), ("height", 22),
                           ("string_list", f"{base}/labels"), ("string_index", index), ("font", "ui\\large_ui"),
                           ("color", "#FF2896FF"), ("text_x", 13), ("text_y", 4)], [])
         extra += _widget(f"{base}/{key}_spinner",
-                         [("type", "spinner"), ("left", None if wide else 3), ("top", 2), ("width", 206 if wide else 147),
+                         [("type", "spinner"), ("left", None if wide else 3), ("top", 2), ("width", 252 if shield_look else 206 if wide else 147),
                           ("height", 20), ("flags", "pass_unhandled_to_focused_child left_right_tabs_items"),
                           ("strings", "|".join(shown for shown, _ in choices)), ("setting", setting),
                           ("values", "|".join(value for _, value in choices)), ("font", "ui\\large_ui"),
                           ("color", "#FF2896FF"), ("align", "center"), ("text_y", 4 if wide else 1),
                           ("header_bitmap", "bitmaps/arrow_sm_left"), ("footer_bitmap", "bitmaps/arrow_sm_right"),
                           ("header_bounds", "7 -13 19 -7" if wide else "7 -6 19 0"),
-                          ("footer_bounds", "7 208 19 214" if wide else "7 150 19 156")],
+                          ("footer_bounds", "7 254 19 260" if shield_look else "7 208 19 214" if wide else "7 150 19 156")],
                          ['<on event="created" run="port setting load"/>'])
     # (each category's row: its label, the screen it opens, its help, and the
     # platforms it is for, as a row's: every one's when it names none)

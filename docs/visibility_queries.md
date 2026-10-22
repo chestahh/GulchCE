@@ -13,7 +13,7 @@ direct read, and no comparison reported an unavailable query or GL error.
 This isolates a discrepancy in query-buffer/mapped delivery on that system.
 It does not prove the underlying implementation or driver cause.
 
-AMD and other non-NVIDIA desktop drivers consume direct CPU results, bypassing
+AMD's proprietary driver consumes direct CPU results, bypassing
 query buffers, persistent mappings and copy fences entirely. Three batches own
 4096 queries each; initialization validates all 12288 names for nonzero,
 uniqueness, instantiated objects and GL errors before publishing any IDs.
@@ -27,26 +27,30 @@ offsets. Results are published in submission order, including repeated slots
 and completed zeros. Partial batches resume at their first unread query.
 An entire batch remains reserved until all its results are consumed.
 
-For the exact GL vendor `NVIDIA Corporation`, a buffered path avoids per-query
+For other GL vendors, a buffered path avoids per-query
 CPU readback. It retains the same typed, validated query pool, ordered batches
 and per-test scaling. Each batch has a disjoint 4096-element range of a coherent
-persistent mapping. Sealing queues its query-result copies followed by a fence.
-Later Presents poll that fence with flags and timeout both zero; neither query
+persistent mapping. Sealing writes an uncopied sentinel, then queues the
+query-result copies followed by a fence. Later Presents poll that fence after
+the swap with `GL_SYNC_FLUSH_COMMANDS_BIT` and zero timeout; neither query
 availability alone nor a fixed number of elapsed frames permits reading the
 mapping. Only a signaled fence permits publishing the complete batch and reusing
 its queries and storage. A full ring retains the previous results and skips new
 measurements. This also prevents repeated result slots from aliasing in-flight
 writes, unlike the original shared per-slot mapping.
 
-Copy or fence failures quarantine the affected batch; its cached counts remain
+Copy or fence failures quarantine the affected batch and switch later reads
+to direct CPU delivery; its cached counts remain
 unchanged and its queries cannot be reused. Completed fence objects are deleted;
 the 48 KiB mapped buffer, like the query pool, belongs to the GL context until
 shutdown. Buffer allocation or mapping failure falls back to direct CPU delivery.
 AMD never allocates this buffer or queues these copies. This vendor boundary is
 intentional: completion checks alone did not solve AMD's mapped-delivery problem.
 
-The current frame's batch is sealed after reads and first polled on the next
-Present. glFlush dispatches commands without waiting for GPU completion.
+The current frame's batch is sealed before the swap and first polled after a
+later swap. Normal submission asks the driver no synchronous questions;
+optional `debug.gl_debug` checks still query errors. The uncopied sentinel
+detects missing copies after a fence completes without requiring those checks.
 There is no glFinish, wait loop or blocking fence wait. Ordinary driver-call
 overhead still exists and needs performance testing on AMD and NVIDIA.
 
@@ -60,7 +64,7 @@ context-owned until shutdown, matching the existing GL device lifetime.
 
 GLES atomic counters and boolean queries, depth testing, polygon bias, shader
 generation, Xbox/Custom Edition/MCC dispatch and networking are unchanged.
-The desktop CPU fix and NVIDIA optimization are excluded by `HALO_GLES`;
+The desktop CPU and buffered paths are excluded by `HALO_GLES`;
 neither establishes that Android's reported lighting issue is fixed.
 Map changes retain the existing device-owned result-slot lifecycle. This is
 a repair to the common renderer's result delivery, not an MCC adaptation or
@@ -73,7 +77,7 @@ interpretation. The CPU path checks availability before requesting each result.
 specifies that server writes to a coherent persistent mapping become visible to
 the CPU after the corresponding fence completes.
 
-`tools/test_visibility_readback.py` compiles the actual allocation, submission,
+`tools/test_visibility_readback_contract.py` compiles the actual allocation, submission,
 readback and retrieval functions against a delayed GPU. It covers delays beyond
 the ring, partial completion, ordering, repeated slots, scaling changes, zeros,
 capacity, reuse, GL-error quarantine, binding restoration and invalid pools.
