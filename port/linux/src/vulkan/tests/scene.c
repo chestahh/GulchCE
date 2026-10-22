@@ -174,6 +174,7 @@ int main(int argc, char **argv)
 		"void main(){color=shield_honeycomb_surface(vec4(0,1,0,1));}\n", shield_honeycomb_glsl);
 	draw.pixel_shader = halo_vk_scene_shader(honeycomb_pixel, 1);
 	assert(draw.vertex_shader && draw.pixel_shader);
+	draw.uniforms.shield_honeycomb[0][0] = 1; /* Infinite Honeycomb arms. */
 	draw.uniforms.shield_honeycomb[1][3] = 3;
 	draw.uniforms.shield_honeycomb[2][1] = 1;
 	draw.uniforms.shield_honeycomb[2][3] = 1;
