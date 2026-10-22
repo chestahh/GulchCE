@@ -11,6 +11,7 @@ struct halo_vk_uniforms
 	float height_fade[4], ps_c0[8][4], ps_c1[8][4];
 	float ps_final_c0[4], ps_final_c1[4], fog_color[4], fog_parameters[4];
 	float bump_matrix[4][4], bump_luminance[4][4], texture_scale[4][4];
+	float shield_honeycomb[3][4];
 };
 struct halo_vk_raster
 {

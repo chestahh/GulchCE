@@ -10,6 +10,7 @@ void halo_vk_game_transform(unsigned state, const D3DMATRIX *matrix, D3DMATRIX *
 void halo_vk_game_constant_mode(unsigned mode);
 void halo_vk_game_constants(int reg, const void *data, unsigned count);
 void halo_vk_game_height(float a, float b, float c, float d);
+void halo_vk_game_honeycomb(const float values[3][4]);
 void halo_vk_game_texture(unsigned stage, D3DBaseTexture *texture);
 void halo_vk_game_palette(unsigned stage, D3DPalette *palette);
 void halo_vk_game_stream(unsigned stream, D3DVertexBuffer *buffer, unsigned stride);

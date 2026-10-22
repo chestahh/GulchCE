@@ -8,6 +8,55 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 BACKEND = ROOT / 'port/linux/src/vulkan'
 
+
+def test_honeycomb_state_and_interface(tmp_path):
+    from harness import function
+    cc = shutil.which('clang')
+    if not cc:
+        pytest.skip('clang required')
+    game = (BACKEND / 'vulkan_game.c').read_text()
+    renderer = (ROOT / 'port/linux/src/d3d8_gl.c').read_text()
+    code = r'''
+#include <assert.h>
+#include <string.h>
+#include <stdlib.h>
+#include "vulkan_scene.h"
+static struct { struct halo_vk_uniforms uniforms; } game;
+static int halo_vulkan_scene_active;
+static float shield_honeycomb_value[3][4];
+#define HALO_NATIVE_VULKAN 1
+''' + function(game, 'halo_vk_game_honeycomb') + function(renderer, 'd3d8_gl_set_shield_honeycomb') + r'''
+int main(void) {
+    float difference[4]={.1f,.2f,.3f,0.f}, parallel[4]={.6f,.5f,.4f,.8f};
+    char *vertex, *pixel;
+    d3d8_gl_set_shield_honeycomb(87.5f,7.f,difference,parallel);
+    assert(game.uniforms.shield_honeycomb[0][3]==0.f);
+    halo_vulkan_scene_active=1;
+    d3d8_gl_set_shield_honeycomb(225.f,8.f,difference,parallel);
+    assert(game.uniforms.shield_honeycomb[0][3]==225.f);
+    assert(game.uniforms.shield_honeycomb[1][3]==8.f);
+    assert(!memcmp(game.uniforms.shield_honeycomb[1],difference,3*sizeof(float)));
+    assert(!memcmp(game.uniforms.shield_honeycomb[2],parallel,sizeof(parallel)));
+    d3d8_gl_set_shield_honeycomb(0.f,0.f,NULL,NULL);
+    assert(game.uniforms.shield_honeycomb[0][3]==0.f);
+    vertex=halo_vk_shader_interface("out vec2 shield_uv;\n",0);
+    pixel=halo_vk_shader_interface("in vec2 shield_uv;\nuniform vec4 shield_honeycomb[3];\n",1);
+    assert(vertex && pixel);
+    assert(strstr(vertex,"layout(location=9) out vec2 shield_uv;"));
+    assert(strstr(pixel,"layout(location=9) in vec2 shield_uv;"));
+    assert(strstr(pixel,"vec4 shield_honeycomb[3];\n};"));
+    assert(!strstr(pixel,"uniform vec4 shield_honeycomb"));
+    free(vertex); free(pixel);
+    return 0;
+}
+'''
+    source = tmp_path / 'honeycomb.c'
+    source.write_text(code)
+    output = tmp_path / ('honeycomb.exe' if os.name == 'nt' else 'honeycomb')
+    flags = ['--target=i686-pc-windows-msvc', '-fuse-ld=lld'] if os.name == 'nt' else ['-m32']
+    subprocess.run([cc,*flags,'-std=gnu89','-I'+str(BACKEND),str(source),str(BACKEND/'vulkan_shader.c'),'-o',str(output)],check=True,capture_output=True)
+    subprocess.run([str(output)],check=True,capture_output=True)
+
 @pytest.mark.parametrize('fault', [None, 'early', 'partial', 'wait', 'old'])
 def test_scene_completion(tmp_path, fault):
     cc = shutil.which('clang')

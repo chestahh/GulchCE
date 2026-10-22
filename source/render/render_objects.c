@@ -112,6 +112,7 @@ symbols in this file:
 #include "saved games/game_state.h"
 #include "rasterizer/rasterizer_console_vars.h"
 #include "rasterizer/rasterizer_model_types.h"
+#include "first_person_legs.h" /* port: port/linux/game/first_person_legs.c */
 
 /* ---------- constants */
 
@@ -372,13 +373,9 @@ void render_objects(
 	return;
 }
 
-/* port: port/linux/game/first_person_legs.c */
-boolean first_person_legs_wanted(long object_index);
-real_matrix4x3 const *first_person_legs_node_matrices(long object_index, real_matrix4x3 const *nodes);
-/* port: port/linux/game/shield_color.c */
-real_rgb_color const *shield_color_colors(long unit_index, real_rgb_color const *colors);
 /* port: port/linux/game/overshield_effect.c */
-real const *overshield_effect_values(long unit_index, real const *values, boolean arms);
+real const *overshield_effect_values(long unit_index, real const *values);
+#include "shield_look.h" /* port: port/linux/game/shield_look.c */
 
 void render_object_shadows(
 	void)
@@ -478,16 +475,14 @@ static void render_object_list(
 	while (object_index != NONE)
 	{
 		struct object_datum *object = object_get(object_index);
-		/* port: the player's own legs, seen looking down in first person
-		(port/linux/game/first_person_legs.c): its body drawn from the waist
-		down, nothing it carries */
-		boolean legs = !data->shadow && !render.camera.mirrored &&
-			object_is_first_person_camera(object_index) && first_person_legs_wanted(object_index);
-		real_matrix4x3 const *node_matrices = legs ?
-			first_person_legs_node_matrices(object_index, object_get_node_matrices(object_index)) :
-			object_get_node_matrices(object_index);
+		/* port: the player's own body in its first-person view, from the
+		waist down (display.first_person_legs); nothing it carries or wears */
+		real_matrix4x3 const *legs_node_matrices =
+			!data->shadow && !render.camera.mirrored && object_is_first_person_camera(object_index) ?
+				first_person_legs_node_matrices(render.local_player_index, object_index) :
+				NULL;
 
-		if (!object_is_first_person_camera(object_index) || render.camera.mirrored || (legs && node_matrices))
+		if (!object_is_first_person_camera(object_index) || render.camera.mirrored || legs_node_matrices)
 		{
 			struct render_model_effect model_effect;
 
@@ -536,18 +531,18 @@ static void render_object_list(
 						if (shader_type_is_valid_for_modifier(
 							model_effect.modifier_shader->base.type))
 						{
-							/* port: a local player's shield in the color
-							chosen for it (port/linux/game/shield_color.c) */
+							/* port: selected shield profile; CLASSIC preserves the map shader. */
+							model_effect.modifier_shader = shield_look_body(object_index, model_effect.modifier_shader);
 							model_effect.modifier_animation.colors =
-								TEST_FLAG(_object_mask_unit, object->object.type) ?
-									shield_color_colors(object_index, object->object.outgoing_change_colors) :
-									object->object.outgoing_change_colors;
+								object->object.outgoing_change_colors;
 							/* port: an overshield as it rises and lasts
 							(port/linux/game/overshield_effect.c) */
 							model_effect.modifier_animation.values =
 								TEST_FLAG(_object_mask_unit, object->object.type) ?
-									overshield_effect_values(object_index, object->object.outgoing_function_values, FALSE) :
+									overshield_effect_values(object_index, object->object.outgoing_function_values) :
 									object->object.outgoing_function_values;
+							/* port: register the selected recharge layer before submission. */
+							shield_recharge_prepare(object_index, &model_effect, FALSE);
 						}
 						else
 						{
@@ -626,7 +621,7 @@ static void render_object_list(
 					render_model(
 						definition->object.model.index,
 						level_of_detail_pixels,
-						node_matrices,
+						legs_node_matrices ? legs_node_matrices : object_get_node_matrices(object_index), /* port: (the legs' pose) */
 						object->object.region_permutations,
 						object->object.outgoing_change_colors,
 						object->object.outgoing_function_values,
@@ -636,7 +631,13 @@ static void render_object_list(
 						&model_effect,
 						object_index,
 						object->object.forced_shader_permutation_index,
-						data->no_planar_fog ? FLAG(_render_model_no_planar_fog_bit) : 0);
+						(data->no_planar_fog ? FLAG(_render_model_no_planar_fog_bit) : 0) |
+						(legs_node_matrices ? FIRST_PERSON_LEGS_RENDER_FLAG : 0)); /* port: private lower-body geometry */
+
+					/* port: draw-only depleted shield arcs; no first-person leg duplicates. */
+					if (!data->shadow && !legs_node_matrices)
+						shield_arcs_draw(object_index, definition->object.model.index,
+							object_get_node_matrices(object_index), &model_effect, FALSE);
 
 					if (debug_objects)
 					{
@@ -648,7 +649,7 @@ static void render_object_list(
 					render_model(
 						definition->object.model.index,
 						level_of_detail_pixels * 0.3f,
-						node_matrices,
+						object_get_node_matrices(object_index),
 						object->object.region_permutations,
 						object->object.outgoing_change_colors,
 						object->object.outgoing_function_values,
@@ -662,7 +663,7 @@ static void render_object_list(
 				}
 			}
 
-			if (!data->shadow && !legs && object->object.first_widget_index != NONE)
+			if (!data->shadow && !legs_node_matrices && object->object.first_widget_index != NONE) /* port: (not with the legs) */
 			{
 				struct render_animation animation;
 
@@ -671,7 +672,7 @@ static void render_object_list(
 				widgets_render(object_index, data->lighting, &animation);
 			}
 
-			if (object->object.first_child_object_index != NONE && !legs)
+			if (object->object.first_child_object_index != NONE && !legs_node_matrices) /* port: (nor these) */
 			{
 				render_object_list(
 					data,

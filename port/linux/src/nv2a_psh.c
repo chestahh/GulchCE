@@ -18,6 +18,7 @@ Register values are clamped to [-1, 1] between stages, as on the hardware.
 #include "xgpu.h"
 #include "port_config.h"
 #include "mcc_environment_shader.h"
+#include "shield_honeycomb_gl.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -648,6 +649,7 @@ char *nv2a_pixel_shader_to_glsl(const struct nv2a_pixel_shader_key *key)
 		"in float xFog;\n"
 		"layout(location = 0) out vec4 fragment_color;\n"
 		XGPU_PIXEL_UNIFORMS);
+	xgpu_text_append(&text, "%s", shield_honeycomb_glsl);
 	for (stage = 0; stage < 4; stage++)
 		xgpu_text_append(&text, "uniform %s tex%d;\n", sampler_declaration(key->sampler_type[stage]), stage);
 	if (key->source_blend)
@@ -740,6 +742,7 @@ char *nv2a_pixel_shader_to_glsl(const struct nv2a_pixel_shader_key *key)
 		xgpu_text_append(&text, ";\n\tvec4 result = vec4(fA * fB + (1.0 - fA) * fC + fD, fG);\n");
 	}
 
+	xgpu_text_append(&text, "\tresult = shield_honeycomb_surface(result);\n");
 	if (key->coverage_alpha)
 		xgpu_text_append(&text, "\tresult.a = mix(1.0, result.a, t0.g);\n");
 	if (key->alpha_test_function)

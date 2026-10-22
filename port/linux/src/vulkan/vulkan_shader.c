@@ -14,8 +14,9 @@ char *halo_vk_shader_interface(const char *source, int fragment)
 		"float point_size; float screen_offset; float alpha_reference; float reserved;\n"
 		"vec4 height_fade; vec4 ps_c0[8]; vec4 ps_c1[8];\n"
 		"vec4 ps_final_c0; vec4 ps_final_c1; vec4 fog_color; vec4 fog_parameters;\n"
-		"vec4 bump_matrix[4]; vec4 bump_luminance[4]; vec4 texture_scale[4];\n};\n";
-	static const char *varyings[] = {"xD0", "xD1", "xB0", "xB1", "xT0", "xT1", "xT2", "xT3", "xFog"};
+		"vec4 bump_matrix[4]; vec4 bump_luminance[4]; vec4 texture_scale[4];\n"
+		"vec4 shield_honeycomb[3];\n};\n";
+	static const char *varyings[] = {"xD0", "xD1", "xB0", "xB1", "xT0", "xT1", "xT2", "xT3", "xFog", "shield_uv"};
 	size_t length, used = sizeof(block) - 1, n;
 	char *result;
 	const char *line = source, *end;

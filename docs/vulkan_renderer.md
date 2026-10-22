@@ -1,5 +1,30 @@
 # Native Vulkan renderer development
 
+## Testing integration, 22 October 2026
+
+The testing merge retains the OpenCE menu cursor, desktop GL visibility
+readback updates and host-only co-op follower ordering. The Vulkan scene
+adapter now carries Shield Look's `shield_uv` varying at location 9 and
+its three draw-local Honeycomb vectors in the shared uniform block.
+The existing shield setter forwards those vectors only while native Vulkan
+is active; scale zero disables the surface, and map teardown clears it.
+Pattern arithmetic, preset profiles, colours and Arm Shields gating remain
+in the incoming shield feature. No MCC texture or loader boundaries change.
+
+Local Windows, Android and web builds pass, along with 124 focused Vulkan,
+shield and readback tests (four optional reference-asset tests skipped).
+The real-GPU scene test on the RTX 5070 Ti compiles the actual Honeycomb
+surface, verifies nonuniform shield alpha and preserved green RGB, then
+verifies disabling it restores the original fragment. It also retains the
+existing depth, texture, feedback and query checks. Khronos validation was
+not enabled on this local run; CI provides separate validation-layer checks.
+
+A hidden native Vulkan Honeycomb host rendered the Xbox Beaver Creek scene
+against an OpenGL CLASSIC client for 799 frames, compiling 65 shaders without
+a scene error. This is bounded rendering/simulation coverage, not visual
+parity across maps or full campaign validation. Native Vulkan MCC support
+remains outside this milestone's supported resource boundary.
+
 All renderer development stays on `vulkan-renderer` until explicitly approved
 for integration. Its base is `e5347765275bf324513eca4d044b15b3f6fc12b8` on
 `render-fix-optimisation`, retaining the working AMD readback and NVIDIA

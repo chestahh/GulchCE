@@ -243,6 +243,11 @@ void halo_vk_game_height(float a, float b, float c, float d)
 	game.uniforms.height_fade[2] = c;
 	game.uniforms.height_fade[3] = d;
 }
+
+void halo_vk_game_honeycomb(const float values[3][4])
+{
+	memcpy(game.uniforms.shield_honeycomb, values, sizeof(game.uniforms.shield_honeycomb));
+}
 void halo_vk_game_texture(unsigned stage, D3DBaseTexture *texture)
 {
 	if (stage < 4)
@@ -1064,6 +1069,7 @@ void halo_vulkan_map_reset(void)
 	game.base = 0;
 	D3D__IndexData = NULL;
 	memset(game.uniforms.height_fade, 0, sizeof(game.uniforms.height_fade));
+	memset(game.uniforms.shield_honeycomb, 0, sizeof(game.uniforms.shield_honeycomb));
 	halo_vk_game_target(&game.back, &game.z);
 	platform_log("Vulkan scene: map resources retired");
 }

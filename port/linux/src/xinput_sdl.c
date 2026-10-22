@@ -910,6 +910,7 @@ static void test_input_gamepad(XINPUT_GAMEPAD *pad)
 	static int checked;
 	static int seed = -1;
 	static int looking;
+	static int legs;
 	double t;
 	int index;
 
@@ -947,6 +948,11 @@ static void test_input_gamepad(XINPUT_GAMEPAD *pad)
 			seed = atoi(setting + 4);
 		else if (!strcmp(setting, "bot"))
 			seed = 0;
+		else if (!strncmp(setting, "legs:", 5))
+		{
+			seed = atoi(setting + 5);
+			legs = 1;
+		}
 		else if (!strncmp(setting, "look:", 5))
 		{
 			seed = atoi(setting + 5);
@@ -968,6 +974,31 @@ static void test_input_gamepad(XINPUT_GAMEPAD *pad)
 		return;
 	}
 	t = test_input_seconds() + seed * 1.7;
+	if (legs)
+	{
+		/* Repeatable first-person waist inspection: stand, walk forward/
+		back, strafe, crouch-walk, then jump and turn, always looking down. */
+		double phase = fmod(t, 32.0);
+		pad->sThumbRY = -32000;
+		if (phase >= 4.0 && phase < 12.0)
+			pad->sThumbLY = phase < 8.0 ? 32000 : -32000;
+		else if (phase >= 12.0 && phase < 20.0)
+			pad->sThumbLX = phase < 16.0 ? 32000 : -32000;
+		else if (phase >= 20.0 && phase < 26.0)
+		{
+			pad->wButtons |= XINPUT_GAMEPAD_LEFT_THUMB;
+			pad->sThumbLY = phase < 23.0 ? 24000 : -24000;
+		}
+		else if (phase >= 26.0)
+		{
+			pad->sThumbRX = 12000;
+			pad->sThumbLY = 24000;
+			if (fmod(phase, 2.0) < 0.15)
+				pad->bAnalogButtons[XINPUT_GAMEPAD_A] = 255;
+		}
+		return;
+	}
+
 	if (looking)
 	{
 		pad->sThumbRX = (SHORT)(sin(t * 0.5) * 14000.0);

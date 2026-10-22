@@ -1,5 +1,6 @@
 /* Exercises the production scene renderer on a real GPU, without game assets. */
 #include "../vulkan_scene.c"
+#include "../../shield_honeycomb_gl.h"
 #include <assert.h>
 
 static const char vertex_source[] =
@@ -9,7 +10,7 @@ static const char pixel_source[] = "#version 330 core\nuniform sampler2D tex0;\n
 								   "uv;\nlayout(location=0) out vec4 color;\n"
 								   "void main(){color=texture(tex0,vec2(.25,.25))*ps_c0[0];}\n";
 
-static int capture(struct halo_vk_device *d, unsigned id)
+static int capture(struct halo_vk_device *d, unsigned id, int honeycomb)
 {
 	struct scene_image *im = &scene.images[id];
 	VkBuffer buffer = VK_NULL_HANDLE;
@@ -26,7 +27,7 @@ static int capture(struct halo_vk_device *d, unsigned id)
 	VkCommandBuffer command;
 	VkFence fence;
 	unsigned char *pixels;
-	unsigned i;
+	unsigned i, minimum_alpha = 255, maximum_alpha = 0;
 	b.size = 16 * 16 * 4;
 	b.usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT;
 	assert(d->CreateBuffer(d->device, &b, NULL, &buffer) == VK_SUCCESS);
@@ -62,8 +63,16 @@ static int capture(struct halo_vk_device *d, unsigned id)
 	assert(d->WaitForFences(d->device, 1, &fence, VK_TRUE, UINT64_MAX) == VK_SUCCESS);
 	assert(d->MapMemory(d->device, memory, 0, b.size, 0, (void **)&pixels) == VK_SUCCESS);
 	for (i = 0; i < 256; i++)
-		assert(pixels[i * 4] == 0 && pixels[i * 4 + 1] == 255 && pixels[i * 4 + 2] == 0 &&
-			   pixels[i * 4 + 3] == 255);
+	{
+		unsigned alpha = pixels[i * 4 + 3];
+		assert(pixels[i * 4] == 0 && pixels[i * 4 + 1] == 255 && pixels[i * 4 + 2] == 0);
+		if (!honeycomb)
+			assert(alpha == 255);
+		if (alpha < minimum_alpha) minimum_alpha = alpha;
+		if (alpha > maximum_alpha) maximum_alpha = alpha;
+	}
+	if (honeycomb)
+		assert(minimum_alpha > 0 && maximum_alpha > minimum_alpha);
 	d->UnmapMemory(d->device, memory);
 	d->DestroyFence(d->device, fence, NULL);
 	d->DestroyBuffer(d->device, buffer, NULL);
@@ -81,6 +90,7 @@ int main(int argc, char **argv)
 	float vertices[4][64] = {{0}}, clear[4] = {0, 0, 0, 1};
 	const float xy[4][2] = {{-1, -1}, {1, -1}, {1, 1}, {-1, 1}};
 	int validation = argc > 1 && !strcmp(argv[1], "--validation");
+	char honeycomb_pixel[16384];
 	assert(halo_vk_device_initialize(&d, validation));
 	assert(halo_vk_scene_open(&d));
 	/* Explicit locations test the same interface adaptation used by Halo. */
@@ -138,7 +148,7 @@ int main(int argc, char **argv)
 		assert(halo_vk_scene_query_end(1));
 		assert(halo_vk_scene_finish(draw.color, &presentation, NULL));
 	}
-	assert(capture(&d, draw.color));
+	assert(capture(&d, draw.color, 0));
 	assert(halo_vk_scene_query_result(0, &visible));
 	assert(halo_vk_scene_query_result(1, &hidden));
 	assert(visible == 256 && hidden == 0);
@@ -153,10 +163,35 @@ int main(int argc, char **argv)
 	draw.raster.depth_test = 0;
 	assert(halo_vk_scene_draw_indexed(&draw, &vertices[0][0], 4, indices, 6));
 	assert(halo_vk_scene_finish(draw.color, &presentation, NULL));
-	assert(capture(&d, draw.color));
+	assert(capture(&d, draw.color, 0));
+	/* Compile the actual shield surface and verify its draw-local block and
+	   matching varying on the GPU, including disable after an enabled draw. */
+	draw.vertex_shader = halo_vk_scene_shader(
+		"layout(location=0) in vec4 v0;\nout vec4 xD0;\nout vec2 shield_uv;\n"
+		"void main(){gl_Position=v0; xD0=vec4(1); shield_uv=v0.xy;}\n", 0);
+	snprintf(honeycomb_pixel, sizeof(honeycomb_pixel),
+		"in vec4 xD0;\n%s\nlayout(location=0) out vec4 color;\n"
+		"void main(){color=shield_honeycomb_surface(vec4(0,1,0,1));}\n", shield_honeycomb_glsl);
+	draw.pixel_shader = halo_vk_scene_shader(honeycomb_pixel, 1);
+	assert(draw.vertex_shader && draw.pixel_shader);
+	draw.uniforms.shield_honeycomb[1][3] = 3;
+	draw.uniforms.shield_honeycomb[2][1] = 1;
+	draw.uniforms.shield_honeycomb[2][3] = 1;
+	for (i = 0; i < 3; i++)
+	{
+		while (!halo_vk_scene_begin())
+		{
+			assert(halo_vk_scene_finish(draw.color, &presentation, NULL));
+			SDL_Delay(1);
+		}
+		draw.uniforms.shield_honeycomb[0][3] = i == 1 ? 5 : 0;
+		assert(halo_vk_scene_draw_indexed(&draw, &vertices[0][0], 4, indices, 6));
+		assert(halo_vk_scene_finish(draw.color, &presentation, NULL));
+		assert(capture(&d, draw.color, i == 1));
+	}
 	assert(halo_vk_scene_close());
 	halo_vk_device_dispose(&d);
 	assert(!d.validation_errors);
-	puts("Vulkan scene: textures, indexed draws, depth, queries, 12 frames and GPU pixels PASS");
+	puts("Vulkan scene: textures, indexed draws, depth, queries, Honeycomb on/off and GPU pixels PASS");
 	return 0;
 }

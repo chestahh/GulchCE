@@ -64,6 +64,7 @@ symbols in this file:
 /* ---------- headers */
 
 #include "cseries.h"
+#include "shield_look.h" /* port: port/linux/game/shield_look.c */
 #include "cseries/errors.h"
 #include "cseries/profile.h"
 #include "models.h"
@@ -87,6 +88,7 @@ symbols in this file:
 #include "cache/cache_files.h"
 #include "rasterizer/rasterizer_transparent_geometry.h"
 #include "model_detail.h" /* port: port/linux/game/model_detail.c */
+#include "first_person_legs.h" /* port: feature-owned lower-body geometry */
 
 /* ---------- constants */
 
@@ -336,6 +338,7 @@ static void render_model_parts(
 						struct model_geometry_part *part = TAG_BLOCK_GET_ELEMENT(&geometry->parts, part_index, struct model_geometry_part);
 						struct model_shader_reference *shader_reference;
 						struct shader *shader;
+						struct triangle_buffer const *triangles = &part->triangle_buffer; /* port: original unless legs */
 
 						/* port: a shader the model has (a map's index); a part
 						without one isn't drawn */
@@ -349,10 +352,22 @@ static void render_model_parts(
 							part->shader_index,
 							struct model_shader_reference);
 						shader = shader_definition_get(shader_reference->shader.index);
+						/* port: selected shield looks replace authored plasma shells. */
+						if (shield_look_skip_shell(model, shader))
+							continue;
 
 						if (shader_type_is_valid_for_model(shader->base.type) &&
 							!TEST_FLAG(part->flags, _model_geometry_part_stripped_bit))
 						{
+							/* port: only the marked local body uses private indices. The
+							original vertices retain their CE/MCC palettes and materials. */
+							if ((flags & FIRST_PERSON_LEGS_RENDER_FLAG) && !TEST_FLAG(flags, _render_model_shadow_bit))
+							{
+								triangles = first_person_legs_triangles(object_index, model,
+									&part->vertex_buffer, &part->triangle_buffer);
+								if (!triangles)
+									continue;
+							}
 							if (shader_type_is_transparent(shader->base.type))
 							{
 								if (pass==_render_model_pass_transparent)
@@ -380,9 +395,9 @@ static void render_model_parts(
 									rasterizer_model_transparent_geometry_submit(
 										shader,
 										forced_shader_permutation_index ? forced_shader_permutation_index : shader_reference->permutation_index,
-										&part->triangle_buffer,
+										triangles,
 										NONE,
-										part->triangle_buffer.count,
+										triangles->count,
 										&part->vertex_buffer,
 										NONE,
 										&centroid,
@@ -414,9 +429,9 @@ static void render_model_parts(
 									rasterizer_model_draw(
 										shader,
 										forced_shader_permutation_index ? forced_shader_permutation_index : shader_reference->permutation_index,
-										&part->triangle_buffer,
+										triangles,
 										NONE,
-										part->triangle_buffer.count,
+										triangles->count,
 										&part->vertex_buffer,
 										NONE);
 								}
@@ -436,9 +451,9 @@ static void render_model_parts(
 									rasterizer_model_draw(
 										shader,
 										forced_shader_permutation_index ? forced_shader_permutation_index : shader_reference->permutation_index,
-										&part->triangle_buffer,
+										triangles,
 										NONE,
-										part->triangle_buffer.count,
+										triangles->count,
 										&part->vertex_buffer,
 										NONE);
 									rasterizer_debug_model_vertices(object_index, skinning, part);
