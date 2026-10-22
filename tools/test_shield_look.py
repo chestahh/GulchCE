@@ -54,7 +54,7 @@ def shield_tool(tmp_path_factory):
 @pytest.mark.parametrize("case", ["colors", "classic", "invalid-setting", "profiles", "authored-shader", "authored-noise",
                                   "authored-function", "authored-channel", "authored-nonplasma", "authored-environment", "authored-hands", "authored-body", "authored-decal", "missing", "no-noise", "split",
                                   "toggle", "outer", "arms-off", "reload", "capacity", "malformed-noise"])
-@pytest.mark.parametrize("look", ["enhanced", "enhanced2", "honeycomb"])
+@pytest.mark.parametrize("look", ["enhanced", "enhanced2"])
 def test_shield_look(shield_tool, case, look):
     run = subprocess.run([str(shield_tool), case, look], capture_output=True, text=True, timeout=15)
     assert run.returncode == 0, run.stdout + run.stderr
@@ -65,7 +65,7 @@ def test_menu_and_default():
     import port_settings
     spec = port_settings.SCREENS["video_settings/fov_viewmodels"]
     row = next(row for row in spec["rows"] if row[1] == "display.shield_look")
-    assert row[2] == [("CLASSIC", "classic"), ("CLASSIC WITH SPRINKLES", "classic_with_sprinkles"), ("CLASSIC HONEYCOMB", "classic_honeycomb2"), ("MARK VI", "enhanced"), ("HONEYCOMB LAYERED", "classic_honeycomb"), ("HONEYCOMB CLEAR", "honeycomb")]
+    assert row[2] == [("DEFAULT", "classic"), ("CLASSIC WITH SPRINKLES", "classic_with_sprinkles"), ("MARK VI", "enhanced"), ("INFINITE HONEYCOMB", "classic_honeycomb2")]
     assert "video_settings/shield_look" not in port_settings.SCREENS
     assert not list((ROOT / "port/assets/menus/ce").glob("*.shield_look.xml"))
     assert "video_settings.shield_look.xml" not in (ROOT / "port/assets/menus/menus.json").read_text()
@@ -250,18 +250,18 @@ def test_sprinkles_stock_surface(shield_tool):
     assert bytes.fromhex(result.stdout.decode().strip()) == expected
 
 
-def test_honeycomb_profile_identity(shield_tool):
-    run = subprocess.run([str(shield_tool), "honeycomb"], capture_output=True, text=True, timeout=15)
-    assert run.returncode == 0, run.stdout + run.stderr
-
-
 def test_classic_honeycomb_profile(shield_tool):
     run = subprocess.run([str(shield_tool), "classic-honeycomb"], capture_output=True, text=True, timeout=15)
     assert run.returncode == 0, run.stdout + run.stderr
 
 
 @pytest.mark.parametrize("case", ["colors", "classic", "invalid-setting", "missing", "no-noise", "arms-off", "split", "toggle", "reload", "capacity", "malformed-noise"])
-@pytest.mark.parametrize("look", ["classic_honeycomb", "classic_honeycomb2"])
+@pytest.mark.parametrize("look", ["classic_honeycomb2"])
 def test_classic_honeycomb_lifecycle(shield_tool, case, look):
     run = subprocess.run([str(shield_tool), case, look], capture_output=True, text=True, timeout=15)
+    assert run.returncode == 0, run.stdout + run.stderr
+
+
+def test_retired_presets_do_not_activate(shield_tool):
+    run = subprocess.run([str(shield_tool), "removed"], capture_output=True, text=True, timeout=15)
     assert run.returncode == 0, run.stdout + run.stderr
