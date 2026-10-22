@@ -66,6 +66,7 @@ struct texture_entry {GLuint target,texture;unsigned long data,address,size,hud_
 #define hud_hires_override_coverage(a) 1
 #define hud_hires_override_point_threshold(a) 1
 #define config_boolean(a) enabled
+#define high_res_hud() enabled
 #define hud_hires_upscale_at(a,b,c) 0
 static struct {int kind;} info;
 #define format_information(f) info
