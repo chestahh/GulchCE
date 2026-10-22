@@ -167,10 +167,10 @@ int main(int argc, char **argv)
 	/* Compile the actual shield surface and verify its draw-local block and
 	   matching varying on the GPU, including disable after an enabled draw. */
 	draw.vertex_shader = halo_vk_scene_shader(
-		"layout(location=0) in vec4 v0;\nout vec4 xD0;\nout vec2 shield_uv;\n"
-		"void main(){gl_Position=v0; xD0=vec4(1); shield_uv=v0.xy;}\n", 0);
+		"layout(location=0) in vec4 v0;\nout vec4 xD0;\nout vec4 xD1;\nout vec2 shield_uv;\n"
+		"void main(){gl_Position=v0; xD0=vec4(1); xD1=vec4(0,1,0,1); shield_uv=v0.xy;}\n", 0);
 	snprintf(honeycomb_pixel, sizeof(honeycomb_pixel),
-		"in vec4 xD0;\n%s\nlayout(location=0) out vec4 color;\n"
+		"in vec4 xD0;\nin vec4 xD1;\n%s\nlayout(location=0) out vec4 color;\n"
 		"void main(){color=shield_honeycomb_surface(vec4(0,1,0,1));}\n", shield_honeycomb_glsl);
 	draw.pixel_shader = halo_vk_scene_shader(honeycomb_pixel, 1);
 	assert(draw.vertex_shader && draw.pixel_shader);

@@ -141,7 +141,7 @@ boolean shield_look_colors(struct shader const *shader, real_rgb_color const *co
 void d3d8_gl_set_height_fade(float inverse_softness, float height, float offset, float scale);
 /* port: draw-local mapping for port/linux/src/shield_honeycomb_gl.h */
 void d3d8_gl_set_shield_honeycomb(float scale, float time,
-	const float *difference, const float *parallel);
+	const float *difference, const float *parallel, float classic_surface);
 
 /* ---------- globals */
 
@@ -364,7 +364,7 @@ void rasterizer_plasma_energy_draw(
 		{
 			IDirect3DDevice8_SetRenderState(global_d3d_device, D3DRS_CULLMODE, D3DCULL_CCW);
 			d3d8_gl_set_shield_honeycomb(honeycomb_scale, global_frame_parameters.game_time_sec,
-				color_constants[1], color_constants[2]);
+				color_constants[1], color_constants[2], shield_look_honeycomb_classic_mode(group->shader));
 		}
 		rasterizer_transparent_geometry_group_draw__internal(
 			(struct transparent_geometry_group const *)group,
@@ -372,7 +372,7 @@ void rasterizer_plasma_energy_draw(
 		/* port: do not leak the surface or its one-sided shell into subsequent draws. */
 		if (honeycomb_scale > 0.f)
 			IDirect3DDevice8_SetRenderState(global_d3d_device, D3DRS_CULLMODE, D3DCULL_NONE);
-		d3d8_gl_set_shield_honeycomb(0.f, 0.f, NULL, NULL);
+		d3d8_gl_set_shield_honeycomb(0.f, 0.f, NULL, NULL, 0.f);
 		if (overshield)
 			d3d8_gl_set_height_fade(0.0f, 0.0f, 0.0f, 0.0f);
 	}

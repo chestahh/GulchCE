@@ -246,7 +246,7 @@ SCREENS["video_settings/fov_viewmodels"] = {
          "Draw first-person weapons, hands and attached\nvisuals. Gameplay and sound continue when off.", None),
         ("PASSENGER THIRD PERSON:", "display.passenger_third_person", ON_OFF,
          "Third-person Warthog and Scorpion passengers in\nthe campaign and co-op. Weapon zoom is disabled.", None),
-        ("SHIELD LOOK:", "display.shield_look", [("CLASSIC", "classic"), ("CLASSIC WITH SPRINKLES", "classic_with_sprinkles"), ("ENHANCED", "enhanced"), ("ENHANCED HONEYCOMB", "honeycomb")],
+        ("SHIELD LOOK:", "display.shield_look", [("CLASSIC", "classic"), ("CLASSIC WITH SPRINKLES", "classic_with_sprinkles"), ("CLASSIC HONEYCOMB", "classic_honeycomb2"), ("MARK VI", "enhanced"), ("HONEYCOMB LAYERED", "classic_honeycomb"), ("HONEYCOMB CLEAR", "honeycomb")],
          "Classic keeps map shields. Other looks keep custom colour.\nSprinkles adds layers, arcs and recharge to the classic surface.", None),
         ("ARM SHIELDS:", "display.viewmodel_shield", ON_OFF,
          "The energy shield's flare on your first-person\narms too, as on your body.", None),

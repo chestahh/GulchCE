@@ -98,20 +98,24 @@ int main(void) {
     float saved[4];
     memcpy(saved, parallel, sizeof(saved));
     assert(shield_honeycomb_value[0][3] == 0.f);
-    d3d8_gl_set_shield_honeycomb(18.f, 12.f, difference, parallel);
+    assert(shield_honeycomb_value[0][0] == 0.f);
+    d3d8_gl_set_shield_honeycomb(18.f, 12.f, difference, parallel, 0.f);
     assert(shield_honeycomb_value[0][3] == 18.f);
     assert(!memcmp(shield_honeycomb_value[1], difference, 3 * sizeof(float)));
     assert(shield_honeycomb_value[1][3] == 12.f);
     assert(!memcmp(shield_honeycomb_value[2], saved, sizeof(saved)));
     assert(!memcmp(parallel, saved, sizeof(saved)));
-    d3d8_gl_set_shield_honeycomb(0.f, 0.f, NULL, NULL);
+    d3d8_gl_set_shield_honeycomb(0.f, 0.f, NULL, NULL, 0.f);
     assert(shield_honeycomb_value[0][3] == 0.f);
+    assert(shield_honeycomb_value[0][0] == 0.f);
     parallel[0] = 0.f; parallel[1] = 1.f; parallel[2] = 0.f;
-    d3d8_gl_set_shield_honeycomb(45.f, 13.f, difference, parallel);
+    d3d8_gl_set_shield_honeycomb(45.f, 13.f, difference, parallel, 1.f);
     assert(!memcmp(shield_honeycomb_value[2], parallel, sizeof(parallel)));
     assert(shield_honeycomb_value[0][3] == 45.f);
-    d3d8_gl_set_shield_honeycomb(0.f, 0.f, NULL, NULL);
+    assert(shield_honeycomb_value[0][0] == 1.f);
+    d3d8_gl_set_shield_honeycomb(0.f, 0.f, NULL, NULL, 0.f);
     assert(shield_honeycomb_value[0][3] == 0.f);
+    assert(shield_honeycomb_value[0][0] == 0.f);
     return 0;
 }
 """
@@ -119,6 +123,99 @@ int main(void) {
     path.write_text(source)
     exe = tmp_path / ("uniforms.exe" if os.name == "nt" else "uniforms")
     subprocess.run([cc, "-std=gnu89", "-Wall", "-Werror", str(path), "-o", str(exe)], check=True)
+    subprocess.run([str(exe)], check=True)
+
+
+def test_classic_composite_keeps_resolved_color(tmp_path):
+    """Execute the surface composition with varying plasma, grid and colours."""
+    cc = shutil.which("clang++")
+    if not cc:
+        pytest.skip("clang++ required")
+    header = (ROOT / "port/linux/src/shield_honeycomb_gl.h").read_text()
+    glsl = "".join(ast.literal_eval(s) for s in re.findall(r'"(?:\\.|[^"\\])*"', header))
+    surface = glsl[glsl.index("vec4 shield_honeycomb_surface("):]
+    surface = surface.replace(".rgb", ".rgb()")
+    source = r"""
+#include <cassert>
+#include <cmath>
+#include <algorithm>
+using std::min; using std::max;
+struct vec2 { float x,y; vec2 operator*(float f) { return {x*f,y*f}; } };
+struct vec3 { float x,y,z;
+    vec3 operator+(vec3 b) { return {x+b.x,y+b.y,z+b.z}; }
+    vec3 operator*(float f) { return {x*f,y*f,z*f}; }
+};
+vec3 clamp(vec3 c,float lo,float hi) { return {min(max(c.x,lo),hi),min(max(c.y,lo),hi),min(max(c.z,lo),hi)}; }
+struct vec4 { float x,y,z; union {float w; float a;};
+    vec4(): x(0),y(0),z(0),w(0) {}
+    vec4(vec3 c,float alpha): x(c.x),y(c.y),z(c.z),w(alpha) {}
+    vec3 rgb() { return {x,y,z}; }
+};
+vec4 shield_honeycomb[3],xD0,xD1;
+vec2 shield_uv;
+float grid;
+float shield_hex(vec2,float) { return grid; }
+""" + surface + r"""
+int main() {
+    xD0.a=1.f; shield_honeycomb[2].a=.5f;
+    for(int c=0;c<6;c++) for(int a=0;a<10;a++) {
+        vec4 original({c*.13f,1.f-c*.11f,c*.07f},a*.07f);
+        shield_honeycomb[0].w=0.f;
+        vec4 off=shield_honeycomb_surface(original);
+        assert(off.x==original.x && off.y==original.y && off.z==original.z && off.a==original.a);
+        shield_honeycomb[0].w=87.5f; shield_honeycomb[0].x=1.f;
+        grid=.2f; vec4 dim=shield_honeycomb_surface(original);
+        grid=.9f; vec4 bright=shield_honeycomb_surface(original);
+        assert(dim.x==original.x && dim.y==original.y && dim.z==original.z);
+        assert(bright.x==original.x && bright.y==original.y && bright.z==original.z);
+        assert(bright.a>dim.a && dim.a>=original.a*.65f);
+        assert(fabs(bright.a-(original.a*.65f+.5f*grid*.65f))<.00001f);
+        shield_honeycomb[0].x=2.f; xD1=vec4({0.f,.6f,1.f},.5f);
+        vec4 gap=shield_honeycomb_surface(vec4({0.f,0.f,0.f},original.a));
+        assert(gap.x==0.f && gap.y>0.f && gap.z>gap.y && gap.a==original.a);
+        assert(fabs(gap.y/gap.z-.6f)<.00001f);
+        grid=.2f; vec4 body_dim=shield_honeycomb_surface(original);
+        grid=.9f; vec4 body_bright=shield_honeycomb_surface(original);
+        assert(body_bright.z>body_dim.z && body_bright.a==original.a);
+        shield_honeycomb[0].x=3.f;
+        // Keep the grid fixed: only the real plasma changes over time.
+        vec4 dark({0.f,0.f,0.f},original.a);
+        vec4 lit({0.f,.48f,.8f},original.a);
+        grid=0.f; vec4 low_base=shield_honeycomb_surface(dark);
+        vec4 high_base=shield_honeycomb_surface(lit);
+        grid=.9f; vec4 low=shield_honeycomb_surface(dark);
+        vec4 high=shield_honeycomb_surface(lit);
+        assert(low.z>low_base.z); // A faint continuous link in dark gaps.
+        assert(high.z-high_base.z > 10.f*(low.z-low_base.z));
+        assert(high.a==original.a && low.a==original.a);
+        assert(low.x==0.f && fabs(low.y/low.z-.6f)<.00001f);
+        assert(high.x==0.f && fabs(high.y/high.z-.6f)<.00001f);
+        // Classic white highlights must light the links too, as on arms.
+        vec4 highlight({.8f,.8f,.8f},original.a);
+        vec4 white=shield_honeycomb_surface(highlight);
+        assert(white.x>.45f*.8f); // Palette red is zero, but plasma has a highlight.
+        xD1=vec4({1.f,0.f,0.f},.5f);
+        vec4 red=shield_honeycomb_surface(vec4({.8f,0.f,0.f},original.a));
+        assert(fabs(red.x-high.z)<.00001f && red.y==0.f && red.z==0.f);
+        shield_honeycomb[0].x=1.f;
+        vec4 arms_again=shield_honeycomb_surface(original);
+        assert(arms_again.x==bright.x && arms_again.y==bright.y && arms_again.z==bright.z && arms_again.a==bright.a);
+        shield_honeycomb[0].x=0.f;
+        vec4 enhanced=shield_honeycomb_surface(original);
+        float expected=.5f*grid+min(max(original.a,0.f),.5f)*.04f;
+        assert(fabs(enhanced.a-expected)<.00001f);
+    }
+    shield_honeycomb[0].x=1.f; xD0.a=0.f;
+    assert(shield_honeycomb_surface(vec4({1.f,1.f,1.f},0.f)).a==0.f);
+}
+"""
+    path = tmp_path / "composite.cpp"
+    path.write_text(source)
+    exe = tmp_path / ("composite.exe" if os.name == "nt" else "composite")
+    # GLSL literals are floats; preserve that when compiling the actual formula.
+    source = re.sub(r"(?<![\w.])(\d+\.\d+)(?![\w.])", r"\1f", source)
+    path.write_text(source)
+    subprocess.run([cc, "-std=c++17", str(path), "-o", str(exe)], check=True)
     subprocess.run([str(exe)], check=True)
 
 
