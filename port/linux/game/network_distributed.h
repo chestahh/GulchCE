@@ -136,15 +136,18 @@ enum
 	/* the host's mouse aim assist policy (network_aim_assist.c), to every
 	client, reliably, when it is ready and when the policy changes */
 	_distributed_message_aim_assist_policy = 90,
+	/* the host's shield effects (network_shield_effects.c), to every client,
+	reliably, when it is ready and when they change */
+	_distributed_message_shield_effects = 91,
 
 	/* MCC-only extra grenade slots; ordinary inventory packets stay exact. */
-	_distributed_message_mcc_grenades = 91,
+	_distributed_message_mcc_grenades = 92,
 	/* MCC-only campaign gravity and breadcrumb state. */
-	_distributed_message_mcc_campaign = 92,
+	_distributed_message_mcc_campaign = 93,
 	/* Expanded MCC scenario-name presence, in bounded chunks. */
-	_distributed_message_mcc_object_names = 93,
+	_distributed_message_mcc_object_names = 94,
 	/* MCC host-authorized speed, ordered on the reliable stream, even paused. */
-	_distributed_message_mcc_game_speed = 94,
+	_distributed_message_mcc_game_speed = 95,
 
 	NUMBER_OF_DISTRIBUTED_MESSAGES
 };

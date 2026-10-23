@@ -1,7 +1,7 @@
-"""Admission, framing and the pinned OpenCE 32 wire contract.
+"""Admission, framing and the pinned OpenCE 36 wire contract.
 
-The CC0 baseline fixture comes unchanged from OpenCommunityEdition/OpenCE
-6ec42856d73e258e5a8c7e9cd19161f46d89d0e4, port/linux/network_format.txt.
+The AGPL-3.0-or-later baseline fixture comes unchanged from OpenCommunityEdition/OpenCE
+dedb3755d4b131d6757bfe62851f9b7e2b0b7c2f, port/linux/network_format.txt.
 Update it only after auditing and testing a new upstream protocol.
 """
 from pathlib import Path
@@ -15,15 +15,19 @@ import network_format
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def test_opence_32_contract():
-    lines = (ROOT / "tools/fixtures/opence_network_32.txt").read_text().splitlines()
-    assert lines[0] == "version 32"
+def test_opence_36_contract():
+    lines = (ROOT / "tools/fixtures/opence_network_36.txt").read_text().splitlines()
+    assert lines[0] == "version 36"
     expected = {f"{kind} {name}": value for kind, name, value in
                 (line.split(" ", 2) for line in lines[1:])}
     actual = network_format.items()
+    # MCC appends a digest after the complete upstream settings prefix.
+    # Compare the upstream size separately rather than accepting a fork size.
+    assert actual["layout HALO_PORT_NETWORK_GAME_SIZE"] == "(HALO_PORT_NETWORK_GAME_PLAYERS_END + 0x3A + 32) /* MCC SHA-256 */"
+    actual["layout HALO_PORT_NETWORK_GAME_SIZE"] = "(HALO_PORT_NETWORK_GAME_PLAYERS_END + 0x3A)"
     assert {key: actual.get(key) for key in expected} == expected
     limits = (ROOT / "port/linux/include/halo_port_limits.h").read_text()
-    assert re.search(r"#define HALO_PORT_NETWORK_VERSION 32\b", limits)
+    assert re.search(r"#define HALO_PORT_NETWORK_VERSION 36\b", limits)
     # All fields of the transmitted prefix match upstream, including names,
     # types and order. The Windows build also asserts the actual ABI offsets.
     header = (ROOT / "source/networking/network_game_manager.h").read_text()
@@ -49,8 +53,8 @@ typedef unsigned short word;
 typedef int boolean;
 #define TRUE 1
 #define FALSE 0
-#define HALO_PORT_NETWORK_GAME_PLAYERS_END 22
-#define HALO_PORT_NETWORK_VERSION 32
+#define HALO_PORT_NETWORK_GAME_PLAYERS_END 6
+#define HALO_PORT_NETWORK_VERSION 36
 #define HALO_PORT_MAXIMUM_NETWORK_MACHINES 4
 #define NUMBEROF(a) (sizeof(a)/sizeof((a)[0]))
 #define csmemcpy memcpy
@@ -88,7 +92,7 @@ int main(void) {
     byte saved;
     int i;
     memset(&game,0,sizeof(game));strcpy(game.map.name,"levels\\test\\bloodgulch\\bloodgulch");
-    CHECK(mcc_protocol_version(game.map.name)==32);
+    CHECK(mcc_protocol_version(game.map.name)==36);
     CHECK(mcc_protocol_settings_size(&game)==64);
     CHECK(mcc_protocol_settings_valid(&game,64));CHECK(!mcc_protocol_settings_valid(&game,96));
     build_message_header(original,sizeof(original),3,0);
@@ -358,12 +362,13 @@ def test_chat_and_mcc_message_ids_are_disjoint():
                 if key.startswith("enum _distributed_message_")}
     assert len(messages.values()) == len(set(messages.values()))
     assert messages["enum _distributed_message_aim_assist_policy"] == 90
+    assert messages["enum _distributed_message_shield_effects"] == 91
     header = (ROOT / "port/linux/game/network_distributed.h").read_text()
-    assert header.index("_distributed_message_aim_assist_policy = 90") < header.index("_distributed_message_mcc_grenades = 91")
+    assert header.index("_distributed_message_aim_assist_policy = 90") < header.index("_distributed_message_mcc_grenades = 92")
     assert [messages["enum _distributed_message_chat_" + name]
             for name in ("up", "down", "config")] == [87, 88, 89]
     assert [messages["enum _distributed_message_mcc_" + name]
-            for name in ("grenades", "campaign", "object_names", "game_speed")] == [91, 92, 93, 94]
+            for name in ("grenades", "campaign", "object_names", "game_speed")] == [92, 93, 94, 95]
     # The receive boundary must admit chat in ordinary sessions while rejecting
     # MCC data before dispatch; it also applies recursively to batched messages.
     receiver = function((ROOT / "port/linux/game/network_distributed.c").read_text(),
