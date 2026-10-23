@@ -114,6 +114,82 @@ requirements still apply.
 - Communicate concise findings, decisions and remaining uncertainty. Use
   lists where helpful, without imposing a checklist on every response.
 
+## Design, maintainability and final implementation review
+
+Every agreed feature, change, fix or addition requires review during
+implementation and a final pass before the final required regression run.
+Apply this to the entire assignment across its commits and phases. Scale
+the depth to the change without omitting the review or waiving required
+checks; documentation-only changes require document review and consistency
+checks rather than artificial tests or game builds.
+
+### During implementation
+
+- Before substantial implementation, review the proposed design against
+  existing interfaces and isolation requirements. Check module ownership,
+  dependencies, state lifetime, failure handling, activation and cleanup,
+  platform constraints and how the behavior will be tested.
+- Revisit design and maintainability after each meaningful component or
+  phase, and when new evidence changes an assumption or integration need.
+  Check whether responsibilities remain clear, interfaces stay small and
+  complexity is justified. Resolve structural problems before building
+  further dependent code; do not knowingly accumulate avoidable refactoring
+  for the final pass.
+- Prefer the simplest implementation that satisfies the agreed behavior
+  and established boundaries. Avoid speculative abstractions and unnecessary
+  layers. Duplication required by map-family isolation is not redundancy to
+  remove. Keep tests and documentation aligned as the design develops.
+- Continue focused testing throughout implementation. Keep review notes
+  proportional: record consequential decisions, evidence and unresolved
+  issues without requiring a separate design document for every small edit.
+
+### Final pass
+
+- Review the complete implementation by component and as an integrated
+  change, including earlier assignment commits, declarations, build and
+  settings wiring, documentation, fixtures and regression tests. Inspect
+  relevant callers and lifecycle paths; reviewing only the last patch is
+  insufficient.
+- Complete necessary simplification and refactoring within authorised
+  scope. Remove dead or demonstrably redundant code, abandoned alternatives,
+  obsolete stubs, temporary scaffolding and stale comments or documentation.
+  Check references, supported configurations and platform uses before
+  declaring code unused; retain required platform and interface stubs.
+- Review avoidable repeated work, allocations and resource retention.
+  Justify performance changes with measurements or concrete analysis of
+  unnecessary work, and measure claimed runtime improvements where feasible.
+  Do not introduce speculative micro-optimisations, obscure code or alter
+  deterministic behavior merely to claim the implementation is optimised.
+- Trim obsolete or genuinely duplicate tests and fixtures only after
+  confirming that meaningful coverage is preserved. Retain distinct failure,
+  boundary, lifecycle, platform and map-family cases, even when their setup
+  looks similar. Never weaken assertions or remove a failing test to obtain
+  a passing result; resolve the defect or establish that the expectation is
+  obsolete under the agreed behavior.
+- Preserve diagnostics, bounds checks, compatibility behavior, useful
+  evidence, source provenance and required `port:` markers. Review does not
+  authorize unrelated cleanup, changes to vendored code or combining Xbox,
+  Custom Edition and MCC implementations across established boundaries.
+  If an improvement conflicts with isolation, stop that part and explain
+  the conflict while continuing compliant work.
+- Review is mandatory; refactoring is required only where justified. A
+  sound implementation may need no changes. Do not pursue line-count targets
+  or repeated cosmetic rewrites as a substitute for correctness and clarity.
+
+### Final verification and completion
+
+After the final pass and its corrections, run the required checks for the
+resulting implementation. Earlier results do not validate subsequently
+changed code. If validation causes more edits, review those edits and rerun
+affected checks and required integration checks. Reuse evidence for unchanged
+paths only where it remains applicable; all required platform, networking
+and regression checks still apply.
+
+Briefly report the review scope and outcome, improvements made or why none
+were necessary, the code state checked, actual validation and unresolved
+limitations. Distinguish self-review from independent review. These review
+requirements do not themselves authorize delegation or additional agents.
+
 ## Verification and reporting
 
 Run the required checks in `AGENTS.md` for affected platforms and code.
