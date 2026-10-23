@@ -174,10 +174,11 @@ review guidance. Those standards do not relax the isolation rules.
   more code depends on them. Resolve identified structural problems within
   scope as they arise; do not defer known necessary refactoring to the end.
 - At the end of each agreed feature, change, fix or addition, perform a
-  final pass over the complete implementation before running the final
+  final pass over the combined implementation before running the final
   required regression checks. Include all code, integration, documentation
   and tests produced or modified for the assignment, across its commits
-  and phases, rather than reviewing only the latest diff.
+  and phases. Review the resulting state, consulting history where needed,
+  rather than auditing every intermediate version or only the latest diff.
 - Complete necessary simplification, refactoring and justified optimisation
   within the authorised scope. Remove demonstrably redundant code, obsolete
   stubs, abandoned approaches, temporary scaffolding and stale documentation
