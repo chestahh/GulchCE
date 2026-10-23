@@ -7,6 +7,8 @@ host_exit
 host_get_tp
 host_set_tp
 host_thread_create
+host_mcc_memory_reserve
+host_mcc_memory_release
 host_memory_watch_initialize
 host_memory_watch_protect
 host_memory_watch_generation
@@ -32,6 +34,7 @@ host_sdl_set_clipboard_text
 host_sdl_get_clipboard_text
 host_sdl_show_toast
 host_sdl_show_simple_message_box
+host_sdl_show_message_box
 host_sdl_get_gamepads
 host_sdl_open_gamepad
 host_sdl_gamepad_from_id

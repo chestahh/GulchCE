@@ -42,6 +42,7 @@ def catalog_tool(tmp_path_factory):
 #include <string.h>
 #include <stddef.h>
 typedef unsigned char boolean;
+typedef unsigned char byte;
 #define TRUE 1
 #define FALSE 0
 #define NONE (-1)
@@ -85,6 +86,9 @@ static char const *listing="list.txt";
 static unsigned inventories;
 static int admission_reads;
 static unsigned reads, largest, scans, closed;
+void mcc_cache_precache_clear(void) {}
+char const *mcc_identity_local_name(char const *name) {return name;}
+int mcc_identity_check(char const *name) {(void)name;return 1;}
 #include "mcc_runtime.h"
 #include "mcc_resources.h"
 static char saved_identity[64];
@@ -139,6 +143,30 @@ int CloseHandle(HANDLE handle) {
 int main(int argc,char **argv) {
     short count,i;
     if(argc<2)return 2;
+    if(argc>=4 && !strcmp(argv[2],"browse")) {
+        struct mcc_map_browser b={0};int step;
+        root=argv[1];mcc_map_browser_open(&b,atoi(argv[3]));
+        for(step=4;step<=argc;step++) {
+            int row;wchar_t text[64];
+            printf("view%d=%s|%d|%d\n",step-4,b.package,b.count,b.chosen);
+            for(row=0;row<b.count;row++) {
+                short index=mcc_map_browser_index(&b,(short)row);
+                mcc_map_browser_text(&b,(short)row,text);
+                printf("row%d_%d=%ls|%s\n",step-4,row,text,index==NONE ? "folder" : mcc_maps_level_name(index));
+            }
+            if(mcc_map_browser_index(&b,-1)!=NONE || mcc_map_browser_index(&b,b.count)!=NONE)return 40;
+            if(mcc_map_browser_enter(&b,-1) || mcc_map_browser_enter(&b,b.count))return 41;
+            if(step==argc)break;
+            if(!strncmp(argv[step],"enter:",6))mcc_map_browser_enter(&b,(short)atoi(argv[step]+6));
+            else if(!strncmp(argv[step],"select:",7))mcc_map_browser_select(&b,(short)atoi(argv[step]+7));
+            else if(!strcmp(argv[step],"back"))mcc_map_browser_back(&b);
+            else if(!strcmp(argv[step],"rescan")) {
+                listing="list2.txt";mcc_maps_rescan();mcc_map_browser_open(&b,b.campaign);
+            } else if(!strcmp(argv[step],"reopen"))mcc_map_browser_open(&b,b.campaign);
+            else return 42;
+        }
+        return 0;
+    }
     if(argc==5 && !strcmp(argv[2],"admit")) {
         char message[256]={0};unsigned long checksum;
         root=argv[1];admission_reads=1;checksum=mcc_cache_checksum(argv[3]);
@@ -224,7 +252,7 @@ int main(int argc,char **argv) {
                "-I", str(work), "-I", str(ROOT / "port/linux/game"), str(source),
                str(ROOT / "port/linux/game/mcc_maps.c"),
                str(ROOT / "port/linux/game/mcc_package.c"),
-               str(ROOT / "port/linux/game/mcc_cache_format.c"), str(ROOT / "port/linux/game/mcc_resources.c"), "-o", str(output)]
+               str(ROOT / "port/linux/game/mcc_cache_format.c"), str(ROOT / "port/linux/game/mcc_resources.c"), str(ROOT / "port/linux/game/mcc_sha256.c"), "-o", str(output)]
     if sys.platform == "win32":
         command[1:1] = ["--target=i686-pc-windows-msvc", "-fuse-ld=lld", "-D_CRT_SECURE_NO_WARNINGS"]
     result = subprocess.run(command, capture_output=True, text=True)
@@ -455,3 +483,80 @@ def test_shared_resource_directory_is_not_a_package(catalog_tool, tmp_path):
     fields, _ = run(catalog_tool, tmp_path)
     assert fields["count"] == "1"
     assert fields["scans"] == "1"
+
+def browser_install(root):
+    install(root, {"solo.map": header(), "arena.map": header(scenario=1)})
+    base = root / "mcc_maps"
+    (base / "list.txt").write_text("solo.map\narena.map\n/zeta\n/Alpha\n/empty\n/_shared\n")
+    for package in ("zeta", "Alpha", "empty", "_shared"):
+        folder = base / package
+        folder.mkdir()
+        entries = {"a10.map": header(), "b30.map": header(), "arena.map": header(scenario=1)}
+        if package == "empty":
+            entries = {"sounds.map": header()}
+        for name, contents in entries.items():
+            (folder / name).write_bytes(contents)
+        (folder / "list.txt").write_text("\n".join(entries))
+    return base
+
+
+@pytest.mark.parametrize("campaign", [0, 1])
+def test_browser_groups_packages_and_keeps_loose_maps(catalog_tool, tmp_path, campaign):
+    browser_install(tmp_path)
+    fields, _ = run(catalog_tool, tmp_path, "browse", str(campaign), "enter:0", "back")
+    assert fields["view0"] == "|3|0"
+    assert fields["row0_0"] == "[Alpha]|folder"
+    assert fields["row0_1"] == "[zeta]|folder"
+    assert fields["row0_2"] == ("Solo|mcc_maps\\solo" if campaign else "Arena|mcc_maps\\arena")
+    assert fields["view1"] == ("Alpha|2|0" if campaign else "Alpha|1|0")
+    assert fields["row1_0"] == ("A10|mcc_maps\\Alpha\\a10" if campaign else "Arena|mcc_maps\\Alpha\\arena")
+    assert fields["view2"] == "|3|0"
+
+
+def test_browser_remembers_selection_and_returns_to_owning_folder(catalog_tool, tmp_path):
+    browser_install(tmp_path)
+    fields, _ = run(catalog_tool, tmp_path, "browse", "1", "enter:1", "select:1", "reopen", "back")
+    assert fields["view3"] == "zeta|2|1"
+    assert fields["row3_1"] == "B30|mcc_maps\\zeta\\b30"
+    assert fields["view4"] == "|3|1"
+
+
+def test_browser_rescan_restores_identity_after_indices_change(catalog_tool, tmp_path):
+    base = browser_install(tmp_path)
+    (base / "list2.txt").write_text("/Alpha\n/zeta\n")
+    for package in ("Alpha", "zeta"):
+        (base / package / "list2.txt").write_text("b30.map\n")
+    fields, _ = run(catalog_tool, tmp_path, "browse", "1", "enter:1", "select:1", "rescan")
+    assert fields["view3"] == "zeta|1|0"
+    assert fields["row3_0"] == "B30|mcc_maps\\zeta\\b30"
+
+
+def test_browser_removed_folder_returns_to_root(catalog_tool, tmp_path):
+    base = browser_install(tmp_path)
+    (base / "list2.txt").write_text("solo.map\n")
+    fields, _ = run(catalog_tool, tmp_path, "browse", "1", "enter:1", "rescan")
+    assert fields["view2"] == "|1|0"
+    assert fields["row2_0"] == "Solo|mcc_maps\\solo"
+
+
+def test_browser_empty_category_is_not_a_launchable_row(catalog_tool, tmp_path):
+    install(tmp_path, {"solo.map": header()})
+    fields, _ = run(catalog_tool, tmp_path, "browse", "0", "enter:0", "back")
+    assert fields["view0"] == fields["view1"] == fields["view2"] == "|0|0"
+
+
+def test_browser_full_catalog_and_long_labels(catalog_tool, tmp_path):
+    install(tmp_path, {})
+    base = tmp_path / "mcc_maps"
+    package = "p" * 48
+    folder = base / package
+    folder.mkdir()
+    entries = [f"{n:04}.map" for n in range(1024)]
+    for name in entries:
+        (folder / name).write_bytes(header())
+    (folder / "list.txt").write_text("\n".join(entries))
+    (base / "list.txt").write_text("/" + package)
+    fields, _ = run(catalog_tool, tmp_path, "browse", "1", "enter:0", "select:1023", "reopen", "back")
+    assert fields["row0_0"] == f"[{package}]|folder"
+    assert fields["view3"] == f"{package}|1024|1023"
+    assert fields["view4"] == "|1|0"

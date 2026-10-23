@@ -387,12 +387,16 @@ symbols in this file:
 #include "networking/network_connection.h"
 #include "networking/network_game_globals.h"
 #include "networking/network_game_manager.h"
+#include "mcc_protocol.h" /* port: negotiate MCC only with an advertising host */
+void network_game_client_reset_settings_staging(void); /* port: discard partial settings across connections */
+#include "mcc_identity.h" /* port: MCC content admission and local package resolution */
 #include "networking/network_game_protocol.h"
 #include "networking/network_messages.h"
 #include "networking/network_server_manager.h"
 #include "text/unicode.h"
 #include "third_person.h" /* port: port/linux/game/third_person_policy.c */
 #include "map_share.h" /* port: port/linux/game/map_share.c */
+#include "custom_edition_cache.h" /* port: port/linux/game/custom_edition_cache.c */
 
 /* ---------- constants */
 
@@ -783,6 +787,13 @@ progress, 16 bits of it (0 for a game starting); and whether the first game
 update is to bring the host's time (at every start) */
 long network_game_client_late_join_time;
 static boolean network_game_client_late_join_clock_pending;
+/* port: the host said to start while this machine was still downloading the
+map (map sharing): started once the map is there, network_game_client_idle_pregame,
+if the game is still the one put off (its map, and the games played before
+it: the host may end it, or go on to another, meanwhile) */
+static boolean network_game_client_start_pending;
+static char network_game_client_start_pending_map[0x80];
+static long network_game_client_start_pending_games;
 
 /* whether the automated tests' join has told the player why a host cannot
 be joined (network_game_client_join_first_available_game) */
@@ -903,6 +914,9 @@ void network_game_client_dispose(
 {
 	if (client)
 	{
+		network_game_client_reset_settings_staging(); /* port: discard partial old-host settings */
+		mcc_protocol_client_clear(); /* port: no capability survives a connection */
+		mcc_identity_disconnect(); /* port: discard the MCC session's local binding */
 		if (client->connection)
 			network_connection_delete(client->connection);
 
@@ -1019,6 +1033,8 @@ boolean network_game_client_switch_to_pregame(
 		client->state = _network_game_client_state_pregame;
 		network_game_client_late_join_time = 0;
 		network_game_client_late_join_clock_pending = FALSE;
+		/* port: a start put off is not this game's */
+		network_game_client_start_pending = FALSE;
 		network_event("switching to pregame");
 		network_game_reset_to_pregame_ui();
 		network_connection_keep_alive(client->connection);
@@ -1288,9 +1304,14 @@ boolean network_game_client_game_settings_updated(
 			return FALSE;
 		}
 		if (csstrcmp(message_packet->map.name, client->game.map.name) ||
-			message_packet->map.version != client->game.map.version)
+			message_packet->map.version != client->game.map.version ||
+			/* port: the host's MCC content may change without changing its stored checksum */
+			memcmp(message_packet->mcc_content_sha256, client->game.mcc_content_sha256, 32))
 		{
 			char build[0x20];
+
+			/* port: resolve MCC locally before native presence checks, retaining the host's wire name */
+			if (!mcc_identity_accept(message_packet)) return FALSE;
 
 			/* port: a map this machine has not (a Custom Edition map not in
 			its custom_maps folder, or another version of it than the host's,
@@ -1652,6 +1673,26 @@ boolean network_game_client_handle_game_update(
 	}
 
 	return TRUE;
+}
+
+/* port: not while the map is still being downloaded (map sharing): loaded
+then, it is not there (the damaged disc error, for good). The game starts
+once it is there (network_game_client_idle_pregame). A host of this version
+starts no machine before its download is done; one of before may. */
+boolean network_game_client_begin_game(
+	struct network_game_client *client)
+{
+	if (client && map_share_downloading(client->game.map.name))
+	{
+		network_game_client_start_pending = TRUE;
+		csstrncpy(network_game_client_start_pending_map, client->game.map.name,
+			sizeof(network_game_client_start_pending_map) - 1);
+		network_game_client_start_pending_map[sizeof(network_game_client_start_pending_map) - 1] = 0;
+		network_game_client_start_pending_games = client->game.number_of_games_played;
+		network_event("the host started the game while its map is being downloaded: joining it once the map is there");
+		return TRUE;
+	}
+	return network_game_client_game_has_started(client);
 }
 
 boolean network_game_client_game_has_started(
@@ -2041,6 +2082,24 @@ boolean network_game_client_initiate_join_game(
 		0x157,
 		client && (client->state == _network_game_client_state_searching) && game && join_parameters && client->connection && !network_connection_connected(client->connection) && (game->platform == network_game_get_local_platform()));
 
+	/* port: bind the capability to the selected advertisement, not a prior host. */
+	network_game_client_reset_settings_staging(); /* port: a new host starts a new record */
+	{
+		unsigned int mcc_flags = 0;
+		long advertised_index;
+		/* port: the host joins its own loopback server using a temporary
+		 * advertisement, which is not an entry in available_games. */
+		if (global_network_game_server_get() &&
+			address->address.long_words[0] == IPV4_LOOPBACK_ADDRESS)
+			mcc_flags = MCC_PROTOCOL_ADVERTISED_FLAG;
+		else for (advertised_index = 0; advertised_index < MAXIMUM_NETWORK_ADVERTISED_GAMES; advertised_index++)
+			if (game == &client->available_games[advertised_index])
+			{
+				mcc_flags = network_game_client_advertised_versions[advertised_index].flags;
+				break;
+			}
+		mcc_protocol_client_begin(mcc_flags);
+	}
 	client->join_in_progress = TRUE;
 	client->connect_process = 0;
 	client->connection_attempt_time = system_milliseconds();
@@ -2237,6 +2296,8 @@ void network_game_client_reset(
 	client->seconds_to_game_start = NONE;
 	network_game_client_late_join_time = 0;
 	network_game_client_late_join_clock_pending = FALSE;
+	/* port: no start put off */
+	network_game_client_start_pending = FALSE;
 	network_game_client_incompatibility_told = FALSE;
 	csmemset(network_game_client_add_player_requested, 0, sizeof(network_game_client_add_player_requested));
 
@@ -2507,6 +2568,10 @@ static boolean add_advertised_game(
 				(advertisement->__unknown5A[HALO_PORT_ADVERTISED_VERSION_OFFSET + 1] << 8));
 			network_game_client_advertised_versions[game_index].flags =
 				advertisement->__unknown5A[HALO_PORT_ADVERTISED_FLAGS_OFFSET];
+			/* port: another MCC revision can still use the ordinary OpenCE join. */
+			if (advertisement->__unknown5A[MCC_PROTOCOL_ADVERTISED_VERSION_OFFSET] != (MCC_PROTOCOL_VERSION & 255) ||
+				advertisement->__unknown5A[MCC_PROTOCOL_ADVERTISED_VERSION_OFFSET + 1] != (MCC_PROTOCOL_VERSION >> 8))
+				network_game_client_advertised_versions[game_index].flags &= ~MCC_PROTOCOL_ADVERTISED_FLAG;
 		}
 
 		if (advertisement->game_name[0] != L'\0')
@@ -2817,6 +2882,7 @@ static boolean network_game_client_idle_joining(
 			{
 				struct message_client_join_game_request join_game_request;
 				message_header *message;
+				word mcc_join[MCC_PROTOCOL_JOIN_MAX / sizeof(word)]; /* port: bounded optional envelope */
 
 				csmemset(&join_game_request, 0, sizeof(join_game_request));
 				network_game_generate_local_machine_name(join_game_request.machine_name);
@@ -2837,6 +2903,8 @@ static boolean network_game_client_idle_joining(
 					_message_client_join_game_request,
 					&join_game_request,
 					sizeof(join_game_request));
+				if (message)
+					message = (message_header *)mcc_protocol_join(message, GET_MESSAGE_SIZE(*message), mcc_join); /* port */
 				if (message)
 				{
 					if (network_game_client_write(
@@ -2916,6 +2984,26 @@ static boolean network_game_client_idle_pregame(
 			else if (!(success = network_game_client_process_incoming_messages(client)))
 			{
 				network_event("network_game_client_process_incoming_messages() failed in network_game_client_idle_pregame()");
+			}
+			/* port: a start put off while the map was downloaded (map
+			sharing), once the download is over: the game loaded if the map
+			is there (a failed download leaves the game: map_share.c) */
+			else if (network_game_client_start_pending && client->state == _network_game_client_state_pregame &&
+				!map_share_downloading(client->game.map.name))
+			{
+				network_game_client_start_pending = FALSE;
+				if (csstrcmp(client->game.map.name, network_game_client_start_pending_map) ||
+					client->game.number_of_games_played != network_game_client_start_pending_games)
+				{
+					network_event("the game put off is over: waiting for the host's next start");
+				}
+				else if (!custom_edition_level_name(client->game.map.name) ||
+					custom_edition_cache_playable(client->game.map.name))
+				{
+					network_event("the map is downloaded: joining the game the host started");
+					if (!network_game_client_game_has_started(client))
+						network_event("network_game_client_game_has_started() failed");
+				}
 			}
 		}
 		else
@@ -3104,15 +3192,22 @@ boolean network_game_client_advertised_game_compatible(
 
 	if (game_index < 0 || game_index >= MAXIMUM_NETWORK_ADVERTISED_GAMES)
 		return FALSE;
+	ours = mcc_protocol_version(game->map.name); /* port: distinct MCC protocol */
 	theirs = network_game_client_advertised_versions[game_index].version;
 	distributed = (network_game_client_advertised_versions[game_index].flags &
 		HALO_PORT_ADVERTISED_DISTRIBUTED_FLAG) != 0;
-	if (theirs == ours && distributed)
+	if (theirs == ours && distributed && (ours == HALO_PORT_NETWORK_VERSION ||
+		(network_game_client_advertised_versions[game_index].flags & MCC_PROTOCOL_ADVERTISED_FLAG)))
 	{
 		network_event("joining a host of network version %u", theirs);
 		return TRUE;
 	}
-	if (theirs == ours)
+	if (ours == MCC_PROTOCOL_VERSION)
+	{
+		csprintf(message, "This MCC game requires GulchCE with MCC network version %u.\n\n"
+			"OpenCE clients can join Xbox and Custom Edition games only.", MCC_PROTOCOL_VERSION);
+	}
+	else if (theirs == ours)
 	{
 		csprintf(message,
 			"The host is using the lockstep network code, which this version no longer has.\n\n"

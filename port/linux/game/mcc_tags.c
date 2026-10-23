@@ -4,6 +4,7 @@
 #include "errors.h"
 #include "mcc_runtime.h"
 #include "mcc_recordings.h"
+#include <float.h>
 #include <string.h>
 
 static uint32_t mcc_word(void const *p)
@@ -53,6 +54,9 @@ static int mcc_scenario_recordings(struct mcc_runtime *r, unsigned char *scenari
                 (unsigned long)i);
             return FALSE;
         }
+        if (mcc_recording_weapon_only(stream, size, recording[0x20], recording[0x22]))
+            error(_error_silent, "mcc: recorded animation #%lu: weapon-only controls will inherit the unit's current directions",
+                (unsigned long)i);
         if (corrected) error(_error_silent,
             "mcc: recorded animation #%lu: %lu invalid weapon selections changed to NONE",
             (unsigned long)i, (unsigned long)corrected);
@@ -151,6 +155,7 @@ int mcc_tags_prepare(struct mcc_runtime *r)
         case 'weap': size = 0x508; break;
         case 'DeLa': size = 0x60; break;
         case 'scnr': size = 0x5B0; break;
+        case 'jpt!': size = 0x2A0; break;
         default: break;
         }
         if (shader >= 0) size = group == 'scex' ? 0x78 : 0x28;
@@ -161,6 +166,18 @@ int mcc_tags_prepare(struct mcc_runtime *r)
             return FALSE;
         }
         if (shader >= 0) memcpy(p + 0x24, &shader, 2);
+        if (group == 'jpt!' && (mcc_word(p + 0x1C8) & 0x30000u)) {
+            unsigned j, count = mcc_word(p + 0x1C8) & 0x10000u ? 3 : 1;
+            for (j = 0; j < count; ++j) {
+                float acceleration;
+                memcpy(&acceleration, p + 0x1F4 + j * 4, 4);
+                if (!(acceleration >= -FLT_MAX && acceleration <= FLT_MAX)) {
+                    error(_error_silent, "mcc: damage tag #%lu has non-finite acceleration component %u",
+                        (unsigned long)i, j);
+                    return FALSE;
+                }
+            }
+        }
         if (group == 'scnr' && (!mcc_scenario_recordings(r, p) || !mcc_scenario_cameras(r, p))) return FALSE;
         if (group == 'scex') {
             uint32_t flags = mcc_word(p + 0x6C), new_group = 'schi';
@@ -171,6 +188,19 @@ int mcc_tags_prepare(struct mcc_runtime *r)
         }
         if (group == 'weap') {
             unsigned j;
+            uint16_t mode;
+            float forward, sideways;
+            memcpy(&mode, p + 0x3FC, 2);
+            memcpy(&forward, p + 0x400, 4);
+            memcpy(&sideways, p + 0x404, 4);
+            /* Do not silently drop authored movement rules, or admit values
+             * which expand the native host's validated speed envelope. */
+            if (mode > 2 || !(forward >= 0.0f && forward <= 2.0f) ||
+                !(sideways >= 0.0f && sideways <= 2.0f)) {
+                error(_error_silent, "mcc: weapon tag #%lu has unsupported movement penalties (mode %u, forward %g, sideways %g)",
+                    (unsigned long)i, (unsigned)mode, (double)forward, (double)sideways);
+                return FALSE;
+            }
             for (j = 0; j < 4; ++j) {
                 uint16_t value;
                 memcpy(&value, p + 0x330 + j * 2, 2);

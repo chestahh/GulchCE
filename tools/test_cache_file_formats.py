@@ -397,12 +397,13 @@ class Map:
                  font_style_reference=NONE, pitch_ranges=1, bsp_sizes=(0x1000,), sound_compression=1,
                  model=None, bsp_material=None, shaders=(), animation_overlay=None,
                  weapon_hud=None, hud_bitmap_flags=None, in_map_bitmap=None, strings_name="test\\strings",
-                 strings=("hello", "world!"), name=b"test", tags_checksum=0):
+                 strings=("hello", "world!"), name=b"test", tags_checksum=0, hud_digits=None):
         self.bsp_sizes = bsp_sizes
         # the header's name and the tag data's checksum, by which Chimera's
         # map list knows a map
         self.name = name
         self.tags_checksum = tags_checksum
+        self.hud_digits = hud_digits
         self.sound_compression = sound_compression
         # opt-in tags and content, so the defaults above keep their counts
         self.model = model
@@ -467,6 +468,8 @@ class Map:
             tags.append(("antr", "test\\animations", False))
         if self.weapon_hud is not None:
             tags.append(("wphi", "test\\weapon hud", False))
+        if self.hud_digits is not None:
+            tags += [("matg", "test\\globals", False), ("hud#", "test\\digits", False)]
         # further structure BSPs go last, so the indices above never move
         bsp_tag_indices = [1] + [len(tags) + extra for extra in range(len(self.bsp_sizes) - 1)]
         tags += [("sbsp", f"test\\bsp {extra + 2}", False) for extra in range(len(self.bsp_sizes) - 1)]
@@ -546,6 +549,17 @@ class Map:
         tag_data.u32(sound + 0x98, self.pitch_ranges)
         address_of["test\\sound"] = sound
         address_of["test\\weapon"] = tag_data.add(bytes(0x100))
+        if self.hud_digits is not None:
+            globals_address = tag_data.reserve(0x1AC)
+            interface = tag_data.reserve(0x130)
+            digits = tag_data.reserve(0x64)
+            digits_index = [name for _, name, _ in tags].index("test\\digits")
+            tag_data.block(globals_address + 0x140, 1, interface)
+            tag_data.u32(interface + 0xB0 + 12, ((salt + digits_index) << 16) | digits_index)
+            tag_data.u32(digits + 12, ((salt + 2) << 16) | 2)
+            tag_data.put(digits + 16, struct.pack("6b", *self.hud_digits))
+            address_of["test\\globals"] = globals_address
+            address_of["test\\digits"] = digits
         for group_name, name, external in self.extra_tags:
             address_of[name] = tag_data.add(bytes(0x40))
         if self.model is not None:
@@ -880,6 +894,19 @@ def test_malformed_structure_bsp_materials_are_rejected(report_tool, tmp_path, c
     assert report["load"] == BAD_BSP_GEOMETRY
 
 
+@pytest.mark.parametrize("vertex_count, loads", [(64000, True), (64001, False)])
+def test_structure_bsp_materials_hold_at_most_the_games_vertices(report_tool, tmp_path, vertex_count, loads):
+    """the game's MAXIMUM_VERTICES_PER_STRUCTURE_MATERIAL, to which the
+    validator cuts a material's counts (which would move its lightmap
+    vertices): a material of more, all within the BSP, is refused"""
+    material = {"vertex_count": vertex_count, "lightmap_vertex_count": vertex_count}
+    returncode, report, _ = converted(report_tool, Map(bsp_sizes=(0x500000,), bsp_material=material), tmp_path)
+    if loads:
+        assert returncode == 0 and report["structure_bsp_materials_checked"] == "1"
+    else:
+        assert returncode == 1 and report["load"] == BAD_BSP_GEOMETRY
+
+
 def test_structure_bsp_lightmaps_outside_the_bsp_are_rejected(report_tool, tmp_path):
     cache = Map(bsp_material={})
     path = patched(cache.write(tmp_path), cache.where["bsp"] + 0x18 + 0x108, "<I", BASE)
@@ -1058,6 +1085,24 @@ def test_maps_chimera_lists_get_halo_pc_behaviours(report_tool, tmp_path, name, 
     assert report["halo_pc_behaviours"] == (
         "gearbox_chicago_multiply gearbox_meters hud_number_scale disable_bitmap_hud_scale_flags" if listed else "none")
     assert report["hud_placements_rescaled"] == ("0" if listed else "2")
+
+
+@pytest.mark.parametrize("name, checksum, matched", [
+    (b"bigass_open_v1.1", 0xD2BC19F7, True),
+    (b"Bigass_Open_V1.1", 0xD2BC19F7, True),
+    (b"bigass_open_v1.1", 0xD2BC19F6, False),
+    (b"another_map", 0xD2BC19F7, False),
+])
+def test_bigass_open_digit_metrics_and_meter_identity(report_tool, tmp_path, name, checksum, matched):
+    cache = Map(name=name, tags_checksum=checksum, hud_digits=(16, 14, 0, 0, 6, 7))
+    returncode, report, tags = converted(report_tool, cache, tmp_path)
+    assert returncode == 0
+    assert report["halo_pc_behaviours"] == (
+        "hud_number_scale xbox_ammo_meter_channels" if matched else "none")
+    metrics = struct.unpack_from("6b", tags, cache.addresses["test\\digits"] - BASE + 16)
+    assert metrics == ((8, 7, 0, 0, 3, 4) if matched else (16, 14, 0, 0, 6, 7))
+    flags = u16_at(tags, cache.addresses["test\\in map bitmap"] + 6)
+    assert bool(flags & (1 << 4)) == matched
 
 
 SCORE_HINT = 'Hold "%s" for score'

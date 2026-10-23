@@ -57,11 +57,31 @@ beside the level. Byte-identical matches are interchangeable.
 Self-contained levels do not open or fingerprint resources. Only required types
 are considered. Chosen paths and failures are logged in `debug.txt`. `loc.map`
 is unsupported. Nothing searches other packages, `maps` or `custom_maps`.
-A package level's identity is `mcc_maps\solar_flare\m0`;
-the folder name must be the same on every player's installation. The menu
-still lists individual levels in the same two categories, adding `[package]`
-to every level inside a package folder. Optional `.txt` descriptions remain beside
-the corresponding level. No manifest or folder-navigation menu is required.
+A package level's identity is `mcc_maps\solar_flare\m0`.
+Network peers may use different package folder names; the level filename and
+complete map/required resource contents must match the host. Optional
+`.txt` descriptions remain beside the corresponding level. No manifest is
+required.
+
+The two MCC categories show package folders first (alphabetically, in brackets),
+then loose maps. Open a folder to choose one of its levels; the rows omit the
+repeated package suffix, while the selected map's details retain its identity.
+Only folders with maps of the selected category appear. A mixed package appears
+in both categories, with campaign and multiplayer maps filtered separately.
+Back returns from a folder to the package list; at the root it exits as before.
+Campaign difficulty selection still follows mission selection. Returning from
+that screen restores the MCC folder and selected mission. Each category remembers
+its folder/selection for the current session, separately for New Game and hosting.
+A rescan restores selections by identity, and returns to the root if a package
+has disappeared. `_shared`, resources and empty/unsupported-only folders are not
+selectable packages.
+
+Folder grouping lives in `mcc_maps.c`. The existing MCC menu callbacks bind its
+rows to the shared widgets. MCC Back handlers on the enclosing screens and
+lists are needed because screens consume Back before their children; two
+MCC-only description widgets show folder and empty-category text. The common description update
+hides those widgets when leaving MCC. Xbox/CE lists, map identities, loading,
+resource selection, checkpoints and network messages are unchanged.
 
 Open the map-kind chooser and select **MCC SINGLEPLAYER** for campaign
 maps or **MCC MULTIPLAYER** for multiplayer maps. The cache header's scenario
@@ -93,18 +113,42 @@ downloads and MCC package manifests are not implemented. There is no
 dependency on the Custom Edition setting or its resource directories.
 
 The loader opens source maps read-only. A rejected map reports the failing
-stage in `debug.txt` and returns a menu error. Matching the header checksum
-can detect that a network host selected a different map version. The MCC tag
-reader determines which external resource types are referenced. For both loose
-and packaged levels, the fingerprint streams every byte of the selected files
-for those types, using the same validated selection and open files as conversion.
-Unused files have no effect. Selected contents, not their shared/root/package location,
-determine identity. This adds disk I/O at load/admission, not per frame.
-Checkpoints use this fingerprint too: the new policy may invalidate earlier MCC
-saves; Xbox/Custom Edition save identities are unchanged. All network peers need
-GulchCE protocol 36, including for legacy maps. CRC32 detects accidental mismatches,
-not malicious forgery; the level header checksum still does not authenticate the
-map. Network support uses OpenCE's host-authoritative protocol, not MCC clients.
+stage in `debug.txt` and returns a menu error. Network admission compares all
+32 bytes of a SHA-256 fingerprint covering the complete map and each required
+external resource file. The MCC tag reader determines those dependencies; the
+same validated resource selection is used for conversion and fingerprinting.
+File types and lengths frame the hash input, while paths and unused resources
+are excluded. Identical bytes in package, root or shared locations match.
+
+The host sends this fingerprint in its existing settings record. Clients first
+verify the exact installation path, then look for a unique matching same-filename
+map in their MCC catalog. Ambiguous fallback matches, missing/mismatched resources,
+or more than 16 same-filename candidates are refused with an explanatory error.
+The selected local path stays local; readiness replies and game options retain
+the host's session name. A fresh fingerprint is checked at actual loading too.
+The host's advertised name still follows the existing network path validation.
+Map changes and disconnects discard the binding. No client gains host authority,
+and content matching does not prove that an untrusted client executes honest code.
+
+The issue #51 metadata cache still avoids full resource reads on each lobby
+readiness poll. Host fingerprints are also cached while map/resource metadata
+stays unchanged. Initial admission and actual loading do read the full content,
+so large packages can take longer at these points. The previous 32-bit checksum
+remains for checkpoint identity and engine bookkeeping; it is no longer the
+MCC network content proof. Existing save identities are unchanged by SHA-256.
+MCC peers need matching GulchCE MCC protocol 46. Xbox and Custom Edition use
+the verified OpenCE protocol 29 and retain their original matching/loading
+behavior. See the crossplay boundary in `port/linux/NETCODE.md`. Network
+support uses OpenCE's host-authoritative engine, not official MCC clients.
+
+The shared integration is limited to the settings record's appended digest,
+the two host settings senders, client settings admission, and client teardown.
+These hooks are necessary because MCC modules alone cannot attach data to the
+existing host record or resolve a local path before its generic presence check.
+All hashing, package selection and binding lifetime policy lives in MCC modules;
+legacy settings omit the digest trailer and keep their original checks. The
+protocol recorder includes the full MCC settings record and its size/offset
+bounds; the crossplay tests separately pin the unchanged OpenCE prefix.
 
 MCC's `halo1/maps/bitmaps.map` stores individual texture entries. Its
 `halo1/maps/custom_edition` resources store grouped `__pixels` and
@@ -133,8 +177,8 @@ without changing their contents.
 
 All full-screen MCC pause menus offer **Settings**, including campaign,
 network co-op and multiplayer, with either main-menu style. This opens
-OpenCE�s native in-game audio, video and controls screens for the initiating
-controller, using upstream�s option filtering and profile saving. Campaign
+OpenCEs native in-game audio, video and controls screens for the initiating
+controller, using upstreams option filtering and profile saving. Campaign
 menus use 30-pixel row spacing and taller panels to accommodate the option. Split-screen players use Settings
 from the main menu, since the native editor needs a full viewport.
 Restart,
@@ -191,6 +235,7 @@ are not an MCC implementation dependency. The independent components are:
 | `port/linux/game/mcc_maps.c` | Catalog, display identities, names and descriptions. |
 | `port/linux/game/mcc_cache_format.c` | Portable little-endian version-13 reader and file-range audit. |
 | `port/linux/game/mcc_cache.c` | MCC path admission, read-only file lifetime, conversion and streaming dispatch. |
+| `port/linux/game/mcc_identity.c`, `mcc_sha256.c` and `mcc_precache.c` | SHA-256 session content checks, local package resolution and metadata-based readiness caching. |
 | `port/linux/game/mcc_main.c` | MCC load-failure recovery through the native main-menu lifecycle. |
 | `port/linux/game/mcc_ui.c` and `mcc_ui_network.inl` | MCC in-map widget actions, settings routing, checkpoint/quit behavior and synchronized network restarts. |
 | `port/linux/game/mcc_pause.c` and `mcc_pause_runtime.c` | Generated stock-style pause layouts, objective display, independent UI art and atomic publication/lifetime of the appended tags. |
@@ -340,6 +385,31 @@ Each draw resolves a temporary placement without changing the parent tag.
 This places A50_Revisited's visor at the screen edges; invalid child anchors
 retain the parent placement. Xbox/CE returns the original parent untouched.
 
+MCC Chicago shaders that explicitly request Custom Edition blending (extra
+flag `0x4`) use black-neutral modulation for double multiply. Frogfoot's
+`waterb` layer sets this flag; ordinary double multiply turns its dark pixels
+into black water. The MCC adapter uses `destination * (1 + source)` and fades
+the source toward black, preserving the background at zero contribution.
+This is an independently implemented interpretation of the black-transparent
+behaviour documented in [the Chicago format reference](https://c20.reclaimers.net/h1/tags/shader/shader_transparent_chicago/),
+validated against Frogfoot's authored layer and local visual comparisons;
+exact pixel parity with native MCC has not been established. Other blend
+modes and unflagged shaders retain their original behaviour. The adapter
+runs after native Chicago state setup because tag conversion alone cannot
+express this blend and its matching fade. Each subsequent shader installs
+its normal blend state; the adapter retains no per-map state.
+
+MCC equipment scripts may delete the currently displayed weapon before
+creating its replacement. A deletion notification clears matching local
+first-person references while the old object still exists; unrelated weapons
+and Xbox/CE maps keep the original path. This notification must run at the
+engine's weapon-deletion boundary, which the script adapter alone cannot
+cover (including replicated deletions). MCC also admits positive authored
+item scales from `0.001` up to the native `0.5` lower bound, as used by
+MeinCrap's block weapons. The item update already applies these scales;
+only its validation gains the guarded MCC allowance. The native upper limit,
+zero/invalid rejection and all Xbox/CE limits remain unchanged.
+
 MCC textures bind their immutable converted allocations directly through an
 MCC-owned hardware-header registry. Exact registered header identity grants
 access to the pixels; a copied descriptor or arbitrary physical-address word
@@ -402,8 +472,13 @@ Signatures, scoped local references and call arguments are checked before
 loading. The MCC interpreter extension keeps arguments, mutable local
 values and the evaluation cursor in the existing thread stack; object-list
 references survive sleeps and release on return or thread termination.
-Nested and recursive calls retain separate scopes. The existing 512-byte
-stack remains the recursion/depth bound. Dynamic console calls with
+Nested and recursive calls retain separate scopes. After an MCC `if` selects
+a branch of the same result type, its forwarding frame can be released before
+evaluating that branch. This prevents MeinCrap 2's nested equipment selectors
+from exhausting the stack, while retaining script parameter scopes and all
+live state in the checkpointed buffer. Branches requiring a cast use the native
+evaluation path. The existing 512-byte stack remains the recursion/depth bound.
+Dynamic console calls with
 parameters are not supported by this extension; the cached map's calls
 are the supported path. MCC syntax now retains its full 32,767-slot arena,
 including unused slots for dynamic console expressions. This is the Halo 1
@@ -474,6 +549,18 @@ decoded texture storage to exceed the former single 512 MiB offset range.
   MCC virtual resources. Runtime tag windows must be free, 64 KiB-aligned,
   64 MiB allocations based between `0x42000000` and `0x70000000` inclusive.
   The observed MCC base is `0x50000000`.
+  Windows reserves this address range before renderer initialization and
+  retains the reservation between maps. Pages are committed only during an
+  MCC load and decommitted on unload; other accepted linked bases can replace
+  only our inactive reservation. An occupied range is never overwritten.
+  Allocation refusals report the address, size and OS error in `debug.txt`.
+  MCC network load failures schedule session teardown and a menu reload before
+  the next frame's input update, rather than entering the fatal error screen.
+  A player reported that disabling XFire and restarting GulchCE resolved this
+  allocation refusal. This supports interference from third-party software,
+  but the specific allocation conflict has not been captured. Early reservation
+  is not a guarantee of compatibility with XFire; disabling it and restarting
+  remains the confirmed workaround for that report.
 - There are at most 65,535 tags and 32 BSP references. Runtime conversion
   descriptors must fit below the lowest BSP in the tag window. Geometry
   currently admits at most 64 nodes per model, 22 palette nodes per part,
@@ -669,7 +756,7 @@ Xbox names were the four vibrate-alias calls and six
 uncompressed cubemaps in the fixture confirmed mip-major storage (all six
 faces within each mip): lower mip pixels matched upper mip averages to
 less than 0.26/255 mean RGB error. Face-major interpretation produced
-37–80/255 error. BC7 follows the same layout in the adapter; that particular
+37â80/255 error. BC7 follows the same layout in the adapter; that particular
 layout comparison did not independently test BC7.
 
 The second supplied fixture, `Nitra v2/dangercanyon.map`, also passes the
@@ -1124,7 +1211,7 @@ The MCC function table additionally supports `list_count_not_dead`,
 sleeping, and unknown scripts are not reported as completed. The authoritative
 clock uses local/server game ticks, or the latest received host tick on clients.
 
-Effects gain is an MCC-owned multiplier (default 1, accepted range 0–4).
+Effects gain is an MCC-owned multiplier (default 1, accepted range 0â4).
 It affects non-music sound classes without changing saved user volume settings.
 The small additive connection in the common sound mixer returns a neutral
 multiplier outside an active MCC campaign. The MCC writable-global whitelist
@@ -1164,7 +1251,7 @@ Several data corrections are confined to MCC conversion:
 - Non-power-of-two 2D bitmaps retain their dimensions in a linear ARGB texture.
   Their declared source mip chain is validated, but only the base level is
   retained because the native linear texture path has no mipmaps. This handles
-  Aerowalk's 1920×1080 HUD bitmap.
+  Aerowalk's 1920Ã1080 HUD bitmap.
 
 Judgement's `game_time_authoritative` conversion is supported, but the supplied
 Workshop package declares `InheritSharedFiles: FromMCC` and references 687
@@ -1189,6 +1276,11 @@ no target. Crashsite advances simulation but also reports the existing
 not certified by the successful load check.
 
 ## OpenCE upstream integration through 09597313
+
+Historical validation below describes the October 11 integration. The optional
+first-person legs, shield color/glow and first-person shield features were
+removed from `testing` on October 19, including the legs-only mesh reader and
+its MCC palette test. The MCC rendering and model palette APIs remain intact.
 
 The October 11 integration includes upstream's optional first-person legs,
 shield color/glow, campaign pause spacing, vehicle-home ownership, and stale
@@ -1311,7 +1403,7 @@ parameter-only handling was insufficient when Warthog Rally compiled its timer
 expression. The guarded hook is necessary because native expression compilation
 and evaluation use the shared interpreter. Xbox and Custom Edition retain the
 original cast table, and the tests cover the inactive-MCC case.
-Cursed Halo loads after graph repair, but 15 scripts remain disabled because
+At this stage Cursed Halo loaded after graph repair, but 15 scripts remained disabled because
 of restricted engine cheats (vehicle spawning, jetpack, super-jump, possession,
 Medusa, bottomless ammunition and omnipotence). The new diagnostics identify
 individual scripts. No cheat permission or client-authority restriction is
@@ -1394,3 +1486,469 @@ These tests exercise startup, simulation, joining, resource rejection and
 cleanup. They are not full campaign playthroughs, visual certification of every
 material, or proof of all possible network behavior. Review was a component and
 combined-diff self-review, not an independent review.
+
+## Weapon-authored cameras
+
+MCC weapon flags bit 17 (`0x20000`) requests a third-person camera, as
+documented by https://c20.reclaimers.net/h1/tags/object/item/weapon/.
+Spasm Playground uses it on its Digsite weapons; its player bipeds carry
+a single authored camera track. `mcc_camera` selects the native following
+camera and its existing unit/default track, interpolation and collision
+handling. Unflagged weapons and zoom use first person; existing seat,
+cinematic and death camera handling takes precedence. This is independent
+of the optional OpenCE third-person mode and has no toggle or preference.
+
+The additive hook in `director_desired_perspective` is necessary because
+both camera selection and deterministic aiming use that shared function;
+there is no registered camera-selection extension. The MCC adapter checks
+the active map before reading inventory, holds no state across map changes,
+and leaves Xbox/Custom Edition paths unchanged. Existing host-controlled
+inventory synchronization is sufficient, but network version 38 prevents
+peers with the previous aiming behavior from joining.
+
+
+## Large texture sets, cinematic abort and incomplete animation links
+
+The MCC bitmap adapter permits up to 2 GiB of converted texture storage per
+map. Individual allocations remain limited to 128 MiB, and each tag retains
+its existing bounded virtual stream. Allocation failures refuse the map with
+a diagnostic; the larger budget is not a guarantee that every platform has
+enough free address space or memory. Unconverted pixels no longer require an
+extra intermediate copy. The MCC bitmap-group callback checks owned converted
+allocations and sequence ranges instead of applying the legacy file-backed
+bitmap budget, which would otherwise empty XAM's 4096-pixel textures. Xbox and
+Custom Edition retain their own validation and storage limits.
+
+XAM A30 additionally has a graph with all links omitted and several graphs
+with missing parent indices. Fully omitted links can be recovered only from
+an associated model with matching ordered node names; associated models must
+agree. An omitted parent can be derived from an explicit child link only while
+validating a complete, uniquely reachable tree. Flood Forgotten Exile's Flood
+Banshee has a separate pattern: its root names the last sibling rather than
+the first child. Recovery requires matching names and every non-root link to
+agree with the associated model. Conflicting links, cycles and unreachable
+nodes remain rejected. Repairs are logged and confined to converted MCC tags.
+
+The MCC-only zero-argument, void `cinematic_abort` adapter schedules OpenCE's
+existing cinematic skip operation. This preserves its skippable-checkpoint
+requirements and host-controlled co-op revert. A network client cannot invoke
+that operation through this adapter. No new packet or client authority is
+introduced. The signature is documented at
+https://andrew.gg/scripts/00reference.html; the evaluator mapping to cinematic
+skip is independently documented at
+https://surreptitiousresearch.github.io/halocea_docs/21_script_presentation.html.
+Implementation uses the existing OpenCE interface, not MCC implementation code.
+
+
+Validation on Windows (portable release, based on main `dccbc62b`):
+
+- 1,032 MCC tests passed, two skipped; 128 legacy cache-format tests passed,
+  four skipped. The final zero-argument evaluator correction passed all 13
+  campaign-handler tests, including client/inactive-map guards. Validator
+  callback dispatch was also rechecked with all 85 validator cases passing.
+- Original Workshop XAM A30, Better with Friends B40 and Flood Forgotten Exile
+  STKFT_V1 each completed a 100-second hidden renderer-enabled run, with a
+  marker after 150 simulation ticks, no assertions and normal exit. XAM
+  converted 1,285,707,392 texture bytes and reached mission segment `01_start`.
+  That executable's SHA-256 is
+  `d36af2b0ac5248215ac42a4062ca4136127fc72d17d81360e34593f2ec2c6ba9`.
+- None of the three supplied Better with Friends maps contains a
+  `cinematic_abort` symbol. The adapter was therefore exercised explicitly
+  through the live MCC console interpreter on B40, followed by 150 simulation
+  ticks and normal exit in a 45-second run. This caught and corrected an
+  argument-stack assertion in the initial adapter; the test stub now rejects
+  zero-argument macro evaluation too. Final executable SHA-256:
+  `b2839039ed14f37c7d3a127d18d116c0d7daac3201ea81553fe90209ce0e1693`.
+- Local Android and Web Ninja targets are unavailable. These runs do not
+  establish full campaign completion, visual correctness of every asset,
+  actual checkpoint-skipping behavior in an authored `cinematic_abort` map,
+  online co-op behavior or Linux/Android/Web runtime compatibility.
+
+All implementation changes are in MCC modules. No shared engine source,
+Xbox/Custom Edition loader or network message layout was changed.
+For authored biped seats and their network isolation, see [MCC seats](mcc_seats.md).
+
+### Cursed Halo authored effects (October 13)
+
+`mcc_script_effects.c` supports the map-authored jetpack, super-jump,
+bottomless-clip, possession, Medusa, omnipotence and deathless flags. The
+MCC campaign adapter also exposes vehicle spawning through the existing
+engine service. This enables the 15 previously restricted Cursed Halo scripts;
+it does not add Twitch/Crowd Control connectivity. Evidence comes from the
+supplied CursedHalo A10's compiled scripts: its dispatcher calls timed `fx_*`
+scripts, whose continuous updates clear the flags when their timers expire.
+No proprietary MCC source was used.
+
+The host runs these scripts and owns damage, spawning and possession. Clients
+receive bounded effect flags in the existing MCC campaign snapshot and use
+them for movement and ammunition prediction, while native client cheat globals
+remain disabled. Jetpack and super-jump keep movement host-simulated from
+validated inputs rather than widening acceptable client position/velocity
+bounds. This can require corrections under latency; it does not authorize a
+client's position, possession target or cheat request. State version 3 retains
+the snapshot size and accepts older checkpoint versions with the new effects
+off. Network version 40 is required because peers must agree on these effects
+and on live-body player transfers.
+
+The shared hooks are necessary because the native movement and weapon code
+reads cheat globals directly, the bump handler uses a local-only possession
+helper, and client player attachment previously killed the former body.
+Guarded calls in `bipeds.c`, `units.c` and `weapons.c` consult MCC-owned state;
+`network_distributed.c` leaves MCC former-body death to host replication and
+declines client movement corrections during movement effects. Their inactive
+MCC paths retain Xbox/Custom Edition behavior. Effect state is restored at
+checkpoints and the pre-MCC settings are restored on unload.
+
+The same A10 intro passes an actor-variant tag to `object_type_predict`.
+The MCC adapter precaches that variant's referenced unit after group checks,
+instead of interpreting actor-variant data as an object. Other non-object
+references produce a diagnostic; the native function is unchanged.
+
+Validation: Windows x86 portable release build; 1,045 MCC tests passed (two
+optional skips), plus 157 targeted native/cache tests (four optional skips).
+The movement-bound regression includes a mutation check that fails if client
+positions are accepted during MCC movement effects. Hidden A10 tests exercised
+the authored dispatcher, timed expiration and checkpoint restoration in
+singleplayer and two-player loopback co-op. Read-only process observations
+confirmed matching host/client effect state with all native client cheat flags
+remaining clear. Singleplayer also exercised Medusa, omnipotence, deathless and
+vehicle spawning, then Xbox Blood Gulch and Custom Edition Death Island in the
+same process; MCC flags cleared on transition. Possession ownership, invalid
+targets and preserving multiplayer teams are covered by the real-module
+harness. A further two-instance A10 collision test transferred the remote
+player into the captain biped and back into the original living body; both
+machines observed the same unit identifiers with no assertions. These checks
+are not a full campaign playthrough or a latency test.
+Two-player Cursed Halo Blood Gulch also synchronized enable/disable while the
+network test exercised firing. The remote console's attempts to enable
+super-jump and spawn vehicles were rejected with the existing host-authority
+message, and its native cheat flags remained clear.
+
+Direct console calls to parameterized map scripts reported the existing
+runtime's corrupt-syntax diagnostic during testing; the map's compiled
+dispatcher calls executed successfully. Android/Web build targets are absent
+from this Windows configuration. Web graph/socket tests cannot complete here
+(Windows-only graph and missing pthread headers); browser/native transport
+tests also require unavailable Playwright. These platform checks remain for CI
+or an appropriately provisioned host.
+
+Final Windows executable SHA-256:
+`f2c16365d22ab7c5d84f7ffcbd400f3ec0b62e6ff9638cc2979b859e20809f8c`.
+
+### MCC clock global and alternate environment attenuation (issue 49)
+
+`game_speed_value` is linked to an MCC scenario-local real global, initialized
+to one. Its read/write adapter uses the native host's game-time speed, which
+already belongs to saved game state. Finite values from zero through 100 are
+accepted, matching the native speed setter; this is a safety bound, not a
+recommendation to run maps at high speed. The public
+[H1 scripting reference](https://c20.reclaimers.net/h1/scripting/) documents
+the MCC global and warns against speeds above 20. No reporter could identify
+the original failing map, so runtime validation uses private copies of
+Bigass and Mercury Falling with this global added; originals remain unchanged.
+
+`mcc_game_speed.c` owns synchronization and client state. Only the host may
+change speed. Clients retain the native cheat enforcement and receive a
+separate multiplier from the host on its reliable, ordered connection.
+Message 90 requires exactly one float, an exact packet size and the host
+connection; unreliable packets and client senders are rejected. Invalid float
+values are ignored. Updates continue in wall-clock time at speed zero, and
+repeat for joining clients. They are deliberately outside the tick-only batch
+and stale-tick filter, so pause/resume and checkpoint rewinds remain possible.
+Network version **41** is required for this new message and timing agreement.
+The existing engine admits new players on simulation ticks: joining a host
+already at speed zero can time out before admission. Resume before admitting
+a new player. Existing players can pause/resume together; a late join at half
+speed also receives the correct multiplier. This change does not alter the
+shared player-admission implementation.
+
+The host's existing client speed-hack detector still runs. Its elapsed time
+uses an MCC-owned clock integrating only host-approved speed changes. At zero
+speed it retains a small positive budget rather than exempting clients. Client
+movement acceptance and other host-authority checks are unchanged. MCC unload
+and new-map initialization clear remote speed and send/clock bookkeeping.
+
+The interpreter's global reconciliation and the frame/tick clock read native
+state directly, so MCC modules alone cannot implement these semantics.
+Small hooks in `hs_runtime.c` and `game_time.c` invoke the MCC adapter;
+`network_distributed.c` adds dispatch and a clock query. Xbox/CE lookups and
+clock behavior retain their original values when the MCC guards are inactive.
+
+Bigass's day, night and snow maps each contain 21 environment shaders with
+flag `0x8`, including `altis\\levels\\bigass\\shaders\\bigassgrass` in the day map.
+The [environment shader format reference](https://c20.reclaimers.net/h1/tags/shader/shader_environment/)
+identifies this as alternate bump attenuation, correcting repeated diffuse
+attenuation that can darken terrain and expose triangle boundaries. The flag
+layout is corroborated by Invader's public shader_environment schema. No
+proprietary shader implementation or SDK material was used.
+
+`mcc_environment_shader.c` scopes this behavior to a flagged MCC lightmap
+draw, excluding specular-mask-only bump maps. The platform companion emits
+an independently reconstructed response: `max(0, 1 + dot(normal, light) -
+light.z)`, followed by the existing combiner clamp. A flat normal therefore
+preserves the baked lightmap response instead of attenuating it again, while
+normal variations still affect it. **This is an approximation of the documented
+intent, not a verified copy of MCC's exact shader equation.** The supplied
+native MCC/GulchCE screenshots establish the visual symptom; controlled
+same-camera comparisons show the reduction in dark terrain triangles. Exact
+brightness in every MCC material remains a playtest limitation.
+
+This cannot be implemented purely by changing converted texture bytes: it
+depends on the incident-light vector of each fragment. The necessary shared
+additions scope the environment draw, carry one bit in the compiled shader
+cache key, and select the MCC emitter only for the matching bump-dot combiner.
+All other combiners retain the original generator. The draw clears its state
+immediately afterward, so subsequent materials and map families cannot inherit
+it. No texture, global brightness, Xbox shader flag or CE loader is rewritten.
+
+Validation on Windows x86 portable release: 1,050 MCC tests passed, with two
+optional skips. This includes actual script relocation, module behavior,
+packet size/sender/transport checks and the real combiner generator's legacy
+and MCC branches. Two hidden loopback instances tested Bigass multiplayer and
+Mercury Falling co-op at 0.5, 2, 0 and 1 speed. Read-only process sampling
+measured approximately 15, 60, 0 and 30 ticks/second on both machines, while
+native client speed stayed at one. Client console attempts to write the new
+global or invoke native `game_speed` were rejected. Joining at half speed,
+then pausing and resuming, passed; joining an already paused host timed out
+as described above.
+
+A singleplayer test suspended the fixture's authored auto-saving scripts,
+saved at half speed, changed to double speed, and reverted: the global and
+native clock returned to half speed. An initial test did not isolate the map's
+own checkpoint requests and was inconclusive. Xbox Blood Gulch
+and CE Death Island subsequently ran at normal speed. A separate rendered
+sequence exercised Bigass day/night/snow, Xbox Blood Gulch, CE Death Island
+and Bigass again at 1280x720, with screenshots inspected and no assertion or
+shader compilation errors. These are focused tests, not complete playthroughs.
+
+The broader general harness completed 306 tests but 82 cases could not build
+in this Windows environment (POSIX header/type assumptions and MSVC warnings
+treated as errors). Android/Web targets are absent from this Windows build
+configuration; both were attempted. Browser/native WebRTC and internet tests
+were attempted but lack Playwright here. Linux, Android, Web and internet
+latency/loss validation remain outstanding for CI or a provisioned host.
+
+## MCC lobby readiness (issue #51)
+
+The native pregame client polls map readiness once per second. The MCC hook
+previously reread tag data and fingerprinted every required resource on each
+poll, blocking menu frames. Mercury Falling's supplied bitmap and sound
+resources total roughly 687 MB; repeated reads reproduced the reported stalls.
+
+`mcc_precache.c` retains one successful readiness result while the map and all
+eight possible bitmap/sound resource candidates have unchanged file metadata.
+Missing candidates are recorded too: adding a package override or another
+shared resource set invalidates the result. Size, creation/write time and
+attribute changes trigger full validation; access time does not. Failed
+validation is never cached, unreadable metadata prevents reuse, and a change
+during validation cannot establish a cached ready result. Rescanning the MCC
+catalog and unloading MCC tags clear the result.
+
+This is a polling optimization, not a trusted content fingerprint. Network
+admission, map-version calculation and actual loading still perform their
+existing independent resource validation. Protocol 41 and host-authority
+rules are unchanged. Initial validation can still pause the menu; this change
+removes the recurring validation after an unchanged map has been checked.
+
+The existing MCC branch in `cache_files_give_time_to_precache` must select the
+new polling function because its old callee also serves admission callers,
+which must stay fresh. This is the only shared-engine change. Xbox and Custom
+Edition readiness branches retain their existing code and behavior.
+
+Windows x86 portable-release testing against base `d1669f19` reproduced the
+stalls with the old executable. During a 35-second Mercury lobby run it made
+21 resource probes; the fixed build made three initial probes, then advanced
+60 menu frames per approximately one second without further resource scans.
+The MCC regression suite and protocol-record check passed (1,053 tests, two
+optional skips). The readiness tests exercise all resource candidates, failed
+validation, metadata errors, changes during validation and lifecycle reset.
+Two hidden loopback instances entered Mercury co-op and Bigass multiplayer
+and exchanged matching player state without assertions; the bounded runner
+stopped them afterward. Initial Bigass fixtures omitted its package resources
+and were correctly refused; the successful run included those resources.
+A separate rendered instance transitioned from Mercury to Xbox Blood Gulch,
+CE Death Island and back to Mercury, then exited normally without assertions.
+These are focused runtime checks, not full campaign or multiplayer playthroughs.
+Android and Web builds were attempted but those targets are absent from this
+Windows configuration. Native Linux validation remains for CI.
+
+### Missing-unit script calls (issues #50 and #63)
+
+The build-111 executable and its matching published PDB resolve issue #63's
+fault to `object_get_and_verify_type`, called by `unit_kill_silent` from a
+scenario script. The datum is `NONE`. Mercury2's `bsp_switching_credits`
+script kills three named scientist units, which may be absent; this is a
+plausible call site, not confirmation of the reporter's playthrough location.
+Calling `(unit_kill_silent none)` in the original build reproduces the same
+fault and relative instruction address. Tiny Halo's startup independently
+reproduces the corresponding `unit_kill` fault before its player proxy exists.
+The public [c20 script reference](https://c20.reclaimers.net/h1/scripting/)
+also documents the pre-MCC crash when either command targets a missing unit.
+
+The MCC campaign adapters now evaluate the argument normally, preserve a
+yielding evaluation, and validate the full datum and unit type before calling
+the existing kill routines. Missing, stale and non-unit targets return without
+a kill. Valid units retain the existing death behavior. Execution requires an
+active MCC cache and local/host authority. The kill adapters do not change any
+Xbox or Custom Edition function table, evaluator or shared-engine source. The new entries are
+appended to preserve existing MCC function indices. There is no new state or
+message to synchronize: scripts run on the host and deaths use the existing
+replication. These adapters alone do not require a protocol change; the
+recording policy below does require matching MCC peers.
+
+Validation on base `72b6e1b7`, Windows x86 portable release, 2026-10-16:
+
+- The new handler regression failed before the adapters existed and passed
+  afterward. The 112 focused campaign, script, parameter and protocol checks
+  passed, covering absent/stale/wrong-type targets, argument yielding, both
+  kill commands, valid bipeds/vehicles, client denial and inactive-MCC guards.
+- The Windows release build succeeded. Two isolated hidden Mercury2 instances
+  loaded into loopback co-op and exchanged simulation updates. Both missing
+  target calls returned on the host; the client console refused host-only
+  commands. No assertion was detected during the 95-second bounded runs.
+  This initial client joined after loading began and had no active player
+  slot; it checks state reception and command denial, not two-player gameplay.
+  The runner stopped its own processes afterward; this was not a campaign
+  completion or an internet/browser-transport test.
+- Tiny Halo passed its original startup failure, then hit separate unit-vector
+  assertions. Its `switch_weapon` and `switch_weapon0` recordings contain
+  zero facing, aiming and looking vectors and a weapon-selection event. The
+  native playback passes these vectors into unit control. A diagnostic run
+  stopping `player0_stuff` only in that temporary session avoided the later
+  assertions for 100 seconds, isolating the second fault. No script was
+  disabled in the implementation; the recording solution below preserves
+  playback rather than skipping it.
+- Issue #50's second, older build-95 crash mentions a missing player. It has
+  not been reproduced; its matching release symbols were unavailable. It is
+  not claimed fixed by the unit-target adapters.
+- Android and Web build targets were attempted but are absent from the local
+  Windows configuration. Linux remains unverified locally. Xbox/CE source
+  kill implementations are unchanged and isolation checks passed. Recording
+  integration and its additional validation are described below.
+
+Temporary map links and save folders were isolated from player data. Runtime
+logs and the original-build reproduction are retained under the ignored
+`build/mcc-missing-objects` folder. Mercury2 was linked under a simple private
+package name for the co-op run: the legacy lobby name validator rejects the
+ampersand in the installed `Mercury 1 & 2` folder, a separate admission issue.
+
+### Weapon-only MCC recordings (Tiny Halo)
+
+Tiny Halo's two 78-byte version-4/control-version-4 weapon-switch recordings
+have zero throttle and all three initial direction vectors zero. Their only
+effective event changes the weapon slot, followed by a timed end event.
+Preserving the unit's current directions is an explicit compatibility policy
+for this non-directional input, inferred from those inspected streams and
+their weapon-switch script use; it is not a claim to reproduce MCC's private
+playback implementation. The converter logs which recordings use the policy.
+
+The existing bounds-checked MCC recording walker recognizes this case only
+when the entire stream through its end is valid, initial control flags and
+movement/direction vectors are zero, and it contains a weapon event with no
+other effective event type. Signed zero is accepted. Authored directions,
+motion, control/animation-state events, older codecs and malformed streams
+do not select the fallback. Recording bytes, event timings, weapon slots and
+the remaining controller fields are not rewritten by this policy.
+
+`mcc_recording_control.c` initializes only the playback controller's three
+directions from the target unit's valid current orientation. It requires an
+active MCC cache, MCC-owned stream storage and a valid unit. A minimal `port:`
+hook in `recorded_animations.c` supplies its private controller immediately
+after native decoding. Conversion alone cannot supply a live unit orientation:
+the same recording can be played on different units facing different ways.
+The hook returns without changing anything outside MCC or for ordinary
+recordings. It adds no persistent state or allocation to leak across reloads,
+checkpoints or map-family transitions. Existing playback still owns the
+recording's lifetime, possession, events and completion.
+
+In co-op the host continues to initiate scenario/AI recordings; existing unit
+controls and object synchronization carry their results to clients. Multiplayer
+clients can also run local scripts, so MCC protocol 46 requires matching
+recording behavior on both peers. No packet layout or client authority was
+added, and the OpenCE/Xbox/Custom Edition protocol remains 29. The asset-free
+tests exercise the production walker and runtime
+hook, including every stream truncation, nonzero/NaN/infinite directions,
+other event types, distinct current directions, invalid units, foreign data,
+and inactive-MCC behavior. The combined focused suite passed 188 tests.
+
+With the recording fix, the original Tiny Halo map completed a 150-second
+singleplayer startup check, printed a delayed completion marker and took a
+checkpoint without assertions. A separate 190-second process transitioned
+Tiny Halo -> Xbox A10 -> CE Death Island -> Tiny Halo and ran the second
+Tiny Halo startup without assertions. These used hidden windows and a null
+renderer, so they do not verify visual fidelity or a full playthrough.
+
+The supplied Tiny Halo cache is marked multiplayer. An attempted `:coop`
+automation run refused that classification and selected its default map;
+that run was stopped and is not Tiny Halo validation. The corrected
+165-second `:slayer` run loaded Tiny Halo on two machines with both players
+active, advanced through the recording startup and a player death/respawn,
+and produced a delayed host completion marker without assertions. Existing
+map warnings about unsupported multiplayer placements and absent units remain
+visible. This is a bounded multiplayer smoke check, not certification of the
+mod's co-op design. These runtime checks preceded the final MCC-version bump;
+the separate admission tests were then rerun for version 46, and the wire
+manifest check confirmed that only the MCC version changed.
+
+The final MCC-46 Windows release was rebuilt successfully and tested with two
+Mercury2 co-op instances for 145/140 seconds. Both player slots were admitted
+before loading, both players became alive, and host/client logs show their
+replicated positions. The host executed both missing-unit calls and a delayed
+completion marker; the client console refused the same host-only commands.
+No assertion was detected. Map-authored warnings (including a biped outside
+the world) were left visible. The runners stopped their own processes after
+the bounded checks. Generated test cache files were removed, retaining logs,
+symbols and test-save evidence. Android/Web targets remain unavailable and
+Linux/browser transport execution remains unverified locally.
+
+### Mercury2 Doozy boat controls (issue #62)
+
+Mercury2's Doozy uses the three-powered-point boat controller. Its inspected
+`crashsite\levels\splashsite\doozy\doozy` physics tag (index 3733 in the
+supplied map) has finite mass/inertia data and water-friction plus water-lift
+flags (`0x0a`) on all three powered points. The engine's boat controller
+assigns `water_friction_velocity` only on point zero; `physics_compute_new`
+reads it on points one and two as well. Those stack values were uninitialized.
+A non-finite value can contaminate the boat's force, position and orientation;
+the issue reports precisely those invalid vectors. This also explains why a
+client's earlier visible copy cannot be boarded on the authoritative host.
+
+`mcc_boat_controls_initialize` in `mcc_objects.c` zeroes the three temporary
+controls before the existing boat routine assigns its rotations, lift and
+propeller speed. The only shared addition is a port-marked call inside the
+three-point boat branch (and its declaration include). Conversion alone
+cannot initialize this private per-tick stack storage. Non-MCC execution is a
+no-op; other vehicle controllers and boat point counts retain their paths.
+No authored tags, network permissions, packet fields or seat rules change.
+There is no persistent state to clean up across map-family transitions.
+
+MCC protocol 47 requires this initialization on every peer, including a
+client predicting a boat it drives. The separate OpenCE protocol stays 29.
+The regression harness extracts the real boat routine, real scratch structure
+and MCC initializer, starts the scratch storage with NaNs, and checks the
+controls delivered to physics. Removing the hook reproduces the failure.
+It also checks the inactive MCC guard, unchanged alternate point-count path,
+rotations/lift/propeller outputs and the adjacent scratch-array canary. This
+is a control-initialization test, not a simulation of the complete physics.
+
+Validation: the Windows release builds, 78 focused boat/script/protocol/network
+tests pass, and the recorded network-format check passes. A hidden two-instance
+Mercury2 co-op check switched to the plains BSP and created the authored `d1`
+boat at its original position. Host-authorized script calls seated the client
+as driver and host as passenger. Both logs retained finite positions and both
+players riding for 55 seconds without assertions. The boat's health query is
+zero because its collision tag has zero maximum body vitality; this is also
+the engine's initial value for such objects, not evidence of a destroyed boat.
+This verifies seat replication and stable occupied physics, not manual client
+entry, driven movement, visible rendering or a complete campaign playthrough.
+Earlier artificial player-teleport attempts were unsuccessful (one hit a
+cluster assertion) and are not counted as passing validation.
+A separate hidden single-instance smoke check loaded Mercury2, Xbox A10,
+Custom Edition Death Island and Mercury2 again without assertions. This checks
+the map-family lifecycle, not full legacy gameplay or a visual comparison.
+
+Android and Web build targets are unavailable in this local configuration;
+Linux was not executed. Browser/native transport testing could not start
+because Playwright is absent. Those platform checks remain for CI. Temporary
+map copies and generated caches were removed; logs and verified compressed
+private test saves were retained.

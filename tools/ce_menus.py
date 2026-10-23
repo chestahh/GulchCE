@@ -50,6 +50,7 @@ from PIL import Image
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from hud_assets import bleed, render_svg  # noqa: E402
 import port_settings  # noqa: E402
+import changelog_menu  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
 MENUS = ROOT / "port/assets/menus"
@@ -69,15 +70,23 @@ LEFT_OUT = {
     "ui\\shell\\main_menu\\multiplayer_type_select\\checking_updates_screen_create",
     "ui\\shell\\main_menu\\multiplayer_type_select\\checking_updates_screen_join",
 }
-# children moved: (parent, child) to (x, y); the main menu's Quit up into
-# Credits' place; Multiplayer's Edit Gametypes and its line down a row, for
-# Co-op (port_settings.WIDGET_PATCHES)
+# children moved: (parent, child) to (x, y); the main menu's Quit a row below
+# Mods, which takes Credits' place; Multiplayer's Edit Gametypes and divider
+# below Co-op, keeping its 32-unit highlight inside the description panel's
+# bottom curve (port_settings.WIDGET_PATCHES)
 CHILD_OFFSETS = {
-    ("ui\\shell\\main_menu\\main_menu_select_list", "ui\\shell\\main_menu\\main_menu_item_quit_game"): (192, 391),
+    # Player Options' rows 27 apart, not 30, so that the host's AIM ASSIST and
+    # SHIELD EFFECTS fit below them and above the help, which some fill with
+    # three lines (port_settings.WIDGET_PATCHES)
+    **{("ui\\shell\\main_menu\\settings_select\\multiplayer_setup\\player_options_edit\\player_options_menu",
+        f"ui\\shell\\main_menu\\settings_select\\multiplayer_setup\\player_options_edit\\op_{row}"): (54, 73 + 27 * index)
+       for index, row in enumerate(port_settings.PLAYER_OPTIONS_ROWS)},
+    ("ui\\shell\\main_menu\\main_menu_select_list", "ui\\shell\\main_menu\\main_menu_item_quit_game"):
+        port_settings.QUIT_ITEM_PLACE,
     ("ui\\shell\\main_menu\\multiplayer_type_select\\multiplayer_type_select_list",
-     "ui\\shell\\main_menu\\multiplayer_type_select\\multiplayer_type_gametypes_item"): (0, 375),
+     "ui\\shell\\main_menu\\multiplayer_type_select\\multiplayer_type_gametypes_item"): (0, 358),
     ("ui\\shell\\main_menu\\multiplayer_type_select\\multiplayer_type_select_screen",
-     "ui\\shell\\main_menu\\blueline"): (64, 358),
+     "ui\\shell\\main_menu\\blueline"): (64, 349),
     # the browser's rows up under the column titles, into the place of the
     # scroll up button (hidden: the list does not scroll)
     **{("ui\\shell\\main_menu\\multiplayer_type_select\\join_game\\join_game_items_list",
@@ -272,6 +281,31 @@ def attributes(pairs: list) -> str:
 def text_value(utf16: bytes) -> str:
     text = utf16.decode("utf-16-le").split("\0")[0]
     return text.replace("\r\n", "\\n").replace("\n", "\\n").replace("\r", "")
+
+
+def strings_xml(lists: dict) -> str:
+    """strings.xml: the PC version's string lists (each tag's strings), with
+    the port's changes to them (port_settings.STRING_OVERRIDES and
+    STRING_INSERTS). Each list names its tag (map=) and each of its strings
+    that is the PC version's its index there (map=), which a map in another
+    language has in its language (menu_tags.c's map_strings)."""
+    lines = ['<?xml version="1.0" encoding="UTF-8"?>',
+             "<!-- The PC version's menus' text (tools/ce_menus.py) -->", "<menus>"]
+    for tag in sorted(lists):
+        strings = lists[tag]
+        originals = list(range(len(strings)))
+        if our_name(tag) in port_settings.STRING_OVERRIDES:
+            strings = port_settings.STRING_OVERRIDES[our_name(tag)]
+            originals = port_settings.OVERRIDE_ORIGINALS.get(our_name(tag), [None] * len(strings))
+        for index, texts in port_settings.STRING_INSERTS.get(our_name(tag), []):
+            strings = strings[:index] + texts + strings[index:]
+            originals = originals[:index] + [None] * len(texts) + originals[index:]
+        lines.append(f"\t<strings{attributes([('name', our_name(tag)), ('map', tag)])}>")
+        lines += [f"\t\t<string{attributes([('text', text), ('map', original)])}/>"
+                  for text, original in zip(strings, originals)]
+        lines.append("\t</strings>")
+    lines.append("</menus>")
+    return "\n".join(lines) + "\n"
 
 
 def flag_names(value: int, names: list) -> str:
@@ -542,15 +576,93 @@ def engine_names(source: Path, start: str, count: int) -> list:
     return re.findall(r'"([^"\\]*)"', text[:text.index("}")])[:count]
 
 
+def pause_art(art):
+    lines = []
+    for piece in ("left", "center", "right"):
+        heights = [port_settings.pause_box_height(buttons) for buttons in port_settings.PAUSE_BOX_BUTTONS]
+        heights += list(port_settings.PAUSE_BOX_EXTRA_HEIGHTS)
+        lines.append(art.port_picture(f"pause/pausebox_{piece}", [
+            (port_settings.pause_box_svg(piece, height), 4 if piece == "center" else 16, 256) for height in heights]))
+    for piece in ("left", "center", "right"):
+        lines.append(art.port_picture(f"pause/objectives_{piece}", [
+            (port_settings.pause_box_svg(piece, height, header=True), 4 if piece == "center" else 16, 256)
+            for height in port_settings.PAUSE_BOX_EXTRA_HEIGHTS]))
+    return lines
+
+
+def regenerate_pause_art():
+    """Regenerate port-owned pause art without requiring the PC tag archive."""
+    import re
+    art = Art.__new__(Art)
+    art.pngs = []
+    lines = pause_art(art)
+    path = CE / "bitmaps.xml"
+    text = path.read_text()
+    pattern = r'\t<bitmap name="pause/(?:pausebox|objectives)_[^"]+">.*?</bitmap>\n'
+    matches = list(re.finditer(pattern, text, flags=re.S))
+    position = matches[0].start()
+    text = re.sub(pattern, "", text, flags=re.S)
+    text = text[:position] + "\n".join(lines) + "\n" + text[position:]
+    path.write_text(text)
+    manifest = MENUS / "menus.json"
+    data = json.loads(manifest.read_text())
+    files = set(data["files"]) | set(art.pngs)
+    data["files"] = sorted(name for name in files if name.endswith(".xml")) + sorted(
+        name for name in files if not name.endswith(".xml"))
+    manifest.write_text(json.dumps(data, indent=1) + "\n")
+
+
+def regenerate_child_offsets():
+    """Apply the same child positions to existing XML without the PC tags."""
+    import re
+    for path in CE.glob("*.xml"):
+        original = path.read_text()
+        parent = None
+        lines = []
+        for line in original.splitlines(keepends=True):
+            widget = re.match(r'\t<widget name="([^"]+)"', line)
+            if widget:
+                parent = "ui\\shell\\" + widget[1].replace("/", "\\")
+            child = re.match(r'\t\t<child widget="([^"]+)"', line)
+            if child:
+                tag = "ui\\shell\\" + child[1].replace("/", "\\")
+                position = CHILD_OFFSETS.get((parent, tag))
+                if position is not None:
+                    for axis, value in zip(("x", "y"), position):
+                        attribute = f' {axis}="{value}"'
+                        pattern = rf' {axis}="[^"]*"'
+                        if re.search(pattern, line):
+                            line = re.sub(pattern, attribute, line)
+                        elif value:
+                            line = line.replace("/>", attribute + "/>")
+            lines.append(line)
+        updated = "".join(lines)
+        if updated != original:
+            path.write_text(updated)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--tags", type=Path, required=True)
-    parser.add_argument("--definitions", type=Path, required=True)
-    parser.add_argument("--redraws", type=Path, required=True)
-    parser.add_argument("--placeholder", type=Path, required=True, help="the picture for frames with no redraw")
+    parser.add_argument("--pause-art-only", action="store_true", help="regenerate only the port-owned pause panels")
+    parser.add_argument("--child-offsets-only", action="store_true", help="apply child positions to existing menu XML")
+    parser.add_argument("--changelog-only", action="store_true", help="regenerate only the sample changelog menus")
+    partial_only = any(option in sys.argv for option in ("--pause-art-only", "--child-offsets-only", "--changelog-only"))
+    parser.add_argument("--tags", type=Path, required=not partial_only)
+    parser.add_argument("--definitions", type=Path, required=not partial_only)
+    parser.add_argument("--redraws", type=Path, required=not partial_only)
+    parser.add_argument("--placeholder", type=Path, required=not partial_only, help="the picture for frames with no redraw")
     parser.add_argument("--pictures", type=Path,
                         help="the PC version's pictures, as PNGs by tag path: only where each is, to place its placeholder")
     arguments = parser.parse_args()
+    if arguments.changelog_only:
+        changelog_menu.regenerate()
+        return
+    if arguments.child_offsets_only:
+        regenerate_child_offsets()
+        return
+    if arguments.pause_art_only:
+        regenerate_pause_art()
+        return
     tags = Tags(arguments.tags, arguments.definitions)
     # (the names of the Xbox's own as the game has them, which the tags' own
     # names give a little differently: "create&edit", "NULL")
@@ -602,37 +714,32 @@ def main() -> None:
         (CE / f"{folder.replace('/', '.')}.xml").write_text("\n".join(lines) + "\n")
     for name, lines in [*port_settings.settings_files().items(), *port_settings.multiplayer_files().items()]:
         (CE / name).write_text("\n".join(lines))
+    main_menu = CE / "main_menu.xml"
+    main_menu.write_text(changelog_menu.insert_item(main_menu.read_text()))
+    changelog_menu.generate(art)
     # their strings
-    lines = ['<?xml version="1.0" encoding="UTF-8"?>',
-             "<!-- The PC version's menus' text (tools/ce_menus.py) -->", "<menus>"]
-    for tag in sorted(string_lists):
-        strings = [text_value(item["string"]) for item in tags.load(tag, "unicode_string_list")["strings"]]
-        strings = port_settings.STRING_OVERRIDES.get(our_name(tag), strings)
-        for index, texts in port_settings.STRING_INSERTS.get(our_name(tag), []):
-            strings = strings[:index] + texts + strings[index:]
-        lines.append(f"\t<strings{attributes([('name', our_name(tag))])}>")
-        lines += [f"\t\t<string{attributes([('text', text)])}/>" for text in strings]
-        lines.append("\t</strings>")
-    lines.append("</menus>")
-    (CE / "strings.xml").write_text("\n".join(lines) + "\n")
+    (CE / "strings.xml").write_text(strings_xml({
+        tag: [text_value(item["string"]) for item in tags.load(tag, "unicode_string_list")["strings"]]
+        for tag in string_lists}))
     # their bitmaps
     lines = ['<?xml version="1.0" encoding="UTF-8"?>',
              "<!-- The PC version's menus' bitmaps, drawn from the redraws, else the PC version's own pictures"
              " (NON_HANDDRAWN.md; tools/ce_menus.py) -->", "<menus>"]
     lines += [art.bitmap(tag) for tag in sorted(bitmaps)]
     lines += [art.title(name, text) for name, text in sorted(port_settings.TITLES.items())]
-    # (the in-game pause menu's taller box: menu_tags.c's pause_patch)
-    for piece in ("left", "center", "right"):
-        heights = [port_settings.pause_box_height(buttons) for buttons in port_settings.PAUSE_BOX_BUTTONS]
-        heights += list(port_settings.PAUSE_BOX_EXTRA_HEIGHTS)
-        lines.append(art.port_picture(f"pause/pausebox_{piece}", [
-            (port_settings.pause_box_svg(piece, height), 4 if piece == "center" else 16, 256) for height in heights]))
+    lines += pause_art(art)
     # (voice chat's speaker, of a player who talks and of one muted: Lucide's
     # icons, port/assets/icons/lucide, white for network_voice.c to tint)
     lines.append(art.port_picture("voice/speaker", [
         ((ROOT / "port/assets/icons/lucide" / f"{icon}.svg").read_text().replace('stroke="currentColor"',
                                                                                  'stroke="#FFFFFF"'), 24, 24)
         for icon in ("volume-2", "volume-x")]))
+    # (the main menu's MODS, in the redraws' own letters, and the mods'
+    # status icons: Lucide's, port/assets/icons/lucide)
+    lines.append(art.port_picture("main_menu/menu_mods", port_settings.menu_item_frames("MODS", art.redraws)))
+    lines.append(art.port_picture("mods/status", port_settings.mod_status_frames(ROOT / "port/assets/icons/lucide")))
+    lines.append(art.port_picture("mods/status_small",
+                                  port_settings.mod_status_frames(ROOT / "port/assets/icons/lucide", 16)))
     # (nothing: what a game map draws for a frame of ui.map's it has not,
     # menu_tags.c)
     lines.append(art.port_picture("blank", [

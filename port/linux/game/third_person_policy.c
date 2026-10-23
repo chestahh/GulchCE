@@ -11,8 +11,8 @@ int config_write(char const *name, char const *value);
 
 boolean third_person_match_flags_valid(unsigned long flags)
 {
-	/* Bit zero is co-op player collision; policy value three is reserved. */
-	return !(flags & ~(1UL | THIRD_PERSON_POLICY_MASK)) &&
+	/* Bits zero and one are upstream co-op flags; policy value three is reserved. */
+	return !(flags & ~(3UL | THIRD_PERSON_POLICY_MASK)) &&
 		((flags & THIRD_PERSON_POLICY_MASK) >> THIRD_PERSON_POLICY_SHIFT) <= _third_person_forced_off;
 }
 

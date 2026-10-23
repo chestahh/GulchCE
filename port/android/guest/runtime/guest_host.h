@@ -38,6 +38,11 @@ void host_set_tp(unsigned int thread);
 __guest_thread_start(thread); returns 0 or an errno value */
 int host_thread_create(unsigned int thread, unsigned int stack_size);
 
+/* MCC tag address space (host_mcc_memory.c), independent of the guest pools.
+Reserve returns the address or negative errno; release returns zero or negative errno. */
+long long host_mcc_memory_reserve(unsigned int address, unsigned int size);
+int host_mcc_memory_release(unsigned int address, unsigned int size);
+
 /* ---------- memory write tracking (port/linux/src/memory_watch.c) */
 
 void host_memory_watch_initialize(void);
@@ -75,6 +80,10 @@ void host_sdl_scancode_name(int scancode, char *buffer, unsigned int size);
 int host_sdl_scancode_from_name(const char *name);
 int host_sdl_show_toast(const char *message, int duration, int gravity, int x, int y);
 int host_sdl_show_simple_message_box(unsigned int flags, const char *title, const char *message);
+/* SDL_ShowMessageBox of up to three buttons (SDL_MessageBoxData has not the
+guest's layout): the index of the one chosen, else -1 */
+int host_sdl_show_message_box(unsigned int flags, const char *title, const char *message, int default_index,
+	const char *button0, const char *button1, const char *button2);
 int host_sdl_get_gamepads(unsigned int *ids, int capacity);
 unsigned int host_sdl_open_gamepad(unsigned int id);
 unsigned int host_sdl_gamepad_from_id(unsigned int id);

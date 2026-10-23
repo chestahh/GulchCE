@@ -33,17 +33,18 @@ network games, and is never taken for one of the campaign's levels (saved
 games, progress, the next level). The game engine keeps 63 characters of a
 level name, so a map whose file name is longer than 51 is not listed.
 
-A map in `custom_maps` is named for its contents once the map lists (or a
-host picking it) find it: `hugeass.map` becomes `hugeass_0e2b3ee4.map`, the
-first 8 hexadecimal digits of its hash after `_`, its `.bmp` and `.txt`
-renamed with it (`port/linux/game/map_share_files.c`; the name is cut short
-to keep the level name within 63 characters). A network game's level name
-then says which version of the map it is on, a player without it downloads
-it under that name (`port/linux/NETCODE.md`, "Map sharing"), and two
-versions of a map keep apart. A level name without the hash (a saved last
-map, a test's) finds the one map of that name in `custom_maps`. The menus
-show a map without its hash, unless two versions of it are listed. Maps in
-a Custom Edition install's folder keep their names.
+Maps keep their names. A network game's level name is the map's own
+(`custom_maps\hugeass`), and its game record's map version is the first 32
+bits of the map's hash (`port/linux/game/map_share_files.c`), so a client
+plays its file of that name and version, whatever else it has of the name
+(`custom_edition_map_find_version`); a player without it downloads it
+(`port/linux/NETCODE.md`, "Map sharing"). A download beside another version
+of its name is named `hugeass_0e2b3ee4.map`, the first 8 hexadecimal digits
+of its hash after `_`, and the menus show it as "Hugeass (2)". A level name
+without the hash (a saved last map, a test's) finds the one map of that
+name in `custom_maps`, and one with it (an earlier build's, which named
+every map so) the map given its name back. Maps in a Custom Edition
+install's folder are found and shared as `custom_maps`' are.
 
 A map needs only the resource maps that hold its tags: its tag index says
 which (`cache_file_resource_maps_needed`, `cache_file_formats.c`: a tag
@@ -96,7 +97,7 @@ than the damaged disc error precaching a missing map gives
 the map cannot run there (Custom Edition maps turned off, the file not a
 Custom Edition cache, or `bitmaps.map`, `sounds.map` and `loc.map` missing),
 when its copy of a Custom Edition map is another version than the host's
-(the host sends its file's header checksum as the game record's map
+(the host sends its map's hash's first 32 bits as the game record's map
 version, which the Xbox left 0: `cache_files_map_version`; a host that sends
 0 is not checked), and when the host names a Custom Edition map as other
 versions of this port do (`levels\test\<name>\<name>`) and the file is in
@@ -191,9 +192,11 @@ Loading, step by step (`custom_edition_cache_load`):
    its lightmaps and their materials: every block within the BSP and aligned,
    every material's uncompressed environment vertices (56 bytes) and
    lightmap vertices (20 bytes) within the BSP and of the size their counts
-   give, lightmap vertices exactly when the lightmap has a bitmap, and every
-   normal, binormal, tangent and incident radiosity within ±1.005 (the game's
-   vertex compressor asserts on anything further out).
+   give, at most 64000 of each (the game's limit, to which the validator
+   cuts a material's counts), lightmap vertices exactly when the lightmap
+   has a bitmap, and every normal, binormal, tangent and incident radiosity
+   within ±1.005 (the game's vertex compressor asserts on anything further
+   out).
 5. The header checksum is computed as OpenSauce computes it, before anything
    changes the tag data; a mismatch is reported, not refused.
 6. The tags held by resource maps are read into the tag cache after the tag
@@ -267,9 +270,11 @@ changed:
   number's digits drawn at half size (`hud_number_scale`), bitmaps' HUD scale
   flags cleared (`disable_bitmap_hud_scale_flags`), and model shaders'
   detail after reflection flag flipped (`invert_detail_after_reflection`).
-  Not yet: Halo PC's fixed-function meters (`gearbox_meters`), its
+  Partially supported: PC meter tint (`gearbox_meters`) and legacy warning
+  placement (`old_widescreen_fix`), described below. Not yet: the complete
+  fixed-function meter pipeline, its
   transparent chicago multiply, bump attenuation and environment shader
-  types, the old widescreen HUD and embedded Lua.
+  types, the remaining old widescreen HUD behavior and embedded Lua.
 - **The score hint.** String 100 of `ui\multiplayer_game_text` is Halo PC's
   `Hold "%s" for score`, which Halo PC fills in with its score key; this
   build copies it as it is (`game_engine.c`, the press-back-for-score
@@ -277,6 +282,114 @@ changed:
   score, in the same four characters.
 
 ### In the game (`custom_edition_cache.c`, `custom_edition_geometry.c`, `custom_edition_bitmaps.c`)
+
+The High-Res HUD registers CE bitmaps after menus and before loose-tag mods,
+using the same unload cleanup as Xbox maps. Compatible shared HUD redraws
+are listed in `port/assets/hud/custom_edition.json`. The first mip's
+dimensions, byte count and CRC in hardware order must also match: shared
+`bitmaps.map` resources can contain custom artwork. Embedded custom sheets
+retain their own pixels; placements, anchors,
+offsets and sprite definitions are never rewritten by this replacement.
+With High-Res HUD disabled, the original CE pixels remain authoritative.
+Xbox registration and MCC's separate loading branch are unchanged.
+
+`tools/ce_hud_signatures.py <stock bitmaps.map>` records these fingerprints
+for the existing layout allowlist without distributing game pixels. The
+reference resource SHA-256 is recorded in the JSON (the two local copies
+inspected matched). `ce_stock.json` inventories all 77 bitmaps in that
+resource's `ui\hud\bitmaps` groups. Stock pieces without redraws, including
+CE-only lettering and symbols, use the existing fourfold HUD interpolation
+at runtime; custom pixels never qualify. Its compressed/512-pixel extension
+in `xbox_textures.c` is necessary because only that renderer service can
+decode those formats; it activates only for a verified CE stock sheet.
+
+`ce_layout.json` packs the OpenCE unit and ammunition meter redraws into
+CE's different sprite arrangement. The recipe records source and destination
+artwork bounds, not merely sprite rectangles: CE's internal padding differs.
+For the full-size shield and health sprites, preserve the redraw's screen
+coordinates relative to the top-right anchor instead of fitting the stock
+pixel bounds. CE's half placement scale and different sprite padding require
+translation only; stretching those shapes misaligns the separately drawn
+background, most visibly at the health cross and shield emblem.
+The reference was the stock CE resource above and Xbox Blood Gulch. The
+generator (`python tools/ce_hud_assets.py build`) needs only committed OpenCE
+redraws. Red categorical meter thresholds are resized with nearest sampling;
+coverage and alpha remain filtered. No retail pixels are shipped.
+
+Stock crosshairs use the redraws where their normalized sprite layout agrees;
+CE-only crosshairs use interpolation. Controller prompts use the existing
+OpenCE button-style path when their CE controller definitions match stock.
+The messaging sheet may contain custom weapon pictures: TSC, Snow Grove
+and Bigass retain the stock controller entries but use those same sequence
+numbers for weapons. Controller records are identified by their address in
+the button array; weapon records continue to draw their authored pictures.
+Embedded custom messaging sheets use a controller fallback even with
+High-Res HUD off, because those sheets have no matching stock buttons.
+When disabled, the original low-resolution controller sprites are read from
+the shared `hud_msg_icons_sm` resource, including animated stick prompts.
+The bounded reader accepts its stock two-image ARGB layout, preserves the
+sprite frames, sizes the 20-pixel faces to the native 26-pixel gameplay size,
+centers them on the active font's capitals with room for the adjacent text,
+and releases the textures on
+map unload. The selected button redraw style applies only when enabled.
+Shared stock CE sheets retain the original low-resolution path when disabled.
+Custom controller offsets/sequences stay authored.
+HUD text still follows the separate High-Res Text setting.
+
+Custom meter sheets may also supply static artwork. Snow Grove's protected
+HUD sheets and TSC Evolved Multiplayer's `default\vitals`, `default\visr_meter`
+and `vehicles\vehicle_vitals` exercise this case. Such mixed-use sheets retain
+their original channels in the texture cache. A CE meter draw now scopes a
+shader conversion from `(R,G,B,A)` to `(A,A,A,R)`: the fill threshold is alpha,
+and the shape is red. Ordinary draws of the same texture remain unchanged.
+Already-converted meter textures and OpenCE replacements skip this conversion.
+The scope ends immediately after drawing and is also cleared on texture-map
+cleanup. Xbox and MCC do not enter it. No authored artwork, anchors, scales,
+offsets or sprite rectangles are changed.
+
+The small `hud_draw.c` hook is needed to identify the current consumer;
+load-time bitmap classification alone cannot distinguish these two uses.
+The texture description and shader key carry that decision to the sample,
+without changing the shared texture's upload or sampler state.
+
+For maps already identified by the name/checksum compatibility table as
+depending on `gearbox_meters`, the meter's emitted color is no longer
+multiplied by Xbox's `1-opacity` intensity. TSC's shield and ammo meters
+have opacity 1, which otherwise turns their filled areas black. The
+map's colors, threshold, empty color and fade remain in use. The public
+[Chimera meter shader](https://github.com/SnowyMouse/chimera/blob/master/src/chimera/halo_data/shaders/pixel/hlsl/hud_meters.psh)
+also omits that intensity multiplication. This is a targeted tint correction,
+not a claim of implementing the entire PC fixed-function renderer.
+
+Bigass Open v1.1 (`bigass_open_v1.1`, tag checksum `D2BC19F7`) needs a
+different ammo-sheet interpretation from Bigass v3 (`852EE757`). Inspection
+of `bourrin\hud\v3\bitmaps\all icons wips` shows that Open's twelve weapon
+meter sequences keep their thin shapes in alpha and fill progression in
+color, whereas v3 keeps those channels reversed. The local compatibility
+entry marks only this sheet as explicitly Xbox-ordered; that identity
+survives static-icon use and suppresses the per-draw CE channel swap.
+Other meter sheets retain their existing interpretation. The classification
+is rebuilt with the map and cleared on bitmap disposal, including failed
+loads. No pixel data or HUD placements are edited.
+
+Both revisions use the same `iris italic` HUD-number metrics
+`(16,14,0,0,6,7)` and half-scale digit placements. Open's entry also enables
+the existing `hud_number_scale` conversion, producing `(8,7,0,0,3,4)` so
+the current-magazine and reserve digits advance consistently with their
+drawn size. These corrections apply with High-Res HUD on or off and are
+matched by both map name and tag checksum; unrelated CE, Xbox and MCC
+maps do not acquire them. No unrelated v3 shader or Lua flags are inherited.
+
+CE warning crosshair states (ammo, heat and reload) draw in HUD coordinates,
+without the FOV or passenger-camera transform used by aiming reticles.
+For `old_widescreen_fix` maps, nonzero warning offsets also retain
+their distance from the corresponding edge of the authored 640x480 canvas,
+accounting for PC's 8-pixel HUD margins and OpenCE's current title-safe frame.
+Snow Grove places its low/reload warnings this way beside its ammo panel;
+their bitmap scale and animation remain authored, and offsets translate
+with the panel rather than being scaled toward the aiming point.
+The draw uses a placement copy, without modifying the loaded tags. Xbox and
+MCC retain their existing crosshair drawing and meter tint behavior.
 
 - **Models.** Every `mod2` part is given this build's part layout (the first
   0x68 bytes of the 0x84-byte Custom Edition part are the same fields; the
@@ -332,7 +445,9 @@ changed:
   which leaves them compressed). A bitmap also drawn another way (a
   multipurpose map that is also a base map, say) keeps its channels, since
   the renderer has one order for each texture, and is logged: 3 in
-  `bloodgulch.map`, all multipurpose maps.
+  `bloodgulch.map`, all multipurpose maps. Mixed-use CE HUD meter sheets
+  instead select meter channels in the shader for that draw, as described
+  above; their ordinary artwork still reads the original channels.
 - **Reads.** The renderer write-protects the memory it has made textures of
   and learns of changes from the faults writes take; the kernel fails a read
   into such memory instead. Every read of the map is therefore made into a
@@ -384,9 +499,11 @@ every tag as it checks an Xbox map's (`tag_validate_custom_edition_tags`,
 called by `custom_edition_cache_tags_load`): every block and data within
 the loaded tags and overlapping no other's, counts cut to the game's
 capacities, indices, enums and tag references corrected, runtime values
-reset, then the graph checks (collision BSPs, node trees, scripts' syntax).
-A map whose pointers cannot be trusted is refused; what can be corrected is,
-and logged. What differs from an Xbox map:
+reset, then the graph checks (collision BSPs, node trees, scripts' syntax),
+and a tag name that lies in any tag's block or data is emptied (what the
+game writes there could take away its end). A map whose pointers cannot be
+trusted is refused; what can be corrected is, and logged. What differs
+from an Xbox map:
 
 - the tag header has no vertex or index buffers, and the tag cache is the
   Custom Edition one (23 MB);
@@ -488,9 +605,9 @@ file the same as the host's; with `network.map_download` off, or a host with
   but their model parts have its 0x68-byte layout and their shader types its
   numbering, which makes them a check on what the conversion produces.
 
-OpenSauce and Reclaimer are GPL-3.0 and this repository is CC0: no code from
-either was copied. They were read as documentation of the file formats, and
-every layout used was then checked against the sample maps.
+No code from OpenSauce or Reclaimer (both GPL-3.0) was copied: they were
+read as documentation of the file formats, and every layout used was then
+checked against the sample maps.
 
 ### Documented facts (source, checked against the sample maps)
 
@@ -563,10 +680,10 @@ every layout used was then checked against the sample maps.
 - **What the validator corrects is lost.** A community map's data that the
   validator corrects (an index past its block, an enum past its values) is
   what the game then runs; Halo PC read past such data unchecked.
-- **Ogg Vorbis sounds** are decoded when the map loads (stb_vorbis, public
-  domain) and encoded again as Xbox ADPCM in memory
-  (`port/linux/game/custom_edition_sounds.c`); one that cannot be decoded is
-  silenced, and still logs when played.
+- **Ogg Vorbis sounds** are decoded when the map loads (stb_vorbis, with
+  added bounds checks: `port/third_party/stb_vorbis`) and encoded again as
+  Xbox ADPCM in memory (`port/linux/game/custom_edition_sounds.c`); one that
+  cannot be decoded is silenced, and still logs when played.
 - **Models of 44 nodes or more** are drawn a part's nodes at a time, given
   local nodes when they have none; one whose part's vertices name more
   nodes than a part holds is refused.

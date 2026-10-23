@@ -186,6 +186,7 @@ symbols in this file:
 #include "units/units.h"
 #include "cache/cache_files.h" /* port: (tag_iterator: light_port_glow_definition_get) */
 void shield_glow_update(void); /* port: port/linux/game/shield_glow.c */
+void shield_glow_reset(void); /* port: port/linux/game/shield_glow.c */
 
 /* port: port/linux/src (halo.log) */
 void platform_log(const char *format, ...);
@@ -375,7 +376,8 @@ struct lights_globals
 	long marker;
 	short scene_point_light_count;
 	short padA;
-	long scene_point_lights[128];
+	/* port: the native builds' (render.h: the Xbox's 128) */
+	long scene_point_lights[MAXIMUM_RENDERED_LIGHTS];
 	struct rasterizer_lens_flare_submit_parameters queued_lens_flares[8];
 	short queued_lens_flare_count;
 	short pad34E;
@@ -399,8 +401,9 @@ typedef char verify_light_datum_size[
 	sizeof(struct light_datum) == 0x7C ? 1 : -1];
 typedef char verify_rasterizer_light_submit_parameters_size[
 	sizeof(struct rasterizer_light_submit_parameters) == 0x38 ? 1 : -1];
+/* port: (scene_point_lights' size) */
 typedef char verify_lights_globals_size[
-	sizeof(struct lights_globals) == 0x350 ? 1 : -1];
+	sizeof(struct lights_globals) == 0x350 + 4 * (MAXIMUM_RENDERED_LIGHTS - 128) ? 1 : -1];
 
 /* ---------- prototypes */
 
@@ -780,6 +783,7 @@ void lights_initialize_for_new_map(
 	void)
 {
 	light_port_glow_definition = NONE - 1; /* port: (looked for again) */
+	shield_glow_reset(); /* port: discard handles from the previous light array */
 	data_make_valid(light_data);
 	lights_game_globals->render_lights = TRUE;
 	cluster_partition_make_valid(&light_cluster_partition);
@@ -790,6 +794,7 @@ void lights_initialize_for_new_map(
 void lights_dispose_from_old_map(
 	void)
 {
+	shield_glow_reset(); /* port: release feature state before invalidating map lights */
 	data_make_invalid(light_data);
 	cluster_partition_make_invalid(&light_cluster_partition);
 

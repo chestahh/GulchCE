@@ -12,6 +12,7 @@ boolean mcc_cache_tags_loaded(void) { return loaded; }
 boolean game_engine_running(void) { return running; }
 struct game_variant *game_engine_get_variant(void) { return &variant; }
 void *csmemcpy(void *to, void const *from, unsigned long size) { return memcpy(to, from, size); }
+void *csmemset(void *to, long value, unsigned long size) { return memset(to, value, size); }
 
 #define CHECK(value) do { if (!(value)) { fprintf(stderr, "failed at %d\n", __LINE__); return 1; } } while (0)
 int main(void) {
@@ -19,6 +20,16 @@ int main(void) {
     struct scenario_object_datum *placement = (void *)bytes;
     unsigned short flags;
     int engine, enabled;
+    union { unsigned long bits; real value; } invalid;
+    CHECK(!mcc_item_small_scale(0.001f));
+    loaded = TRUE;
+    CHECK(mcc_item_small_scale(0.001f) && mcc_item_small_scale(0.25f));
+    CHECK(!mcc_item_small_scale(0.f) && !mcc_item_small_scale(-1.f) &&
+          !mcc_item_small_scale(0.0001f) && !mcc_item_small_scale(0.5f) &&
+          !mcc_item_small_scale(4.f));
+    invalid.bits = 0x7FC00000; CHECK(!mcc_item_small_scale(invalid.value));
+    invalid.bits = 0x7F800000; CHECK(!mcc_item_small_scale(invalid.value));
+    loaded = FALSE;
     running = TRUE;
     variant.game_engine_index = game_engine_slayer;
     CHECK(!mcc_vehicle_placement_rules());

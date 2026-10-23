@@ -114,7 +114,8 @@ symbols in this file:
 
 /* ---------- headers */
 
-#include "mcc_hud_draw.h"
+#include "mcc_hud_draw.h" /* port: port/linux/game/mcc_hud_draw.c */
+#include "mcc_cache.h" /* port: preserve MCC-authored gameplay icons */
 #include "cseries/cseries.h"
 
 #include "cseries/errors.h"
@@ -466,6 +467,11 @@ static void render_state_text(
 	rectangle2d *cursor_bounds,
 	wchar_t const *text,
 	boolean custom);
+/* port: original Xbox high-resolution glyphs, port/linux/game/hud_hires_tags.c */
+boolean hud_hires_button_draw(struct icon_hud_element_definition const *icon,
+	rectangle2d *cursor, pixel32 color);
+struct bitmap_data const *hud_hires_sprite_bitmap(struct bitmap_data const *bitmap, short sequence_index);
+
 static void render_state_bitmap(
 	rectangle2d *bounds,
 	rectangle2d *cursor_bounds,
@@ -533,6 +539,13 @@ static void render_state_bitmap(
 	real scale;
 	point2d point;
 
+	/* port: keep gameplay prompts on the high-resolution HUD path, which
+	draws a button by its place among the HUD globals' button icons: before
+	the map's own picture of it is looked for, which a Custom Edition map's
+	message icons (13 sequences to the Xbox's 24) may not have, so that the
+	button was not drawn */
+	if (!mcc_cache_tags_loaded() && hud_hires_button_draw(icon, cursor_bounds, color))
+		return;
 	if (icon->frame_rate)
 		frame_index = game_time_get() / icon->frame_rate;
 	hud_retrieve_bitmap_and_bounding_rect(
@@ -546,6 +559,10 @@ static void render_state_bitmap(
 	{
 		if (mcc_hud_icon_draw(bitmap_group_index, bitmap, clip, cursor_bounds, color, icon, FALSE))
 			return;
+		/* port: retain MCC icon ownership before the high-resolution fallback. */
+		if (mcc_cache_tags_loaded() && hud_hires_button_draw(icon, cursor_bounds, color))
+			return;
+		bitmap = hud_hires_sprite_bitmap(bitmap, icon->sequence_index);
 		scale = local_player_count() > 1 ? 0.75f : 1.0f;
 		point.x = (short)(icon->offset.x * scale + cursor_bounds->x0);
 		point.y = (short)(cursor_bounds->y1 - icon->offset.y * scale);
@@ -894,6 +911,9 @@ void hud_render_timer(
 		numbers.placement.offset = timer->position;
 		numbers.placement.scale.i = 1.0f;
 		numbers.placement.scale.j = 1.0f;
+		/* port: this scripted element has no authored scaling flags. The PC
+		 * digit renderer reads them, so stack data must not halve its glyphs. */
+		numbers.placement.multiplayer_scaling_flags = 0;
 
 		hud_number_index = interface_get_tag_index(_interface_hud_digits);
 		if (hud_number_index != NONE)

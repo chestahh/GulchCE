@@ -209,8 +209,10 @@ symbols in this file:
 #include "units/units.h"
 #include "units/vehicle_definitions.h"
 #include "units/vehicles.h"
+#include "mcc_seats.h" /* port: port/linux/game/mcc_seats.c */
 
 #include "real_math.h"
+#include "passenger_camera.h" /* port: port/linux/game/passenger_camera.c; after the limit2d alias above */
 #include "network_coop.h" /* port: port/linux/game/network_coop.c */
 
 /* ---------- constants */
@@ -557,6 +559,8 @@ void player_control_get_unit_camera_info(
 			}
 		}
 
+		/* port: MCC biped seats carry the same authored camera as vehicles. */
+		mcc_seat_camera(camera_info);
 		if (camera_info->seat_index == NONE)
 		{
 			camera_info->camera = &unit_definition_get(unit->definition_index)->unit.camera;
@@ -740,7 +744,15 @@ static void handle_one_player_input(
 				1);
 		}
 
-		if (TEST_FLAG(input.player_control_flags, _player_control_input_zoom_bit) &&
+		/* port: this local passenger view has no weapon zoom, including a
+		scope held before entering the seat or enabling the setting. */
+		if (passenger_camera_enabled(local_player_index))
+		{
+			player->zoom_level = NONE;
+			if (unit->unit.current_zoom_level != NONE || unit->unit.desired_zoom_level != NONE)
+				unit_unzoom(player->unit_index);
+		}
+		else if (TEST_FLAG(input.player_control_flags, _player_control_input_zoom_bit) &&
 			player_control_camera_control_is_active() &&
 			current_weapon_index != NONE &&
 			!cinematic_in_progress())
@@ -2111,6 +2123,8 @@ static void player_control_modify_desired_angles(
 		player->desired_angles.pitch,
 		player->pitch_minimum,
 		player->pitch_maximum);
+	/* port: the local camera and the passenger's weapon share the aiming bounds */
+	passenger_camera_clamp_facing(local_player_index, &player->desired_angles);
 
 	return;
 }

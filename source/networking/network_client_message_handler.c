@@ -191,6 +191,7 @@ symbols in this file:
 /* ---------- headers */
 
 #include "cseries.h"
+#include "mcc_protocol.h" /* port: legacy/MCC settings boundary */
 #include "bungie_net/common/message_header.h"
 #include "bungie_net/network/transport.h"
 #include "bungie_net/network/transport_endpoint_winsock.h"
@@ -315,7 +316,8 @@ struct message_server_pregame_countdown
 
 struct message_server_pregame_keep_alive
 {
-	short unused;
+	/* port: a short on the Xbox, a long on the wire (network_messages.c) */
+	long unused;
 };
 
 struct message_server_postgame_keep_alive
@@ -948,6 +950,15 @@ static boolean network_game_client_handle_message_server_machine_rejected(
 piece is in */
 static struct network_game network_game_client_settings_staging;
 static long network_game_client_settings_staging_size = 0;
+static long network_game_client_settings_staging_total = 0; /* port: pin a fragmented layout */
+
+/* port: the record may be incomplete when its connection is disposed. */
+void network_game_client_reset_settings_staging(void)
+{
+	csmemset(&network_game_client_settings_staging, 0, sizeof(network_game_client_settings_staging));
+	network_game_client_settings_staging_size = 0;
+	network_game_client_settings_staging_total = 0;
+}
 
 static boolean network_game_client_receive_game_settings_piece(
 	struct network_game_client *client,
@@ -955,9 +966,11 @@ static boolean network_game_client_receive_game_settings_piece(
 {
 	boolean result = TRUE;
 
-	if (piece->total_size != sizeof(network_game_client_settings_staging) ||
+	if ((piece->total_size != sizeof(network_game_client_settings_staging) &&
+		piece->total_size != offsetof(struct network_game, mcc_content_sha256)) || /* port: OpenCE prefix */
+		!piece->length ||
 		piece->length > sizeof(piece->data) ||
-		piece->offset + piece->length > sizeof(network_game_client_settings_staging))
+		piece->offset + piece->length > piece->total_size)
 	{
 		network_event("got a message_server_game_settings_update piece for a different game layout");
 		network_game_client_settings_staging_size = 0;
@@ -968,9 +981,13 @@ static boolean network_game_client_receive_game_settings_piece(
 		/* each record is sent in order from its start, over a stream */
 		if (piece->offset == 0)
 		{
+			/* port: legacy settings have no MCC digest; never retain the last one. */
+			csmemset(&network_game_client_settings_staging, 0, sizeof(network_game_client_settings_staging));
+			network_game_client_settings_staging_total = piece->total_size;
 			network_game_client_settings_staging_size = 0;
 		}
-		if (piece->offset != network_game_client_settings_staging_size)
+		if (piece->offset != network_game_client_settings_staging_size ||
+			piece->total_size != network_game_client_settings_staging_total)
 		{
 			network_event("got a message_server_game_settings_update piece out of order; waiting for the next record");
 			network_game_client_settings_staging_size = 0;
@@ -985,7 +1002,9 @@ static boolean network_game_client_receive_game_settings_piece(
 			if (network_game_client_settings_staging_size == piece->total_size)
 			{
 				network_game_client_settings_staging_size = 0;
-				result = network_game_client_game_settings_updated(client, &network_game_client_settings_staging);
+				/* port: a legacy-sized record can never admit an MCC map. */
+				result = mcc_protocol_settings_valid(&network_game_client_settings_staging, piece->total_size) &&
+					network_game_client_game_settings_updated(client, &network_game_client_settings_staging);
 				if (!result)
 				{
 					network_event("network_game_client_game_settings_updated() failed");
@@ -1208,7 +1227,9 @@ static boolean network_game_client_handle_message_server_begin_game(
 				the message carries 16 bits of it: the rest from the first
 				game update, network_game_client_handle_game_update) */
 				network_game_client_late_join_time = (long)((unsigned long)begin_game.unused & 0xFFFF);
-				result = network_game_client_game_has_started(client);
+				/* port: or once the map is there, if it is being downloaded
+				(network_game_client_begin_game) */
+				result = network_game_client_begin_game(client);
 				if (!result)
 				{
 					network_event("network_game_client_game_has_started() failed");

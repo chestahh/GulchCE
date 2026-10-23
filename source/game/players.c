@@ -229,6 +229,7 @@ symbols in this file:
 
 #include "cseries.h"
 #include "mcc_player.h"
+#include "infection.h" /* port: port/linux/game/infection.c */
 #include "cseries/errors.h"
 #include "cseries/profile.h"
 #include "ai/ai.h"
@@ -238,6 +239,7 @@ symbols in this file:
 #include "data.h"
 #include "devices/devices.h"
 #include "network_coop.h" /* port: port/linux/game/network_coop.c */
+#include "bots.h" /* port: port/linux/game/bots.c */
 #include "cutscene/cinematics.h" /* port: network co-op's first spawns */
 #include "editor/editor_stubs.h"
 #include "effects/effects.h"
@@ -281,6 +283,7 @@ symbols in this file:
 #include "units/vehicle_definitions.h"
 #include "units/vehicles.h"
 #include "third_person.h" /* port: replicated shoulder firing state */
+#include "mcc_seats.h" /* port: port/linux/game/mcc_seats.c */
 
 /* network_game_globals.c's */
 boolean network_game_distributed_client(void);
@@ -609,6 +612,8 @@ void players_initialize_for_new_map(
 		machine_to_player_table,
 		NONE,
 		sizeof(machine_to_player_table));
+	/* port: the bots of local games (port/linux/game/bots.c) */
+	bots_initialize_for_new_map();
 
 	return;
 }
@@ -616,6 +621,8 @@ void players_initialize_for_new_map(
 void players_dispose_from_old_map(
 	void)
 {
+	/* port: the bots of local games (port/linux/game/bots.c) */
+	bots_dispose_from_old_map();
 	data_make_invalid(player_data);
 	data_make_invalid(team_data);
 
@@ -1549,6 +1556,8 @@ void network_player_attach_unit(
 	unit->object.owner_team_index = (short)player->team_index;
 	unit->unit.player_index = player_index;
 	player->unit_index = unit_index;
+	/* port: Infection's role, which may have come before the unit */
+	infection_reconcile_player(player_index);
 	unit_set_actively_controlled(unit_index, TRUE);
 	if (player->local_player_index != NONE)
 		player_control_new_unit(player->local_player_index, unit_index);
@@ -1935,6 +1944,9 @@ static boolean player_handle_action(
 	case _player_action_result_evict_from_vehicle:
 	{
 		long nearby_unit_index;
+		/* port: MCC biped seats use host-validated interaction. */
+		if (mcc_seat_action(player_index, player->action_object_index, player->action_seat_index))
+			break;
 
 		if (unit_can_enter_seat(
 			player->unit_index,
@@ -3327,6 +3339,16 @@ void players_respawn_at_checkpoint(
 		if (unplaced[DATUM_INDEX_TO_ABSOLUTE_INDEX(iterator.datum_index)])
 			player_place_beside_teammate(iterator.datum_index);
 	}
+	/* port: a revert brings back the saved all_dead, FALSE; this brings no state
+	back, so it is cleared here once anyone is back, or the next death would
+	wait for a respawn that never comes: players_update_after_game neither
+	respawns a player nor ends the game while everyone is dead) */
+	data_iterator_new(&iterator, player_data);
+	while ((player = data_iterator_next(&iterator)) != NULL)
+	{
+		if (player->unit_index != NONE)
+			players_globals->all_dead = FALSE;
+	}
 
 	return;
 }
@@ -4077,6 +4099,10 @@ static void player_examine_nearby_unit(
 	long player_index,
 	long unit_index)
 {
+	/* port: the legacy biped interaction remains empty outside MCC. */
+	short seat_index;
+	if (mcc_seat_nearby(player_index, unit_index, &seat_index))
+		player_set_action_result(player_index, _player_action_result_enter_vehicle, unit_index, seat_index);
 	return;
 }
 
@@ -4737,6 +4763,27 @@ void player_aiming_vector_from_facing(
 	return;
 }
 
+/* port: the main menu's scene takes no input (game_time.c's
+game_time_menu_scene), so the queues may have none for it: its players
+stand idle. Returns whether that is the case. */
+static boolean players_idle_actions(
+	struct player_action *actions)
+{
+	short index;
+
+	if (!game_time_menu_scene())
+		return FALSE;
+	for (index = 0; index < NETWORK_GAME_MAXIMUM_PLAYER_COUNT; index++)
+	{
+		csmemset(&actions[index], 0, sizeof(actions[index]));
+		actions[index].desired_weapon_index = NONE;
+		actions[index].desired_grenade_index = NONE;
+		actions[index].desired_zoom_level = NONE;
+	}
+
+	return TRUE;
+}
+
 void players_update_before_game(
 	void)
 {
@@ -4752,8 +4799,12 @@ void players_update_before_game(
 	profile_enter(PLAYERS_UPDATE_BEFORE_GAME_PROFILE);
 	players_coop_note_on_foot();
 	players_coop_rescue_stranded();
-	if (update_client_dequeue(actions))
+	/* port: or the main menu's scene's idle players (players_idle_actions) */
+	if (update_client_dequeue(actions) || players_idle_actions(actions))
 	{
+		/* port: the controls of a local game's bots this tick
+		(port/linux/game/bots.c), in place of what their queues held */
+		bots_update_actions(actions);
 		data_iterator_new(&iterator, player_data);
 		while (player = data_iterator_next(&iterator))
 		{
@@ -4895,8 +4946,10 @@ void players_update_before_game(
 						unit_get(player->unit_index)->unit.current_weapon_index);
 					if (weapon_index != NONE && weapon_must_be_readied(weapon_index))
 					{
-						if (TEST_FLAG(action->control_flags, _unit_control_weapon_primary_trigger_bit) ||
-							TEST_FLAG(action->control_flags, _unit_control_weapon_secondary_trigger_bit))
+						/* port: (an Infection zombie keeps its skull: infection.c) */
+						if ((TEST_FLAG(action->control_flags, _unit_control_weapon_primary_trigger_bit) ||
+							TEST_FLAG(action->control_flags, _unit_control_weapon_secondary_trigger_bit)) &&
+							infection_allow_weapon_drop(player->unit_index, weapon_index))
 						{
 							unit_drop_current_weapon(player->unit_index, TRUE);
 						}

@@ -17,6 +17,8 @@ Register values are clamped to [-1, 1] between stages, as on the hardware.
 
 #include "xgpu.h"
 #include "port_config.h"
+#include "mcc_environment_shader.h"
+#include "shield_honeycomb_gl.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -178,7 +180,7 @@ static const char *output_mapping(unsigned long flags)
 
 /* ---------- one general combiner stage */
 
-static void combiner_stage(struct xgpu_text *text, const DWORD *state, int stage)
+static void combiner_stage(struct xgpu_text *text, const DWORD *state, int stage, BOOL mcc_bump)
 {
 	DWORD combiner_count = state[D3DRS_PSCOMBINERCOUNT];
 	BOOL unique_c0 = (combiner_count & 0x1000) != 0;
@@ -208,7 +210,9 @@ static void combiner_stage(struct xgpu_text *text, const DWORD *state, int stage
 		combiner_input(text, inputs & 0xff, alpha, stage, unique_c0, unique_c1);
 		xgpu_text_append(text, ";\n");
 
-		if (!alpha && (flags & 0x02))
+		if (mcc_bump && !alpha && inputs == 0x484B0A01 && (flags & 0x02))
+			mcc_environment_shader_emit(text);
+		else if (!alpha && (flags & 0x02))
 			xgpu_text_append(text, "\t\tvec3 cAB = vec3(dot(cA, cB));\n");
 		else
 			xgpu_text_append(text, "\t\t%s %sAB = %sA * %sB;\n", type, prefix, prefix, prefix);
@@ -287,6 +291,19 @@ static const char *sampler_declaration(unsigned char type)
 static unsigned long stage_mode(const struct nv2a_pixel_shader_key *key, int stage)
 {
 	return (key->texture_modes >> (5 * stage)) & 0x1f;
+}
+
+/* whether a stage replaces the fragment's depth (DOT_ZW) */
+static BOOL replaces_depth(const struct nv2a_pixel_shader_key *key)
+{
+	int stage;
+
+	for (stage = 1; stage < 4; stage++)
+	{
+		if (stage_mode(key, stage) == _mode_dot_zw)
+			return TRUE;
+	}
+	return FALSE;
 }
 
 static int stage_input(const DWORD *state, int stage)
@@ -376,6 +393,8 @@ static void texture_stage(struct xgpu_text *text, const struct nv2a_pixel_shader
 		xgpu_text_append(text, "\tt%d = ", stage);
 		sample(text, key, stage, coordinates);
 		xgpu_text_append(text, ";\n");
+		if (stage == 0 && key->ce_meter_channels)
+			xgpu_text_append(text, "\tt0 = t0.aaar;\n");
 		if (stage == 0 && key->point_threshold && key->sampler_type[stage] == _xgpu_sampler_2d)
 		{
 			/* IDs must not be averaged with another segment or corrupted by
@@ -447,6 +466,20 @@ static void texture_stage(struct xgpu_text *text, const struct nv2a_pixel_shader
 		xgpu_text_append(text, "\tdot%d = dot(xT%d.xyz, ", stage, stage);
 		dot_input(text, state, stage);
 		xgpu_text_append(text, ");\n\tt%d = vec4(0.0);\n", stage);
+		/* the stage replaces the fragment's depth with the previous stage's
+		dot product over its own, in the depth buffer's units (the game's
+		z-sprites: a particle's card tested as the rounded puff its second
+		map describes, up to its radius nearer than the card, so that the
+		surface it stands on doesn't cut it in half). The game's depth
+		buffer is 24 bits and its viewport's depth range 0 to 1
+		(rasterizer_xbox.c), so the units are 1 / 16777215 of the window's
+		depth. A divisor that is not positive (a fragment behind the eye)
+		gives the far plane */
+		if (stage >= 1)
+		{
+			xgpu_text_append(text, "\treplaced_depth = dot%d > 0.0 ? clamp(dot%d / dot%d / 16777215.0, 0.0, 1.0) : 1.0;\n",
+				stage, stage - 1, stage);
+		}
 		break;
 	case _mode_dot_reflect_diffuse:
 		/* the normal takes its third component from stage 3's dot product */
@@ -618,6 +651,7 @@ char *nv2a_pixel_shader_to_glsl(const struct nv2a_pixel_shader_key *key)
 		"in float xFog;\n"
 		"layout(location = 0) out vec4 fragment_color;\n"
 		XGPU_PIXEL_UNIFORMS);
+	xgpu_text_append(&text, "%s", shield_honeycomb_glsl);
 	for (stage = 0; stage < 4; stage++)
 		xgpu_text_append(&text, "uniform %s tex%d;\n", sampler_declaration(key->sampler_type[stage]), stage);
 	if (key->source_blend)
@@ -642,6 +676,8 @@ char *nv2a_pixel_shader_to_glsl(const struct nv2a_pixel_shader_key *key)
 		"\tfloat dot0 = 0.0, dot1 = 0.0, dot2 = 0.0, dot3 = 0.0;\n");
 	if (key->per_pixel_lighting)
 		xgpu_text_append(&text, "\tv0.rgb = model_lighting();\n");
+	if (replaces_depth(key))
+		xgpu_text_append(&text, "\tfloat replaced_depth = 1.0;\n");
 
 	for (stage = 0; stage < 4; stage++)
 		texture_stage(&text, key, stage);
@@ -675,7 +711,7 @@ char *nv2a_pixel_shader_to_glsl(const struct nv2a_pixel_shader_key *key)
 		"\tvec4 r1 = vec4(0.0);\n");
 
 	for (stage = 0; stage < (int)combiner_count; stage++)
-		combiner_stage(&text, state, stage);
+		combiner_stage(&text, state, stage, key->mcc_bump_attenuation);
 
 	if (final_abcd == 0 && final_efg == 0)
 	{
@@ -708,6 +744,7 @@ char *nv2a_pixel_shader_to_glsl(const struct nv2a_pixel_shader_key *key)
 		xgpu_text_append(&text, ";\n\tvec4 result = vec4(fA * fB + (1.0 - fA) * fC + fD, fG);\n");
 	}
 
+	xgpu_text_append(&text, "\tresult = shield_honeycomb_surface(result);\n");
 	if (key->coverage_alpha)
 		xgpu_text_append(&text, "\tresult.a = mix(1.0, result.a, t0.g);\n");
 	if (key->alpha_test_function)
@@ -747,6 +784,8 @@ char *nv2a_pixel_shader_to_glsl(const struct nv2a_pixel_shader_key *key)
 	if (key->count_samples)
 		xgpu_text_append(&text, "\tatomicCounterIncrement(visible_samples);\n");
 #endif
+	if (replaces_depth(key))
+		xgpu_text_append(&text, "\tgl_FragDepth = replaced_depth;\n");
 	if (key->source_blend)
 	{
 		static const char *const factors[] =

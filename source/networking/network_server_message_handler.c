@@ -257,6 +257,8 @@ symbols in this file:
 #include "networking/network_connection.h"
 #include "networking/network_game_globals.h"
 #include "networking/network_game_manager.h"
+#include "mcc_protocol.h" /* port: MCC-only admission and settings envelope */
+#include "mcc_identity.h" /* port: attach MCC content identity to host settings */
 #include "networking/network_game_protocol.h"
 #include "networking/network_messages.h"
 #include "networking/network_server_manager_internal.h"
@@ -521,7 +523,8 @@ static boolean network_game_server_handle_message_client_join_game_request(
 	struct network_game_server *server,
 	struct network_game_server_client_machine *client_machine,
 	word *message,
-	short message_size);
+	short message_size,
+	boolean mcc_capable); /* port: optional MCC admission, ordinary auth retained */
 static boolean network_game_server_handle_message_client_add_player_request_pregame(
 	struct network_game_server *server,
 	struct network_game_server_client_machine *client_machine,
@@ -589,6 +592,14 @@ static boolean network_game_server_handle_message_client_graceful_game_exit_post
 	short message_size);
 
 /* ---------- globals */
+
+/* port: where each machine's distributed datagrams come from, by slot.
+The host replies there, since a client may not be on the client port. */
+static struct
+{
+	struct network_connection *connection;
+	struct transport_address address;
+} network_distributed_return_addresses[MAXIMUM_NETWORK_MACHINE_COUNT];
 
 /* ---------- private code */
 
@@ -783,7 +794,14 @@ boolean network_game_server_send_game_settings_to_client_machine(
 	long game_size)
 {
 	struct message_server_game_settings_update message;
+	struct network_game mcc_settings; /* port: fingerprint extension, no host record mutation */
 	long offset;
+
+	/* port: no MCC settings reach a peer that has not negotiated them. */
+	if (!mcc_protocol_allows(game, machine)) return FALSE;
+	game = mcc_identity_host_settings(game, game_size, &mcc_settings); /* port: MCC admission */
+	if (!game) return FALSE;
+	game_size = mcc_protocol_settings_size(game); /* port: exact OpenCE prefix for legacy maps */
 
 	for (offset = 0; offset < game_size; offset += sizeof(message.data))
 	{
@@ -879,11 +897,16 @@ boolean network_distributed_server_send_to_machine(
 	connection = network_game_server_get_client_connection(machine);
 	if (!connection || !network_connection_active(connection))
 		return FALSE;
-	/* from the game's public datagram endpoint (the one clients send
-	their game updates to) to the client's, at the address its
-	connection comes from (the write swaps the header in place) */
+	/* to where the client's datagrams come from, else the client port at
+	its connection's address (the write swaps the header in place) */
 	network_connection_get_address(connection, &address, NULL);
 	address.port = NETWORK_GAME_CLIENT_PORT;
+	if (network_distributed_return_addresses[machine_index].connection == connection &&
+		network_distributed_return_addresses[machine_index].address.address.long_words[0] ==
+			address.address.long_words[0])
+	{
+		address = network_distributed_return_addresses[machine_index].address;
+	}
 	csmemcpy(buffer, message, size);
 	return network_game_server_write(network_game_server_get_connection(server), buffer, size, &address, 0);
 }
@@ -1060,8 +1083,15 @@ boolean network_game_server_send_game_settings_to_all_machines(
 	long game_size)
 {
 	struct message_server_game_settings_update message;
+	struct network_game mcc_settings; /* port: fingerprint extension, no host record mutation */
 	long offset;
 	boolean result = TRUE;
+
+	/* port: a map-family change removes incompatible peers before broadcasting. */
+	mcc_protocol_prune(server, game);
+	game = mcc_identity_host_settings(game, game_size, &mcc_settings); /* port: MCC admission */
+	if (!game) return FALSE;
+	game_size = mcc_protocol_settings_size(game); /* port: exact OpenCE prefix for legacy maps */
 
 	match_assert(
 		"c:\\halo\\SOURCE\\networking\\network_server_message_handler.c",
@@ -1188,7 +1218,7 @@ boolean network_game_server_handle_client_message(
 								server,
 								machine,
 								message,
-								message_buffer_size);
+								message_buffer_size, FALSE); /* port: ordinary OpenCE join */
 							if (!result)
 							{
 								network_event("network_game_server_handle_message_client_join_game_request() failed");
@@ -1369,6 +1399,18 @@ boolean network_game_server_handle_client_message(
 				break;
 
 			case _message_type_data:
+				/* port: an MCC capability envelope carries only an ordinary join.
+				 * The existing handler still checks tokens, bans and host admission. */
+				if (((byte *)message)[2] == MCC_PROTOCOL_JOIN_KIND)
+				{
+					word inner[MCC_PROTOCOL_JOIN_MAX / sizeof(word)];
+					word inner_size;
+					if (network_game_server_client_machine_is_joined_to_game(server, machine) ||
+						!mcc_protocol_unwrap(message, message_buffer_size, inner, &inner_size))
+						return FALSE;
+					return network_game_server_handle_message_client_join_game_request(
+						server, machine, inner, inner_size, TRUE);
+				}
 				/* the distributed netcode's messages (port/linux/NETCODE.md) */
 				/* (port: voice chat's from any machine that joined, in the
 				lobby too: network_voice.c) */
@@ -1610,8 +1652,10 @@ boolean network_game_server_handle_datagram(
 				those that joined, and only in game: else dropped) */
 				if (network_game_server_get_state(server, NULL) == _network_game_server_state_ingame)
 				{
+					/* port: not the host's own machine first (a second game on its
+					computer shares its address) */
 					struct network_game_server_client_machine *client_machine =
-						network_game_server_get_client_machine_at_address(server, source_address->address.long_words[0]);
+						network_game_server_get_remote_client_machine_at_address(server, source_address->address.long_words[0]);
 
 					/* (and has loaded it, as for its reliable messages) */
 					if (client_machine && network_game_server_client_machine_is_loaded(server, client_machine))
@@ -1620,6 +1664,14 @@ boolean network_game_server_handle_datagram(
 
 						network_game_server_client_machine_heard(server, client_machine);
 						network_game_server_get_client_machine(server, client_machine, &machine_index);
+						/* port: where its datagrams come from, which the host answers
+						(network_distributed_return_addresses) */
+						if (VALID_INDEX(machine_index, MAXIMUM_NETWORK_MACHINE_COUNT))
+						{
+							network_distributed_return_addresses[machine_index].connection =
+								network_game_server_get_client_connection(client_machine);
+							network_distributed_return_addresses[machine_index].address = *source_address;
+						}
 						network_distributed_handle_message(machine_index, message, datagram_size);
 					}
 				}
@@ -1692,9 +1744,12 @@ static boolean network_game_server_handle_message_client_broadcast_game_search(
 	boolean result = TRUE;
 	/* port: the advertisement is broadcast (to every internet play peer
 	too): one each so often answers every machine searching, and a flood of
-	searches no more */
+	searches no more. A searcher not on the client port hears no broadcast,
+	so it is answered directly every time. */
 	static unsigned long last_advertised_time = 0;
 	unsigned long now = system_milliseconds();
+	boolean broadcast_due = !last_advertised_time || now - last_advertised_time >= GAME_ADVERTISEMENT_INTERVAL;
+	boolean answer_directly = source_address && source_address->port != NETWORK_GAME_CLIENT_PORT;
 
 	match_assert(
 		"c:\\halo\\SOURCE\\networking\\network_server_message_handler.c",
@@ -1704,8 +1759,9 @@ static boolean network_game_server_handle_message_client_broadcast_game_search(
 	{
 		struct network_game *game = network_game_server_get_game(server);
 
-		/* (the time taken only by a search answered) */
-		if (game && last_advertised_time && now - last_advertised_time < GAME_ADVERTISEMENT_INTERVAL)
+		/* (the time taken only by a search answered; port: one off the client
+		port is always answered) */
+		if (game && !broadcast_due && !answer_directly)
 			return TRUE;
 		if (game)
 		{
@@ -1756,10 +1812,13 @@ static boolean network_game_server_handle_message_client_broadcast_game_search(
 			/* the native builds' network version and netcode (a client
 			refuses a host of another version, or of the lockstep netcode
 			older builds had: network_client_manager.c) */
-			advertisement.reserved[HALO_PORT_ADVERTISED_VERSION_OFFSET] = (byte)(HALO_PORT_NETWORK_VERSION & 0xFF);
-			advertisement.reserved[HALO_PORT_ADVERTISED_VERSION_OFFSET + 1] = (byte)(HALO_PORT_NETWORK_VERSION >> 8);
+			advertisement.reserved[HALO_PORT_ADVERTISED_VERSION_OFFSET] = (byte)(mcc_protocol_version(game->map.name) & 0xFF);
+			advertisement.reserved[HALO_PORT_ADVERTISED_VERSION_OFFSET + 1] = (byte)(mcc_protocol_version(game->map.name) >> 8);
+			/* port: capability version is separate even in an OpenCE lobby. */
+			advertisement.reserved[MCC_PROTOCOL_ADVERTISED_VERSION_OFFSET] = MCC_PROTOCOL_VERSION & 255;
+			advertisement.reserved[MCC_PROTOCOL_ADVERTISED_VERSION_OFFSET + 1] = MCC_PROTOCOL_VERSION >> 8;
 			advertisement.reserved[HALO_PORT_ADVERTISED_FLAGS_OFFSET] =
-				HALO_PORT_ADVERTISED_DISTRIBUTED_FLAG;
+				HALO_PORT_ADVERTISED_DISTRIBUTED_FLAG | MCC_PROTOCOL_ADVERTISED_FLAG; /* port: optional MCC join */
 			if (network_game_server_get_state(server, NULL) != _network_game_server_state_pregame ||
 				network_game_server_game_is_loading(server))
 			{
@@ -1781,22 +1840,26 @@ static boolean network_game_server_handle_message_client_broadcast_game_search(
 				sizeof(advertisement));
 			if (reply)
 			{
-				word message_size = GET_MESSAGE_SIZE(reply->header);
 				struct network_connection *connection =
 					network_game_server_get_connection(server);
 
-				last_advertised_time = now ? now : 1;
-				result = network_game_server_write(
-					connection,
-					reply,
-					message_size,
-					&address,
-					0);
-				if (!result)
+				/* port: the broadcast when it is due, and a searcher off the
+				client port answered directly */
+				if (broadcast_due)
 				{
-					network_event(
-						"network_game_server_write() failed in handle_message_client_broadcast_game_search()");
+					last_advertised_time = now ? now : 1;
+					result = network_game_server_write(connection, reply, GET_MESSAGE_SIZE(reply->header), &address, 0);
+					if (!result)
+					{
+						network_event(
+							"network_game_server_write() failed in handle_message_client_broadcast_game_search()");
+					}
+					/* (the write swapped the header in place: a fresh copy for the next) */
+					reply = answer_directly ? create_network_game_message(_message_server_game_advertise,
+						&advertisement, sizeof(advertisement)) : NULL;
 				}
+				if (answer_directly && reply)
+					network_game_server_write(connection, reply, GET_MESSAGE_SIZE(reply->header), source_address, 0);
 			}
 			else
 			{
@@ -1892,7 +1955,8 @@ static boolean network_game_server_handle_message_client_join_game_request(
 	struct network_game_server *server,
 	struct network_game_server_client_machine *server_client_machine,
 	word *message,
-	short message_size)
+	short message_size,
+	boolean mcc_capable /* port: optional MCC admission, ordinary auth retained */)
 {
 	boolean result = TRUE;
 	/* (or a distributed game in progress: network_game_server_accepts_late_joins) */
@@ -1924,6 +1988,12 @@ static boolean network_game_server_handle_message_client_join_game_request(
 			the countdown for ever */
 			boolean full = network_game_server_get_state(server, NULL) == _network_game_server_state_pregame &&
 				!network_game_has_free_player_slot(network_game_server_get_game(server));
+
+			/* port: bind capability to this connection before the normal admission.
+			 * A failed join is removed through the same lifecycle as any other peer. */
+			if (!mcc_protocol_peer(server_client_machine, mcc_capable) ||
+				!mcc_protocol_allows(network_game_server_get_game(server), server_client_machine))
+				return FALSE;
 
 			/* port: its hardware id, as it tells it: hex only (anything else
 			left out), no more than its field; the host logs it, and refuses

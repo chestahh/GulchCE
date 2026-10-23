@@ -266,7 +266,7 @@ symbols in this file:
 #include "ai/ai_script.h"
 #include "hs/hs.h"
 #include "hs/hs_library_internal.h"
-#include "hs/hs_library_internal_runtime.h"
+/* Empty reconstructed header removed; no declarations to include. */
 #include "hs/object_lists.h"
 #include "hs/hs_scenario_definitions.h"
 #include "math/real_math.h"
@@ -281,6 +281,7 @@ symbols in this file:
 #include "saved games/game_state.h"
 #include "text/draw_string.h"
 #include "cseries/errors.h"
+#include "interface/terminal.h"
 #include "main/console.h"
 #include "game/game.h"
 
@@ -2256,8 +2257,10 @@ void hs_evaluate_inspect(
 			hs_type_inspectors[expression->type](expression->type, *value, string);
 			/* port: printed through "%s". January passes the text as the
 			format (0x4bc840 +0xdd..+0xe6), so a '%' in an inspected string
-			read arguments that were never passed */
-			console_printf(FALSE, "%s", string);
+			read arguments that were never passed. A scenario script's
+			inspect is the game's chatter, as print is (hs_print) */
+			if (terminal_shows(terminal_command_running ? _terminal_message_serious : _terminal_message_chatter))
+				console_printf(FALSE, "%s", string);
 		}
 
 		hs_return(thread_index, 0);
@@ -2420,8 +2423,10 @@ void hs_evaluate_begin_random(
 			*argument_count += 1;
 		}
 
+		/* port: one long holds LONG_BITS choices, so a list of that
+		many fits the mask this function already allocates */
 		match_assert("c:\\halo\\source\\hs\\hs_library_internal_runtime.h", 0x50,
-			*argument_count<LONG_BITS);
+			*argument_count<=LONG_BITS);
 
 		csmemset(evaluated, 0, BIT_VECTOR_SIZE_IN_BYTES(*argument_count));
 	}
@@ -2752,10 +2757,13 @@ static void hs_thread_main(
 
 			match_assert("c:\\halo\\SOURCE\\hs\\hs_runtime.c", 0x2d8, function->evaluate);
 
-			function->evaluate(
-				expression->index,
-				thread_index,
-				initialize);
+			/* port: MCC may release a completed conditional frame before
+			entering its selected branch; legacy evaluation is unchanged. */
+			if (!mcc_hs_if_tail(expression->index, thread_index, initialize))
+				function->evaluate(
+					expression->index,
+					thread_index,
+					initialize);
 		}
 		else
 		{
@@ -2952,6 +2960,9 @@ static void hs_global_reconcile_read(
 {
 	struct hs_global_datum *global;
 	struct hs_external_global_definition *external;
+
+	/* port: MCC's scenario-local speed global reflects its authoritative clock. */
+	mcc_hs_speed_reconcile(global_designator, FALSE);
 
 	if (HS_GLOBAL_DESIGNATOR_IS_EXTERNAL(global_designator))
 	{
@@ -3180,6 +3191,9 @@ static void hs_global_reconcile_write(
 	struct hs_global_datum *global;
 	struct hs_external_global_definition *external;
 	real value;
+
+	/* port: MCC speed writes cannot change a client's local clock. */
+	mcc_hs_speed_reconcile(global_designator, TRUE);
 
 	if (HS_GLOBAL_DESIGNATOR_IS_EXTERNAL(global_designator))
 	{

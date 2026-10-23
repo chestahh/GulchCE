@@ -21,12 +21,13 @@ inventory when an authorized change makes it inaccurate.
 
 | Boundary | Existing MCC-owned modules in `port/linux/game/` |
 | --- | --- |
-| Map selection, loading, packages and resources | `mcc_main`, `mcc_maps`, `mcc_cache`, `mcc_cache_format`, `mcc_package`, `mcc_resources`, `mcc_tags`, `mcc_tag_validate` |
-| Script interpretation, parameters and object names | `mcc_scripts`, `mcc_syntax`, `mcc_script_parameters`, `mcc_object_names` |
-| Checkpoints and campaign state | `mcc_checkpoint`, `mcc_campaign` |
-| Networking and named-object synchronization | `mcc_network`, `mcc_object_names_network` |
-| Player inventory, objects and recordings | `mcc_player`, `mcc_grenades`, `mcc_objects`, `mcc_recordings` |
-| Rendering, HUD and audio conversion | `mcc_geometry`, `mcc_bitmaps`, `mcc_texture_cache`, `mcc_hud`, `mcc_hud_draw`, `mcc_sprites`, `mcc_audio`, `mcc_vorbis` |
+| Map selection, loading, packages and resources | `mcc_main`, `mcc_maps`, `mcc_cache`, `mcc_precache`, `mcc_identity`, `mcc_sha256`, `mcc_cache_format`, `mcc_package`, `mcc_resources`, `mcc_tags`, `mcc_tag_validate` |
+| Script interpretation, parameters and object names | `mcc_scripts`, `mcc_syntax`, `mcc_script_parameters`, `mcc_script_runtime.inl`, `mcc_object_names`, `mcc_game_speed` |
+| Checkpoints and campaign state | `mcc_checkpoint`, `mcc_campaign`, `mcc_script_effects` |
+| Weapon-authored camera selection | `mcc_camera` |
+| Networking and named-object synchronization | `mcc_network`, `mcc_object_names_network`, `mcc_protocol` |
+| Player inventory, objects, movement penalties, damage impulses, boat controls, seats and recordings | `mcc_player`, `mcc_first_person.inl`, `mcc_grenades`, `mcc_objects`, `mcc_movement`, `mcc_damage`, `mcc_seats`, `mcc_recordings` |
+| Rendering, HUD and audio conversion | `mcc_geometry`, `mcc_bitmaps`, `mcc_texture_cache`, `mcc_environment_shader` (with `port/linux/src/mcc_environment_shader_gl.c`), `mcc_chicago.inl`, `mcc_hud`, `mcc_hud_draw`, `mcc_sprites`, `mcc_audio`, `mcc_vorbis` |
 | Menus and pause UI | `mcc_ui`, `mcc_ui_teams`, `mcc_pause`, `mcc_pause_runtime` |
 
 Preserve established activation guards, legacy fallbacks and cleanup on
@@ -99,12 +100,8 @@ requirements still apply.
 - Use relevant available skills through the tools the environment actually
   provides, reading their instructions when applying them. Do not require
   Superpowers, a particular skill tool or a plugin installation by default.
-- Keep small, contained work inline. When delegation is authorized and
-  useful, give tasks clear scope and ownership. Choose available models
-  according to task needs and user preferences rather than a fixed roster.
-  Do not assume subagents or independent reviewers are available.
-- Seek an independent review where available and authorized for changes
-  with significant correctness or security risk.
+- Work directly as the primary agent. Use subagents only when the user
+  explicitly requests them for the assignment.
 - Mutation tests can establish that a regression test catches the intended
   fault. Use them selectively in isolated temporary copies; never leave
   intentional faults in a shared working tree or run them concurrently with
@@ -186,26 +183,40 @@ integration checks. Reuse evidence for unchanged paths only where it remains
 applicable; all required platform, networking and regression checks still
 apply.
 
-For relevant MCC changes, cover representative Xbox and Custom Edition
-behavior alongside MCC. Select checks according to the affected path:
+For general features, verify established behavior with the feature disabled
+and the intended behavior with it enabled. For relevant MCC changes, cover
+representative Xbox and Custom Edition behavior alongside MCC. Shared-engine
+changes require checks of the affected map-family paths, even when the
+assignment is not primarily about MCC.
 
+Select checks according to the affected path:
+
+- Feature activation and state: default settings, enabled and disabled
+  behavior, supported activation changes, initialization, cleanup and
+  relevant map or session transitions.
 - Loading/resource work: supported and malformed inputs, failure recovery,
   package isolation, unload/reload and transitions between map families.
 - Script/state work: representative execution, supported limits,
-  checkpoints, restart and cleanup of MCC state on leaving the map.
+  checkpoints, restart and cleanup of feature or MCC state at the relevant
+  lifecycle boundaries.
 - Network work: host/client agreement, joining, synchronization and relevant
   co-op/multiplayer paths, plus the required transport checks and protocol
   version review.
 - Renderer/UI work: real visual output at relevant resolutions and layouts,
   alongside automated checks where they provide meaningful coverage.
+- Existing behavior fixes: evidence of the defect, verification of the
+  intended correction and checks of related behavior that must remain
+  unchanged. Prefer a regression test exercising the real implementation.
+- Upstream conflict resolution: identify the behavior affected by each
+  resolution and verify the resulting upstream and fork integration.
 
 These are risk-based examples, not a demand to replay every map for every
-edit. Record the tested revision, build configuration, maps, modes and
-outcomes. Clearly distinguish conversion success, entry into gameplay,
-tested transitions and full campaign completion. Report skipped checks,
-failures, unavailable tools and CI results accurately. Compilation alone
-does not establish runtime compatibility, and passing tests do not prove
-the absence of regressions.
+edit. Record the tested revision, build configuration, relevant feature
+settings, maps, modes and outcomes. Clearly distinguish conversion success,
+entry into gameplay, tested transitions and full campaign completion.
+Report skipped checks, failures, unavailable tools and CI results
+accurately. Compilation alone does not establish runtime compatibility,
+and passing tests do not prove the absence of regressions.
 
 Briefly report the review scope and outcome, improvements made or why none
 were necessary, and unresolved limitations. Distinguish self-review from

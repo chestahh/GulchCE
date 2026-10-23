@@ -74,6 +74,19 @@ of the whole `save` folder stops there.
 
 ## Game data
 
+MCC maps need a fixed 64 MiB virtual address window for their linked tags.
+The Android host attempts to reserve the usual `0x50000000` window at app
+startup, before the guest and renderer allocate memory. This reserves address
+space, not 64 MiB of physical RAM. Unloading an MCC map discards its pages
+but retains the reservation for the next load; exiting the process releases it.
+Xbox and Custom Edition keep their existing memory paths.
+
+If another mapping already occupies the window, the app leaves it untouched
+and MCC loading fails safely. Logcat (`halo`) lists overlapping mappings;
+the load error in `debug.txt` identifies the requested address. This is an
+address-space conflict, not a duplicate map file. Early reservation cannot
+guarantee that every device makes this address available.
+
 The game needs the `maps/` folder from an Xbox disc image (`.xiso` or
 `.iso`) of any version of the game. The app extracts `maps/` from the disc
 image. The app keeps the data in `/sdcard/Android/data/com.halo.decomp/files`.
@@ -96,6 +109,7 @@ To install the data from a computer:
 | Item | Location in `/sdcard/Android/data/com.halo.decomp/files` |
 | --- | --- |
 | Saved games (`z:\` and `u:\`) | `save` |
+| Mods (`docs/mods.md`) | `mods`: `adb push <mod folder> /sdcard/Android/data/com.halo.decomp/files/mods/`; the main menu's Mods orders them and turns them off |
 | Log | `debug.txt` |
 | Settings | `config.toml` |
 
@@ -158,7 +172,7 @@ controller for player 1. With the default buttons of the profile:
 | Crouch, Zoom | left and right stick clicks |
 | Light, Gren. type | white, black |
 | Pause, Back | start, back |
-| Up, Down, Left, Right | D-pad |
+| Up, Down, Left, Right | D-pad (in a network game, Up opens the text chat's keyboard) |
 
 The names on the buttons follow the profile's "Button layout" (Settings >
 Gamepads): with "Swap triggers", the right trigger's button says "Grenade".
@@ -227,7 +241,7 @@ These settings are only for Android:
 | `input.touch_controls` | The touch controls in a game. `"auto"` (the default): shown on a touchscreen while no controller is connected. `"on"`: also shown with a controller. `"off"`: never shown. A device without a touchscreen never shows them. The menus take taps in any case. |
 | `display.screen_width` | The number of columns of the 480-line picture. `0` (the default): the shape of the display (1068 on a 20:9 phone). `640`: the 4:3 shape of the Xbox. |
 | `debug.sample_seconds` | Refer to "Find problems". |
-| `debug.memory_watch` | `true` (the default): the app notices the game's writes to textures and vertices by page protection. `false`: it compares page contents once a frame instead, which is slower. Refer to "Limits". |
+| `debug.memory_watch` | `true` (the default): the app notices the game's writes to cached textures by page protection. `false`: it compares page contents once a frame instead, which is slower. Geometry uses the streaming path in either mode. Refer to "Limits". |
 
 ## Internet play
 
@@ -307,7 +321,9 @@ The guest is the game, the platform layer and a small runtime:
    AArch64 target of clang. The options `-U__APPLE__` and
    `-fno-define-target-os-macros` hide the Darwin environment.
 2. `tools/android_asm_convert.py` changes the Mach-O assembly to ELF
-   assembly.
+   assembly. It renames symbols, but keeps string literals (`.ascii`,
+   `.asciz`) byte for byte: they hold tables as well as text
+   (`tools/test_android_asm_convert.py`).
 3. The AArch64 assembler makes the objects.
 4. `ld.lld` links the objects with `guest/guest.ld` to a static image,
    `build/android/halo_guest.elf`, at a fixed address above the Xbox memory
@@ -458,6 +474,23 @@ assembly of the port is necessary:
 - The symbol aliases in `guest/libc/src_include/features.h`. The Darwin
   target does not accept alias attributes.
 
+## Geometry uploads
+
+Android streams vertex and index data from the current CPU bytes instead
+of reusing the persistent geometry mirror or its cached index extents.
+This is automatic; no console command or configuration change is needed.
+Affected players reported that bypassing the cache resolved stretched or
+missing geometry, with some also reporting better performance. The exact
+cache failure mechanism remains unconfirmed.
+
+The Android-only guard in `mirror_range` uses the existing streaming
+fallback. Streamed upload methods, frame fences, shaders, texture caching
+and CPU write tracking are unchanged. Desktop and web retain their cache.
+Xbox, Custom Edition and MCC maps keep their existing loaders and resource
+paths. `tools/test_android_mirror_uploads.py` checks the bypass with large
+and reused ranges, frame-counter rollover and desktop/web cache controls;
+it does not substitute for device gameplay validation.
+
 ## Find problems
 
 - Enter `adb logcat -s halo` to see the log of the port and the errors of
@@ -487,11 +520,15 @@ assembly of the port is necessary:
   operate. The Xbox memory uses 4 KB pages.
 - The x86 Android emulator runs the app through its ARM translation. The
   translation cannot deliver the page faults that the renderer uses to
-  notice changed textures and vertices. On the emulator the app compares
+  notice changed textures. On the emulator the app compares
   page contents once a frame instead ("write tracking: page hashes" in the
-  log). This is slower, and a write shows one frame later, so moving
-  geometry can glitch briefly. `debug.memory_watch = false` does the same
-  on a device.
+  log). This is slower, and texture changes may appear one frame later.
+  `debug.memory_watch = false` does the same on a device. The translation
+  also has no scalar conversion from floating
+  point to an integer in a SIMD register (`fcvtzs s0, s1`, an illegal
+  instruction there), so `tools/android_asm_convert.py` writes each as the
+  vector form, which leaves the register and the exception flags the same.
+
 
 ### GulchCE updates
 
@@ -499,3 +536,46 @@ The Android updater checks `chestahh/GulchCE` releases and compares GulchCE
 Build workflow numbers, just like the desktop updater. Release tags stay
 `build-<number>` and asset filenames stay unchanged. Successive Android
 releases must use the same signing key to install over each other.
+
+### GulchCE release signing
+
+The Build workflow requires both repository Actions secrets on `main`:
+
+- `ANDROID_KEYSTORE_BASE64`: the base64-encoded permanent keystore, with
+  private-key alias `halo`.
+- `ANDROID_KEYSTORE_PASSWORD`: the keystore and private-key password (the
+  same password for both).
+
+Missing either secret fails the Android job before compilation and prevents
+release publication. Other branches may use a debug key when both secrets
+are absent; a partial signing configuration fails on every branch. Malformed
+base64 fails during staging; Gradle rejects an invalid keystore or password.
+
+Keep an offline backup of the permanent keystore and its password outside
+the repository. Reuse this key for every release; do not regenerate it when
+moving machines or updating secrets. GitHub cannot return secret values.
+
+Older GulchCE releases used a new runner debug key for each build. Moving
+from one of those APKs to the permanent key requires backing up saved games,
+uninstalling the old app and installing the new one (see the backup commands
+above). Uninstalling deletes the app's data. Later releases signed with the
+permanent key can update in place. Stable signing does not guarantee that
+Google Play Protect immediately removes an unfamiliar-developer warning.
+
+## Custom Edition texture storage
+
+Cached Custom Edition textures on Android use stable individual allocations,
+created on demand with a 128 MiB pixel limit and 8,192-entry limit, outside the
+fixed Xbox memory window. This avoids exhausting the old arena with textures
+needed in the same frame and avoids re-uploading surviving textures after
+compaction. Current-frame entries cannot be evicted. Normal GPU caching,
+texture conversion, HUD replacements and the geometry streaming fix remain;
+GL shadow state is refreshed before each draw. Desktop, web and other map
+storage paths retain their established behavior. Fullscreen behavior is unchanged.
+
+Cleanup releases bindings and GPU copies before pixel/header reuse. Map unload,
+cache flush and mod reload release the stored pixels. Diagnostics are limited to
+an unload summary and the first allocation failure per cache lifetime in the
+normal platform log. No test log files, per-frame reports, texture fingerprints
+or uniform readbacks run in the permanent build. The cache can still exhaust
+its limit or system memory; normal fallback handling remains available.

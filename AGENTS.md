@@ -13,10 +13,90 @@ end.
 ## GulchCE instructions for every assignment
 
 Read this file before starting each assignment and explicitly confirm your
-understanding of its requirements. Then review the MCC isolation rules
-below and explicitly confirm your understanding of them before proceeding.
+understanding of its requirements. Then review the isolation rules below
+and explicitly confirm your understanding of them before proceeding.
 Read [CODINGSTANDARDS.md](CODINGSTANDARDS.md) for supplementary working and
 review guidance. Those standards do not relax the isolation rules.
+
+### Applying these requirements
+
+- The common project requirements apply to every assignment, including
+  building, testing, networking, licensing, source provenance and Git
+  conventions.
+- Before implementation, identify whether the assignment adds a general
+  feature, implements MCC compatibility, fixes existing behavior, merges
+  upstream changes or combines these activities. Briefly state which
+  isolation requirements apply.
+- General feature work must follow the general feature isolation rules.
+  MCC compatibility work must additionally follow the MCC isolation rules;
+  the general rules do not relax the stricter MCC boundaries.
+- For mixed assignments, apply the relevant rules to each affected part.
+  Classify work by what it changes, not merely by the assignment's title.
+  A general feature request does not authorize unrelated MCC compatibility
+  changes or changes to map-family boundaries.
+- When shared-engine work can affect multiple map families, inspect and
+  validate the affected Xbox, Custom Edition and MCC paths. Incidental use
+  of a shared engine service by MCC does not make all general engine work
+  MCC-specific, but existing MCC guards, ownership and cleanup must remain
+  intact.
+- These rules provide standing permission for necessary integration that
+  meets their conditions within an authorized assignment. Explain the
+  rationale and perform the required validation without requesting separate
+  approval for routine compliant changes. If a specific change conflicts
+  with an isolation rule, stop only the affected part, explain the conflict,
+  and continue independent work that remains within scope. A general
+  request to complete a feature does not itself waive an isolation rule.
+
+### General feature isolation
+
+- Preserve the established Halo 1 Xbox and Custom Edition implementations.
+  Do not replace, rename, remove, obscure or repurpose their code, scripts,
+  variables or loading paths to implement a new feature. The narrowly
+  scoped additive integration described below is allowed.
+- Keep feature logic in dedicated feature modules, extending an existing
+  feature-owned module where appropriate. Use existing engine interfaces
+  where possible. Minimal registration and wiring in build files, settings,
+  menus and declarations are allowed when necessary for the authorized
+  feature and must follow the applicable project rules. This does not
+  authorize moving feature logic into established engine implementations.
+  Keep MCC-specific compatibility logic in MCC-owned modules.
+- Optional features must preserve established behavior when disabled.
+  They must default to off or stock behavior unless the user explicitly
+  authorizes a different default. When enabled, changes must remain limited
+  to the authorized feature; unrelated behavior and map-family boundaries
+  must be preserved. Follow the Settings requirements below for features
+  that depart from the stock game's look or behavior.
+- Existing implementations may be analysed for reference. This does not
+  authorize replacing or repurposing them for new feature compatibility.
+  Follow the third-party licensing, source-provenance and Xbox SDK rules
+  in this file and the coding standards.
+- Minimal additive shared-engine hooks, declarations or extension points
+  are allowed only when strictly necessary for authorized functionality
+  that cannot be implemented through existing interfaces in feature
+  modules. Keep feature logic in feature-owned modules and shared additions
+  as small as possible. Guard feature-specific execution and state with
+  the appropriate activation conditions.
+- Handle initialization and cleanup at the feature's relevant lifecycle
+  boundaries. These may include enabling or disabling the feature, map
+  loading and unloading, failed loads, session changes and shutdown.
+  Feature state must not leak into later sessions or unaffected paths.
+- For each shared addition, explain why a feature-module-only solution is
+  insufficient, identify the affected engine paths, and mark changes to
+  `source/` with `port:` as required below. Verify established behavior
+  with the feature disabled, the intended behavior with it enabled, and
+  relevant lifecycle and map-family transitions.
+- This permission covers necessary integration, not replacing, renaming
+  or refactoring established implementations for convenience or code
+  reduction. Existing hooks are not blanket permission for broader
+  changes. Refactoring, deduplication, cleanup and line-count targets are
+  not exceptions.
+- If a feature cannot fit within these constraints, explain the specific
+  conflict and stop that part of the work. Do not proceed unless the user
+  explicitly changes the applicable constraint.
+- Report the actual validation performed and its limits. Scale checks to
+  the affected behavior without waiving required platform or networking
+  checks. A successful load or green test suite is not proof of full
+  compatibility.
 
 ### MCC isolation
 
@@ -46,86 +126,45 @@ review guidance. Those standards do not relax the isolation rules.
   transitions. This permission covers necessary integration, not replacing,
   renaming or refactoring established Xbox or Custom Edition implementations
   for convenience or code reduction. Existing hooks are not blanket
-  permission for broader changes. See `CODINGSTANDARDS.md` for the boundary
-  inventory. If a feature cannot fit within these constraints,
+  permission for broader changes. See `CODINGSTANDARDS.md` for the MCC
+  boundary inventory. If a feature cannot fit within these constraints,
   explain the specific conflict and stop that part of the work. Do not
   proceed unless the user explicitly changes the applicable constraint.
 - The general permission below for minimal changes to `source/` does not
   override these stricter rules for MCC work. Refactoring, deduplication,
   cleanup and line-count targets are not exceptions.
 - Explicitly requested upstream merges and general engine fixes have their
-  own scope. For upstream merges, retain authoritative OpenCE changes and
-  preserve MCC integration; do not use the merge to introduce unrelated
-  changes to Xbox or Custom Edition support. Identify and validate any
-  behavior affected by conflict resolution.
+  own scope, as described below. They do not authorize unrelated changes
+  to Xbox or Custom Edition support or relax the rules for implementing
+  MCC compatibility.
 - Check preservation of Xbox and Custom Edition behavior as well as MCC
   compatibility. Report the actual validation performed and its limits;
   a successful load or green test suite is not proof of full compatibility.
 
-### Efficient model use and delegation
+### Existing behavior fixes and upstream merges
 
-- Keep GPT-6 Astra as the primary agent unless the user selects otherwise.
-  The primary handles the conversation, planning, architecture, ambiguous
-  diagnosis, consequential compatibility and networking decisions, final
-  review and integration. It remains responsible for delegated work.
-- This workflow authorizes delegation of suitable bounded subtasks within
-  the user's assignment. Explicitly select GPT-6.1 Sol (`gpt-6.1-sol`) with
-  High (`high`) reasoning for substantive implementation, debugging, test
-  design and code investigation. Report unavailable models or delegation
-  tools rather than silently substituting a more expensive model.
-- Low or Medium reasoning may suit straightforward searches, mechanical
-  edits or running defined checks. Use Extra High only when evidence
-  suggests deeper reasoning would help; do not make it an automatic retry.
-  Effort levels are starting points, not equivalent intelligence scores
-  across models, and this policy guarantees neither savings nor a spending
-  cap. Optimize total work needed for a correct, verified result.
-- Keep tiny tasks inline. Normally use no more than two concurrent
-  subagents across the assignment; concurrency is optional, not a target.
-  Do not impose delegation quotas or target an Astra usage percentage.
-  Give each worker distinct file ownership and a concise, self-contained
-  brief covering scope, relevant paths and decisions, applicable repository
-  instructions, completion criteria and required validation. Require workers
-  to read and follow those instructions; do not assume inherited context.
-  Include a concise summary of the verified environment, decisions, relevant
-  findings and completed checks. Investigate gaps or contradictions rather
-  than rediscovering established information.
-- Assign complete bounded deliverables: implementation, relevant tests and
-  corrections arising from review. Validation ownership may include the
-  capture harness, coordinated test runs, evidence collection and cleanup,
-  rather than only instructions for the primary to perform that work.
-  Return review corrections and requirement changes to the existing owner
-  where practical. The primary takes over when integration, ambiguity or
-  repeated failures justify it.
-- Have one agent establish the relevant toolchain, dependencies, fixtures
-  and capture method, then share a concise environment summary with the
-  others. Recheck those findings only when something changes, fails or
-  leaves material uncertainty.
-- The primary coordinates edits, builds, game processes and cleanup, but
-  may delegate their execution to a worker with clear ownership. Avoid
-  conflicting changes or tests against files still being edited. The limit
-  of two concurrent game instances applies across the whole team. Existing
-  isolation, hidden-window, data-preservation and cleanup rules still apply.
-- Request concise findings, evidence, changed files, validation results and
-  unresolved concerns. Avoid duplicate investigations, unnecessary full
-  conversation history, repeated reads of unchanged material and unchanged
-  test reruns without a new reason. Review actual changes and evidence in
-  proportion to risk without routinely repeating the worker's entire task.
-  Use clear review handoffs: workers summarize changes, what was tested,
-  the tested code state, results and limitations; the primary reviews the
-  diff and evidence and requests focused corrections. After changes, rerun
-  affected checks and required integration checks; reuse evidence for
-  unchanged paths unless failures or unresolved uncertainty justify a rerun.
-  Complete all required checks. Keep coordination and reporting proportional
-  to the task, using concise handoffs rather than repeated full-file reads,
-  status polling or duplicate summaries.
-- Return unresolved isolation questions, contradictory evidence, invalid
-  assumptions or repeated failed approaches to the primary for diagnosis.
-  Astra cannot waive isolation rules: stop any conflicting part and follow
-  the existing requirements for resolving it with the user.
-- Efficiency never overrides correctness, isolation, source provenance,
-  networking rules, required platform and regression checks, or cleanup.
-  The primary verifies integration and reports actual validation and its
-  limits, distinguishing independent review from self-review.
+- Authorized fixes to existing behavior may modify the responsible
+  implementation directly; they do not require a separate feature module
+  merely because code changes are needed. Keep the fix focused, explain
+  the intended behavior change, and preserve unrelated functionality.
+  Retain the required `port:` markers for changes to `source/`.
+- MCC compatibility fixes remain subject to MCC isolation. Calling work
+  a bug fix or general engine fix does not authorize repurposing Xbox or
+  Custom Edition implementations for MCC.
+- Base the distinction between a general engine defect and an MCC
+  compatibility requirement on evidence about the existing engine contract,
+  accepted inputs and intended behavior. An MCC map exposing a failure does
+  not by itself establish either classification. Document why a proposed
+  shared fix corrects existing engine behavior rather than adapting it to
+  MCC-specific data or semantics. If the distinction remains unresolved and
+  affects whether a change is permitted, explain the uncertainty and stop
+  that part of the work.
+- For explicitly requested upstream merges, retain authoritative OpenCE
+  changes and preserve MCC and other feature integration. Do not use the
+  merge to introduce unrelated changes to Xbox or Custom Edition support.
+  Identify and validate behavior affected by conflict resolution.
+- Apply the required platform, networking and regression checks to the
+  affected paths. Report what was verified and any remaining limits.
 
 ### Implementation reviews and completion
 
@@ -161,6 +200,8 @@ review guidance. Those standards do not relax the isolation rules.
 
 ### Project preferences
 
+- Work directly as the primary agent. Do not use subagents unless the user
+  explicitly requests them for the assignment.
 - Use descriptive branch names without a `codex/` prefix.
 - Do not write or update PR descriptions unless the user explicitly asks;
   the user handles them. This does not remove the requirement to record
@@ -172,14 +213,31 @@ review guidance. Those standards do not relax the isolation rules.
 - Keep temporary test maps bounded and clean up only your own verified
   fixtures after testing. Preserve the user's original maps, saves and
   useful diagnostic logs.
+- Clean up after each test run and before finishing an assignment, including
+  failed runs once useful diagnostics have been retained. Remove generated
+  game caches (such as `saves/z/cacheNNN.map`), temporary test builds and
+  binaries, duplicate packages, disposable fixtures and any other outputs
+  no longer strictly necessary for ongoing work or delivery. Do not leave
+  repeated test sessions accumulating gigabytes of disposable data.
+- Preserve useful logs and diagnostic evidence, original maps and all saves;
+  `savegame.bin` is a save, not a disposable map cache. Large inactive test
+  saves or captures may be archived losslessly, with original paths recorded
+  and archive contents verified before removing loose copies. Keep active
+  saves usable in place, along with required builds and installed toolchains.
+- Limit routine cleanup to verified outputs of your assignment. Check resolved
+  paths before deletion, do not follow junctions or symlinks into original
+  data, and preserve source, Git worktrees and other ongoing work. A folder
+  being ignored by Git or named `build` does not make all its contents
+  disposable. Check the size of retained test outputs and briefly report
+  cleanup and any large artifacts that still need to remain.
 
 ## Layout
 
 | Path | Contents |
 | --- | --- |
 | `source/` | The game: 466 C files of the decompilation, compiled as they are with few changes (each marked, below) |
-| `port/linux/src/` | The platform layer the three ports share: Direct3D 8 on OpenGL (`d3d8_gl.c`), DirectSound and XInput on SDL3, files, threads, memory, sockets, settings (`port_config.c`), internet play (`p2p*.c`) |
-| `port/linux/game/` | The port's game-side code, compiled as the game's sources are: the distributed netcode (`network_*.c`), co-op, map sharing (`map_share*.c`), the menus (`menu_tags.c`, `menu_functions.c`), Custom Edition maps (`custom_edition_*.c`, `cache_file_formats.c`), the tag validator (`tag_validate.c`, `tag_schema_*.c`), touch, FOV and more |
+| `port/linux/src/` | The platform layer the three ports share: Direct3D 8 on OpenGL (`d3d8_gl.c`), DirectSound and XInput on SDL3, files, threads, memory, sockets, settings (`port_config.c`), the mods folder (`port_mods.c`), internet play (`p2p*.c`) |
+| `port/linux/game/` | The port's game-side code, compiled as the game's sources are: the distributed netcode (`network_*.c`), co-op, OpenCE's gametypes (`game_modes.c`, `infection.c`, `gun_game.c`), map sharing (`map_share*.c`), the menus (`menu_tags.c`, `menu_functions.c`), Custom Edition maps (`custom_edition_*.c`, `cache_file_formats.c`), the tag validator (`tag_validate.c`, `tag_schema_*.c`), mods (`mods.c`, `mod_*.c`), streamer mode's word filter (`text_filter*.c`), touch, FOV and more |
 | `port/linux/include/` | The port's headers: the limits (`halo_port_limits.h`, with `HALO_PORT_NETWORK_VERSION`), capacities (`halo_port_capacity.h`), the prefix header, `halo_linux_source_fixups.h` (port functions the game's sources call) |
 | `port/include/xdk/` | Stand-ins for the Xbox SDK's headers (declarations only) |
 | `port/windows/` | The Windows build's own files (`win32_*.c`, headers) |
@@ -188,8 +246,8 @@ review guidance. Those standards do not relax the isolation rules.
 | `port/assets/` | What the builds embed or ship: high-res HUD (`hud/`), fonts, titles, menus (`menus/`), icons, network brokers |
 | `port/third_party/` | Vendored libraries, each with a README naming its upstream, version and checksum |
 | `port/tools/` | Stand-alone tools (`cache_file_report.c`) |
-| `tools/` | Build scripts (`linux_build.py`, `windows_build.py`, `android_build.py`, `web_build.py`, `ci_build.py`, `web_serve.py`), generators (`ce_menus.py`, `port_settings.py`, `hud_assets.py`, `title_assets.py`, `embed_assets.py`, `xdk_headers.py`) and tests |
-| `docs/` | Longer design notes (`custom_edition_caches.md`) |
+| `tools/` | Build scripts (`linux_build.py`, `windows_build.py`, `android_build.py`, `web_build.py`, `ci_build.py`, `web_serve.py`), generators (`ce_menus.py`, `port_settings.py`, `hud_assets.py`, `title_assets.py`, `embed_assets.py`, `xdk_headers.py`), tests, and `stagekit/` (scenarios staged and instrumented on the real engine, no retail assets) |
+| `docs/` | Longer design notes (`custom_edition_caches.md`, `mods.md`) |
 | `pgo/` | Profile-guided optimisation profiles |
 | `assets/` | Game data for local runs (gitignored: `maps/`, `custom_maps/`) |
 | `.github/workflows/` | CI: builds every platform on each push, publishes releases from `main` |
@@ -202,7 +260,7 @@ ninja linux                    # build/linux/halo
 ninja android                  # the Android guest image and native libraries
 ninja android_apk              # the APK (Gradle)
 ninja web                      # build/web/site (Emscripten: port/web/README.md)
-ninja windows                  # on Windows only
+ninja windows                  # on Windows, or on Linux after configure.py --windows-cross
 python tools/ci_build.py linux release   # what CI builds
 ```
 
@@ -246,7 +304,10 @@ setting (`game.custom_edition`), checked at run time with
 
 ```sh
 python -m pytest -q tools/harness tools/test_touch_menu.py   # the engine's functions in a fake world
+python -m pytest -q tools/stagekit/tests                    # scenarios on the real engine, no retail assets (Linux)
 python -m pytest -q tools/test_linux_port.py                # the build, the maps' checks (needs assets/maps)
+python -m pytest -q tools/test_mods.py                      # mods played over a map (needs assets/maps)
+python -m pytest -q tools/test_bots.py                      # the bots in local games (needs assets/maps)
 python -m pytest -q tools/test_cache_file_formats.py tools/test_bmp_files.py tools/test_profile.py
 python tools/test_touch_layout.py                           # the Android touch layout (JDK 17+)
 python tools/test_light_storage.py
@@ -254,10 +315,14 @@ python tools/test_death_timing.py
 python -m pytest -q tools/test_web_build.py                 # the web build's graph, sockets, menus
 node --test "port/web/tests/*.test.js"                      # the web page's importer and service worker
 node port/web/tests/webrtc_native.mjs chromium firefox      # the native builds' WebRTC with browsers (Playwright)
+python -m pytest -q tools/test_net_compare.py               # net_compare.py's judging of logs, its copies and their processes
+python tools/net_compare.py --a build/linux/halo --b <other build> --data <game data> --swap
+                                                            # two builds in one network game, in step (retail maps: local only)
 ```
 
 `tools/harness/README.md` explains how to add an asset-free test: the code
-under test is taken from the sources, not copied.
+under test is taken from the sources, not copied. `tools/stagekit/README.md`
+explains how to add a scenario: the real engine, with no retail assets.
 
 Running the game without a person at it:
 
@@ -352,15 +417,30 @@ otherwise.
 
 ### Third-party code and licences
 
-The repository is CC0. Vendored code goes in `port/third_party/<name>`,
-copied unchanged, with a README naming the upstream, the version or commit,
-the checksum and what uses it. GPL code (OpenSauce, Reclaimer) may be read
-as documentation of file formats, never copied.
+The repository is `AGPL-3.0-or-later` (`LICENSE`); the commits before the
+change, and the releases built from them, stay CC0 (`LICENSES/CC0-1.0.txt`).
+The README's "Licence" section says what each part is under. Vendored code
+goes in `port/third_party/<name>`, copied unchanged, with a README naming
+the upstream, the version or commit, the licence, the checksum and what uses
+it. Its licence must let it be combined with the AGPL 3.0: MIT, BSD (without
+an advertising clause), ISC, zlib, Apache 2.0, MPL 2.0, LGPL or GPL 3.0 or
+later, public domain. GPL-2.0-only code and the 4-clause BSD licence cannot
+be. Code taken from another project, GPL 3.0 code included, keeps its
+notices and its licence, and says where it came from.
+The decompilation's upstream, punpckhdq/halo, is AGPL 3.0 from 17 October
+2026; bnunu/halo-1 is CC0.
 
 ### Commits and pull requests
 
 - Commit subjects are plain sentences saying what changed; the body says
   why and what was checked.
+- For player-visible changes, add a `Player-Note: Short plain-language sentence.`
+  line in the commit body (at most 100 printable ASCII characters after the
+  prefix). An optional `[CATEGORY]` after the prefix assigns a menu section;
+  it is excluded from the note's 100-character limit. See `docs/changelog.md`
+  for category syntax. Multiple lines are allowed; keep them focused on what
+  players notice. Internal-only changes need no note. These lines supply the menu
+  and release changelogs when testing reaches main; see `docs/changelog.md`.
 - A pull request is merged with a merge commit (`Merge pull request #N from
   <owner>/<branch>`), and follow-up changes go in separate commits whose
   subject ends with `(#N)`.
@@ -380,10 +460,13 @@ as documentation of file formats, never copied.
 | [port/web/README.md](port/web/README.md) | The web build, the page, the game data in the browser, limits, how it operates, hosting on GitHub Pages |
 | [port/include/xdk/README.md](port/include/xdk/README.md) | How the SDK declarations were written and are checked |
 | [docs/custom_edition_caches.md](docs/custom_edition_caches.md) | Loading and converting Custom Edition maps, and the evidence for each layout |
+| [docs/mods.md](docs/mods.md) | Mods: folders of Halo PC tag files whose sounds, bitmaps, text and models play over a map's on one machine |
+| [port/assets/text_filter/README.md](port/assets/text_filter/README.md) | Streamer mode's words: Surge AI's list, the review, the allowed words |
 | [port/assets/menus/README.md](port/assets/menus/README.md) | The menu files' format and how to write them again |
 | [port/assets/menus/NON_HANDDRAWN.md](port/assets/menus/NON_HANDDRAWN.md) | Menu pictures that are not redraws |
 | [port/assets/menus/UNWIRED.md](port/assets/menus/UNWIRED.md) | Menu functions that do nothing yet |
 | [port/assets/fonts/README.md](port/assets/fonts/README.md) | The fonts and their licences |
 | [tools/harness/README.md](tools/harness/README.md) | Asset-free regression tests |
+| [tools/stagekit/README.md](tools/stagekit/README.md) | Scenarios staged and instrumented on the real engine, no retail assets |
 | `port/third_party/*/README.md` | Each vendored library |
 | [AUTHORS.md](AUTHORS.md) | Art credits |

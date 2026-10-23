@@ -69,7 +69,7 @@ int main(void){int i,p,saved;struct network_game remote;
  host_setting="forced_on";CHECK(third_person_host_policy()==1);
  host_setting="forced_off";CHECK(third_person_host_policy()==2);
  host_setting="bad";CHECK(third_person_host_policy()==0);
- for(i=0;i<256;i++)CHECK(!!third_person_match_flags_valid(i)==(i<=5));
+ for(i=0;i<256;i++)CHECK(!!third_person_match_flags_valid(i)==(i<=11));
  CHECK(!third_person_match_flags_valid(256));
  for(p=0;p<3;p++)for(i=0;i<2;i++){
   remote.cooperative_flags=(p<<THIRD_PERSON_POLICY_SHIFT)|1;current=&remote;
@@ -82,16 +82,16 @@ int main(void){int i,p,saved;struct network_game remote;
   CHECK(shoulder==(third_person_enabled()?!saved:saved));
   current=NULL;CHECK(third_person_policy()==0&&third_person_enabled()==preference);
  }
- server_pointer=&host;host.game.cooperative_flags=1;host.state=0;
- network_game_server_port_set_camera_policy(1);CHECK(host.game.cooperative_flags==3&&sends==1);
- network_game_server_port_set_camera_policy(2);CHECK(host.game.cooperative_flags==5&&sends==2);
+ server_pointer=&host;host.game.cooperative_flags=3;host.state=0;
+ network_game_server_port_set_camera_policy(1);CHECK(host.game.cooperative_flags==7&&sends==1);
+ network_game_server_port_set_camera_policy(2);CHECK(host.game.cooperative_flags==11&&sends==2);
  network_game_server_port_set_camera_policy(-1);network_game_server_port_set_camera_policy(3);
- CHECK(host.game.cooperative_flags==5&&sends==2);
- host.state=1;network_game_server_port_set_camera_policy(0);CHECK(host.game.cooperative_flags==5&&sends==2);
- host.state=0;network_game_server_port_set_camera_policy(0);CHECK(host.game.cooperative_flags==1&&sends==3);
+ CHECK(host.game.cooperative_flags==11&&sends==2);
+ host.state=1;network_game_server_port_set_camera_policy(0);CHECK(host.game.cooperative_flags==11&&sends==2);
+ host.state=0;network_game_server_port_set_camera_policy(0);CHECK(host.game.cooperative_flags==3&&sends==3);
  server_pointer=NULL;network_game_server_port_set_camera_policy(1);CHECK(sends==3);
  /* A lobby unlock just before OK must not save the forced display value. */
- current=&remote;remote.cooperative_flags=2;preference=0;saved=writes;
+ current=&remote;remote.cooperative_flags=4;preference=0;saved=writes;
  camera_setting_show(&spinner,&setting);CHECK(spinner.parameters.list.selected_index==1&&setting.loaded_index==NONE);
  setting_changed_save(&spinner,&setting);CHECK(writes==saved&&preference==0);
  remote.cooperative_flags=0;setting_changed_save(&spinner,&setting);CHECK(writes==saved&&preference==0);
@@ -139,5 +139,5 @@ def test_host_camera_menu_layout():
     spinner = root.find(f"widget[@name='{base}camera_policy_spinner']")
     assert spinner.attrib["strings"] == "PLAYER CHOICE|FORCED ON|FORCED OFF"
     spec = port_settings.SCREENS["video_settings/fov_viewmodels"]
-    assert 1 + len(spec["rows"]) + len(spec["categories"]) == 9
+    assert 1 + len(spec["rows"]) + len(spec["categories"]) == 10
     assert spec["extra_help"][0].startswith("CONTROLLED BY HOST")

@@ -24,6 +24,30 @@ static struct model_region region;
 static struct model_region_permutation permutation;
 static int locks, submissions, iterator_position;
 static short previous[32], next[32];
+static int solid_draws, shadow_draws, selected_geometry[8];
+static int legs_calls, legs_expected, legs_empty;
+/* These enclosure fixtures use CLASSIC; shield override eligibility is
+   exercised separately by the shield-look harness. */
+static boolean shield_look_skip_shell(struct model const *m, struct shader const *shader)
+{
+    return FALSE;
+}
+static struct triangle_buffer legs_triangles;
+static struct triangle_buffer const *first_person_legs_triangles(long object_index,
+    struct model const *m, struct vertex_buffer const *vertices, struct triangle_buffer const *triangles)
+{
+    legs_calls++;
+    CHECK(object_index == 1 && m == &model, "local object identity");
+    return legs_empty ? NULL : &legs_triangles;
+}
+static void check_triangles(struct triangle_buffer const *triangles, long count)
+{
+    if (legs_expected)
+        CHECK(triangles == &legs_triangles && count == legs_triangles.count,
+            "private triangle buffer and count reach every material pass");
+    else
+        CHECK(triangles != &legs_triangles, "stock/shadow indices unchanged");
+}
 static real shell[5][8] = {{-1,-1,0},{1,-1,0},{1,1,0},{-1,1,0},{0,0,2}};
 static word indices[64] = {0,1,2,0,2,3,0,4,1,1,4,2,2,4,3,3,4,0};
 static real sphere[6][8] = {{-.22f,0,.7f},{.22f,0,.7f},{0,-.22f,.7f},{0,.22f,.7f},{0,0,.48f},{0,0,.92f}};
@@ -37,8 +61,8 @@ static real sphere[6][8] = {{-.22f,0,.7f},{.22f,0,.7f},{0,-.22f,.7f},{0,.22f,.7f
 #define model_data_error(m,e) ((void)0)
 #define render_model_no_geometry FALSE
 #define matrix4x3_transform_point(m,p,o) (*(o)=*(p))
-#define rasterizer_model_draw(...) ((void)0)
-#define rasterizer_environment_shadow_model_draw(...) ((void)0)
+#define rasterizer_model_draw(s,p,t,ti,tc,v,vi) (check_triangles(t,tc), selected_geometry[solid_draws++] = (v)->count)
+#define rasterizer_environment_shadow_model_draw(s,p,t,v) (check_triangles(t,(t)->count), selected_geometry[shadow_draws++] = (v)->count)
 #define rasterizer_debug_model_vertices(...) ((void)0)
 #define D3DLOCK_READONLY 128
 
@@ -72,6 +96,7 @@ static void rasterizer_model_transparent_geometry_submit(struct shader *shader, 
     struct render_sort_filth *sort)
 {
     int i = submissions++;
+    check_triangles(triangles, triangle_count);
     previous[i] = next[i] = NONE;
     if (sort)
     {
@@ -127,7 +152,7 @@ static void draw_frame(void)
     struct render_skinning skinning = {NULL, 1};
     char permutation_indices[] = {0};
     submissions = 0;
-    render_model_parts(&model, permutation_indices, 1, &skinning, 1, 0, 0, 0);
+    render_model_parts(&model, permutation_indices, 1, &skinning, 1, 0, _model_detail_rules_stock, 0, 0);
     CHECK(submissions == 2, "two transparent parts");
     CHECK(next[0] == 1 && previous[1] == 0, "native links must include part zero");
     CHECK(glass_material.flags == FLAG(_shader_transparent_glass_flag_two_sided_bit), "retail two-sided glass retained");
@@ -138,6 +163,84 @@ int main(int argc, char **argv)
     const char *case_name = argc > 1 ? argv[1] : "closed";
     int i;
     initialize();
+    if (!strncmp(case_name, "legs-", 5)) {
+        struct render_skinning skinning = {NULL, 1};
+        char choices[1] = {0};
+        boolean shadow = !strcmp(case_name, "legs-shadow");
+        boolean disabled = !strcmp(case_name, "legs-off");
+        legs_expected = !shadow && !disabled;
+        legs_empty = !strcmp(case_name, "legs-empty");
+        legs_triangles.count = 1;
+        geometry.parts.count = 3;
+        if (!strcmp(case_name, "legs-stripped"))
+            for (i = 0; i < 3; i++) parts[i].flags |= FLAG(_model_geometry_part_stripped_bit);
+        render_model_parts(&model, choices, 1, &skinning, 1, 0, _model_detail_rules_stock, 0,
+            (disabled ? 0 : FIRST_PERSON_LEGS_RENDER_FLAG) | (shadow ? FLAG(_render_model_shadow_bit) : 0));
+        if (!strcmp(case_name, "legs-stripped")) {
+            CHECK(!legs_calls && !submissions && !solid_draws, "stripped geometry never enters feature cache");
+            return 0;
+        }
+        CHECK((legs_calls > 0) == legs_expected, "selection only for marked non-shadow body");
+        if (legs_empty) CHECK(!submissions && !solid_draws, "omitted parts never submitted");
+        else if (!shadow) CHECK(submissions == 2 && solid_draws == 1, "transparent and solid surfaces");
+        return 0;
+    }
+    /* display.model_detail's levels for each permutation (model_detail.c), as
+    render_model_parts draws them: from eltanschauung's #282 */
+    if (!strncmp(case_name, "lod-", 4)) {
+        struct model_region regions[2];
+        struct model_region_permutation permutations[2];
+        struct model_geometry geometries[4];
+        struct model_geometry_part solid_parts[4];
+        struct render_skinning skinning = {NULL, 1};
+        char choices[2] = {0, 0};
+        boolean stock = !strcmp(case_name, "lod-off");
+        boolean interior = !strncmp(case_name, "lod-interior-", 13);
+        boolean inside = strstr(case_name, "inside") != NULL;
+        boolean shadow = strstr(case_name, "shadow") != NULL;
+        short rules = stock ? _model_detail_rules_stock : inside ? _model_detail_rules_inside : _model_detail_rules_outside;
+        memset(regions, 0, sizeof(regions));
+        memset(solid_parts, 0, sizeof(solid_parts));
+        for (i = 0; i < 4; i++) {
+            geometries[i].parts.count = 1; geometries[i].parts.address = &solid_parts[i];
+            solid_parts[i].shader_index = 2;
+            solid_parts[i].previous_part_index = solid_parts[i].next_part_index = NONE;
+            solid_parts[i].vertex_buffer.count = i;
+        }
+        for (i = 0; i < 2; i++) {
+            regions[i].permutations.count = 1; regions[i].permutations.address = &permutations[i];
+            memset(&permutations[i], 0xff, sizeof(permutations[i]));
+            permutations[i].geometry_indices[0] = 0;
+            permutations[i].geometry_indices[1] = 1;
+        }
+        permutations[1].geometry_indices[3] = 3;
+        if (interior) {
+            model.detail_cutoff_pixels[3] = 2000.f;
+            model.detail_cutoff_pixels[4] = 3000.f;
+            permutations[0].geometry_indices[4] = 2;
+            permutations[1].geometry_indices[4] = 2;
+        }
+        if (!strcmp(case_name, "lod-empty"))
+            for (i = 0; i < 5; i++) permutations[0].geometry_indices[i] = NONE;
+        if (!strcmp(case_name, "lod-invalid")) permutations[0].geometry_indices[4] = 99;
+        model.regions.count = 2; model.regions.address = regions;
+        model.geometries.count = 4; model.geometries.address = geometries;
+        render_model_parts(&model, choices, 2, &skinning, 1, 4, rules, 0,
+            shadow ? FLAG(_render_model_shadow_bit) : 0);
+        if (stock) CHECK(!solid_draws && !shadow_draws, "stock keeps the top level's missing geometry");
+        else if (!strcmp(case_name, "lod-empty") || !strcmp(case_name, "lod-invalid"))
+            CHECK(solid_draws == 1 && selected_geometry[0] == 3, "absent or corrupt geometry remains rejected");
+        else if (interior) {
+            CHECK((shadow ? shadow_draws : solid_draws) == 2, "both regions remain visible");
+            CHECK(selected_geometry[0] == (inside ? 2 : 1) && selected_geometry[1] == (inside ? 2 : 1),
+                "interior geometry requires an inside camera, including shadows");
+        }
+        else {
+            CHECK((shadow ? shadow_draws : solid_draws) == 2, "both regions draw with different highest available levels");
+            CHECK(selected_geometry[0] == 1 && selected_geometry[1] == 3, "each permutation's own highest level");
+        }
+        return 0;
+    }
     CASE("closed") { CHECK(recognizes(), "closed shell"); }
     CASE("open") { parts[1].triangle_buffer.count = 5; CHECK(!recognizes(), "missing face"); }
     CASE("outside") { sphere[0][0] = 5; CHECK(!recognizes(), "outside core"); }
