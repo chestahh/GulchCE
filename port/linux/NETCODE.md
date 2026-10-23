@@ -170,12 +170,14 @@ OpenCE releases. Do not change the base version without auditing its wire format
 simulation rules and admission behavior and testing unmodified upstream clients.
 The pinned fixture and settings-prefix check are in `tools/test_mcc_protocol.py`.
 
-Build 244 integration was checked on Windows with the official OpenCE release
-in both host/client directions on Xbox Blood Gulch (shooting and pickups).
+The OpenCE 36 integration was checked on Windows against the official build
+of the pinned commit. Xbox Blood Gulch passed in both host/client directions
+(Slayer and Gun Game, with shooting and pickups). Custom Edition Death Island
+passed with the OpenCE host. The log comparator found no divergent seconds.
 MCC Mercury Falling admitted two GulchCE peers with different package folder
-names and synchronized the opening sequence. Custom Edition Death Island
-reached admission but could not start without its missing resource maps.
-These short checks do not establish full campaign or transport compatibility.
+names and synchronized its opening sequence; the short run did not provide
+enough on-foot samples for the comparator's full drift verdict. These checks
+do not establish full campaign or public internet transport compatibility.
 
 MCC sessions use separate MCC protocol version 53 (previous GulchCE builds used
 52). Version 53 incorporates OpenCE 36's extended gametype settings, shield
@@ -196,7 +198,8 @@ map's screen-flash setting.
 It also corrects named sleep_forever resets and online cooperative script queries.
 It retains signed/vector damage impulses from version 48 and initialized
 three-point boat controls from version 47. Packet sizes are unchanged.
-Xbox/Custom Edition retain OpenCE protocol 32.
+At version 52, Xbox/Custom Edition retained OpenCE protocol 32; the current
+protocol baseline is described above.
 Discovery advertises the selected map family's protocol and, separately,
 the host's MCC capability version. A GulchCE client sends a bounded reliable join
 envelope only to a host advertising the same MCC capability. The envelope wraps
