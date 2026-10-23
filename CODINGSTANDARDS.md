@@ -1,10 +1,10 @@
 # GulchCE coding standards
 
 These standards supplement [AGENTS.md](AGENTS.md). Read that file first,
-then confirm its requirements and the MCC isolation rules in the order it
-specifies. These standards do not authorize changes prohibited by those
-rules. They guide future work; they are not an instruction to reformat or
-rewrite existing code across the repository.
+then confirm its requirements and the applicable general feature and MCC
+isolation rules in the order it specifies. These standards do not authorize
+changes prohibited by those rules. They guide future work; they are not an
+instruction to reformat or rewrite existing code across the repository.
 
 ## Scope and implementation boundaries
 
@@ -103,10 +103,8 @@ requirements still apply.
   useful, give tasks clear scope and ownership. Choose available models
   according to task needs and user preferences rather than a fixed roster.
   Do not assume subagents or independent reviewers are available.
-- Review substantial changes both by component and as a complete diff.
-  Seek an independent review where available and authorized for changes
-  with significant correctness or security risk. Distinguish independent
-  review from self-review in the report.
+- Seek an independent review where available and authorized for changes
+  with significant correctness or security risk.
 - Mutation tests can establish that a regression test catches the intended
   fault. Use them selectively in isolated temporary copies; never leave
   intentional faults in a shared working tree or run them concurrently with
@@ -145,10 +143,12 @@ checks rather than artificial tests or game builds.
 
 ### Final pass
 
-- Review the complete implementation by component and as an integrated
-  change, including earlier assignment commits, declarations, build and
-  settings wiring, documentation, fixtures and regression tests. Inspect
-  relevant callers and lifecycle paths; reviewing only the last patch is
+- Review the final combined implementation across all assignment commits
+  and phases, by component and as an integrated change. Include declarations,
+  build and settings wiring, documentation, fixtures and regression tests.
+  Inspect relevant callers and lifecycle paths. Consult history where needed
+  to understand the resulting state; this does not require auditing every
+  obsolete intermediate version. Reviewing only the last patch is
   insufficient.
 - Complete necessary simplification and refactoring within authorised
   scope. Remove dead or demonstrably redundant code, abandoned alternatives,
@@ -176,23 +176,16 @@ checks rather than artificial tests or game builds.
   sound implementation may need no changes. Do not pursue line-count targets
   or repeated cosmetic rewrites as a substitute for correctness and clarity.
 
-### Final verification and completion
-
-After the final pass and its corrections, run the required checks for the
-resulting implementation. Earlier results do not validate subsequently
-changed code. If validation causes more edits, review those edits and rerun
-affected checks and required integration checks. Reuse evidence for unchanged
-paths only where it remains applicable; all required platform, networking
-and regression checks still apply.
-
-Briefly report the review scope and outcome, improvements made or why none
-were necessary, the code state checked, actual validation and unresolved
-limitations. Distinguish self-review from independent review. These review
-requirements do not themselves authorize delegation or additional agents.
-
 ## Verification and reporting
 
-Run the required checks in `AGENTS.md` for affected platforms and code.
+After the final pass and its corrections, run the required checks in
+`AGENTS.md` for the affected platforms and resulting implementation.
+Earlier results do not validate subsequently changed code. If validation
+causes more edits, review those edits and rerun affected checks and required
+integration checks. Reuse evidence for unchanged paths only where it remains
+applicable; all required platform, networking and regression checks still
+apply.
+
 For relevant MCC changes, cover representative Xbox and Custom Edition
 behavior alongside MCC. Select checks according to the affected path:
 
@@ -213,6 +206,11 @@ tested transitions and full campaign completion. Report skipped checks,
 failures, unavailable tools and CI results accurately. Compilation alone
 does not establish runtime compatibility, and passing tests do not prove
 the absence of regressions.
+
+Briefly report the review scope and outcome, improvements made or why none
+were necessary, and unresolved limitations. Distinguish self-review from
+independent review; review requirements do not themselves authorize
+delegation or additional agents.
 
 ## Git, upstream contributions and code reduction
 
