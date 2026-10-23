@@ -8,7 +8,8 @@
 
 <p align="center">
   <a href="https://github.com/chestahh/GulchCE/releases">download the latest release</a> ·
-  <a href="https://discord.gg/pRFGPAMZkD">join the discord</a>
+  <a href="https://discord.gg/pRFGPAMZkD">join the discord</a> ·
+  <a href="https://www.youtube.com/channel/UC9Hn6j6BdKwoyu_hGXdfzvw">check out the youtube</a>
   <br>
   <br>
   forever <strong>compatible</strong>, for <strong>everyone</strong>
