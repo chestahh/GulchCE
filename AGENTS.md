@@ -166,6 +166,37 @@ review guidance. Those standards do not relax the isolation rules.
 - Apply the required platform, networking and regression checks to the
   affected paths. Report what was verified and any remaining limits.
 
+### Implementation reviews and completion
+
+- Review design and maintainability before substantial implementation and
+  during each meaningful implementation phase. Check module boundaries,
+  interfaces, state ownership, lifecycle, testability and complexity before
+  more code depends on them. Resolve identified structural problems within
+  scope as they arise; do not defer known necessary refactoring to the end.
+- At the end of each agreed feature, change, fix or addition, perform a
+  final pass over the complete implementation before running the final
+  required regression checks. Include all code, integration, documentation
+  and tests produced or modified for the assignment, across its commits
+  and phases, rather than reviewing only the latest diff.
+- Complete necessary simplification, refactoring and justified optimisation
+  within the authorised scope. Remove demonstrably redundant code, obsolete
+  stubs, abandoned approaches, temporary scaffolding and stale documentation
+  or tests. Preserve meaningful regression coverage, required platform stubs,
+  diagnostics, bounds checks, compatibility behavior and supporting evidence.
+  Review is mandatory; changes without a demonstrated benefit are not.
+- Follow the detailed review criteria in [CODINGSTANDARDS.md](CODINGSTANDARDS.md).
+  These reviews do not relax isolation, provenance, networking or platform
+  requirements, authorize unrelated refactoring, or permit combining Xbox,
+  Custom Edition and MCC implementations across their established boundaries.
+- Run final required checks on the resulting implementation. If validation
+  leads to further changes, review those changes and rerun affected checks
+  and required integration checks before completion. Continue testing during
+  development; the final pass is not a reason to delay earlier checks.
+- Briefly report the review outcome, improvements made or why none were
+  needed, actual validation and unresolved limitations. Scale review effort
+  to the change; documentation-only work needs document checks, not game
+  regression runs. Review requirements do not authorize spawning subagents.
+
 ### Project preferences
 
 - Work directly as the primary agent. Do not use subagents unless the user
