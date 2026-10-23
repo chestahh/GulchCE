@@ -46,6 +46,7 @@ from below its lowest node to above its highest.
 #include "effects/particles.h"
 #include "sound/sound_definitions.h"
 #include "objects/light_definitions.h"
+#include "network_shield_effects.h"
 
 enum
 {
@@ -121,12 +122,20 @@ static short overshield_effect_next_model = 0;
 int config_boolean(const char *name);
 unsigned long config_changes(void);
 
+/* display.overshield_effect; in a network game, the host's
+(network_shield_effects.c) */
 static boolean overshield_effect_enabled(
 	void)
 {
 	static unsigned long changes = (unsigned long)-1;
 	static boolean enabled = FALSE;
+	short effects = network_shield_effects();
 
+	if (effects != NONE)
+	{
+		changes = (unsigned long)-1;
+		return effects >= _shield_effects_overshield;
+	}
 	if (changes != config_changes())
 	{
 		changes = config_changes();
@@ -474,4 +483,20 @@ boolean overshield_effect_color(
 	parallel->green = color->green / peak * parallel_brightness;
 	parallel->blue = color->blue / peak * parallel_brightness;
 	return TRUE;
+}
+
+/* The overshield contribution to shield_glow.c. */
+real overshield_effect_flare(
+	long unit_index)
+{
+	struct overshield_effect *effect = overshield_effect_get(unit_index);
+
+	return effect ? effect->progress : -1.f;
+}
+
+/* The overshield contribution to shield_glow.c. */
+real_rgb_color const *overshield_effect_glow_color(
+	void)
+{
+	return &overshield_effect_rgb;
 }
