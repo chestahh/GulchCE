@@ -83,7 +83,15 @@ def update(resource, listing):
         offset, size = items[entry["tag"]]
         entry.update(fingerprint(data, region(data, offset, size), entry["bitmap"]))
     result["resource_sha256"] = hashlib.sha256(data).hexdigest()
-    listing.write_text(json.dumps(result, indent=1) + "\n")
+    lines = []
+    for key, value in result.items():
+        text = json.dumps(key) + ": "
+        if isinstance(value, list):
+            text += "[\n" + ",\n".join("  " + json.dumps(entry) for entry in value) + "\n ]"
+        else:
+            text += json.dumps(value)
+        lines.append(" " + text)
+    listing.write_text("{\n" + ",\n".join(lines) + "\n}\n")
 
 
 if __name__ == "__main__":

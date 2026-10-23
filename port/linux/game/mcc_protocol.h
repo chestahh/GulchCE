@@ -2,12 +2,12 @@
 #ifndef MCC_PROTOCOL_H
 #define MCC_PROTOCOL_H
 
-/* OpenCE 32 changes simulation and reserves message 90 for aim assist.
- * MCC messages move to 91-94; older peers must not join. */
-#define MCC_PROTOCOL_VERSION 52
+/* OpenCE 36 extends gametype settings and reserves message 91 for shield effects.
+ * MCC messages move to 92-95; older peers must not join. */
+#define MCC_PROTOCOL_VERSION 53
 #define MCC_PROTOCOL_ADVERTISED_FLAG 0x04
 #define MCC_PROTOCOL_ADVERTISED_VERSION_OFFSET 3
-#define MCC_PROTOCOL_JOIN_KIND 91
+#define MCC_PROTOCOL_JOIN_KIND 92
 #define MCC_PROTOCOL_JOIN_MAX 256
 
 struct network_game;

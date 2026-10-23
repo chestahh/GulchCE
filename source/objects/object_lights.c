@@ -190,6 +190,8 @@ symbols in this file:
 #include "covenant_emitter_lighting.h" /* port: port/linux/game/covenant_emitter_lighting.c */
 #include "rocket_lighting.h" /* port: port/linux/game/rocket_lighting.c */
 #include "plasma_lighting.h" /* port: port/linux/game/plasma_lighting.c */
+void shield_glow_update(void); /* port: port/linux/game/shield_glow.c */
+void shield_glow_reset(void); /* port: port/linux/game/shield_glow.c */
 
 /* port: port/linux/src (halo.log) */
 void platform_log(const char *format, ...);
@@ -875,6 +877,7 @@ void lights_initialize_for_new_map(
 	light_port_glow_definition = NONE - 1; /* port: (looked for again) */
 	plasma_lighting_reset(); /* port: discard render-only attachment identities */
 	plasma_falloff_dispose(); /* port: release the previous map's optional texture */
+	shield_glow_reset(); /* port: discard handles from the previous light array */
 	data_make_valid(light_data);
 	lights_game_globals->render_lights = TRUE;
 	cluster_partition_make_valid(&light_cluster_partition);
@@ -891,6 +894,7 @@ void lights_dispose_from_old_map(
 	rocket_lighting_forget(); /* port: no flight-light handles cross map loads */
 	plasma_lighting_reset(); /* port: no attachment identities cross map loads */
 	plasma_falloff_dispose(); /* port: release feature-owned attenuation */
+	shield_glow_reset(); /* port: release feature state before invalidating map lights */
 	data_make_invalid(light_data);
 	cluster_partition_make_invalid(&light_cluster_partition);
 
@@ -1078,6 +1082,7 @@ void lights_preprocess_scene(
 	covenant_lighting_update(); /* port: missing Covenant flight lights */
 	covenant_emitter_lighting_update(); /* port: rendered shield and exposed-rod poses */
 	rocket_lighting_update(); /* port: create flight lights before visibility collection */
+	shield_glow_update(); /* port: port/linux/game/shield_glow.c */
 	for (light_index = data_next_index(light_data, NONE);
 		light_index != NONE;
 		light_index = data_next_index(light_data, light_index))
