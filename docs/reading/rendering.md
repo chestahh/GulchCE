@@ -77,6 +77,13 @@ and the final presentation flip must agree. The opening comment in
 OpenGL ES/WebGL adaptations. Do not assume a desktop GL facility is available
 on Android or the web because the C file is shared.
 
+At presentation, `D3DDevice_Present` unbinds the OpenGL read framebuffer
+before `platform_video_swap`. The read framebuffer selects the image used
+by pixel-read and copy operations; binding zero selects the default window
+framebuffer. This OpenCE change restores the binding expected by OBS game
+capture. It applies to the shared GL presentation path; an ordinary render
+smoke test alone does not verify OBS capture itself.
+
 Submitting a draw does not mean the GPU has completed it. In particular,
 visibility-query results and reusable upload storage have completion rules.
 [Visibility query readback](../visibility_queries.md) and

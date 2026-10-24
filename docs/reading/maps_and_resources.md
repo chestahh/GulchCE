@@ -133,5 +133,78 @@ BSP boundary and finishing a campaign are separate claims. A new loader
 change needs malformed inputs, failed-load cleanup and Xbox/CE/MCC transitions
 checked as well as a successful load of its target map.
 
+## MCC script and animation compatibility
+
+[`mcc_scripts_prepare`](../../port/linux/game/mcc_scripts.c) links MCC
+script names to native services or MCC-owned adapters. `debug_score` gets
+ordinary map-local long-integer storage, like the existing `developer_mode`
+adapter; it does not grant developer access or change multiplayer scores.
+[`mcc_campaign.c`](../../port/linux/game/mcc_campaign.c) implements
+`players_on_multiplayer_team` by selecting living player units on the requested
+player team, including remote players. The team is not the unit's AI allegiance.
+These adapters do not add names to the Xbox/Custom Edition function table.
+
+`sound_set_music_gain` multiplies the map's music volume by a finite value in
+0 to 1, in addition to the player's volume setting. Only a local game or the host
+can change it. Follow `mcc_campaign_mix_gain`, the campaign snapshot functions,
+[`mcc_network.c`](../../port/linux/game/mcc_network.c) and
+[`mcc_checkpoint.c`](../../port/linux/game/mcc_checkpoint.c): the value follows
+host snapshots and checkpoints and resets when the map ends. Snapshot version 5
+adds the gain; older supported snapshots restore it to 1. This required MCC
+protocol 56; the later thread-storage extension uses 57. The verified OpenCE
+protocol is unchanged.
+
+Halo Kart's NPC steering and pickups run through the same deeply nested `main`
+script. Exceeding the native 512-byte stack stopped that script.
+[`mcc_script_threads.inl`](../../port/linux/game/mcc_script_threads.inl)
+provides bounded 4,096-byte stacks for MCC, retaining the native 256-thread count.
+Read `mcc_script_threads_prepare`, `mcc_hs_threads_activate`, and
+`mcc_script_threads_dispose` for ownership: loading reserves proven-unused CPU
+state space, script initialization selects it, and unloading restores the native
+array and original bytes. Xbox/CE stack layouts and capacities are unchanged.
+The interpreter needs only array-selection and stack-end hooks; the save system
+provides a read-only arena-bounds accessor.
+
+Follow `mcc_checkpoint_capture`, `mcc_script_threads_validate`, and
+`mcc_script_threads_restore` for saves and the host's co-op revert image.
+Validation checks array and frame bounds before accepting pointers. Old inline-stack checkpoints
+can migrate after validation. Only the host runs race scripts and AI in co-op;
+the existing object and animation messages carry their effects. Thread stacks
+are not transmitted as a new message. This does not permit clients to submit
+scripts or authoritative state. Asset-free coverage is in
+[`test_mcc_script_threads.py`](../../tools/harness/tests/test_mcc_script_threads.py);
+runtime race progress and pickup behavior require the actual maps as well.
+
+Halo Kart also exposes seated passengers attempting to find a danger-avoidance
+destination, which the native position selector disallows. Follow
+`mcc_seat_blocks_avoidance` in [`mcc_seats.c`](../../port/linux/game/mcc_seats.c)
+and the two hooks in [`action_avoid.c`](../../source/ai/action_avoid.c): MCC
+passengers cannot start that movement action, and seating ends an active one.
+Xbox/CE and movable MCC actors retain their existing path. The focused test is
+[`test_mcc_avoidance.py`](../../tools/test_mcc_avoidance.py).
+
+Firefight Descent's `vehicles\spelican\spelican` animation graph has two
+unnamed, unlinked landing-gear node slots. Its associated models retain those
+slots and agree on the remaining ordered node names and parent relationships.
+`mcc_animation_model_tree` in
+[`mcc_tag_validate.c`](../../port/linux/game/mcc_tag_validate.c) can recover
+that hierarchy without changing animation or vertex node indices. Associated
+models must agree, retained links must be consistent, and the resulting complete
+tree still passes the usual cycle and reachability checks. Recovery is logged;
+unrelated broken graphs are not automatically accepted.
+
+The public [H1 script reference](https://c20.reclaimers.net/h1/scripting/)
+documents the music-gain and team-query interfaces and identifies `debug_score`
+as a long that does not affect multiplayer score. The map-local implementation
+preserves reads and writes; it does not claim an MCC debug-score display.
+Landslide's enabling of Catch, Mythic, Anger and Thunderstorm remains unsupported;
+turning those requests into no-ops would change the later rounds' gameplay.
+
+Focused coverage lives in `test_mcc_campaign.py`, `test_mcc_scripts.py`,
+`test_mcc_checkpoint.py`, `test_mcc_effects_gain.py` and
+`test_mcc_tag_validation.py` under [`tools`](../../tools/).
+The supplied `b30_vs.map` has a version-609 Custom Edition header, so it cannot
+establish runtime coverage for the issue's MCC version-13 map.
+
 Continue with [platforms and testing](platforms_and_testing.md), or return
 to the [guide](README.md).
