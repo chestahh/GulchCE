@@ -133,5 +133,48 @@ BSP boundary and finishing a campaign are separate claims. A new loader
 change needs malformed inputs, failed-load cleanup and Xbox/CE/MCC transitions
 checked as well as a successful load of its target map.
 
+## MCC script and animation compatibility
+
+[`mcc_scripts_prepare`](../../port/linux/game/mcc_scripts.c) links MCC
+script names to native services or MCC-owned adapters. `debug_score` gets
+ordinary map-local long-integer storage, like the existing `developer_mode`
+adapter; it does not grant developer access or change multiplayer scores.
+[`mcc_campaign.c`](../../port/linux/game/mcc_campaign.c) implements
+`players_on_multiplayer_team` by selecting living player units on the requested
+player team, including remote players. The team is not the unit's AI allegiance.
+These adapters do not add names to the Xbox/Custom Edition function table.
+
+`sound_set_music_gain` multiplies the map's music volume by a finite value in
+0 to 1, in addition to the player's volume setting. Only a local game or the host
+can change it. Follow `mcc_campaign_mix_gain`, the campaign snapshot functions,
+[`mcc_network.c`](../../port/linux/game/mcc_network.c) and
+[`mcc_checkpoint.c`](../../port/linux/game/mcc_checkpoint.c): the value follows
+host snapshots and checkpoints and resets when the map ends. Snapshot version 5
+adds the gain; older supported snapshots restore it to 1. The MCC protocol is
+56 for this larger snapshot; the verified OpenCE protocol is unchanged.
+
+Firefight Descent's `vehicles\spelican\spelican` animation graph has two
+unnamed, unlinked landing-gear node slots. Its associated models retain those
+slots and agree on the remaining ordered node names and parent relationships.
+`mcc_animation_model_tree` in
+[`mcc_tag_validate.c`](../../port/linux/game/mcc_tag_validate.c) can recover
+that hierarchy without changing animation or vertex node indices. Associated
+models must agree, retained links must be consistent, and the resulting complete
+tree still passes the usual cycle and reachability checks. Recovery is logged;
+unrelated broken graphs are not automatically accepted.
+
+The public [H1 script reference](https://c20.reclaimers.net/h1/scripting/)
+documents the music-gain and team-query interfaces and identifies `debug_score`
+as a long that does not affect multiplayer score. The map-local implementation
+preserves reads and writes; it does not claim an MCC debug-score display.
+Landslide's enabling of Catch, Mythic, Anger and Thunderstorm remains unsupported;
+turning those requests into no-ops would change the later rounds' gameplay.
+
+Focused coverage lives in `test_mcc_campaign.py`, `test_mcc_scripts.py`,
+`test_mcc_checkpoint.py`, `test_mcc_effects_gain.py` and
+`test_mcc_tag_validation.py` under [`tools`](../../tools/).
+The supplied `b30_vs.map` has a version-609 Custom Edition header, so it cannot
+establish runtime coverage for the issue's MCC version-13 map.
+
 Continue with [platforms and testing](platforms_and_testing.md), or return
 to the [guide](README.md).
