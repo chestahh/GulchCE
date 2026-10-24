@@ -339,6 +339,34 @@ Running the game without a person at it:
 
 ## Rules of the project
 
+### Documentation for code readers
+
+- The [reader's guide](docs/reading/README.md) connects visible behaviour
+  to the implementation. Update an affected guide in the same change when
+  its described behaviour, named functions or reading route changes.
+- For a substantial feature whose flow or constraints need explanation,
+  add or extend a focused walkthrough under `docs/reading/`. Scale this to
+  the change; small fixes do not require a new walkthrough. Explain the
+  visible behaviour, prerequisites, reading order, one concrete example,
+  important state and lifecycle rules, and relevant checks and limits.
+- Link to source files with relative paths and name the functions to read.
+  Keep copied code short and avoid fragile line-number references. Link
+  to existing technical references rather than duplicating their details.
+- Explain unfamiliar terms at first use; add reusable definitions to the
+  [glossary](docs/reading/glossary.md). Distinguish inherited engine
+  behaviour, OpenCE additions and GulchCE-specific choices where relevant.
+- Separate facts established by the code, documented rationale, inferences
+  and unresolved questions. Distinguish source inspection, automated tests
+  and runtime observations; suggested checks are not completed validation.
+- Keep comments beside non-obvious constraints, ownership, ordering and
+  workarounds. Follow the existing comment style and `port:` rules for
+  `source/`; use the guide for extended teaching rather than narrating
+  every statement. Documentation work does not authorize implementation
+  changes or relax the isolation rules.
+- Before completing documentation changes, review them against the current
+  code and check local links and named symbols. Documentation-only changes
+  require document checks, not artificial tests or game builds.
+
 ### The game's sources
 
 - Change `source/` as little as possible, and mark each change from the
@@ -452,6 +480,7 @@ The decompilation's upstream, punpckhdq/halo, is AGPL 3.0 from 17 October
 | Document | About |
 | --- | --- |
 | [README.md](README.md) | Downloads, game data, building, build options, profiling builds |
+| [docs/reading/README.md](docs/reading/README.md) | A guided route through the GulchCE code, with a glossary and FOV walkthrough |
 | [CODINGSTANDARDS.md](CODINGSTANDARDS.md) | Supplementary coding, MCC boundaries, evidence and review standards |
 | [port/linux/README.md](port/linux/README.md) | The Linux build, controls, menus, every setting, updates, frame rate, field of view, system link, internet play, voice chat, the server browser, map sharing, security, map checks, how the port operates, the game source changes |
 | [port/linux/NETCODE.md](port/linux/NETCODE.md) | The distributed netcode, network versions, joining a game in progress, map sharing, transport, testing |

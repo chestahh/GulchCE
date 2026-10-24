@@ -257,6 +257,11 @@ always start on a different computer.
 
 ## For developers
 
+Start with the [GulchCE code reader's guide](docs/reading/README.md) for a
+route through the code, a glossary of engine terms and C conventions, and
+a worked example following a field-of-view setting from the menu to the
+camera, reticle and weapon drawing.
+
 ### Testing
 
 The tests are listed in [AGENTS.md](AGENTS.md) ("Testing"). Most run
