@@ -1,7 +1,7 @@
-"""Admission, framing and the pinned OpenCE 36 wire contract.
+"""Admission, framing and the pinned OpenCE 38 wire contract.
 
 The AGPL-3.0-or-later baseline fixture comes unchanged from OpenCommunityEdition/OpenCE
-dedb3755d4b131d6757bfe62851f9b7e2b0b7c2f, port/linux/network_format.txt.
+5e27f3a27b2d3c27d3edeb450fe40c24defb9c15, port/linux/network_format.txt.
 Update it only after auditing and testing a new upstream protocol.
 """
 from pathlib import Path
@@ -15,9 +15,9 @@ import network_format
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def test_opence_36_contract():
-    lines = (ROOT / "tools/fixtures/opence_network_36.txt").read_text().splitlines()
-    assert lines[0] == "version 36"
+def test_opence_38_contract():
+    lines = (ROOT / "tools/fixtures/opence_network_38.txt").read_text().splitlines()
+    assert lines[0] == "version 38"
     expected = {f"{kind} {name}": value for kind, name, value in
                 (line.split(" ", 2) for line in lines[1:])}
     actual = network_format.items()
@@ -27,7 +27,7 @@ def test_opence_36_contract():
     actual["layout HALO_PORT_NETWORK_GAME_SIZE"] = "(HALO_PORT_NETWORK_GAME_PLAYERS_END + 0x3A)"
     assert {key: actual.get(key) for key in expected} == expected
     limits = (ROOT / "port/linux/include/halo_port_limits.h").read_text()
-    assert re.search(r"#define HALO_PORT_NETWORK_VERSION 36\b", limits)
+    assert re.search(r"#define HALO_PORT_NETWORK_VERSION 38\b", limits)
     # All fields of the transmitted prefix match upstream, including names,
     # types and order. The Windows build also asserts the actual ABI offsets.
     header = (ROOT / "source/networking/network_game_manager.h").read_text()
@@ -54,7 +54,7 @@ typedef int boolean;
 #define TRUE 1
 #define FALSE 0
 #define HALO_PORT_NETWORK_GAME_PLAYERS_END 6
-#define HALO_PORT_NETWORK_VERSION 36
+#define HALO_PORT_NETWORK_VERSION 38
 #define HALO_PORT_MAXIMUM_NETWORK_MACHINES 4
 #define NUMBEROF(a) (sizeof(a)/sizeof((a)[0]))
 #define csmemcpy memcpy
@@ -92,7 +92,7 @@ int main(void) {
     byte saved;
     int i;
     memset(&game,0,sizeof(game));strcpy(game.map.name,"levels\\test\\bloodgulch\\bloodgulch");
-    CHECK(mcc_protocol_version(game.map.name)==36);
+    CHECK(mcc_protocol_version(game.map.name)==38);
     CHECK(mcc_protocol_settings_size(&game)==64);
     CHECK(mcc_protocol_settings_valid(&game,64));CHECK(!mcc_protocol_settings_valid(&game,96));
     build_message_header(original,sizeof(original),3,0);
@@ -374,3 +374,68 @@ def test_chat_and_mcc_message_ids_are_disjoint():
     receiver = function((ROOT / "port/linux/game/network_distributed.c").read_text(),
                         "network_distributed_handle_message")
     assert "header.type >= _distributed_message_mcc_grenades && !mcc_cache_tags_loaded()" in receiver
+
+
+def test_advertised_kind_and_mcc_capability_are_independent(tmp_path):
+    """Execute the merged writer/reader for all kind bytes and stale capability."""
+    server = (ROOT / "source/networking/network_server_message_handler.c").read_text()
+    writer = server[server.index("\t\t\tadvertisement.reserved[HALO_PORT_ADVERTISED_VERSION_OFFSET]"):]
+    writer = writer[:writer.index("\t\t\t/* (open to joins:")]
+    client = (ROOT / "source/networking/network_client_manager.c").read_text()
+    reader = client[client.index("\t\t\tnetwork_game_client_advertised_versions[game_index].version ="):]
+    reader = reader[:reader.index("\n\t\t}")]
+    limits = (ROOT / "port/linux/include/halo_port_limits.h").read_text()
+    defines = "\n".join(line for line in limits.splitlines()
+                        if line.startswith("#define HALO_PORT_ADVERTISED_"))
+    base = re.search(r"#define HALO_PORT_NETWORK_VERSION (\d+)", limits).group(1)
+    code = r'''
+#include <string.h>
+#include "mcc_protocol.h"
+typedef unsigned char byte;
+typedef unsigned short word;
+#define _network_game_server_state_pregame 0
+struct game {struct {char name[32];} map; int variant, variant_options;};
+static struct {word version;byte flags,kind;} network_game_client_advertised_versions[1];
+static int game_modes_kind(int const *variant,int const *options) {(void)options;return *variant;}
+static int network_game_server_get_state(void *server,void *state) {(void)server;(void)state;return 0;}
+static int network_game_server_game_is_loading(void *server) {(void)server;return 0;}
+''' + defines + '\n#define BASE_VERSION ' + base + r'''
+static unsigned int mcc_protocol_version(char const *map) {return map[0] ? MCC_PROTOCOL_VERSION : BASE_VERSION;}
+static void write_advertisement(byte *bytes,int kind,int mcc) {
+    struct {byte reserved[26];} advertisement={{0}};
+    struct game data={{""},0,0};
+    struct game *game=&data;
+    void *server=0;
+    data.variant=kind;data.map.name[0]=(char)mcc;
+''' + writer + r'''
+    memcpy(bytes,advertisement.reserved,26);
+}
+static void read_advertisement(byte const *bytes) {
+    struct {byte __unknown5A[26];} data;
+    void *unused=0;
+    int game_index=0;
+    /* The anonymous struct pointer stays local to the actual reader block. */
+    #define advertisement (&data)
+    (void)unused;memcpy(data.__unknown5A,bytes,26);
+''' + reader + r'''
+    #undef advertisement
+}
+int main(void) {
+    byte bytes[26];int kind,mcc;
+    for(mcc=0;mcc<2;mcc++)for(kind=0;kind<256;kind++) {
+        write_advertisement(bytes,kind,mcc);read_advertisement(bytes);
+        if(network_game_client_advertised_versions[0].kind!=kind)return 1;
+        if(network_game_client_advertised_versions[0].version!=(mcc?MCC_PROTOCOL_VERSION:BASE_VERSION))return 2;
+        if(!(network_game_client_advertised_versions[0].flags&MCC_PROTOCOL_ADVERTISED_FLAG))return 3;
+        bytes[MCC_PROTOCOL_ADVERTISED_VERSION_OFFSET]^=1;read_advertisement(bytes);
+        if(network_game_client_advertised_versions[0].flags&MCC_PROTOCOL_ADVERTISED_FLAG)return 4;
+        if(network_game_client_advertised_versions[0].kind!=kind)return 5;
+    }
+    return 0;
+}
+'''
+    path = tmp_path / "advertisement.c"
+    path.write_text(code)
+    exe = compile_tool(tmp_path, [path])
+    run = subprocess.run([str(exe)], capture_output=True, text=True)
+    assert run.returncode == 0, run.stdout + run.stderr

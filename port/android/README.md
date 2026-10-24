@@ -476,20 +476,32 @@ assembly of the port is necessary:
 
 ## Geometry uploads
 
-Android streams vertex and index data from the current CPU bytes instead
-of reusing the persistent geometry mirror or its cached index extents.
-This is automatic; no console command or configuration change is needed.
+Android bypasses the persistent geometry mirror and its cached index
+extents. Geometry uses the upload paths described below automatically;
+no console command or configuration change is needed.
 Affected players reported that bypassing the cache resolved stretched or
 missing geometry, with some also reporting better performance. The exact
 cache failure mechanism remains unconfirmed.
 
-The Android-only guard in `mirror_range` uses the existing streaming
-fallback. Streamed upload methods, frame fences, shaders, texture caching
-and CPU write tracking are unchanged. Desktop and web retain their cache.
+The Android-only guard in `mirror_range` remains in place. Desktop and
+web retain their existing geometry cache and upload paths. These geometry
+changes preserve shaders, texture caching and CPU write tracking.
 Xbox, Custom Edition and MCC maps keep their existing loaders and resource
 paths. `tools/test_android_mirror_uploads.py` checks the bypass with large
 and reused ranges, frame-counter rollover and desktop/web cache controls;
 it does not substitute for device gameplay validation.
+
+Streamed vertices and indices go into pooled buffers, a buffer for each
+draw that no queued draw reads, written with `glBufferSubData` and reused
+only after the ring's frame fence (`web_chunk_get`, as the web build does):
+unsynchronized writes into the frame's one stream buffer drew some
+geometry as long spikes on Snapdragon. Geometry the game writes once (the
+models and BSPs of Xbox, Custom Edition and mod maps) gets GL buffers of
+its own, filled at its first draw and released when it unloads; a range
+whose storage GL cannot allocate is streamed instead.
+`tools/test_android_static_geometry.py` checks both with fake GL: no upload
+writes a buffer a queued draw reads, and the static ranges' reuse, unload
+and reload, address reuse and allocation failure.
 
 ## Find problems
 
