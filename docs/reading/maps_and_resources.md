@@ -150,8 +150,38 @@ can change it. Follow `mcc_campaign_mix_gain`, the campaign snapshot functions,
 [`mcc_network.c`](../../port/linux/game/mcc_network.c) and
 [`mcc_checkpoint.c`](../../port/linux/game/mcc_checkpoint.c): the value follows
 host snapshots and checkpoints and resets when the map ends. Snapshot version 5
-adds the gain; older supported snapshots restore it to 1. The MCC protocol is
-56 for this larger snapshot; the verified OpenCE protocol is unchanged.
+adds the gain; older supported snapshots restore it to 1. This required MCC
+protocol 56; the later thread-storage extension uses 57. The verified OpenCE
+protocol is unchanged.
+
+Halo Kart's NPC steering and pickups run through the same deeply nested `main`
+script. Exceeding the native 512-byte stack stopped that script.
+[`mcc_script_threads.inl`](../../port/linux/game/mcc_script_threads.inl)
+provides bounded 4,096-byte stacks for MCC, retaining the native 256-thread count.
+Read `mcc_script_threads_prepare`, `mcc_hs_threads_activate`, and
+`mcc_script_threads_dispose` for ownership: loading reserves proven-unused CPU
+state space, script initialization selects it, and unloading restores the native
+array and original bytes. Xbox/CE stack layouts and capacities are unchanged.
+The interpreter needs only array-selection and stack-end hooks; the save system
+provides a read-only arena-bounds accessor.
+
+Follow `mcc_checkpoint_capture`, `mcc_script_threads_validate`, and
+`mcc_script_threads_restore` for saves and the host's co-op revert image.
+Validation checks array and frame bounds before accepting pointers. Old inline-stack checkpoints
+can migrate after validation. Only the host runs race scripts and AI in co-op;
+the existing object and animation messages carry their effects. Thread stacks
+are not transmitted as a new message. This does not permit clients to submit
+scripts or authoritative state. Asset-free coverage is in
+[`test_mcc_script_threads.py`](../../tools/harness/tests/test_mcc_script_threads.py);
+runtime race progress and pickup behavior require the actual maps as well.
+
+Halo Kart also exposes seated passengers attempting to find a danger-avoidance
+destination, which the native position selector disallows. Follow
+`mcc_seat_blocks_avoidance` in [`mcc_seats.c`](../../port/linux/game/mcc_seats.c)
+and the two hooks in [`action_avoid.c`](../../source/ai/action_avoid.c): MCC
+passengers cannot start that movement action, and seating ends an active one.
+Xbox/CE and movable MCC actors retain their existing path. The focused test is
+[`test_mcc_avoidance.py`](../../tools/test_mcc_avoidance.py).
 
 Firefight Descent's `vehicles\spelican\spelican` animation graph has two
 unnamed, unlinked landing-gear node slots. Its associated models retain those
