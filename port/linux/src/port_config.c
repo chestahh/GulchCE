@@ -326,8 +326,9 @@ static const struct config_setting config_settings[] =
 		"Host: the shield effects every player of a network game sees, whatever\n"
 		"their own: \"stock\", \"glow\", \"light_show\", \"overshield\",\n"
 		"\"glow_overshield\" or \"light_show_overshield\" (display.shield_glow,\n"
-		"its light_show intensity, display.overshield_effect). SHIELD EFFECTS\n"
-		"in Server Setup > Player Options writes its choice here." },
+		"its light_show intensity, display.overshield_effect); \"players\": not\n"
+		"synced, each player sees their own settings'. SHIELD EFFECTS in Server\n"
+		"Setup > Player Options writes its choice here." },
 	{ "input.mouse_aim_assist", _config_boolean, "false", "HALO_MOUSE_AIM_ASSIST", _environment_value, _platform_desktop,
 		"Magnetism while aiming with the mouse, as with a controller: the view\n"
 		"slowed and dragged along by a target. The last of the mouse and the\n"
@@ -439,17 +440,19 @@ static const struct config_setting config_settings[] =
 		"its energy slower: green above 200% shields, reddish-pink below.\n"
 		"Arms also require Arm Shields. A hit on it plays\n"
 		"what the projectile plays on an Elite's shield. Only what is drawn\n"
-		"and heard changes. Online, the host decides through network.shield_effects." },
+		"and heard changes. Online, the host decides through network.shield_effects,\n"
+		"unless it is \"players\" (each player's own)." },
 
 	{ "display.shield_glow", _config_boolean, "false", "HALO_SHIELD_GLOW", _environment_value, _platform_all,
 		"Energy shields light what is around them as they flare, as plasma\n"
-		"does, in the shield's own color. Offline only: in a network game, the\n"
-		"host's network.shield_effects decides." },
+		"does, in the shield's own color. In a network game, the host's\n"
+		"network.shield_effects decides, unless it is \"players\" (each\n"
+		"player's own)." },
 	{ "display.shield_glow_intensity", _config_string, "\"default\"", "HALO_SHIELD_GLOW_INTENSITY", _environment_value, _platform_all,
 		"How far the shield glow reaches: \"default\" or \"light_show\" (three\n"
 		"times as far, and at full strength from a third of the flare).\n"
-		"Offline only: in a network game, the host's network.shield_effects\n"
-		"decides." },
+		"In a network game, the host's network.shield_effects decides, unless\n"
+		"it is \"players\" (each player's own)." },
 
 	{ "game.unlock_all_levels", _config_boolean, "false", "HALO_UNLOCK_ALL_LEVELS", _environment_value, _platform_all,
 		"true: a profile made from now on starts with every campaign level\n"
@@ -1552,7 +1555,7 @@ static const struct
 		"team_global_enemy_proximity", NULL }, NULL },
 	{ "network.coop_friendly_fire", { "off", "on", "shields_only", "explosives_only", NULL }, NULL },
 	{ "network.shield_effects", { "stock", "glow", "light_show", "overshield", "glow_overshield",
-		"light_show_overshield", NULL }, NULL },
+		"light_show_overshield", "players", NULL }, NULL },
 	{ "network.coop_enemies_mode", { "none", "per_player", "multiplier", NULL }, NULL },
 	{ "streamer.slurs", { "off", "severe", "strong", "mild", NULL }, NULL },
 	{ "streamer.swearing", { "off", "severe", "strong", "mild", NULL }, NULL },
