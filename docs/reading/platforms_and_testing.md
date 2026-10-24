@@ -1,0 +1,151 @@
+# Shared code, platform boundaries and evidence
+
+This chapter follows the same game entry point into different environments,
+then shows how to investigate a behaviour without confusing a small test
+with a complete game run. Read [startup](startup_and_loop.md) first. Build
+commands and mandatory checks remain in [AGENTS.md](../../AGENTS.md) and
+the platform READMEs; this is a reading guide to their reasons.
+
+## Reading route
+
+| Order | Source | What to establish |
+| --- | --- | --- |
+| 1 | [configure.py](../../configure.py), [linux_build.py](../../tools/linux_build.py), [windows_build.py](../../tools/windows_build.py) | Which files and compiler conventions make a native build. |
+| 2 | [halo_linux_prefix.h](../../port/linux/include/halo_linux_prefix.h), [halo_math.h](../../port/include/halo_math.h) | Compatibility definitions and shared maths behind familiar source syntax. |
+| 3 | [host_main.c](../../port/android/host/host_main.c), [guest_host.h](../../port/android/guest/runtime/guest_host.h), [host_imports.list](../../port/android/host_imports.list) | Android startup and the permitted guest/host interface. |
+| 4 | [guest_sdl.c](../../port/android/guest/runtime/guest_sdl.c) | SDL operations actually bridged for the Android guest. |
+| 5 | [web_main.c](../../port/web/src/web_main.c), [web_build.py](../../tools/web_build.py) | Browser storage, the worker entry and WebAssembly build differences. |
+| 6 | [Harness README](../../tools/harness/README.md), [Stagekit README](../../tools/stagekit/README.md), [net_compare.py](../../tools/net_compare.py) | What each verification layer really runs. |
+
+## The binary contract matters as much as the C declaration
+
+The native Linux and Windows builds use 32-bit x86 and the game's MSVC-style
+ABI conventions. Structure layout, pointer size, alignment, return values
+and inline-function handling matter because the game and its data expect
+them. Prefix and compatibility headers adapt the compilation environment.
+The [Linux](../../port/linux/README.md#how-the-port-operates) and
+[Windows](../../port/windows/README.md#how-the-port-operates) references
+explain the platform implementations in detail.
+
+The XDK declarations in `port/include/xdk` are the project's independent
+stand-ins. Their [README](../../port/include/xdk/README.md) describes their
+provenance and how to extend them. The prohibited original SDK headers and
+`xbox/include` are not reading prerequisites.
+
+Maths is another interface. Native game calls use the shared implementation
+described in `halo_math.h`, and builds disable fused multiply-add. Tiny
+floating-point differences can affect machines simulating the same game.
+An apparently harmless replacement with a platform library call can therefore
+be a networking change, even if the code contains no packet operations.
+
+## Android: a 32-bit game model in a 64-bit application
+
+Android's host is a 64-bit app. The game guest uses ILP32 AArch64: integers,
+longs and pointers in the guest are 32 bits despite its AArch64 instructions.
+That distinction preserves the game's layout assumptions without making the
+Android host itself a 32-bit process.
+
+In `host_main.c`, the SDL entry loads the guest image from the APK, prepares
+its environment and launches its main routine with a stack in guest memory.
+Host imports and the SDL bridge define what the guest can call. A library
+available to the host is not automatically callable by game code: signatures,
+pointer representations and bridge support must agree.
+
+For a concrete investigation, suppose a shared feature needs a new SDL
+operation. Trace its existing calls through `guest_sdl.c`, then check
+`guest_host.h` and `host_imports.list`. A successful Windows compile cannot
+establish that the Android bridge exists or passes the value correctly.
+See [Android internals](../../port/android/README.md#how-the-port-operates)
+before adding cross-boundary calls.
+
+## Web: the same game with browser scheduling and storage
+
+`web_main.c` runs on the Emscripten worker, mounts the browser's Origin
+Private File System at `/data`, sets data/save defaults and calls
+`halo_game_main`. `web_build.py` renames the original `shell_xbox.c` main
+function to that name. The main loop then uses its web callback path.
+
+The page and the game worker have distinct responsibilities. Importing game
+data and managing the page do not mean the game's C code can use arbitrary
+desktop files or native sockets. [web_p2p.c](../../port/web/src/web_p2p.c)
+bridges browser transport, and the [web reference](../../port/web/README.md)
+describes storage, workers, graphics and current limits. WebAssembly calls
+must match their callee's type exactly; code that happens to survive an ABI
+mismatch on one native build can fail here.
+
+`HALO_GLES` is shared by Android and web, while `HALO_ANDROID` and `HALO_WEB`
+identify different environments. An Android-only guard is not a substitute
+for an OpenGL ES capability condition. The Vulkan work discussed in
+[rendering](rendering.md) has its own supported scope and does not establish
+an Android or web Vulkan implementation.
+
+## Choose evidence that reaches the suspected behaviour
+
+| Layer | What actually runs | What it cannot establish alone |
+| --- | --- | --- |
+| Source inspection | The reader follows production callers, contracts and conditions. | Runtime success, appearance or performance. |
+| Harness | Extracted production functions compiled against a small fake world. | Every dependency, real assets or a real GPU/device. |
+| Format/tool tests | Real parsers or utilities with generated fixtures and sometimes optional assets. | A whole scenario playing correctly after conversion. |
+| Stagekit | The real engine on deliberately generated scenarios, without retail assets. | Retail-map fidelity or every script and resource combination. |
+| Runtime/visual/network checks | A configured build with actual platform, content and peers. | Untested maps, hardware, transitions or long sessions. |
+
+The harness extracts functions from source instead of maintaining a second
+implementation. Its fake world supplies controlled state and dependencies.
+Negative controls intentionally alter an extracted copy and require the
+test to catch the fault. This demonstrates sensitivity to a particular
+failure; it does not prove the absence of all defects.
+
+Stagekit goes further: its generator creates a stage, props and cues, then
+the real engine runs them. For example,
+[test_walk.py](../../tools/stagekit/tests/test_walk.py) checks that a player
+stands on the floor, moves and jumps using positions sampled from the run.
+Those samples are not every physics step. Stagekit is Linux-only and needs
+the build/runtime prerequisites described in its README.
+
+## Work through a suspected movement regression
+
+Suppose a player unexpectedly falls through an elevator. First record the
+map family, host/client role, build revision, settings and the point in the
+transition. Follow the responsible movement/correction source and inspect
+the existing [elevator harness](../../tools/harness/tests/test_elevator_correction.py)
+and [Stagekit elevator scenario](../../tools/stagekit/tests/test_elevator.py).
+
+The harness can isolate a correction rule. Stagekit can establish whether
+the assembled engine keeps a rider supported in its generated scenario.
+A retail-map run may still be needed for the original geometry, timing or
+scripts. A network problem also needs both roles considered; a single local
+run cannot establish cross-machine agreement.
+
+On a configured Linux environment, examples of focused existing checks are:
+
+```sh
+python -m pytest -q tools/harness/tests/test_elevator_correction.py
+python -m pytest -q tools/stagekit/tests/test_elevator.py
+```
+
+These are example commands, not tests run to write this guide. A successful
+test of [net_compare.py's log judge](../../tools/test_net_compare.py) likewise
+does not mean two builds were actually played together. Follow
+[Comparing two builds](../../port/linux/NETCODE.md#comparing-two-builds) for
+the latter, including both host/client directions where required.
+
+Automated game runs must use the repository's hidden-window or virtual-display
+rules, isolated data/save folders and at most two game instances. Stop only
+processes started for the test. Retain useful evidence, but clean up verified
+temporary outputs without deleting original maps or saves. Read AGENTS.md
+before running examples; a debug setting is not a blanket automation recipe.
+
+## Report the boundary of the result
+
+Record what was inspected, compiled and actually exercised separately.
+Name skipped tests and missing prerequisites. For rendering, include the
+backend and a real image check; for maps, distinguish loading from campaign
+completion; for networking, name roles, transports and relevant transitions.
+
+This documentation pass inspected the cited code and test contracts and
+checked documentation consistency. It did not launch games, run these
+gameplay suites, measure performance or produce new compatibility results.
+Existing test and design documents remain the source for their own recorded
+evidence. The reader's guide explains how to interpret that evidence.
+
+Return to the [guide](README.md) for the full reading route.
