@@ -1,7 +1,7 @@
 # Code reader's glossary
 
 These definitions are a starting point for reading GulchCE, with examples
-from the [FOV walkthrough](field_of_view.md). Return to the
+from the subsystem chapters and [FOV walkthrough](field_of_view.md). Return to the
 [reader's guide](README.md) for a reading route.
 
 ## Engine concepts
@@ -24,6 +24,27 @@ from the [FOV walkthrough](field_of_view.md). Return to the
 | HUD / reticle | The heads-up display includes meters, text and aiming graphics. A reticle is an aiming graphic; changing its scale does not mean scaling the whole HUD. | `hud_draw_bitmap_with_meter` in [hud_draw.c](../../source/interface/hud_draw.c). |
 | ABI | The binary conventions code must agree on: type sizes, structure layout and how arguments and results are passed. Correct-looking C can still fail if those conventions differ. | [The compiler](../../port/linux/README.md#the-compiler) and the [Android guest](../../port/android/README.md). |
 | Invariant / lifecycle | An invariant is a rule that must hold, such as restoring a temporary camera change. A lifecycle describes when state is created, used and cleared or restored. | Every `viewmodel_projection_begin` needs a matching `viewmodel_projection_end`, including nested calls. |
+
+## Concepts used across the chapters
+
+| Term | Meaning here | Where to follow it |
+| --- | --- | --- |
+| Scenario / BSP | A scenario describes a level and its content. A structure BSP supplies spatial geometry, collision and related visibility data; a scenario can switch between BSPs while remaining the same level. | [Maps and resources](maps_and_resources.md), [scenario.c](../../source/scenario/scenario.c). |
+| Cache file / resource | A map cache packages game data. A resource is data it needs, such as bitmap pixels or sound samples, which may live in a separate file. This use of "cache" does not mean the map is disposable temporary data. | [Maps and resources](maps_and_resources.md). |
+| Relocation / runtime tags | Converting stored addresses or references into representations usable in the loaded runtime. Parsed file bytes and usable engine structures are different stages. | [CE format reader](../../port/linux/game/cache_file_formats.c), [MCC loader](../../port/linux/game/mcc_cache.c). |
+| Map family / namespace | Xbox, CE and MCC content have distinct paths and compatibility implementations. A namespace such as `mcc_maps` identifies the intended family before its tags are loaded. | [Maps and resources](maps_and_resources.md). |
+| Content identity / package binding | Identity describes the admitted content; binding resolves it to local package files. Equivalent network content can have different local folder names. A matching basename alone is insufficient. | [mcc_identity.c](../../port/linux/game/mcc_identity.c). |
+| Game engine / gametype | In names such as `game_engine_running`, this often means the match-rule machinery, such as Slayer or CTF, rather than the entire running application. | [Startup](startup_and_loop.md), [game.c](../../source/game/game.c). |
+| Action / input blob | A game-level description of movement, facing and controls derived from device input. It is not a direct assignment of world position. | `get_local_player_input_blob` in [player_control.c](../../source/game/player_control.c). |
+| Reconciliation / correction | Bringing a local simulation copy toward authoritative state. For an owned player, the code can compare matching historical positions and apply their difference to the present. | [Networking](networking.md). |
+| Reliable stream / datagram | A reliable connection preserves ordered delivery; datagrams can arrive late, out of order or not at all. The message's meaning determines which is appropriate. Neither makes incoming data trustworthy. | [Network transport](../../port/linux/NETCODE.md#transport). |
+| Admission / capability | Admission accepts a peer into a session after checks. Capability advertises protocol support; it does not prove identity or grant gameplay authority. | [mcc_protocol.c](../../port/linux/game/mcc_protocol.c). |
+| PVS / occlusion | A potentially visible set is a conservative map visibility aid. Occlusion concerns something being hidden by other geometry; CPU culling and GPU queries can answer different visibility questions. | [Rendering](rendering.md), [visibility queries](../visibility_queries.md). |
+| Shader / GLSL / SPIR-V | A shader describes GPU computations. GLSL is shader source used by the translation paths; SPIR-V is an intermediate representation used by the experimental Vulkan backend. | [Rendering](rendering.md). |
+| Render target / GPU fence | A render target receives drawing output. A fence signals completion of submitted GPU work, which matters before reading results or reusing resources. | [Rendering](rendering.md). |
+| Guest / host / ILP32 | On Android, the game guest uses 32-bit integers, longs and pointers in AArch64 code, while the surrounding host app is 64-bit. Here "host" is a runtime role, distinct from a network host. | [Platforms](platforms_and_testing.md). |
+| Harness / fixture / stub | A harness runs code in a controlled setup. A fixture supplies test data or state. A stub substitutes a dependency so a smaller piece can be tested. | [Harness reference](../../tools/harness/README.md). |
+| Negative control / mutation | Deliberately faulty extracted code that a test must reject. This checks that the test notices a particular defect, without introducing that defect into production source. | [Testing evidence](platforms_and_testing.md). |
 
 ## C conventions in the walkthrough
 

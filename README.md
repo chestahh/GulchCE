@@ -255,9 +255,10 @@ always start on a different computer.
 ## For developers
 
 Start with the [GulchCE code reader's guide](docs/reading/README.md) for a
-route through the code, a glossary of engine terms and C conventions, and
-a worked example following a field-of-view setting from the menu to the
-camera, reticle and weapon drawing.
+route through startup, input and menus, gameplay objects, rendering,
+networking, map loading, platform support and testing. It includes a
+glossary of engine terms and C conventions, a detailed FOV walkthrough,
+and notes on GulchCE's dynamic-lighting, Vulkan and third-person branches.
 
 ### Testing
 

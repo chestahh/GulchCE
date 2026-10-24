@@ -480,7 +480,7 @@ The decompilation's upstream, punpckhdq/halo, is AGPL 3.0 from 17 October
 | Document | About |
 | --- | --- |
 | [README.md](README.md) | Downloads, game data, building, build options, profiling builds |
-| [docs/reading/README.md](docs/reading/README.md) | A guided route through the GulchCE code, with a glossary and FOV walkthrough |
+| [docs/reading/README.md](docs/reading/README.md) | GulchCE subsystem walkthroughs, branch-specific rendering notes, testing guidance, glossary and FOV example |
 | [CODINGSTANDARDS.md](CODINGSTANDARDS.md) | Supplementary coding, MCC boundaries, evidence and review standards |
 | [port/linux/README.md](port/linux/README.md) | The Linux build, controls, menus, every setting, updates, frame rate, field of view, system link, internet play, voice chat, the server browser, map sharing, security, map checks, how the port operates, the game source changes |
 | [port/linux/NETCODE.md](port/linux/NETCODE.md) | The distributed netcode, network versions, joining a game in progress, map sharing, transport, testing |
