@@ -163,8 +163,8 @@ lockstep netcode was removed, set to play it): it tells the player why.
 
 ## GulchCE crossplay boundary
 
-Xbox and Custom Edition sessions use OpenCE network version 36, pinned to
-OpenCommunityEdition/OpenCE commit `dedb3755d4b131d6757bfe62851f9b7e2b0b7c2f`.
+Xbox and Custom Edition sessions use OpenCE network version 38, pinned to
+OpenCommunityEdition/OpenCE commit `5e27f3a27b2d3c27d3edeb450fe40c24defb9c15`.
 This is an explicit protocol baseline, not automatic compatibility with future
 OpenCE releases. Do not change the base version without auditing its wire format,
 simulation rules and admission behavior and testing unmodified upstream clients.
@@ -179,8 +179,11 @@ names and synchronized its opening sequence; the short run did not provide
 enough on-foot samples for the comparator's full drift verdict. These checks
 do not establish full campaign or public internet transport compatibility.
 
-MCC sessions use separate MCC protocol version 53 (previous GulchCE builds used
-52). Version 53 incorporates OpenCE 36's extended gametype settings, shield
+MCC sessions use separate MCC protocol version 55. OpenCE 38 adds the
+players-own shield effects policy and uses advertisement byte 3 for the game
+kind; MCC capability moves from bytes 3-4 to bytes 4-5. Version 54 was used
+by the experimental third-person branch and is not reused here. Older MCC
+peers cannot negotiate this revision. Version 53 incorporates OpenCE 36's extended gametype settings, shield
 effects policy and simulation fixes. MCC messages move to IDs 92-95 to reserve
 91 for upstream shield effects; the settings prefix grows by 16 bytes before
 the MCC-only digest. The admission envelope kind moves to 92. Xbox and Custom
@@ -338,7 +341,15 @@ before taking it. Then version 36 sends the host's shield effects (distributed
 message 91, `network_shield_effects.c`: the shield glow, its Light Show reach
 and the overshield effect, Server Setup's SHIELD EFFECTS), which every client
 draws in place of its player's own, so that a build that would draw its own
-cannot join.
+cannot join. Then version 37 sends with a game's LAN advertisement (the fourth
+of its reserved bytes) and internet listing (the first byte of its stamp) the
+game's kind: an OpenCE gametype's mode and Hardcore
+(`port/linux/game/game_modes.h`'s `game_modes_kind`), which the server
+browser names in its gametype column ("SWAT", "HC CTF"); a browser takes a
+mode for a Slayer game only, and one it does not know as none. Then version 38
+lets the host's shield effects be `players` (SHIELD EFFECTS' PLAYERS' OWN), a
+value of distributed message 91 that tells each client to draw its own
+settings', not synced.
 
 `port/linux/network_format.txt` records the wire format of the current
 version (`tools/network_format.py`): `test_linux_port.py` fails when the
