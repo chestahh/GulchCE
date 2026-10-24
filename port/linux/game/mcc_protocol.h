@@ -3,8 +3,8 @@
 #define MCC_PROTOCOL_H
 
 /* OpenCE 38 uses advertisement byte 3 for the gametype kind. MCC capability
- * moves to bytes 4-5; version 55 also accepts the players-own shield policy. */
-#define MCC_PROTOCOL_VERSION 55
+ * moves to bytes 4-5; version 57 requires the MCC-only 4 KiB script-stack capacity. */
+#define MCC_PROTOCOL_VERSION 57
 #define MCC_PROTOCOL_ADVERTISED_FLAG 0x04
 #define MCC_PROTOCOL_ADVERTISED_VERSION_OFFSET 4
 #define MCC_PROTOCOL_JOIN_KIND 92

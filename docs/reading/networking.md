@@ -99,6 +99,20 @@ objects. Kill statistics and damage/state ordering matter too: receiving
 a reference before the referred-to object or announcing a kill before its
 statistics can produce an inconsistent client even if each packet is valid.
 
+An inventory can arrive in an unreliable datagram before its unit or weapons
+arrive on the reliable stream, despite the host's send order. OpenCE's
+`distributed_client_retry_inventory` retains the latest inventory for each
+unit in a bounded queue. `distributed_client_apply_retried_inventories`
+checks it each client tick, applies entries once their objects
+exist, and expires entries after `EMPTY_INVENTORY_TICKS`. A new game clears
+the queue in `network_objects_new_game`. For example, a newly spawned player
+can receive their weapon inventory before the weapon object; retaining it
+lets the client equip that weapon when it arrives without granting the
+client authority over inventory. The
+[retry tests](../../tools/harness/tests/test_retried_inventories.py) exercise
+late units and weapons, replacement, capacity, forgetting and expiry using
+extracted engine functions and deliberate broken variants.
+
 ## Transport has its own contracts
 
 Inputs are sent unreliably, with recent button history repeated to tolerate

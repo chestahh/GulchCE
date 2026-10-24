@@ -179,7 +179,10 @@ names and synchronized its opening sequence; the short run did not provide
 enough on-foot samples for the comparator's full drift verdict. These checks
 do not establish full campaign or public internet transport compatibility.
 
-MCC sessions use separate MCC protocol version 55. OpenCE 38 adds the
+MCC sessions use separate MCC protocol version 57. Version 56 adds music gain
+to campaign snapshots; version 57 requires the MCC-only 4 KiB script-stack
+capacity. These revisions leave the OpenCE 38 contract unchanged. Version 55
+incorporated OpenCE 38, which adds the
 players-own shield effects policy and uses advertisement byte 3 for the game
 kind; MCC capability moves from bytes 3-4 to bytes 4-5. Version 54 was used
 by the experimental third-person branch and is not reused here. Older MCC
@@ -825,7 +828,10 @@ its name alone beside it, has its name given back as the map lists find it.
      players' ammunition and grenade counts from the host only once a
      round trip has passed since it last fired, reloaded or threw (what
      the host says before then is from before). How old what a unit
-     carries is travels in 16 bits.
+     carries is travels in 16 bits. A client keeps an inventory whose
+     unit or weapons have not come yet (the stream can trail the datagram)
+     and applies it in full once they have, the newest of a unit's winning;
+     one is dropped `EMPTY_INVENTORY_TICKS` after the newest came.
    - Players take the units the host spawns them with, seats are the
      host's (a client's own player's once it has ridden otherwise for
      longer than a round trip), and the CTF flags and oddballs are the same
