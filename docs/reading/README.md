@@ -5,10 +5,30 @@ to understand how they fit together. Start with one visible behaviour and
 follow the values it uses through a few functions. You do not need to read
 the engine from beginning to end.
 
-Read the [field-of-view walkthrough](field_of_view.md) first, keeping the
-[glossary](glossary.md) nearby. It follows a setting from the menu to the
-camera, reticle and first-person weapon. The glossary explains both engine
-terms and the C conventions used in that example.
+Start with [startup and the game loop](startup_and_loop.md) for the overall
+structure, keeping the [glossary](glossary.md) nearby. For a smaller first
+example, the [FOV walkthrough](field_of_view.md) follows one setting from
+the menu to the camera, reticle and first-person weapon.
+
+## The complete reading route
+
+| Order | Chapter | Concrete example and main question |
+| --- | --- | --- |
+| 1 | [Startup and the game loop](startup_and_loop.md) | Launch, enter a local map and draw between ticks: what runs when? |
+| 2 | [Settings, input and menus](settings_input_and_menus.md) | Save a setting and push a stick forward: how does an action reach the game? |
+| 3 | [Objects and gameplay](objects_and_gameplay.md) | Spawn, control and retire a player's body: who owns its state? |
+| 4 | [Rendering](rendering.md) | Draw a room and moving player: how do poses become pixels? Includes separate dynamic-lighting and Vulkan branch notes. |
+| 5 | [Networking](networking.md) | Move a client player: what is predicted, validated, relayed and corrected? |
+| 6 | [Maps and resources](maps_and_resources.md) | Load a package level: how do Xbox, CE and MCC readers keep their data and lifetimes separate? |
+| 7 | [Platforms and testing](platforms_and_testing.md) | Follow platform entry points and investigate an elevator regression: what evidence reaches the behaviour? |
+| Worked detail | [Field of view](field_of_view.md) | Trace a setting through the actual calculations and temporary rendering state. |
+| Reference | [Glossary](glossary.md) | Engine concepts and recurring C conventions, with source examples. |
+
+The chapters form a guide to the major systems, not an inventory of every
+function or a claim that every feature is fully supported. Each includes
+a reading route, state/lifecycle constraints, examples and evidence limits.
+Detailed design notes remain linked references. Follow those when a question
+needs packet layouts, map-format fields or the exact limits of a feature.
 
 ## Where the pieces live
 
@@ -55,7 +75,7 @@ the map-family isolation rules are in [AGENTS.md](../../AGENTS.md).
    fake world does not establish that the final picture looks correct.
 
 Use your editor's search for the exact function name. From the repository
-root, these searches also locate the first walkthrough's entry points:
+root, these searches also locate the FOV walkthrough's entry points:
 
 ```sh
 rg -n 'render_fov_vertical' source port/linux/game
@@ -71,7 +91,7 @@ implementation when it matters to the question.
 Changes in the decompiled `source/` are marked with comments beginning
 `port:`. These show where to look for an integration point; they do not
 by themselves say whether OpenCE or GulchCE introduced it. Use file history
-when authorship matters. The FOV module in the first walkthrough is an
+when authorship matters. The FOV module in the detailed walkthrough is an
 existing port feature, not a new GulchCE implementation added by this guide.
 
 Some source files start with long symbol lists and addresses from the
@@ -103,6 +123,14 @@ Keep links relative to the document and name functions beside them. Line
 numbers move as code changes. Quote only the small expressions needed for
 the explanation, and update a guide when its described behaviour changes.
 The maintenance expectations are in [AGENTS.md](../../AGENTS.md).
+
+The source review for this edition used GulchCE's `testing` baseline
+`b746de54`, plus `dynamic-lighting-test` at `54e149e0`, `vulkan-renderer`
+at `394e360e`, `online-third-person` at `7562fedf` and `main` at `42238c20`.
+These identify inspected source states, not new gameplay test results.
+Branch-only files are linked to their GulchCE branches because they do not
+exist in every checkout. Branch links can move; use the recorded revision
+and file history when comparing a later implementation with this explanation.
 
 ## Where to read next
 
