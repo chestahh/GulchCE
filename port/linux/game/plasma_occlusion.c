@@ -3,6 +3,7 @@
    The field
    is approximate within one cell of an edge; this is not a shadow renderer. */
 #include "plasma_occlusion.h"
+#include "plasma_collision.h"
 #include "ammo_counter_falloff.h"
 #include "cseries.h"
 #include "physics/collisions.h"
@@ -124,13 +125,13 @@ static void trace_depths(real const extent, real_point3d const *from, long ignor
 		FLAG(_collision_test_back_facing_surfaces_bit) | FLAG(_collision_test_objects_bit) |
 		FLAG(_collision_test_objects_scenery_bit) | FLAG(_collision_test_objects_machines_bit);
 	if (vehicles) flags |= FLAG(_collision_test_objects_vehicles_bit);
+	plasma_collision_begin(flags, from, ignore);
 	for (face = 0; face < 6; face++)
 		for (y = 0; y < OCC_SIZE; y++)
 			for (x = 0; x < OCC_SIZE; x++)
 			{
 				real component[3];
 				real_vector3d ray;
-				struct collision_result hit;
 				axis = face / 2;
 				component[axis] = (face & 1) ? extent : -extent;
 				component[(axis + 1) % 3] = (2.0f * (x + 0.5f) / OCC_SIZE - 1) * extent;
@@ -140,8 +141,9 @@ static void trace_depths(real const extent, real_point3d const *from, long ignor
 				ray.k = component[2];
 				/* A clear ray must not become a blocker when reprojection crosses its endpoint. */
 				depths[face][y * OCC_SIZE + x] =
-					collision_test_vector(flags, from, &ray, ignore, &hit) ? hit.t : 2.0f;
+					plasma_collision_depth(flags, from, &ray, ignore);
 			}
+	plasma_collision_end();
 }
 static real depth_visibility(real depths[6][OCC_SIZE * OCC_SIZE], real_vector3d const *ray, real extent)
 {

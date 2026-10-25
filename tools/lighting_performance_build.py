@@ -8,6 +8,7 @@ import shlex
 import shutil
 import subprocess
 import sys
+from lighting_trace_check import instrument
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -16,6 +17,9 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--output-dir', type=Path, default=ROOT/'build/lighting-performance-build')
     parser.add_argument('--profile', action='store_true', help='CPU phase timers and asynchronous sampled GPU draw queries')
+    parser.add_argument('--diagnose', action='store_true', help='Collision phase timings and retained resource counts (not acceptance timings)')
+    parser.add_argument('--resources', action='store_true', help='Retained resource counts without per-ray diagnostic clocks')
+    parser.add_argument('--verify-traces', action='store_true', help='Compare every lighting ray with the stock collision query; not a timing build')
     args = parser.parse_args()
     output = args.output_dir.resolve()
     assert output.is_relative_to((ROOT/'build').resolve())
@@ -24,15 +28,25 @@ def main():
     assert not fixture.exists()
     paths = ['source/main/main.c', 'port/linux/src/d3d8_gl.c',
              'port/linux/game/plasma_lighting.c', 'port/linux/game/plasma_occlusion.c',
-             'port/linux/game/plasma_falloff.c']
+             'port/linux/game/plasma_falloff.c', 'port/linux/game/plasma_collision.c']
+    if args.diagnose or args.resources:
+        paths += ['source/physics/collision_usage.c', 'port/linux/src/xbox_textures.c']
     originals = {p: (ROOT/p).read_bytes() for p in paths}
     saved = shlex.split(re.search(r'^configure_args = (.*)$', (ROOT/'build.ninja').read_text(), re.M)[1])
     manifest = dict(commit=subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip(),
                     configure_args=saved, production_hashes={p: hashlib.sha256(b).hexdigest() for p, b in originals.items()},
                     fixture_sha256=hashlib.sha256((ROOT/'tools/fixtures/lighting_performance.c').read_bytes()).hexdigest(),
-                    profile=args.profile)
-    for path in ['port/linux/src/plasma_occlusion_gl.c', 'port/linux/include/plasma_occlusion.h']:
+                    profile=args.profile, diagnose=args.diagnose, resources=args.resources, verify_traces=args.verify_traces)
+    for path in ['port/linux/src/plasma_occlusion_gl.c', 'port/linux/include/plasma_occlusion.h',
+                 'port/linux/include/plasma_collision.h']:
         manifest['production_hashes'][path]=hashlib.sha256((ROOT/path).read_bytes()).hexdigest()
+    diagnostic_sources=[]
+    if args.diagnose or args.resources:
+        diagnostic_sources += ['tools/fixtures/'+name for name in ('lighting_diagnostics.inc',
+            'lighting_resource_diagnostics.inc','lighting_texture_diagnostics.inc')]
+    if args.verify_traces:
+        diagnostic_sources += ['tools/lighting_trace_check.py','tools/fixtures/lighting_trace_check.inc']
+    manifest['diagnostic_hashes']={p:hashlib.sha256((ROOT/p).read_bytes()).hexdigest() for p in diagnostic_sources}
 
     def edit(path, before, after, declaration):
         text = originals[path].decode().replace('\r\n', '\n')
@@ -40,7 +54,9 @@ def main():
         (ROOT/path).write_text(declaration+'\n'+text.replace(before, after))
 
     try:
-        shutil.copy2(ROOT/'tools/fixtures/lighting_performance.c', fixture)
+        # A previous diagnostic variant may have a newer object file. Preserve
+        # contents, not timestamps, so Ninja recompiles the selected fixture.
+        shutil.copyfile(ROOT/'tools/fixtures/lighting_performance.c', fixture)
         edit(paths[0], '\t\tmain_frame_rate_debug();',
              '\t\tmain_frame_rate_debug();\n\t\tif (render_frame && game_in_progress() && game_engine_running()) lighting_performance_frame();',
              'void lighting_performance_frame(void); /* port: test-build-only timing */')
@@ -57,6 +73,33 @@ def main():
         text=text.replace('\tupdates_this_window++;','\tupdates_this_window++;\n\tlighting_performance_occlusion_begin();')
         text=text.replace('\tfield->valid = 1;','\tfield->valid = 1;\n\tlighting_performance_occlusion_end();')
         occlusion.write_text('void lighting_performance_occlusion_begin(void);\nvoid lighting_performance_occlusion_end(void);\n'+text)
+        if args.diagnose or args.resources:
+            fixture.write_text(fixture.read_text()+'\n'+(ROOT/'tools/fixtures/lighting_diagnostics.inc').read_text())
+            if args.diagnose:
+                text=occlusion.read_text()
+                anchor='\tfor (face = 0; face < 6; face++)'
+                assert text.count(anchor)==1
+                text=text.replace(anchor,'\tlighting_trace_active = 1;\n'+anchor)
+                anchor='\n}\nstatic real depth_visibility'
+                assert text.count(anchor)==1
+                text=text.replace(anchor,'\n\tlighting_trace_active = 0;'+anchor)
+                occlusion.write_text('extern int lighting_trace_active;\n'+text)
+                usage=ROOT/'source/physics/collision_usage.c'
+                text=usage.read_text().replace('if (!collision_log_time)', 'if (!collision_log_time && !lighting_trace_active)')
+                anchor='\tuser = collision_log_get_current_user(collision_function);'
+                # Only the end-time function has start_time in scope.
+                start=text.index('void collision_log_end_time(')
+                text=text[:start]+text[start:].replace(anchor,'\tlighting_trace_time(collision_function, start_time);\n'+anchor,1)
+                usage.write_text('extern int lighting_trace_active;\nvoid lighting_trace_time(int, __int64); /* port: diagnostic build only */\n'+text)
+            for path,inc in [('port/linux/src/d3d8_gl.c','lighting_resource_diagnostics.inc'),
+                             ('port/linux/src/xbox_textures.c','lighting_texture_diagnostics.inc')]:
+                target=ROOT/path
+                data=(ROOT/'tools/fixtures'/inc).read_text()
+                target.write_text(target.read_text()+'\n'+data)
+            text=fixture.read_text()
+            text='void lighting_diagnostics_frame(double);\n'+text
+            text=text.replace('\t\t\tfflush(timings);','\t\t\tlighting_diagnostics_frame(now - origin);\n\t\t\tfflush(timings);')
+            fixture.write_text(text)
         if args.profile:
             def replace(path, before, after):
                 text=path.read_text()
@@ -87,6 +130,8 @@ def main():
             falloff.write_text('extern int lighting_profile_world;\n'+falloff.read_text())
             replace(falloff, '\tplasma_falloff_bound = TRUE;', '\tlighting_profile_world = stage == 1 ? 3 : 2;\n\tplasma_falloff_bound = TRUE;')
             replace(falloff, '\tplasma_specular_tint = 0x00FFFFFFUL;\n\tif (!plasma_falloff_bound)', '\tlighting_profile_world = 0;\n\tplasma_specular_tint = 0x00FFFFFFUL;\n\tif (!plasma_falloff_bound)')
+        if args.verify_traces:
+            occlusion.write_text(instrument(occlusion.read_text()))
         subprocess.run([sys.executable, 'configure.py', *saved], cwd=ROOT, check=True)
         subprocess.run(['ninja', 'windows'], cwd=ROOT, check=True)
         shutil.copy2(ROOT/'build/windows/halo.exe', output/'halo-performance.exe')

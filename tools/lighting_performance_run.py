@@ -117,6 +117,7 @@ def main():
     parser.add_argument('--map', default='carousel', choices=['carousel','bloodgulch'])
     parser.add_argument('--bots', type=int, default=15)
     parser.add_argument('--label', required=True)
+    parser.add_argument('--build-dir', type=Path, default=ROOT/'build/lighting-performance-build')
     args=parser.parse_args()
     assert re.fullmatch(r'[A-Za-z0-9_-]+', args.label)
     assert re.fullmatch(r'[1-9][0-9]*x[1-9][0-9]*', args.resolution)
@@ -138,10 +139,12 @@ def main():
                HALO_WINDOW_SIZE=args.resolution, HALO_RESOLUTION_SCALING='native', HALO_NO_AUDIO='1',
                HALO_MAX_FPS=str(args.fps), HALO_NO_VSYNC='1', HALO_EXIT_AFTER=str(args.warmup+args.seconds+25),
                HALO_NET_ONLINE='0', HALO_NET_PUBLIC_LOBBY='0', HALO_NET_ALLOW_UPNP='0',
+               HALO_NET_ADDRESS=f'127.0.0.{81+args.enabled}', HALO_NET_BROADCAST=f'127.0.0.{81+args.enabled}',
                HALO_UPDATE_ANSWER='never', HALO_CRASH_REPORTS='no', HALO_NETWORK_TEST=f'local:{args.map}:slayer',
                HALO_NETWORK_TEST_START='5', HALO_NETWORK_TEST_SCORE='10000', HALO_BOTS=str(args.bots),
                HALO_BOT_SKILL='heroic', HALO_TEST_INPUT='bot:1', HALO_SCREENSHOT_DIR=str(out/'screenshots'))
-    build=ROOT/'build/lighting-performance-build'
+    build=args.build_dir.resolve()
+    assert build.is_relative_to((ROOT/'build').resolve())
     shutil.copy2(build/'manifest.json', out/'build-manifest.json')
     (out/'settings.json').write_text(json.dumps(dict(resolution=args.resolution, fps=args.fps,
         warmup=args.warmup, seconds=args.seconds, bots=args.bots, map=args.map, display=settings),indent=2))

@@ -162,6 +162,29 @@ without changing ray count, field resolution, refresh policy or fading.
 exactly equal: the attenuation, visibility and directional texels are identical.
 Different specular extents continue to use independent textures.
 
+The 1536 rays in each refresh share one synchronous batch in
+[plasma_collision.c](../../port/linux/game/plasma_collision.c).
+`plasma_collision_begin` accepts only the field's exact scenery/machine flags,
+optionally including vehicles. `plasma_collision_depth` uses the existing
+structure BSP and collision-model intersection routines, caching cluster
+membership, object eligibility/bounds and model instances within that batch.
+For example, a Warthog flash still tests the chassis on every ray; it avoids
+fetching the same chassis metadata repeatedly. Parent sphere/eligibility tests
+still gate children, and siblings remain independent. These are depth-only
+queries, so unused material, plane and location results are not constructed.
+
+The cache is bounded at 512 object records and 4096 cluster references. A full
+cache, unsupported flags or a malformed leaf uses `collision_test_vector`;
+borrowed model pointers are cleared by `plasma_collision_end`. Nothing is reused
+across rendered poses, simulation ticks or maps. Disabled lighting never starts
+a batch. This changes no shared collision implementation or map-loading path.
+The [batch harness](../../tools/harness/tests/test_plasma_collision.py) covers
+ownership, traversal and fallback. Test builders' `--verify-traces` mode compares
+every depth with the original engine query and times complete batches against
+the same pose; its doubled workload is excluded from FPS acceptance.
+The [collision and memory follow-up](../dynamic_lighting_tracing.md) records
+the measurements, real-engine comparisons and remaining acceptance limits.
+
 For model draws, `plasma_occlusion_model_initialize` in
 [plasma_occlusion_gl.c](../../port/linux/src/plasma_occlusion_gl.c) resolves
 uniform locations while the linked program is current. Its small record belongs

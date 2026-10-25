@@ -96,6 +96,13 @@ static int collision_test_vector(unsigned long flags, const real_point3d *p, con
 	hit->t = t;
 	return 1;
 }
+static void plasma_collision_begin(unsigned long flags, const real_point3d *p, long ignore) {}
+static void plasma_collision_end(void) {}
+static float plasma_collision_depth(unsigned long flags, const real_point3d *p, const real_vector3d *v, long ignore)
+{
+	struct collision_result hit;
+	return collision_test_vector(flags, p, v, ignore, &hit) ? hit.t : 2.0f;
+}
 static int D3DDevice_CreateVolumeTexture(int w, int h, int d, int levels, int usage, int format, int pool,
 										 IDirect3DVolumeTexture8 **t)
 {

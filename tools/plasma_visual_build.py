@@ -12,10 +12,12 @@ import shlex
 import json
 import hashlib
 import argparse
+from lighting_trace_check import instrument
 
 ROOT = Path(__file__).resolve().parents[1]
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--output-dir', type=Path, default=ROOT/'build/plasma-visual')
+parser.add_argument('--verify-traces', action='store_true')
 args = parser.parse_args()
 source = ROOT / 'port/linux/game/render_interpolation.c'
 fixture = ROOT / 'port/linux/game/plasma_capture_fixture.c'
@@ -32,6 +34,8 @@ projectiles = ROOT/'source/items/projectiles.c'
 projectiles_original = projectiles.read_bytes()
 occlusion = ROOT/'port/linux/game/plasma_occlusion.c'
 occlusion_original = occlusion.read_bytes()
+collision=ROOT/'port/linux/game/plasma_collision.c'
+collision_original=collision.read_bytes()
 input_source=ROOT/'port/linux/src/xinput_sdl.c'
 input_original=input_source.read_bytes()
 rocket=ROOT/'port/linux/game/rocket_lighting.c'
@@ -57,6 +61,13 @@ for path in [ROOT/'source/rasterizer/xbox/rasterizer_xbox_transparent_geometry.c
              ROOT/'port/linux/src/plasma_model_shader.c', ROOT/'port/linux/src/nv2a_vsh.c', ROOT/'port/linux/src/nv2a_psh.c', ROOT/'source/rasterizer/xbox/rasterizer_xbox_environment.c']:
     manifest['source_hashes'][path.relative_to(ROOT).as_posix()] = hashlib.sha256(path.read_bytes()).hexdigest()
 try:
+    manifest['source_hashes'][collision.relative_to(ROOT).as_posix()]=hashlib.sha256(collision_original).hexdigest()
+    header=ROOT/'port/linux/include/plasma_collision.h'
+    manifest['source_hashes'][header.relative_to(ROOT).as_posix()]=hashlib.sha256(header.read_bytes()).hexdigest()
+    manifest['verify_traces']=args.verify_traces
+    if args.verify_traces:
+        for path in [ROOT/'tools/lighting_trace_check.py', ROOT/'tools/fixtures/lighting_trace_check.inc']:
+            manifest['source_hashes'][path.relative_to(ROOT).as_posix()]=hashlib.sha256(path.read_bytes()).hexdigest()
     for path in [shield, ROOT/'port/linux/game/overshield_effect.c', ROOT/'port/linux/game/shield_look.c']:
         manifest['source_hashes'][path.relative_to(ROOT).as_posix()] = hashlib.sha256(path.read_bytes()).hexdigest()
     text = 'void platform_log(const char *format,...);\n' + shield_original.decode().replace('\r\n','\n')
@@ -107,7 +118,7 @@ try:
     marker = '\tfield->valid = 1;'
     assert text.count(marker) == 1
     text = text.replace(marker, marker+'\n\tplatform_log("PLASMA occlusion extent %.3f sample %.3f",field->extent,field->visibility[0]);')
-    occlusion.write_text(text)
+    occlusion.write_text(instrument(text) if args.verify_traces else text)
     text = main_original.decode().replace('\r\n', '\n')
     text = 'void plasma_capture_frame(void);\nvoid plasma_capture_camera(void);\n' + text
     text = text.replace('main_game_render((double)main_globals.seconds_elapsed);',
@@ -178,6 +189,7 @@ finally:
     environment.write_bytes(environment_original)
     projectiles.write_bytes(projectiles_original)
     occlusion.write_bytes(occlusion_original)
+    collision.write_bytes(collision_original)
     fixture.unlink(missing_ok=True)
     subprocess.run([sys.executable, 'configure.py', *saved_args], cwd=ROOT, check=True)
     subprocess.run(['ninja', 'windows'], cwd=ROOT, check=True)
