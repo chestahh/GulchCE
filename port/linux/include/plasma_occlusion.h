@@ -7,6 +7,12 @@ void plasma_occlusion_submit(long light, long rasterizer_index);
 void plasma_occlusion_model_slot(long rasterizer_index, short slot);
 void *plasma_occlusion_texture(long rasterizer_index, int specular);
 void *plasma_occlusion_model_texture(int slot, float transform[4]);
-void plasma_occlusion_bind_model(unsigned long program);
+/* Owned by the linked program; locations cannot outlive or alias its GL name. */
+struct plasma_occlusion_uniforms
+{
+	int enabled, transform[2];
+};
+void plasma_occlusion_model_initialize(unsigned long program, struct plasma_occlusion_uniforms *uniforms);
+void plasma_occlusion_bind_model(const struct plasma_occlusion_uniforms *uniforms);
 float plasma_occlusion_specular_scale(long rasterizer_index);
 #endif

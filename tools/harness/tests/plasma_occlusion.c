@@ -325,6 +325,9 @@ int main(int argc, char **argv)
 		{
 			IDirect3DVolumeTexture8 *t = field_texture(f, pass, 0);
 			CHECK(t, "requested pass uploaded");
+			if (pass == 2)
+				CHECK((t == f->texture[1]) == (specular_scale == 1.0f),
+					"only equal diffuse and specular extents share the same upload");
 			for (z=0; z<16; z++) for (y=0; y<16; y++) for (x=0; x<16; x++)
 			{
 				real dx=2.0f*(x+0.5f)/16-1, dy=2.0f*(y+0.5f)/16-1, dz=2.0f*(z+0.5f)/16-1;
@@ -336,6 +339,12 @@ int main(int argc, char **argv)
 				expected=(int)(255*value+0.5f); actual=(int)(t->pixels[(z*16+y)*16+x]&255);
 				CHECK(abs(expected-actual)<=1,"lazy texture agrees with original within one quantization level");
 			}
+		}
+		if (specular_scale == 1.0f)
+		{
+			n = uploads;
+			CHECK(field_texture(f, 2, 0) == field_texture(f, 1, 0) && uploads == n,
+				"shared specular pass does not rebuild or upload a duplicate texture");
 		}
 		n=uploads; time_ms+=16; plasma_occlusion_window(); plasma_occlusion_submit(101+cap,0);
 		CHECK(plasma_occlusion_texture(0,0) && uploads==n+1,"new view invalidates each pass independently");

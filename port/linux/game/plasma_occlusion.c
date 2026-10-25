@@ -80,27 +80,39 @@ static int enabled(void)
 		config_boolean("display.plasma_occlusion")) ||
 		config_boolean("display.muzzle_lighting");
 }
-static real sample_field(const real *values, real x, real y, real z)
+struct sample_axis
 {
-	int a[3], b[3], i, j, k;
-	real t[3], coordinate[3], result = 0;
-	coordinate[0] = x;
-	coordinate[1] = y;
-	coordinate[2] = z;
-	for (i = 0; i < 3; i++)
-	{
-		real p = MAX(0.0f, MIN((real)(OCC_SIZE - 1), coordinate[i] * OCC_SIZE - 0.5f));
-		a[i] = (int)p;
-		b[i] = MIN(a[i] + 1, OCC_SIZE - 1);
-		t[i] = p - a[i];
-	}
+	int a, b, inside;
+	real t;
+};
+static void sample_axis_initialize(struct sample_axis *axis, real coordinate)
+{
+	real p = MAX(0.0f, MIN((real)(OCC_SIZE - 1), coordinate * OCC_SIZE - 0.5f));
+	axis->a = (int)p;
+	axis->b = MIN(axis->a + 1, OCC_SIZE - 1);
+	axis->t = p - axis->a;
+	axis->inside = coordinate >= 0 && coordinate <= 1;
+}
+static real sample_axes(const real *values, const struct sample_axis *x,
+	const struct sample_axis *y, const struct sample_axis *z)
+{
+	int i, j, k;
+	real result = 0;
 	for (k = 0; k < 2; k++)
 		for (j = 0; j < 2; j++)
 			for (i = 0; i < 2; i++)
-				result += values[((k ? b[2] : a[2]) * OCC_SIZE + (j ? b[1] : a[1])) * OCC_SIZE +
-								 (i ? b[0] : a[0])] *
-						  (i ? t[0] : 1 - t[0]) * (j ? t[1] : 1 - t[1]) * (k ? t[2] : 1 - t[2]);
+				result += values[((k ? z->b : z->a) * OCC_SIZE + (j ? y->b : y->a)) * OCC_SIZE +
+								 (i ? x->b : x->a)] *
+						  (i ? x->t : 1 - x->t) * (j ? y->t : 1 - y->t) * (k ? z->t : 1 - z->t);
 	return result;
+}
+static real sample_field(const real *values, real x, real y, real z)
+{
+	struct sample_axis axes[3];
+	sample_axis_initialize(&axes[0], x);
+	sample_axis_initialize(&axes[1], y);
+	sample_axis_initialize(&axes[2], z);
+	return sample_axes(values, &axes[0], &axes[1], &axes[2]);
 }
 /* One depth ray per cubemap texel serves every radial cell on that ray.
    Interpolate visibility comparisons, never distances across a doorway. */
@@ -182,6 +194,7 @@ static struct occlusion_field *field_for(long rasterizer_index)
 	int i, x, y, z, stationary;
 	real elapsed, extent, specular, clear_alpha, block_alpha, admission;
 	real previous[OCC_COUNT];
+	struct sample_axis history_axes[3][OCC_SIZE];
 	real trace_dx, trace_dy, trace_dz;
 	if (!enabled() || rasterizer_index < 0 || rasterizer_index >= rasterizer_lights.light_count)
 		return NULL;
@@ -256,12 +269,23 @@ static struct occlusion_field *field_for(long rasterizer_index)
 	admission = admission * admission * (3.0f - 2.0f * admission);
 	clear_alpha = 1.0f - powf(0.5f, elapsed / 0.025f);
 	block_alpha = 1.0f - powf(0.5f, elapsed / 0.008f);
+	/* Translation and uniform scale are separable: each axis has sixteen
+	   coordinates, shared by all 4096 cells. Keep the original arithmetic
+	   and interpolation order, including the outside-history fallback. */
+	if (!stationary && field->valid && field->extent > 0)
+		for (i = 0; i < OCC_SIZE; i++)
+		{
+			real offset = (2.0f * (i + 0.5f) / OCC_SIZE - 1) * extent;
+			sample_axis_initialize(&history_axes[0][i], 0.5f + (light->position.x + offset - field->center[0]) / (2 * field->extent));
+			sample_axis_initialize(&history_axes[1][i], 0.5f + (light->position.y + offset - field->center[1]) / (2 * field->extent));
+			sample_axis_initialize(&history_axes[2][i], 0.5f + (light->position.z + offset - field->center[2]) / (2 * field->extent));
+		}
 	for (z = 0; z < OCC_SIZE; z++)
 		for (y = 0; y < OCC_SIZE; y++)
 			for (x = 0; x < OCC_SIZE; x++)
 			{
 				real_vector3d ray, visibility_ray;
-				real target, alpha, history, u, v, w;
+				real target, alpha, history;
 				i = (z * OCC_SIZE + y) * OCC_SIZE + x;
 				ray.i = (2.0f * (x + 0.5f) / OCC_SIZE - 1) * extent;
 				ray.j = (2.0f * (y + 0.5f) / OCC_SIZE - 1) * extent;
@@ -276,11 +300,8 @@ static struct occlusion_field *field_for(long rasterizer_index)
 					history = previous[i];
 				else if (field->valid && field->extent > 0)
 				{
-					u = 0.5f + (light->position.x + ray.i - field->center[0]) / (2 * field->extent);
-					v = 0.5f + (light->position.y + ray.j - field->center[1]) / (2 * field->extent);
-					w = 0.5f + (light->position.z + ray.k - field->center[2]) / (2 * field->extent);
-					if (u >= 0 && u <= 1 && v >= 0 && v <= 1 && w >= 0 && w <= 1)
-						history = sample_field(previous, u, v, w);
+					if (history_axes[0][x].inside && history_axes[1][y].inside && history_axes[2][z].inside)
+						history = sample_axes(previous, &history_axes[0][x], &history_axes[1][y], &history_axes[2][z]);
 				}
 				alpha = target < history ? block_alpha : clear_alpha;
 				field->visibility[i] = history + (target - history) * alpha;
@@ -308,6 +329,10 @@ static void *field_texture(struct occlusion_field *field, int pass, long rasteri
 	int directional = covenant_emitter_lighting_cone(rasterizer, axis, origin, &radius);
 	if (!field)
 		return NULL;
+	/* Equal radii produce identical diffuse/specular texels, including the
+	   directional mask. Share that upload; different extents stay independent. */
+	if (pass == 2 && field->specular == 1.0f)
+		pass = 1;
 	/* A failed pass falls back for the rest of this view, then retries next view. */
 	if (field->texture_mask & (8 << pass))
 		return NULL;

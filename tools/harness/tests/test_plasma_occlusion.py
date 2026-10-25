@@ -45,9 +45,28 @@ def test_stationary_history_matches_reprojection():
     assert code.count(marker) == 1
     code = code.replace(marker, marker + '\n\tfor (i = 0; i < OCC_COUNT; i++) printf("CELL %.9g\\n", field->visibility[i]);')
     samples = []
-    for version in (code, code.replace('if (stationary)', 'if (stationary && FALSE)')):
+    reference = code.replace('if (stationary)', 'if (stationary && FALSE)')
+    # The reference also needs coordinates for stationary fields now that
+    # reprojection prepares its separable axes before visiting the cells.
+    reference = reference.replace('if (!stationary && field->valid', 'if (field->valid')
+    for version in (code, reference):
         status, output = run(build('plasma_occlusion', (('under_test.inc', version),)), 'visibility')
         assert status == 0, output[-2000:]
         samples.append([float(x) for x in re.findall(r'CELL (\S+)', output)])
     assert len(samples[0]) > 4096
     assert samples[0] == pytest.approx(samples[1], abs=0.00001)
+
+
+def test_precomputed_history_matches_cell_coordinates():
+    code = re.sub(r'^#include.*$', '', read('port/linux/game/ammo_counter_falloff.c') + '\n' + read('port/linux/game/plasma_occlusion.c'), flags=re.M)
+    fast = 'history = sample_axes(previous, &history_axes[0][x], &history_axes[1][y], &history_axes[2][z]);'
+    assert code.count(fast) == 1
+    # Check the actual fast result against the original per-cell coordinate
+    # arithmetic throughout movement, extent changes and all three rates.
+    reference = '''sample_field(previous,
+        0.5f + (light->position.x + ray.i - field->center[0]) / (2 * field->extent),
+        0.5f + (light->position.y + ray.j - field->center[1]) / (2 * field->extent),
+        0.5f + (light->position.z + ray.k - field->center[2]) / (2 * field->extent))'''
+    code = code.replace(fast, '{ ' + fast + '\nCHECK(history == ' + reference + ', "precomputed coordinates preserve every sample"); }')
+    status, output = run(build('plasma_occlusion', (('under_test.inc', code),)), 'visibility')
+    assert status == 0, output

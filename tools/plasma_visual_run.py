@@ -71,9 +71,11 @@ if manifest.exists():
 shutil.copy2(args.data_root/'maps/ui.map',out/'maps/ui.map')
 if args.map=='ce-deathisland':
     (out/'custom_maps').mkdir()
-    for name in ['deathisland_451254bb.map','bitmaps.map','sounds.map','loc.map']:
+    # Accept the original CE filename as well as the earlier fixture's name.
+    ce_map = 'deathisland_451254bb' if (args.data_root/'custom_maps/deathisland_451254bb.map').is_file() else 'deathisland'
+    for name in [ce_map+'.map','bitmaps.map','sounds.map','loc.map']:
         shutil.copy2(args.data_root/'custom_maps'/name,out/'custom_maps'/name)
-    level='custom_maps\\deathisland_451254bb'
+    level='custom_maps\\'+ce_map
 else:
     shutil.copy2(args.data_root/'maps'/(args.map+'.map'),out/'maps'/(args.map+'.map'))
     level=f'levels\\{args.map}\\{args.map}' if args.map in ('a10','b40','c40') else f'levels\\test\\{args.map}\\{args.map}'

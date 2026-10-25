@@ -506,6 +506,7 @@ struct program_entry
 	constants_serial at their last upload */
 	GLint model_lights;
 	GLint plasma_model_slots;
+	struct plasma_occlusion_uniforms plasma_occlusion;
 	unsigned long long model_lights_serial;
 
 	/* the vertex constants c[0..constant_count) the program uses; with
@@ -3355,6 +3356,8 @@ static struct program_entry *program_get(GLuint vertex_shader, GLuint fragment_s
 	entry->blend_constant = glGetUniformLocation(entry->program, "blend_constant");
 	entry->model_lights = glGetUniformLocation(entry->program, "model_lights");
 	entry->plasma_model_slots = glGetUniformLocation(entry->program, "plasma_model_slots");
+	if (entry->plasma_model_slots >= 0)
+		plasma_occlusion_model_initialize(entry->program, &entry->plasma_occlusion);
 	for (stage = 0; stage < D3DTSS_MAXSTAGES; stage++)
 	{
 		char name[8];
@@ -4453,7 +4456,7 @@ static struct program_entry *prepare_draw(BOOL immediate)
 	if (entry->plasma_model_slots >= 0)
 	{
 		unsigned int mask = plasma_model_lighting_mask();
-		plasma_occlusion_bind_model(entry->program);
+		plasma_occlusion_bind_model(&entry->plasma_occlusion);
 		glUniform2f(entry->plasma_model_slots, (mask & 1) ? 1.0f : 0.0f, (mask & 2) ? 1.0f : 0.0f);
 	}
 	/* the lights of a draw lit for each pixel, from the same registers, when

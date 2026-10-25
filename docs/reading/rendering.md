@@ -153,6 +153,29 @@ real captures from those synthetic checks. Muzzle collision blocking is
 automatic with muzzle lighting; the separate Light Occlusion toggle controls
 projectile and emitter blocking.
 
+Visibility history is translated and uniformly scaled between fields.
+`field_for` prepares sixteen interpolation coordinates per axis, then shares
+them across the 4096 cells; the sample weights, accumulation order and fallback
+outside the previous field stay unchanged. This reduces repeated arithmetic
+without changing ray count, field resolution, refresh policy or fading.
+`field_texture` also shares the diffuse/specular upload when their radii are
+exactly equal: the attenuation, visibility and directional texels are identical.
+Different specular extents continue to use independent textures.
+
+For model draws, `plasma_occlusion_model_initialize` in
+[plasma_occlusion_gl.c](../../port/linux/src/plasma_occlusion_gl.c) resolves
+uniform locations while the linked program is current. Its small record belongs
+to `program_entry` in the GL backend, so recycled GL names cannot reuse stale
+locations. `plasma_occlusion_bind_model` uses those locations and an immutable
+linear/clamped sampler on reserved units 6/7. The sampler and white fallback
+texture have GL-context lifetime, like the existing shader-program cache;
+per-light field textures are still released by `plasma_occlusion_reset`.
+The backend additions only store and initialise this feature-owned binding
+record: the backend owns shader linking, which the game module cannot observe.
+Xbox, CE and MCC use the same existing feature hooks, with no loader changes.
+See the [performance follow-up](../dynamic_lighting_optimisation.md) for
+measurements and the limits of GPU timing versus sustained frame pacing.
+
 The [shield-lighting walkthrough](shield_lighting.md) describes Shield Glow's
 integration with the same falloff, specular and visibility services. Its
 surface animation remains in `overshield_effect.c`; the host policy still
