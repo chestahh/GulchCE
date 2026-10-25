@@ -945,3 +945,84 @@ per-run reports/contact sheets in `build/plasma-visual`. Captures are short,
 The primary matrix predates only the final unoccluded specular-height correction;
 final-source regressions/follow-ups cover that correction. Original game maps
 and saves are preserved; private map copies are removed after each run.
+
+## October 25 integration and menu acceptance
+
+`main` at `2e69a88e` was merged without conflicts as `e5c43aeb`. The fixes
+in `e91ba84f` retain source hue in enhanced world-specular reflections and
+restore generated setting-row input after pointer/controller focus changes.
+See the [rendering walkthrough](reading/rendering.md#dynamic-lighting-branch-notes)
+and [menu walkthrough](reading/settings_input_and_menus.md#evidence-and-useful-checks)
+for the call paths and isolation rationale. No settings defaults, network
+protocol, projectile simulation, effect tags or stock explosions changed.
+
+The final combined review covered both fixes, the merged interfaces,
+feature selection/reset lifetime, stock constant identity, setting metadata,
+generated-menu consistency, regression tests and these reading routes.
+The inactive tint path returns the original packed colour directly. No
+broader renderer or Xbox-widget refactoring was needed.
+
+Local Windows portable release validation:
+
+- The build passed. The merge's focused MCC HUD/loading/pause/UI checks
+  passed (445 tests); final lighting, menu, XML and settings checks passed
+  (96 tests). The colour and focus regressions include negative controls.
+  Light-storage ordinary/full-LTO checks passed and detected the deliberate
+  legacy-pointer corruption control.
+- Fourteen controlled Carousel captures passed: pistol, rifle, rocket and
+  Needler at 30/60/120 FPS, plus disabled and specular-only pistol captures.
+  Measured average ranges were 29.26–30.00, 59.99–60.02 and 119.99–120.01 FPS.
+  These are short 640x480 fixtures on one Windows/NVIDIA machine. Rockets
+  and Needler fallback templates on this map prohibit world specular;
+  that authored flag remains respected. The hue correction is exercised
+  by the pistol and rifle, not inferred from those no-specular cases.
+- Custom Edition Death Island's pistol fixture passed at 60 FPS, including
+  selected model lighting. This scene did not submit world-specular draws;
+  it is a CE runtime/feature compatibility check, not CE specular acceptance.
+- The normal executable switched all eight menu toggles on and saved them,
+  loaded them in a fresh process, discarded edits through both Cancel and
+  controller Back, discarded pending Defaults through Cancel, saved Defaults,
+  saved all eight off, reloaded off, and saved an unchanged screen. Logs and
+  configuration files were checked against expected values. Captures show
+  pending values as well as loaded values. Video Setup entry and return worked;
+  640x480 and 1280x720 layouts were inspected. No menu XML edit was necessary.
+- The first menu attempt used the executable directory's configuration rather
+  than the runner's data directory. It was excluded from acceptance and the
+  runner was corrected to use isolated executable/config locations. A separate
+  a10 projectile placement attempt never reached a selected draw and is also
+  excluded; Carousel supplied the reflective test surface.
+
+Evidence is retained in ignored `build/oct25-final-tests.log`,
+`build/oct25-merge-tests.log`, `build/oct25-light-storage.log`,
+`build/oct25-menu-results.json`, `build/oct25-menu/`,
+`build/oct25-visual-results.json`, `build/oct25-final-contact.png`,
+`build/oct25-ce.log` and the `oct25`-labelled `build/plasma-visual/` runs.
+Local Android/web targets were unavailable and WSL is not installed;
+platform builds are checked by CI rather than claimed as local runtime tests.
+
+The [four-platform Build run](https://github.com/chestahh/GulchCE/actions/runs/40222493166)
+passed for `e91ba84f`. Xbox c40 → MCC Mercury Falling → Xbox Blood Gulch
+transitions completed with all lights off at 30 FPS and on at 120 FPS,
+each with one confirmed MCC load, both transition commands and no exception.
+These verify load/cleanup boundaries, not MCC campaign or visual acceptance.
+The sandboxed attempt could not reach its loopback console and is excluded;
+the successful runs are under `build/oct25-transitions-localhost/`.
+
+A normal-build Windows two-peer Blood Gulch smoke test used all eight
+lighting settings on for the host and off for the client. Both exited
+normally, with 37/33 two-player snapshots, eight scripted shoot events each
+and no logged assertion, exception or shader failure. This verifies basic
+mixed-setting session operation, not full state equivalence or internet/
+browser crossplay. `tools/net_compare.py` could not run on Windows because
+its process driver requires Unix signal APIs; the local Windows runner and
+results are retained in `build/oct25-network-smoke.py` and
+`build/oct25-network-smoke/`.
+
+The [MCC validation workflow](https://github.com/chestahh/GulchCE/actions/runs/40222493204)
+also passed. Temporary capture executables, copied maps and generated map
+caches were removed. Selected screenshots remain as lossless PNGs; inactive
+test saves were losslessly archived in `build/oct25-inactive-saves.zip`, with
+original relative paths and SHA-256 hashes verified before removing loose
+copies. Approximately 128 MiB of diagnostics remain, plus the 13.4 MiB
+Windows playtest ZIP outside this worktree. Original game data, active
+saves and existing toolchains/build outputs were preserved.
