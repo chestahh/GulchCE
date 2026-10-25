@@ -73,10 +73,10 @@ static GLuint shader(GLenum type,const char *text) {
 }
 static GLuint program(struct nv2a_pixel_shader_key *key) {
  const char *vs="#version 450 core\n"
- "uniform vec4 uv_rect; out vec4 xD0,xD1,xB0,xB1,xT0,xT1,xT2,xT3;out float xFog;"
+ "uniform vec4 uv_rect; out vec4 xD0,xD1,xB0,xB1,xT0,xT1,xT2,xT3;out float xFog;out vec2 shield_uv;"
  "void main(){vec2 p=vec2((gl_VertexID<<1)&2,gl_VertexID&2);"
  "gl_Position=vec4(p*2.0-1.0,0,1);xT0=vec4(uv_rect.xy+p*uv_rect.zw,0,1);"
- "xD0=xD1=xB0=xB1=xT1=xT2=xT3=vec4(0);xFog=0;}";
+ "xD0=xD1=xB0=xB1=xT1=xT2=xT3=vec4(0);xFog=0;shield_uv=vec2(0);}";
  char *fs=nv2a_pixel_shader_to_glsl(key);GLuint v=shader(GL_VERTEX_SHADER,vs),f=shader(GL_FRAGMENT_SHADER,fs);
  free(fs);GLuint p=glCreateProgram();glAttachShader(p,v);glAttachShader(p,f);glLinkProgram(p);
  GLint ok;glGetProgramiv(p,GL_LINK_STATUS,&ok);CHECK(ok);glDeleteShader(v);glDeleteShader(f);return p;
