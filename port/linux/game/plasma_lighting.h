@@ -11,6 +11,8 @@ void plasma_lighting_submitted(long light_index, long rasterizer_index);
 int plasma_lighting_selected(long rasterizer_index);
 void plasma_falloff_begin(long rasterizer_index);
 void plasma_falloff_specular_begin(long rasterizer_index);
+void plasma_specular_begin(long rasterizer_index);
+unsigned long plasma_specular_color(unsigned long material);
 void plasma_falloff_end(void);
 void plasma_falloff_dispose(void);
 

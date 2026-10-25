@@ -11,6 +11,10 @@ static struct { struct { int index; } distance_attenuation; } globals, *global_r
 static IDirect3DVolumeTexture8 texture;
 static unsigned long texels[64*64*64];
 static int selected, fail_create, creates, releases, binds, restores, filter, bound_stage, restored_stage;
+typedef struct { real red, green, blue; } real_rgb_color;
+static struct { long light_count; struct { real_rgb_color color; } lights[2]; } rasterizer_lights;
+static unsigned long real_rgb_color_to_pixel32(real_rgb_color const *c)
+{ return ((unsigned long)(c->red*255) << 16) | ((unsigned long)(c->green*255) << 8) | (unsigned long)(c->blue*255); }
 static int plasma_lighting_selected(long index) { return selected; }
 static int D3DDevice_CreateVolumeTexture(int w,int h,int d,int levels,int usage,int format,int pool,IDirect3DVolumeTexture8 **out)
 { creates++; if (fail_create) return -1; *out = &texture; return 0; }
@@ -64,6 +68,26 @@ int main(int argc, char **argv)
 		CHECK(bound_stage==2,"diffuse follows specular independently");
 		plasma_falloff_dispose();
 		CHECK(restored_stage==2 && filter==D3DTEXF_POINT && releases==1,"cleanup restores latest stage");
+	}
+	else if (!strcmp(argv[1], "tint"))
+	{
+		rasterizer_lights.light_count=1;
+		rasterizer_lights.lights[0].color.green=0.5f;
+		plasma_specular_begin(0);
+		CHECK(plasma_specular_color(0xAABBCCDDUL)==0xAABBCCDDUL,"stock reflection is bit exact");
+		selected=1; plasma_specular_begin(0);
+		CHECK(plasma_specular_color(0xAABBCCDDUL)==0xAA00CC00UL,"selected green light retains material green and alpha");
+		plasma_falloff_end();
+		CHECK(plasma_specular_color(0xAABBCCDDUL)==0xAABBCCDDUL,"end restores colour even with no texture bound");
+		plasma_specular_begin(0); plasma_specular_begin(-1);
+		CHECK(plasma_specular_color(0x00FFFFFFUL)==0x00FFFFFFUL,"invalid index resets hue");
+		rasterizer_lights.lights[0].color.red=0.5f;
+		rasterizer_lights.lights[0].color.blue=0.5f;
+		plasma_specular_begin(0);
+		CHECK(plasma_specular_color(0xAABBCCDDUL)==0xAABBCCDDUL,"neutral light preserves material");
+		rasterizer_lights.lights[0].color.red=0;
+		plasma_specular_begin(0); selected=0; plasma_specular_begin(0);
+		CHECK(plasma_specular_color(0xAABBCCDDUL)==0xAABBCCDDUL,"next stock light cannot inherit tint");
 	}
 	else
 	{

@@ -16,7 +16,7 @@ def generated(fault=None):
     return (('under_test.inc', code),)
 
 
-@pytest.mark.parametrize('case', ['curve', 'scope', 'specular', 'failure'])
+@pytest.mark.parametrize('case', ['curve', 'scope', 'specular', 'failure', 'tint'])
 def test_case(case):
     status, output = run(build('plasma_falloff', generated()), case)
     assert status == 0, output
@@ -25,4 +25,11 @@ def test_case(case):
 def test_edge_negative_control():
     status, output = run(build('plasma_falloff', generated(
         ('return remaining * remaining;', 'return remaining;'))), 'curve')
+    assert status == CHECK_FAILED, output
+
+
+def test_tint_negative_control():
+    status, output = run(build('plasma_falloff', generated(
+        ('plasma_specular_tint = real_rgb_color_to_pixel32(&tint);',
+         'plasma_specular_tint = 0x00FFFFFFUL;'))), 'tint')
     assert status == CHECK_FAILED, output

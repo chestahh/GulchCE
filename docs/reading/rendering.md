@@ -101,6 +101,24 @@ eligible authored projectile-light attachments and records temporary state;
 `plasma_lighting_frame_end` restores it. Window and reset functions delimit
 view-specific selection and longer-lived feature state.
 
+For world reflections, read `plasma_specular_begin` and
+`plasma_specular_color` in [plasma_falloff.c](../../port/linux/game/plasma_falloff.c).
+The inherited specular pass uses a light's scalar brightness and the
+surface's reflection colours, discarding the light's hue. A green bolt can
+therefore produce a pale, view-dependent highlight beside its green spill.
+The enhanced path tints both material reflection colours with the selected
+light's normalized hue, preserving the existing brightness and falloff.
+The small hooks in `_rasterizer_environment_specular_light_begin` and
+`_rasterizer_environment_specular_light_draw` are necessary because those
+functions own the material shader constants. Policy and temporary tint state
+remain in the feature module. Every begin resets the tint, and
+`plasma_falloff_end` clears it even when no attenuation texture was bound.
+Unselected lights return the original packed material colour unchanged.
+Authored no-specular flags, impacts and explosions remain authoritative.
+This is a reflection colour correction, not an additional light or a change
+to projectile simulation. A highlight can still move relative to diffuse
+spill as the viewing angle changes.
+
 The projectile's simulation and tag data are not the place to manufacture
 the rendering effect. This path uses the rendered attachment pose and
 temporarily changes eligible light behaviour. Separate modules own added

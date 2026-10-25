@@ -5,6 +5,8 @@
 #include "rasterizer/common/rasterizer_common.h"
 #include "rasterizer/xbox/rasterizer_xbox.h"
 #include "rasterizer/rasterizer_swizzle.h"
+#include "rasterizer/rasterizer.h"
+#include "rasterizer/rasterizer_lights.h"
 #include "plasma_lighting.h"
 #include "plasma_occlusion.h"
 #include <stdlib.h>
@@ -14,6 +16,40 @@ static IDirect3DVolumeTexture8 *plasma_falloff_texture;
 static boolean plasma_falloff_bound;
 static int plasma_falloff_stage;
 static int plasma_falloff_filter;
+static unsigned long plasma_specular_tint = 0x00FFFFFFUL;
+
+void plasma_specular_begin(long rasterizer_index)
+{
+	real_rgb_color tint;
+	real peak;
+	plasma_specular_tint = 0x00FFFFFFUL;
+	if (rasterizer_index < 0 || rasterizer_index >= rasterizer_lights.light_count ||
+		!plasma_lighting_selected(rasterizer_index))
+		return;
+	tint = rasterizer_lights.lights[rasterizer_index].color;
+	peak = MAX(tint.red, MAX(tint.green, tint.blue));
+	/* The stock pass already applies scalar brightness. Preserve that peak,
+	   but retain the source hue in both material reflection colours. */
+	if (peak > 0.0f)
+	{
+		tint.red /= peak;
+		tint.green /= peak;
+		tint.blue /= peak;
+	}
+	plasma_specular_tint = real_rgb_color_to_pixel32(&tint);
+}
+
+unsigned long plasma_specular_color(unsigned long material)
+{
+	unsigned long result = material & 0xFF000000UL;
+	int shift;
+	if (plasma_specular_tint == 0x00FFFFFFUL)
+		return material;
+	for (shift = 0; shift < 24; shift += 8)
+		result |= ((((material >> shift) & 255) *
+			((plasma_specular_tint >> shift) & 255) + 127) / 255) << shift;
+	return result;
+}
 
 /* Zero value and zero slope at the radius, without a hard luminous rim. */
 static real plasma_falloff_value(real distance_squared)
@@ -85,6 +121,7 @@ void plasma_falloff_specular_begin(long rasterizer_index)
 
 void plasma_falloff_end(void)
 {
+	plasma_specular_tint = 0x00FFFFFFUL;
 	if (!plasma_falloff_bound)
 		return;
 	rasterizer_set_texture_direct(plasma_falloff_stage, global_rasterizer_data->distance_attenuation.index, 0);

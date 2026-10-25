@@ -1818,6 +1818,7 @@ void _rasterizer_environment_specular_lights_begin(
 void _rasterizer_environment_specular_light_begin(
 	long light_index)
 {
+	plasma_specular_begin(light_index); /* port: hue for selected enhanced lights only */
 	match_assert(
 		"c:\\halo\\SOURCE\\rasterizer\\xbox\\rasterizer_xbox_environment.c",
 		0x5C0,
@@ -2007,6 +2008,9 @@ void _rasterizer_environment_specular_light_draw(
 				real_rgb_color_to_pixel32(&shader_environment->environment.specular.view_perpendicular_color);
 			pixel_shader.constant_1[3] =
 				real_rgb_color_to_pixel32(&shader_environment->environment.specular.view_parallel_color);
+			/* port: keep enhanced reflections the colour of their emitting light. */
+			pixel_shader.constant_0[3] = plasma_specular_color(pixel_shader.constant_0[3]);
+			pixel_shader.constant_1[3] = plasma_specular_color(pixel_shader.constant_1[3]);
 
 			if (TEST_FLAG(
 				shader_environment->environment.flags,

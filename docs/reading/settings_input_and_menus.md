@@ -132,6 +132,25 @@ for context-specific choices and split-screen limitations.
 
 ## Evidence and useful checks
 
+On `dynamic-lighting-test`, Video Setup's Dynamic Lighting screen exposes
+eight independent, default-off settings. Its rows come from
+`SCREENS["video_settings/dynamic_lighting"]` in
+[port_settings.py](../../tools/port_settings.py). `setting_load` reads the
+saved values; `setting_changed_save` writes only changed values on OK.
+Defaults changes the pending spinner selections, so Cancel still discards
+those changes. Restarting reads the saved configuration again. Portable
+builds keep `config.toml` beside the executable, independently of the map
+data root; acceptance runners must isolate both locations.
+
+`settings_help` also reconnects a generated setting row to its spinner when
+its descendant focus was cleared by a pointer focus change. Without this,
+returning to the row with the d-pad could show the correct help but ignore
+left/right input. The repair uses existing setting metadata and preserves
+an already-focused child and ordinary button navigation. It stays in the
+port's settings handler; Xbox widget focus semantics are unchanged.
+[test_settings_focus.py](../../tools/harness/tests/test_settings_focus.py)
+exercises that route and a negative control with the repair removed.
+
 The inherited game provides control abstraction, profiles, widgets and unit
 control. The port provides SDL input, keyboard actions, configuration and
 generated menu integration. GulchCE features add their own settings and
