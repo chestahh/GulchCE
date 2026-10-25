@@ -93,6 +93,20 @@ on the host against ownership, weapon/rate rules, target history and other
 constraints. The host deals damage. Clients replay the corresponding
 presentation, with special handling for deaths and authoritative state.
 
+OpenCE's host also checks a reported point hit against level geometry in
+`distributed_report_line_of_sight`. For example, a shot reported through
+a solid wall is refused if no eligible recent shooter position has a clear
+route to the target. The check uses bounded history and trace counts;
+vehicle muzzles require a clear segment from the recorded eye position.
+`distributed_stuck_detonation` allows a matching host-recorded attached
+projectile to detonate after its victim moves behind cover, consuming that
+attachment once. Melee, collision and area damage retain their existing
+admission checks. The history and attachment ledger reset for each new game.
+The [sight tests](../../tools/harness/tests/test_reported_hit_sight.py)
+exercise extracted admission functions with controlled collision results,
+including deliberate broken variants; they do not simulate every map's
+geometry or replace real combat checks.
+
 `network_objects.c` creates, deletes and reconciles replicated objects.
 The host tick sends object changes before messages that depend on those
 objects. Kill statistics and damage/state ordering matter too: receiving
