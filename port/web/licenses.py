@@ -17,7 +17,7 @@ NOTICES = [
     ("Enhanced bot tactics: BirchWoodGod, adapted by thelinkin3000 and GulchCE", "LICENSES/GPL-3.0-only.txt"),
     ("Bot and Android feature provenance", "docs/reading/bots_and_android_features.md"),
     ("Expat (the menus' XML)", "port/third_party/expat/COPYING"),
-    ("Opus (voice chat's codec)", "port/third_party/opus/COPYING"),
+    ("Opus (voice chat's and the talking timer's codec)", "port/third_party/opus/COPYING"),
     ("zlib", "port/third_party/zlib/LICENSE"),
     ("KCP (internet play's streams)", "port/third_party/kcp/LICENSE"),
     ("Monocypher (internet play's signatures)", "port/third_party/monocypher/LICENCE.md"),
