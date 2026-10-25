@@ -79,6 +79,14 @@ struct ui_widget_event_handler_reference {uint32_t flags;short event_type,functi
 struct tag_reference widget_tag,sound_effect;char script[32];};
 struct ui_widget_conditional_reference {struct tag_reference widget_tag;long flags;};
 struct widget_stack_data {int unused;};
+static int friendly=1,friendly_label=1,config_writes,config_success=1;
+static int config_boolean(char const *name){assert(!strcmp(name,"network.coop_own_friendly_fire"));return friendly;}
+static int config_write(char const *name,char const *value){
+    assert(!strcmp(name,"network.coop_own_friendly_fire"));config_writes++;
+    assert(!strcmp(value,friendly?"false":"true"));
+    if(config_success)friendly=!friendly;return config_success;
+}
+static void mcc_pause_friendly_fire(boolean enabled){friendly_label=enabled;}
 static struct {struct widget_instance *active_widgets[4];void *widget_stack[4];} widget_globals;
 struct network_player {int valid;short machine_index,controller_index;char team_index;};
 struct network_game {struct {struct {boolean teams;} universal_variant;} variant;struct network_player players[4];};
@@ -383,6 +391,18 @@ int main(int argc,char **argv){
         widget.definition_tag_index=300;connection=1;free_widget_on_delete=FALSE;
         CHECK(!fire(&widget,0,&action)&&end_count==1&&message_count==1,59);return 0;
     }
+    if(!strcmp(argv[1],"friendly-fire")){
+        widget.definition_tag_index=300;action.function=MCC_PAUSE_ACTION_FRIENDLY_FIRE;action.flags=128;
+        CHECK(!fire(&widget,0,&action)&&!config_writes,147);
+        coop=TRUE;connection=1;
+        CHECK(!fire(&widget,0,&action)&&config_writes==1&&!friendly&&!friendly_label,148);
+        CHECK(!fire(&widget,0,&action)&&config_writes==2&&friendly&&friendly_label,149);
+        config_success=0;
+        CHECK(!fire(&widget,0,&action)&&config_writes==3&&friendly&&friendly_label,150);
+        widget.definition_tag_index=100;
+        CHECK(!fire(&widget,0,&action)&&config_writes==3,151);
+        CHECK(!revert_count&&!restart_count&&!end_count&&!deleted_count&&!quit_count,152);return 0;
+    }
     if(!strcmp(argv[1],"trusted-settings")){
         widget.definition_tag_index=300;action.function=MCC_PAUSE_ACTION_SETTINGS;action.flags=128;
         CHECK(fire(&widget,0,&action)&&profile_begin==1&&settings_open==1,60);
@@ -558,7 +578,7 @@ int main(int argc,char **argv){
         CHECK(!fire(&widget,0,&action)&&!deleted_count,66);
         pause_owned=TRUE;mcc=FALSE;
         CHECK(!fire(&widget,0,&action)&&!deleted_count,67);
-        mcc=TRUE;action.function=MCC_PAUSE_ACTION_SETTINGS+1;
+        mcc=TRUE;action.function=MCC_PAUSE_ACTION_FRIENDLY_FIRE+1;
         CHECK(!mcc_ui_trusted_action(&widget,action.function)&&!fire(&widget,0,&action)&&!deleted_count,68);return 0;
     }
     if(!strcmp(argv[1],"isolation")){
@@ -593,7 +613,7 @@ int main(int argc,char **argv){
 
 @pytest.mark.parametrize("case", ["metadata", "confirmation", "client-denial", "no-checkpoint", "restart",
                                  "quit", "team", "team-balance", "settings", "settings-uppercase", "save", "new-game", "isolation", "unsupported", "script",
-                                 "trusted-pause", "trusted-teams", "trusted-end", "trusted-settings", "trusted-isolation", "settings-namespace",
+                                 "trusted-pause", "trusted-teams", "trusted-end", "trusted-settings", "friendly-fire", "trusted-isolation", "settings-namespace",
                                  "split-resume", "split-team", "split-team-denied", "split-quit", "split-quit-sync", "local-quit",
                                  "network-stale-solo", "campaign-stale-catalog", "settings-no-scenario",
                                  "settings-controller", "settings-split-denied", "settings-busy", "settings-lifecycle",

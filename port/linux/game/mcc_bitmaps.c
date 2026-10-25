@@ -8,6 +8,7 @@
 #include "interface/unit_hud_interface_definition.h"
 #include "rasterizer/rasterizer_swizzle.h"
 #include "mcc_runtime.h"
+#include "mcc_loading.h"
 #include "mcc_resources.h"
 #include <stdlib.h>
 #include <string.h>
@@ -176,6 +177,10 @@ static int mcc_meter_usage(struct mcc_runtime *runtime,struct mcc_textures *text
      * already consumes that order; only Gearbox-style meters need a clone
      * with luminance and alpha exchanged. */
     unsigned channels=meter->meter_flags&0x20 ? 1 : 4;
+    /* Gearbox meters do not apply the Xbox RGB opacity tint. Descent's
+     * authored opacity of one otherwise turns its shield and ammo black.
+     * Fade and the explicitly Xbox-style meter convention remain intact. */
+    if (channels==4) meter->opacity=0.0f;
     return mcc_bitmap_mark(runtime,textures,(uint32_t *)&meter->meter_bitmap.index,meter->sequence_index,channels);
 }
 
@@ -283,7 +288,10 @@ static uint32_t mcc_channels(uint32_t color,unsigned usage)
 {
     unsigned b=color&255,g=(color>>8)&255,r=(color>>16)&255,a=color>>24;
     if (usage==2) return a|(g<<8)|(b<<16)|(r<<24);
-    if (usage==4) return a|(a<<8)|(a<<16)|(r<<24);
+    /* Native meters read fill order from blue and shape from alpha. Keep
+     * shape in green too for the renderer's existing coverage blend, so
+     * antialiased edges retain the scene instead of becoming black. */
+    if (usage==4) return a|(r<<8)|(a<<16)|(r<<24);
     return color;
 }
 
@@ -297,6 +305,7 @@ static void mcc_bitmap_decode(unsigned char const *input,uint32_t *output,
         for (y=0;y<height;y+=4) for (x=0;x<width;x+=4) {
             unsigned char rgba[64];
             unsigned dx,dy;
+            if (!x && !(y & 63u)) mcc_loading_pulse();
             if (format==14) bcdec_bc1(input,rgba,16);
             else if (format==15) bcdec_bc2(input,rgba,16);
             else if (format==16) bcdec_bc3(input,rgba,16);
@@ -604,6 +613,7 @@ int mcc_bitmaps_prepare(struct mcc_runtime *runtime)
             error(_error_silent,"mcc bitmaps: cannot convert texture %lu of tag %08lx; map refused",index,textures->items[index].handle);
             return 0;
         }
+        mcc_loading_update(MCC_LOADING_BITMAPS, index + 1, textures->count);
     }
     error(_error_silent,"mcc bitmaps: %lu textures converted to %lu bytes",textures->count,textures->end);
     return 1;
@@ -680,16 +690,18 @@ int mcc_bitmaps_group_valid(struct mcc_runtime *runtime,void *address)
 /* The renderer may bind the immutable MCC allocation directly. A copied
  * descriptor, another map's bitmap, or a changed stream range cannot borrow
  * this storage. The caller receives bytes only after ownership validation. */
-void const *mcc_bitmaps_pixels(struct mcc_runtime *runtime,struct bitmap_data const *bitmap,uint32_t *bytes)
+void const *mcc_bitmaps_pixels(struct mcc_runtime *runtime,struct bitmap_data const *bitmap,uint32_t *bytes,int *coverage)
 {
     struct mcc_textures *textures=runtime ? runtime->bitmaps : NULL;
     uint32_t index;
     if (bytes) *bytes=0;
+    if (coverage) *coverage=0;
     if (!textures || !bitmap || !mcc_bitmaps_valid(runtime,(struct bitmap_data *)bitmap)) return NULL;
     for (index=0;index<textures->count;index++) {
         struct mcc_texture const *texture=&textures->items[index];
         if (texture->bitmap!=bitmap) continue;
         if (bytes) *bytes=texture->size;
+        if (coverage) *coverage=texture->channels==4;
         return texture->pixels;
     }
     return NULL;
