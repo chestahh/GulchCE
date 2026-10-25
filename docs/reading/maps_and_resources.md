@@ -156,11 +156,15 @@ MCC HUD conversion also owns layout and texture interpretation. In
 [`mcc_hud.c`](../../port/linux/game/mcc_hud.c),
 `mcc_hud_bitmaps_prepare` converts the canvas while
 [`mcc_hud_layout.inl`](../../port/linux/game/mcc_hud_layout.inl) recognizes
-known stock layouts for the native safe margins. Custom layouts keep the
-wider MCC frame. `mcc_hud_weapon_frame_begin` and `mcc_hud_weapon_frame_end`
+known stock layouts for the native safe margins. Replacement ammo/grenade
+artwork can still use a stock panel layout; genuinely custom placements keep
+the wider MCC frame. `mcc_hud_weapon_frame_begin` follows the outermost
+populated parent layout, and `mcc_hud_weapon_frame_end` clears that choice.
+These functions
 in [`mcc_hud_draw.c`](../../port/linux/game/mcc_hud_draw.c) scope that choice
 to a complete weapon/parent draw, preventing inherited components from using
-different margins.
+different margins. Stock gameplay message offsets also use native margins;
+High-Res controller glyph dimensions and text spacing match the native HUD.
 
 For example, Descent's curved meters use RGB as shape coverage and alpha as
 fill order. `mcc_meter_usage` and `mcc_channels` in
