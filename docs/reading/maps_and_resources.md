@@ -72,6 +72,44 @@ This is a summary of stages, not the complete list of operations or failure
 sites. The `problem` string and `failed` label in `mcc_cache_tags_load` make
 the exact failure path especially readable.
 
+## MCC loading feedback
+
+[mcc_loading.c](../../port/linux/game/mcc_loading.c) owns a local progress
+session around `game_load`'s `scenario_load` call. This small shared hook is
+needed because successful tag conversion is followed by menu integration and
+initial BSP setup; completing the screen inside `mcc_cache_tags_load` would
+report success too early. Non-MCC loads, headless runs and an already-owned
+native progress screen do not start an MCC session. Every normal success or
+failure return closes only the session it started.
+
+`mcc_cache_tags_load` advances the stage after resources, tags, scripts,
+geometry, audio, textures and validation. Converter loops report completed
+items; bounded inner audio/texture and resource-read steps call
+`mcc_loading_pulse` to refresh even while one item is still in progress.
+Stage weights describe work, not seconds remaining. Progress never goes
+backward, and only a successful scenario load reports completion.
+
+Drawing uses the inherited `progress_bar_begin`, `progress_bar_display` and
+`progress_bar_end` interface and direct device presentation. It deliberately
+does not render normal game frames, widgets or run the game/network loop:
+those paths can access partially converted tags. Presentation pumps existing
+platform window events. Refreshes are separated by at least 50 milliseconds;
+blocking file reads, allocation and individual codec operations can still
+pause the animation. The normal renderer installs its viewport on return.
+
+The effect uses the installation's `maps/loading.tga`, imported by OpenCE from
+the Xbox disc image; MCC packages do not supply or replace it. Missing art has
+the existing loading renderer's black-texture behavior. Early catalog,
+admission and background lobby probes do not start a loading screen. No new
+network message or readiness decision is introduced: peers still finish their
+own conversions and use the existing host-controlled loading protocol.
+
+[test_mcc_loading.py](../../tools/test_mcc_loading.py) exercises the controller's
+ownership, stage ordering, rate limit, timer wrap, re-entry, failed device
+queries and cleanup. Converter tools use a headless display stub while retaining
+their real conversion and validation code. Runtime checks must additionally
+cover visible output, failed/repeated loads, co-op and Xbox/CE transitions.
+
 ## Resources are dependencies, not interchangeable files
 
 A level can contain its own data or reference external bitmaps and sounds.
