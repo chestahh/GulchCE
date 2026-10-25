@@ -152,6 +152,26 @@ also needs agreement between host and clients.
 
 ## Evidence and compatibility limits
 
+MCC HUD conversion also owns layout and texture interpretation. In
+[`mcc_hud.c`](../../port/linux/game/mcc_hud.c),
+`mcc_hud_bitmaps_prepare` converts the canvas while
+[`mcc_hud_layout.inl`](../../port/linux/game/mcc_hud_layout.inl) recognizes
+known stock layouts for the native safe margins. Custom layouts keep the
+wider MCC frame. `mcc_hud_weapon_frame_begin` and `mcc_hud_weapon_frame_end`
+in [`mcc_hud_draw.c`](../../port/linux/game/mcc_hud_draw.c) scope that choice
+to a complete weapon/parent draw, preventing inherited components from using
+different margins.
+
+For example, Descent's curved meters use RGB as shape coverage and alpha as
+fill order. `mcc_meter_usage` and `mcc_channels` in
+[`mcc_bitmaps.c`](../../port/linux/game/mcc_bitmaps.c) create the appropriate
+owned clone; `mcc_texture_bridge_meter` in
+[`mcc_texture_bridge.c`](../../port/linux/src/mcc_texture_bridge.c) selects
+filtered edges and sharp fill cutoffs through existing renderer interfaces.
+The descriptor belongs to that clone and is released on MCC texture teardown.
+Xbox-order meters and the Xbox/CE loaders do not take this conversion path.
+See [MCC conversion details](../mcc_maps.md) for the layout evidence and tests.
+
 The Xbox cache/scenario machinery is inherited. CE conversion is a port
 addition, documented in [Custom Edition caches](../custom_edition_caches.md).
 MCC conversion, package identity and its compatibility boundaries are
