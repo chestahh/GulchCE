@@ -913,7 +913,7 @@ its name alone beside it, has its name given back as the map lists find it.
      the client's round trip and a second before the report came; not checked for what the tags do
      not bound: a projectile that sticks, which what it sticks to carries,
      one whose timer starts once it bounces or rests, a weapon's own
-     detonation; no line of sight); the target within a few world units of
+     detonation); the target within a few world units of
      where the host had it at the tick the report was made at (a player's
      unit or vehicle: the host keeps a second of where they were) or of
      where it is (more for a fast one; also for one that is no longer a
@@ -938,6 +938,17 @@ its name alone beside it, has its name given back as the map lists find it.
      client's projectiles deal nothing (the report does), but once that
      client has left the game they deal what they hit, as its own do (a
      hit the client reported just before it left may so be dealt twice).
+   - A reported point hit also needs a structure line of sight from the
+     shooter's recent living trail. The host tries the target centre, then
+     a route through the reported impact clamped to the target's sphere;
+     both legs of that route must be clear. A driver or gunner may use the
+     recorded vehicle muzzle only if the eye-to-muzzle segment is clear.
+     History and trace counts are bounded; missing living history refuses
+     the report. This deliberately uses lag-compensation windows rather
+     than matching both endpoints to one tick. Melee, vehicle collision
+     and area damage retain their existing checks. An attached detonation
+     may bypass sight only with a matching unspent attachment recorded by
+     the host; its bounded ledger expires and clears for each new game.
    - The host sends its clients the damage it dealt to units, and a client
      replays what it does besides the harm (which the units' states
      bring): the player's screen flash and shake, the unit's flinch, pain
