@@ -1,6 +1,9 @@
 # Dynamic lighting: sustained performance acceptance
 
 This extends the short [visual acceptance runs](dynamic_lighting_acceptance.md).
+The subsequent [profiling and optimisation pass](dynamic_lighting_optimisation.md)
+records changes and follow-up measurements; the values here remain the original
+baseline.
 It measures a sustained combat workload; the earlier capture averages alone
 were not evidence of sustained performance. Results are specific to the tested
 hardware, quality settings and scene.
