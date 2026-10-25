@@ -104,6 +104,32 @@ with the active input context. It does not start with globally changing the
 key's meaning. Split-screen controller indices and local-player indices
 must remain associated with the intended player.
 
+## MCC pause menus
+
+MCC uses its own pause widgets so an authored map cannot replace the native
+pause actions. Read [mcc_pause.c](../../port/linux/game/mcc_pause.c), starting
+with `mcc_pause_screen`, `mcc_pause_dialog` and `mcc_pause_key`. Their Xbox
+reference layouts include OpenCE's Settings and co-op Friendly Fire entries.
+For example, Revert opens ATTENTION with B=CANCEL and A=OK; confirmation
+reaches `mcc_ui_event_function` in [mcc_ui.c](../../port/linux/game/mcc_ui.c),
+which checks host authority and checkpoint validity before reverting.
+
+[mcc_pause_runtime.c](../../port/linux/game/mcc_pause_runtime.c) appends an
+owned tag table only after construction succeeds. `mcc_pause_borrow_art`
+selects the port's existing panel and alert redraws without modifying their
+original groups or textures. The glyphs use embedded small menu-button
+redraws, not the MCC map's gameplay icons. Teardown releases MCC allocations
+first and leaves borrowed textures for their native owner. Xbox and Custom
+Edition retain their existing pause builders and action routes.
+
+The focused checks are [test_mcc_pause.py](../../tools/test_mcc_pause.py),
+[test_mcc_pause_runtime.py](../../tools/test_mcc_pause_runtime.py) and
+[test_mcc_ui.py](../../tools/test_mcc_ui.py). They cover layout and actions,
+failed construction, resource ownership, controller cleanup and client
+refusal. Real screenshots and host/client menu interaction are still needed
+to verify presentation and navigation. See [MCC pause behavior](../mcc_maps.md#in-game-pause-menus)
+for context-specific choices and split-screen limitations.
+
 ## Evidence and useful checks
 
 The inherited game provides control abstraction, profiles, widgets and unit

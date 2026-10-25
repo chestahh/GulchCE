@@ -168,36 +168,41 @@ without changing their contents.
 
 | Context | Available actions |
 | --- | --- |
-| Local campaign | Resume Game, Revert to Saved, Restart Level, Save and Quit. |
-| Cooperative host | Resume Game, Revert to Saved, Restart Level, Leave Game. |
-| Cooperative client | Resume and Leave Game. |
-| Local multiplayer | Resume, Restart Game and Leave Game. |
-| Multiplayer host | Resume, Restart Game, End Game and Leave Game; Choose Team in team games. |
-| Multiplayer client | Resume and Leave Game; Choose Team in team games. |
+| Local campaign | Resume Game, Settings, Revert to Saved, Restart Level, Save and Quit. |
+| Cooperative host and client | The campaign actions plus Friendly Fire On/Off. Clients cannot perform host-only checkpoint/restart actions. |
+| Local multiplayer and multiplayer client | Resume Game, Settings and Leave Game. |
+| Multiplayer host | Resume Game, Settings, End Game and Leave Game. |
 
-All full-screen MCC pause menus offer **Settings**, including campaign,
-network co-op and multiplayer, with either main-menu style. This opens
-OpenCEs native in-game audio, video and controls screens for the initiating
-controller, using upstreams option filtering and profile saving. Campaign
-menus use 30-pixel row spacing and taller panels to accommodate the option. Split-screen players use Settings
-from the main menu, since the native editor needs a full viewport.
-Restart,
-revert and leaving/end-game actions use confirmation
-dialogs with Cancel selected initially. B returns from a confirmation to
-the pause screen; Start closes the current player's menu and its navigation
-history. At the main pause screen, either resumes play. Resume and team
-selection also close only the initiating player's menu, preserving other
-local players' screens. Each pause layout uses the native A/B button-icon
-tokens in its footer, drawing the map's HUD button glyphs beside Select/Back.
-Only local campaign pauses
-the simulation; network games continue while a menu is open.
+The full-screen menus match the Xbox layouts and content, including the
+port's Settings and co-op Friendly Fire additions. The extra MCC Choose Team
+and multiplayer Restart Game entries have been removed for content parity.
+Authored widgets still use the existing MCC action adapter. Split-screen
+players use Settings from the main menu, since the editor needs a full viewport.
 
-Save and Quit preserves the last valid local campaign checkpoint. Revert
-requires a valid checkpoint, and cooperative restart/revert remain
-host-controlled. A network restart retains the selected map, variant,
-options and players through the native lobby/countdown route. End Game is
-host-only and ends the round. Team changes remain subject to authenticated
-player identity, host authority and balance checks.
+Revert and Restart use the Xbox ATTENTION dialog: B/Back cancels and
+A/Start accepts. Save and Quit uses the three-second SAVING screen and
+preserves the last valid checkpoint; it does not create a new checkpoint.
+The wording, including the inherited Xbox-console saving message, follows
+the Xbox reference. Multiplayer Leave and host End Game act directly, as
+on Xbox. Only local campaign menus pause simulation; network games continue.
+
+Footers use separate B=CANCEL and A=SELECT widgets, with B=CANCEL and A=OK
+on confirmations. Their bitmap placeholders reference OpenCE's embedded
+small menu-button redraws, independently of the map's gameplay glyphs.
+Panel and alert bitmap descriptors borrow the native menu loader's redraw
+textures read-only, with MCC-owned groups and frame selections. Unload drops
+these descriptors before the native menu loader releases the textures.
+Selection highlights are drawn independently with antialiased rounded edges.
+
+Friendly Fire changes only the existing `network.coop_own_friendly_fire`
+preference, through the same configuration service as Xbox. The generated
+button reloads its label after a successful change. This introduces no new
+network message or authority: checkpoint/restart and End Game still require
+the host; clients cannot turn the preference into control of other players.
+The menu callbacks close only their initiating controller's tree and history.
+
+All full-screen Settings entries open OpenCE's existing in-game audio, video
+and controls editor, with upstream's option filtering and profile saving.
 
 The MCC Settings route uses the initiating controller's profile and widget
 history. It does not replace another active profile editor. Its ownership
@@ -1083,7 +1088,7 @@ a complete playthrough. Its four script refusals were traced to writes to
   in the campaign snapshot's flag bit 3. It preserves player volume settings,
   survives checkpoints, follows the host, and clears on map disposal.
 - `map_reset` uses the existing restart operation: a local reset in
-  singleplayer, and the MCC pause menu's reliable round restart in a network
+  singleplayer, and the MCC action adapter's reliable round restart in a network
   game. A client cannot request it through this script function.
 
 B30 Evolved also exposed two rendering problems, handled only for MCC:
