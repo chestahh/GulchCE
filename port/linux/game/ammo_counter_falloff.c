@@ -31,10 +31,13 @@ float ammo_counter_falloff_factor(const float axis[3], float x, float y, float z
 
 /* Exposed needles have radial spill, including immediately below the source.
    Fade only farther down in world space to keep hands/housing lit without a
-   floor pool. Height is relative to the source, divided by the light radius. */
+   floor pool. End the fade before the next lower volume-texture slice: its
+   linear filtering otherwise carries spill down to crouched/short holders'
+   feet, especially with the larger specular radius. Height is relative to
+   the source, divided by the light radius. */
 float needler_falloff_factor(float height)
 {
-	float t = PIN((-height - 0.06f) / 0.18f, 0.0f, 1.0f);
+	float t = PIN((-height - 0.06f) / 0.06f, 0.0f, 1.0f);
 	return 1.0f - t*t*(3.0f - 2.0f*t);
 }
 

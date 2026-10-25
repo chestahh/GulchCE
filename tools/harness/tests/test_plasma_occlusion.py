@@ -29,6 +29,14 @@ def test_directional_mask_is_required():
     assert status == CHECK_FAILED, output
 
 
+def test_needler_filtered_foot_pool_is_detected():
+    code = re.sub(r'^#include.*$', '', read('port/linux/game/ammo_counter_falloff.c') + '\n' + read('port/linux/game/plasma_occlusion.c'), flags=re.M)
+    # The previous long fade must no longer satisfy the lower-spill contract.
+    old = code.replace('(-height - 0.06f) / 0.06f', '(-height - 0.06f) / 0.18f')
+    status, output = run(build('plasma_occlusion', (('under_test.inc', old),)), 'visibility')
+    assert status == CHECK_FAILED, output
+
+
 def test_stationary_history_matches_reprojection():
     code = re.sub(r'^#include.*$', '', read('port/linux/game/ammo_counter_falloff.c') + '\n' + read('port/linux/game/plasma_occlusion.c'), flags=re.M)
     # Compare every updated cell, including moving lights, door changes, changed

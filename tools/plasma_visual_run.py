@@ -26,6 +26,9 @@ parser.add_argument('--emitter', choices=['jackal','major','fuel','stationary','
 parser.add_argument('--turn', action='store_true', help='Capture-only yaw/pitch sweep for light orientation checks')
 parser.add_argument('--hide-viewmodel', action='store_true', help='Keep the local rifle from obscuring third-person receivers')
 parser.add_argument('--face-camera', action='store_true', help='Face a held-weapon fixture toward the camera to inspect torso and hand spill')
+parser.add_argument('--grounded', action='store_true', help='Place the held-weapon actor on the actual floor')
+parser.add_argument('--crouch', action='store_true', help='Exercise a held-weapon actor crouching and standing again')
+parser.add_argument('--exterior', action='store_true', help='View the Warthog fixture from outside to inspect chassis blocking')
 parser.add_argument('--mixed', action='store_true')
 parser.add_argument('--model', action='store_true')
 parser.add_argument('--occlusion', type=int, choices=[0,1], default=0)
@@ -43,6 +46,10 @@ parser.add_argument('--height', type=float)
 parser.add_argument('--drop', type=float)
 parser.add_argument('--receiver-distance', type=float)
 args = parser.parse_args()
+if args.exterior and args.muzzle != 'warthog':
+    parser.error('--exterior requires --muzzle warthog')
+if args.crouch and args.emitter not in ('ammo-player', 'ammo-marine', 'needler-player', 'needler-marine'):
+    parser.error('--crouch requires a third-person player or Marine emitter')
 if args.map is None:
     # Blood Gulch has no machine door for the moving-occluder fixture.
     args.map = 'a10' if args.door else 'bloodgulch'
@@ -88,6 +95,12 @@ if args.hide_viewmodel:
     env['HALO_VIEWMODEL_VISIBLE'] = '0'
 if args.face_camera:
     env['HALO_EMITTER_CAPTURE_FACE_CAMERA'] = '1'
+if args.grounded:
+    env['HALO_EMITTER_CAPTURE_GROUNDED'] = '1'
+if args.crouch:
+    env['HALO_EMITTER_CAPTURE_CROUCH'] = '1'
+if args.exterior:
+    env['HALO_WARTHOG_CAPTURE_EXTERIOR'] = '1'
 if args.emitter:
     env['HALO_EXIT_AFTER'] = '70' if args.map == 'b40' else '35'
     env['HALO_EMITTER_CAPTURE'] = args.emitter
@@ -169,6 +182,10 @@ report['muzzle'] = args.muzzle
 report['emitter'] = args.emitter
 report['hide_viewmodel'] = args.hide_viewmodel
 report['face_camera'] = args.face_camera
+report['grounded'] = args.grounded
+report['crouch'] = args.crouch
+report['exterior'] = args.exterior
+report['holder_crouch_samples'] = [float(x) for x in re.findall(r'EMITTER holder tick \d+ crouch ([0-9.]+)', logs)]
 report['turn'] = args.turn
 report['emitter_samples'] = len(re.findall('EMITTER sample', logs))
 report['emitter_created'] = bool(re.search(r'EMITTER created (?!-1 )', logs))
@@ -184,6 +201,8 @@ if process.returncode or (report['shots'] != 3 and not args.combat and not args.
     raise SystemExit('Capture incomplete; inspect report.json and logs')
 if args.emitter and (not report['emitter_created'] or bool(report['emitter_samples']) != bool(args.enabled)):
     raise SystemExit('Emitter creation or activation failed')
+if args.crouch and report['holder_crouch_samples'] != [1.0, 1.0, 0.0]:
+    raise SystemExit('Holder did not crouch and return to standing')
 if bool(report['selected_frames']) != bool(args.enabled or (args.muzzle and args.both_lighting)):
     raise SystemExit('Lighting selection did not match the requested mode')
 if report['average_fps'] is None or report['average_fps'] < args.fps * .95:

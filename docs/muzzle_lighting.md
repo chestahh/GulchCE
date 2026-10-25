@@ -163,8 +163,9 @@ optional visibility field. The emitting Warthog is not excluded: its chassis
 can block light reaching ground beneath it, while exposed surroundings can
 receive the same broad warm pulse. Radius, colour, duration and stock flash
 remain unchanged. Other muzzle profiles retain their existing collision mask.
-This requires both muzzle lighting and plasma occlusion to be enabled; both
-remain off by default. It is approximate collision-based visibility, not exact
+This is automatic when muzzle lighting is enabled, independently of the
+projectile/emitter occlusion toggle. Both settings remain off by default.
+It is approximate collision-based visibility, not exact
 render-mesh shadows, and the existing shared budget and edge leakage apply.
 The regression fixture checks vehicle-only obstruction and verifies that an
 unrelated muzzle profile does not acquire vehicle blocking.

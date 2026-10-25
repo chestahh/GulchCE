@@ -120,6 +120,16 @@ static void rasterizer_xbox_bitmap_swizzle3d_long(void *d, void *s, int w, int h
 }
 void plasma_occlusion_window(void);
 #include "under_test.inc"
+/* Match the renderer's linear filtering between vertical texel centres. */
+static float filtered_height(IDirect3DVolumeTexture8 *texture, float height, float radius)
+{
+	float z = PIN((height / radius + 1.0f) * 8.0f - 0.5f, 0.0f, 15.0f);
+	int lower = (int)z, upper = MIN(lower + 1, 15);
+	float a = (float)(texture->pixels[(lower * 16 + 8) * 16 + 8] & 255) / 255.0f;
+	float b = (float)(texture->pixels[(upper * 16 + 8) * 16 + 8] & 255) / 255.0f;
+	return a + (b - a) * (z - lower);
+}
+
 int main(int argc, char **argv)
 {
 	struct occlusion_field *f;
@@ -350,7 +360,7 @@ int main(int argc, char **argv)
 	 CHECK(ammo_counter_falloff_factor(axis,0,0,1)==1,"face above screen retains brightness");
 	 CHECK(needler_falloff_factor(0)==1,"needles spill equally in every horizontal direction");
 	 CHECK(needler_falloff_factor(-.05f)==1,"nearby hands and housing below needles retain full spill");
-	 CHECK(needler_falloff_factor(-.15f)>.49f&&needler_falloff_factor(-.15f)<.51f,"lower spill fades softly with distance");
+	 CHECK(needler_falloff_factor(-.09f)>.49f&&needler_falloff_factor(-.09f)<.51f,"lower spill fades softly with distance");
 	 CHECK(needler_falloff_factor(-.25f)==0,"distant floor spill suppressed");
 	 CHECK(needler_falloff_factor(1)==1,"exposed tips retain full intensity");
 	 plasma_occlusion_model_slot(0,0);t=plasma_occlusion_model_texture(0,tr);
@@ -377,14 +387,14 @@ int main(int argc, char **argv)
 	 CHECK(ammo_counter_falloff_texture(0,1,tr)&&uploads==n+3,"radial Needler spill does not rotate with aim");
 	 specular_scale=2;
 	 t=plasma_occlusion_texture(0,1);
-	 CHECK(t&&(t->pixels[(6*16+8)*16+8]&255)==0,"unoccluded Needler specular uses physical lower fade");
+	 CHECK(t&&(t->pixels[(7*16+8)*16+8]&255)==0,"unoccluded Needler specular uses physical lower fade");
 	 t=plasma_occlusion_texture(0,0);
-	 CHECK(t&&(t->pixels[(6*16+8)*16+8]&255)>0,"specular cache does not overwrite diffuse mask");
+	 CHECK(t&&(t->pixels[(7*16+8)*16+8]&255)>0,"specular cache does not overwrite diffuse mask");
 	 specular_scale=1;
 	 CHECK(plasma_occlusion_texture(0,1)==t,"equal radii share diffuse and specular mask");
 	 specular_scale=.5f;
 	 t=plasma_occlusion_texture(0,1);
-	 CHECK(t&&(t->pixels[(6*16+8)*16+8]&255)>128,"changed specular radius refreshes its mask");
+	 CHECK(t&&(t->pixels[(7*16+8)*16+8]&255)>128,"changed specular radius refreshes its mask");
 	 specular_scale=1;
 	 directional_axis[0]=-.8f;directional_axis[1]=0;directional_axis[2]=.6f;
 	 directional_on=1;directional_origin=0;directional_radius=1;
@@ -403,12 +413,32 @@ int main(int argc, char **argv)
 	plasma_occlusion_submit(502,0);f=field_for(0);
 	{
 	 IDirect3DVolumeTexture8 *t=field_texture(f,0,0);
-	 CHECK(t&&(t->pixels[(6*16+8)*16+8]&255)==0,"model lower fade uses physical source radius");
+	 CHECK(t&&(t->pixels[(7*16+8)*16+8]&255)==0,"model lower fade uses physical source radius");
 	 t=field_texture(f,1,0);
-	 CHECK(t&&(t->pixels[(6*16+8)*16+8]&255)>0,"nearby diffuse receiver retains lower glow");
+	 CHECK(t&&(t->pixels[(7*16+8)*16+8]&255)>0,"nearby diffuse receiver retains lower glow");
 	 t=field_texture(f,2,0);
-	 CHECK(t&&(t->pixels[(6*16+8)*16+8]&255)==0,"specular lower fade uses physical source radius");
+	 CHECK(t&&(t->pixels[(7*16+8)*16+8]&255)==0,"specular lower fade uses physical source radius");
 	}
+	/* Captured crouched-player and short-Grunt source heights. Check filtered
+	   output, not just the analytic mask: specular uses twice the volume radius. */
+	for (cap = 0; cap < 2; cap++)
+	{
+		IDirect3DVolumeTexture8 *t;
+		plasma_occlusion_reset();
+		on = emitter_occlusion = cap;
+		directional_on = 2;
+		directional_radius = rasterizer_lights.lights[0].radius = 1.5f;
+		specular_scale = 2;
+		plasma_occlusion_submit(502, 0);
+		t = plasma_occlusion_texture(0, 0);
+		CHECK(t && filtered_height(t, -.38f, 1.5f) == 0, "crouched holder has no diffuse foot pool");
+		CHECK(filtered_height(t, -.25f, 1.5f) < .2f, "short holder has only faint near-contact diffuse spill");
+		CHECK(filtered_height(t, -.05f, 1.5f) > .9f, "diffuse spill immediately below needles stays bright");
+		t = plasma_occlusion_texture(0, 1);
+		CHECK(t && filtered_height(t, -.25f, 3.0f) == 0, "short holder has no specular foot pool");
+		CHECK(filtered_height(t, -.38f, 3.0f) == 0, "crouched holder has no specular foot pool");
+	}
+	directional_radius = rasterizer_lights.lights[0].radius = 1;
 	specular_scale=1;
 	plasma_occlusion_reset();on=0;
 	directional_on=0;emitter_on=0;muzzle_on=1;vehicle_only=blocked=1;

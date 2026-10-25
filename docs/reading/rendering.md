@@ -138,6 +138,21 @@ The branch's [plasma tests](https://github.com/chestahh/GulchCE/blob/dynamic-lig
 and related falloff, occlusion and emitter harnesses are evidence about
 specific contracts. They do not establish visual quality across all maps.
 
+For the held Needler, read `needler_falloff_factor` and
+`ammo_counter_falloff_texture` in
+[ammo_counter_falloff.c](../../port/linux/game/ammo_counter_falloff.c), then
+`field_texture` in [plasma_occlusion.c](../../port/linux/game/plasma_occlusion.c).
+The mask is radial around the needles; only its downward reach is restricted.
+The analytical fade and its filtered texture differ near the lower boundary:
+linear filtering mixes adjacent samples, and specular lighting uses a larger
+volume. The [visibility harness](../../tools/harness/tests/plasma_occlusion.c)
+therefore checks interpolated texture values at crouched-player and short-NPC
+foot heights as well as the scalar function. The
+[visual acceptance record](../dynamic_lighting_acceptance.md) separates the
+real captures from those synthetic checks. Muzzle collision blocking is
+automatic with muzzle lighting; the separate Light Occlusion toggle controls
+projectile and emitter blocking.
+
 ## Vulkan branch notes
 
 The optional renderer on `vulkan-renderer` has dedicated state in

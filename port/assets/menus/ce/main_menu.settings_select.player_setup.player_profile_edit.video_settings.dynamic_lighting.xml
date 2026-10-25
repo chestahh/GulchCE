@@ -129,6 +129,6 @@
 		<string text="Exposed fuel rods on a held Grunt cannon cast\ngreen light on the holder and nearby surfaces."/>
 		<string text="The AR ammo screen glows and lights the weapon\nand holder in first and third person."/>
 		<string text="Exposed needles glow and spill light around the\nheld weapon, with a soft fade below it."/>
-		<string text="Block added light behind walls and doors, and\nWarthog muzzle light through vehicle bodies."/>
+		<string text="Block projectile and emitter light behind walls.\nMuzzle flashes always use collision blocking."/>
 	</strings>
 </menus>

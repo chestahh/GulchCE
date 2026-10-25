@@ -661,7 +661,9 @@ lights, Jackal shields, Covenant stationary shields, held fuel rod glow, AR
 counter glow, Needler glow and light occlusion. Every option defaults to OFF.
 OK saves and applies this screen's changes; Cancel leaves them unchanged.
 Defaults selects OFF for all eight options, applied when you choose OK.
-Light occlusion affects enabled lighting effects; it does not enable them.
+Light occlusion affects enabled projectile and emitter lights; it does not
+enable them. Muzzle lights always use collision blocking, including the
+Warthog chassis, independently of the Light Occlusion toggle.
 These are local visual settings and do not change other players' settings.
 
 ## Field of view

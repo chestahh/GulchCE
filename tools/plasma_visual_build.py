@@ -61,7 +61,7 @@ try:
     assert text.count(marker) == 1
     text = text.replace(marker, marker+'\n\t\tplatform_log("EMITTER sample time %.6f strength %.6f kind %d position %.5f %.5f %.5f color %.5f %.5f %.5f", now, emitter->strength, emitter->kind, sample.position.x, sample.position.y, sample.position.z, color.red, color.green, color.blue);')
     emitter.write_text(text)
-    text=input_original.decode().replace('\r\n','\n')
+    text='int plasma_capture_skip_cinematic(void);\nint plasma_capture_turret_fire(void);\n'+input_original.decode().replace('\r\n','\n')
     marker='\tif (seed < 0)'
     assert marker in text
     text=text.replace(marker,'\tif (getenv("HALO_PLASMA_CAPTURE_DOOR")) { pad->bAnalogButtons[XINPUT_GAMEPAD_A] = SDL_GetTicks()%1000 < 100 ? 255 : 0; return; }\n\tif (getenv("HALO_PLASMA_CAPTURE_COMBAT")) { pad->bAnalogButtons[XINPUT_GAMEPAD_RIGHT_TRIGGER] = (getenv("HALO_PLASMA_CAPTURE_KIND") && !strcmp(getenv("HALO_PLASMA_CAPTURE_KIND"), "pistol") ? SDL_GetTicks()%400 < 100 : SDL_GetTicks()%3000 < 2200) ? 255 : 0; return; }\n'+marker,1)
@@ -73,7 +73,9 @@ try:
     text = text[:start]+text[end:]
     at = text.index('\tif (getenv("HALO_PLASMA_CAPTURE_COMBAT"))')
     text = text[:at]+line+text[at:]
-    text = text.replace(marker, '\tif (getenv("HALO_COVENANT_CAPTURE_CAMPAIGN")) pad->bAnalogButtons[XINPUT_GAMEPAD_A] = SDL_GetTicks()%1000 < 100 ? 255 : 0;\n'+marker,1)
+    at = text.index('\tif (getenv("HALO_PLASMA_CAPTURE_COMBAT"))')
+    text = text[:at]+'\tif (getenv("HALO_WARTHOG_CAPTURE_EXTERIOR")) { pad->bAnalogButtons[XINPUT_GAMEPAD_RIGHT_TRIGGER] = plasma_capture_turret_fire() ? 255 : 0; return; }\n'+text[at:]
+    text = text.replace(marker, '\tif (getenv("HALO_COVENANT_CAPTURE_CAMPAIGN") && plasma_capture_skip_cinematic()) pad->bAnalogButtons[XINPUT_GAMEPAD_A] = SDL_GetTicks()%1000 < 100 ? 255 : 0;\n'+marker,1)
     at = text.index('\tif (getenv("HALO_MUZZLE_CAPTURE_WEAPON")')
     text = text[:at] + '\tif (getenv("HALO_LIGHTING_CAPTURE_TURN")) { pad->sThumbRX = (SHORT)(sin(SDL_GetTicks()*0.0007)*22000); pad->sThumbRY = (SHORT)(sin(SDL_GetTicks()*0.0004)*16000); }\n' + text[at:]
     input_source.write_text(text)
@@ -98,9 +100,9 @@ try:
     text = text.replace(marker, marker+'\n\tplatform_log("PLASMA occlusion extent %.3f sample %.3f",field->extent,field->visibility[0]);')
     occlusion.write_text(text)
     text = main_original.decode().replace('\r\n', '\n')
-    text = 'void plasma_capture_frame(void);\n' + text
+    text = 'void plasma_capture_frame(void);\nvoid plasma_capture_camera(void);\n' + text
     text = text.replace('main_game_render((double)main_globals.seconds_elapsed);',
-                        'main_game_render((double)main_globals.seconds_elapsed);\n\t\t\t\t\tplasma_capture_frame();', 1)
+                        'plasma_capture_camera();\n\t\t\t\t\tmain_game_render((double)main_globals.seconds_elapsed);\n\t\t\t\t\tplasma_capture_frame();', 1)
     main.write_text(text)
     text = backend_original.decode().replace('\r\n', '\n')
     text = 'int plasma_capture_should_capture(void);\nvoid plasma_capture_model_draw(unsigned int mask);\n' + text

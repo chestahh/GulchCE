@@ -259,7 +259,7 @@ SCREENS["video_settings/dynamic_lighting"] = {
         ("NEEDLER GLOW:", "display.needler_lighting", ON_OFF,
          "Exposed needles glow and spill light around the\nheld weapon, with a soft fade below it.", None),
         ("LIGHT OCCLUSION:", "display.plasma_occlusion", ON_OFF,
-         "Block added light behind walls and doors, and\nWarthog muzzle light through vehicle bodies.", None),
+         "Block projectile and emitter light behind walls.\nMuzzle flashes always use collision blocking.", None),
     ],
 }
 SCREENS["video_settings/fov_viewmodels"] = {

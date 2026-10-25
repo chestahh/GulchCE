@@ -309,9 +309,10 @@ marker otherwise, so players and NPCs use the same policy.
 Read-only inspection of the stock c40 tags found matching `smoke` markers at
 (-0.031742, 0, 0.080221) in both models, on the exposed needle cluster. The
 radius-1.5 pink-purple light has strength 0.9 and the existing render-time easing.
-Its angular mask spills broadly sideways and upwards, smoothly suppressing the
-lower sector occupied by the housing. This is an approximation, not mesh shadows;
-weapon and biped triangles are not collision blockers. The same angular mask
+Its radial mask spills broadly sideways and upwards, smoothly suppressing spill
+farther below the housing (see the baseline refinement below). This is an
+approximation, not mesh shadows; weapon and biped triangles are not collision
+blockers. The same lower fade
 applies with occlusion enabled or disabled, including model/specular passes.
 
 The masked `needler dull` material gets a pink emissive floor. The first-person
@@ -362,11 +363,16 @@ The Needler now uses radial spill around the crystal cluster instead of the
 weapon-up angular mask. Receivers immediately below the source retain full
 light, so the casing and hands are not cut out by a cone. Only farther downward
 spill fades: full strength through 0.06 of the radius below the source, a smooth
-transition through 0.24, then zero. This uses world height and does not rotate
+transition through 0.12, then zero. This uses world height and does not rotate
 with aim. Radius (1.5), colour, brightness, crystal material emission and held
 weapon policy are unchanged. It is an artistic approximation to body/housing
-shielding, not mesh shadows. A crouched holder or unusual custom pose still
-needs playtest judgement; CStencil and Modern remain separate work.
+shielding, not mesh shadows. Visual acceptance shortened the original 0.24
+endpoint because filtering between volume-texture slices extended its spill
+to a crouched holder's feet. The full-strength region immediately below the
+needles remains unchanged; no new textures, traces or per-frame work were added.
+Unusual custom poses still need playtest judgement; CStencil and Modern remain
+separate work. See [visual acceptance](dynamic_lighting_acceptance.md) for the
+tested crouched-player and short-NPC cases and their limits.
 
 The model, world diffuse and specular paths use the same physical lower fade.
 In an occlusion field enlarged for specular range, the height is converted back

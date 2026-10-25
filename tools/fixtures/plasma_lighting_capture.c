@@ -17,11 +17,13 @@
 #include "game/players.h"
 #include "game/game.h"
 #include "units/units.h"
+#include "units/bipeds.h"
 #include "devices/devices.h"
 #include "cache/cache_files.h"
 #include "cutscene/cinematics.h"
 #include "game/cheats.h"
 #include "ai/ai.h"
+#include "scenario/scenario.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -37,7 +39,54 @@ static int capture_combat, capture_toggle;
 static long capture_target = NONE;
 static long capture_emitter = NONE;
 static long capture_emitter_holder = NONE;
+static long capture_vehicle = NONE;
 static int capture_emitter_attached;
+int plasma_capture_skip_cinematic(void)
+{
+	return cinematic_globals && cinematic_in_progress();
+}
+
+int plasma_capture_turret_fire(void)
+{
+	return capture_ticks >= 75 && capture_ticks % 30 < 23;
+}
+
+/* Render-only exterior view: the seated player's ordinary controls still aim
+   and fire the turret. Keep the chassis and adjacent ground in the picture. */
+void plasma_capture_camera(void)
+{
+	struct observer_result *camera;
+	struct object_datum *vehicle;
+	real_point3d target;
+	real_vector3d right;
+	if (!getenv("HALO_WARTHOG_CAPTURE_EXTERIOR") || capture_vehicle == NONE ||
+		!(vehicle = object_try_and_get(capture_vehicle)))
+		return;
+	camera = (struct observer_result *)observer_get_camera(0);
+	target = vehicle->object.position;
+	target.z += 0.6f;
+	cross_product3d(&capture_camera.forward, &capture_camera.up, &right);
+	camera->position = vehicle->object.position;
+	camera->position.x += 3.0f * right.i - 1.5f * capture_camera.forward.i;
+	camera->position.y += 3.0f * right.j - 1.5f * capture_camera.forward.j;
+	camera->position.z += 1.1f;
+	vector_from_points3d(&camera->position, &target, &camera->forward);
+	normalize3d(&camera->forward);
+	observer_up_from_forward(&camera->forward, &camera->up);
+	scenario_location_from_point(&camera->location, &camera->position);
+}
+
+static void capture_ground(real_point3d *position)
+{
+	struct collision_result ground;
+	real_vector3d down = {0, 0, -8};
+	real_point3d from = *position;
+	from.z = capture_camera.position.z + 1.0f;
+	if (collision_test_vector(FLAG(_collision_test_structure_bit) |
+		FLAG(_collision_test_front_facing_surfaces_bit), &from, &down, NONE, &ground))
+		position->z = ground.point.z + 0.03f;
+}
+
 static void ammo_capture_tick(const char *kind)
 {
 	struct object_placement_data placement;
@@ -58,6 +107,8 @@ static void ammo_capture_tick(const char *kind)
 			placement.position.x += capture_camera.forward.i * 1.5f;
 			placement.position.y += capture_camera.forward.j * 1.5f;
 			placement.position.z -= 0.6f;
+			if (getenv("HALO_EMITTER_CAPTURE_GROUNDED"))
+				capture_ground(&placement.position);
 			placement.forward = capture_camera.forward;
 			placement.forward.k = 0;
 			if (getenv("HALO_EMITTER_CAPTURE_FACE_CAMERA"))
@@ -84,6 +135,30 @@ static void ammo_capture_tick(const char *kind)
 					if (unit_inventory_get_weapon(holder, (short)i) == capture_emitter)
 						player_control_set_desired_weapon(holder, (short)i);
 			platform_log("EMITTER created %ld tag ammo holder %ld mode %s", capture_emitter, holder, kind);
+		}
+	}
+	if (capture_emitter_holder != NONE && object_try_and_get(capture_emitter_holder))
+	{
+		if (getenv("HALO_EMITTER_CAPTURE_GROUNDED") && strcmp(pose, "fp") && capture_ticks == 80)
+		{
+			real_vector3d facing;
+			real_point3d target = object_get(capture_emitter_holder)->object.position;
+			target.z += !strcmp(pose, "grunt") ? 0.25f : 0.4f;
+			vector_from_points3d(&observer_get_camera(0)->position, &target, &facing);
+			normalize3d(&facing);
+			player_control_set_facing(0, &facing);
+		}
+		if (getenv("HALO_EMITTER_CAPTURE_CROUCH") && capture_ticks == 85)
+		{
+			/* An unowned fixture starts alert; only the combat stance has a crouch seat. */
+			unit_get(capture_emitter_holder)->unit.animation.desired_state = _unit_animation_state_in_combat;
+			unit_persistent_control(capture_emitter_holder, 90, FLAG(_unit_control_crouch_modifier_bit));
+		}
+		if (capture_ticks == 100 || capture_ticks == 140 || capture_ticks == 190)
+		{
+			struct biped_datum *biped = (struct biped_datum *)object_get(capture_emitter_holder);
+			platform_log("EMITTER holder tick %ld crouch %.4f position %.4f %.4f %.4f", capture_ticks,
+				biped->biped.crouch, biped->object.position.x, biped->object.position.y, biped->object.position.z);
 		}
 	}
 	if (capture_ticks == 200 && capture_emitter_holder != NONE)
@@ -162,6 +237,14 @@ static void emitter_capture_tick(void)
 	}
 	if (capture_emitter != NONE && object_try_and_get(capture_emitter))
 	{
+		if (strcmp(kind, "fuel") && (capture_ticks == 100 || capture_ticks == 112 ||
+			capture_ticks == 140 || capture_ticks == 160 || capture_ticks == 195))
+		{
+			struct object_datum *object = object_get(capture_emitter);
+			platform_log("EMITTER shield tick %ld flash %.5f vitality %.5f depleted %d", capture_ticks,
+				object->object.outgoing_function_values[0], object->object.shield_vitality,
+				TEST_FLAG(object->object.damage_flags, _object_shield_depleted_bit));
+		}
 		if (!strcmp(kind, "fuel") && !capture_emitter_attached &&
 			object_get(capture_emitter)->object.parent_object_index == capture_emitter_holder)
 		{
@@ -285,6 +368,7 @@ void plasma_capture_tick(void)
 		capture_ticks = 0;
 		capture_projectile = capture_door = capture_target = NONE;
 		capture_emitter = capture_emitter_holder = NONE;
+		capture_vehicle = NONE;
 		for (i = 0; i < 32; i++)
 			capture_bolts[i] = NONE;
 	}
@@ -301,6 +385,32 @@ void plasma_capture_tick(void)
 		cheat.deathless_player = TRUE;
 	}
 	capture_ticks++;
+	if (getenv("HALO_WARTHOG_CAPTURE_EXTERIOR") && capture_vehicle != NONE &&
+		object_try_and_get(capture_vehicle))
+	{
+		real_vector3d facing = object_get(capture_vehicle)->object.forward;
+		if (capture_ticks >= 170)
+		{
+			facing.i = -facing.i;
+			facing.j = -facing.j;
+		}
+		else if (capture_ticks >= 120)
+		{
+			real x = facing.i;
+			facing.i = -facing.j;
+			facing.j = x;
+		}
+		facing.k = -0.15f;
+		normalize3d(&facing);
+		player_control_set_facing(0, &facing);
+		if (capture_ticks == 110 || capture_ticks == 160 || capture_ticks == 210)
+		{
+			struct object_marker marker;
+			if (object_get_marker_by_name(capture_vehicle, "primary trigger", &marker, 1))
+				platform_log("WARTHOG aim tick %ld forward %.4f %.4f %.4f", capture_ticks,
+					marker.matrix.forward.i, marker.matrix.forward.j, marker.matrix.forward.k);
+		}
+	}
 	if (capture_ticks == 60)
 	{
 		capture_camera = *observer_get_camera(0);
@@ -346,6 +456,7 @@ void plasma_capture_tick(void)
 			normalize3d(&placement.forward);
 			observer_up_from_forward(&placement.forward, &placement.up);
 			vehicle = object_new(&placement);
+			capture_vehicle = vehicle;
 			if (vehicle != NONE)
 			{
 				unit_scripting_enter_vehicle(unit, vehicle, "W-gunner");
@@ -569,6 +680,7 @@ void plasma_capture_frame(void)
 
 int plasma_capture_should_capture(void)
 {
-	return !getenv("HALO_PLASMA_CAPTURE_NO_IMAGES") && capture_ticks >= 85 && capture_ticks <= 240 && capture_ticks % 60 >= 28 &&
-		   capture_ticks % 60 <= 58;
+	return !getenv("HALO_PLASMA_CAPTURE_NO_IMAGES") && capture_ticks >= 85 && capture_ticks <= 240 &&
+		((capture_ticks % 60 >= 28 && capture_ticks % 60 <= 58) ||
+		 (getenv("HALO_EMITTER_CAPTURE_CROUCH") && capture_ticks >= 180 && capture_ticks < 200));
 }
