@@ -206,6 +206,14 @@ passed. Android and web Ninja targets are unavailable in this configuration;
 cross-platform CI is required separately. These limitations do not count as
 successful platform validation.
 
+The implementation at `ecf2cd69` subsequently passed all four
+[platform CI jobs](https://github.com/chestahh/GulchCE/actions/runs/40230539919):
+Linux, Windows, Android and web, including their configured test stages and
+the web browser tests. The separate
+[MCC validation workflow](https://github.com/chestahh/GulchCE/actions/runs/40230539927)
+also passed. This closes build/test coverage for the locally unavailable
+targets; visual acceptance remains the Windows GPU coverage described here.
+
 The Xbox c40 -> MCC Mercury Falling -> CE Death Island -> Xbox Blood Gulch
 transition was repeated with all lighting off at 30 FPS and on at 120 FPS.
 Both completed all three commands, logged the MCC load and CE model conversion,
@@ -239,7 +247,8 @@ activation checks; supplemental captures, transition runs and final harnesses
 use the resulting implementation. Frame-cap averages include screenshot overhead
 and initial shader compilation, and are not a general performance guarantee.
 
-Local evidence is in `build/shield-visual-results.json`,
+The accepted-case index is `build/shield-accepted-results.json`. Local evidence
+is in `build/shield-visual-results.json`,
 `build/shield-decay-results.json`, `build/shield-supplemental-results.json`,
 `build/plasma-visual/*shield-*`, `build/shield-menu/`,
 `build/shield-network-verified/` and `build/shield-transitions-verified/`.
@@ -249,6 +258,7 @@ Cleanup removed copied maps, generated map caches, capture-only binaries and
 temporary test executables. The 870 inactive test-save files (about 900 MiB
 loose) were archived in `build/shield-inactive-saves.zip` (about 1.8 MiB), with
 their original relative paths and SHA-256 hashes. All members were verified
-before removing loose copies. About 313 MiB of capture/log evidence remains;
+before removing loose copies. Superseded full-size frames were trimmed while
+their contact sheets and logs were retained. About 269 MiB of evidence remains;
 `build/shield-cleanup.json` records the totals. Original maps, user saves,
 previous playtests and other assignments were preserved.
