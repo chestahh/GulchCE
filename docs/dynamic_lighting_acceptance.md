@@ -262,3 +262,8 @@ before removing loose copies. Superseded full-size frames were trimmed while
 their contact sheets and logs were retained. About 269 MiB of evidence remains;
 `build/shield-cleanup.json` records the totals. Original maps, user saves,
 previous playtests and other assignments were preserved.
+
+Milestone 3's [sustained performance report](dynamic_lighting_performance.md)
+adds five-minute busy combat measurements at native 1440p for each frame cap,
+with lighting off and on. Its remaining performance limits supersede any
+inference of sustained frame-rate acceptance from the short captures above.
