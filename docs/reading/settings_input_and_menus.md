@@ -170,5 +170,11 @@ menus and text entry, then check a second local player. For a setting change,
 check default loading, save failure, reload and the actual consumer. Keep
 generated XML changes tied to the intended generator change.
 
+Shield Glow and Glow Intensity now live in Dynamic Lighting; their saved keys
+and host policy are unchanged. Animated Overshield remains in Extra Effects.
+The [shield-lighting guide](shield_lighting.md) explains the distinction between
+saved local preferences and effective host-selected state. Defaults restores
+OFF for light toggles and DEFAULT for intensity; it does not override a host.
+
 Continue with [objects and gameplay](objects_and_gameplay.md), or return to
 the [guide](README.md).

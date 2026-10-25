@@ -435,7 +435,7 @@ static const struct config_setting config_settings[] =
 		"In team games: \"even\" puts the bots on both teams, evening them with\n"
 		"the players; \"against\" puts them all on the team the players are not on." },
 	{ "display.plasma_occlusion", _config_boolean, "false", "HALO_PLASMA_OCCLUSION", _environment_value, _platform_all,
-		"Prototype collision-filtered projectile and Covenant emitter visibility.\n"
+		"Collision-filtered projectile, Covenant emitter and Shield Glow visibility.\n"
 		"Off preserves unoccluded plasma lighting. At most eight occluded lights." },
 	{ "display.jackal_shield_lighting", _config_boolean, "false", "HALO_JACKAL_SHIELD_LIGHTING", _environment_value, _platform_all,
 		"Soft illumination from visible Jackal shields, following their colour and pose.\n"
@@ -466,8 +466,9 @@ static const struct config_setting config_settings[] =
 		"unless it is \"players\" (each player's own)." },
 
 	{ "display.shield_glow", _config_boolean, "false", "HALO_SHIELD_GLOW", _environment_value, _platform_all,
-		"Energy shields light what is around them as they flare, as plasma\n"
-		"does, in the shield's own color. In a network game, the host's\n"
+		"Energy shields cast soft body-sized light using the selected shield\n"
+		"appearance and overshield layer colour. Optional wall blocking uses\n"
+		"plasma_occlusion. In a network game, the host's\n"
 		"network.shield_effects decides, unless it is \"players\" (each\n"
 		"player's own)." },
 	{ "display.shield_glow_intensity", _config_string, "\"default\"", "HALO_SHIELD_GLOW_INTENSITY", _environment_value, _platform_all,

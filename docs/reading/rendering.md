@@ -153,6 +153,11 @@ real captures from those synthetic checks. Muzzle collision blocking is
 automatic with muzzle lighting; the separate Light Occlusion toggle controls
 projectile and emitter blocking.
 
+The [shield-lighting walkthrough](shield_lighting.md) describes Shield Glow's
+integration with the same falloff, specular and visibility services. Its
+surface animation remains in `overshield_effect.c`; the host policy still
+owns activation, and the light module never changes shield vitality.
+
 ## Vulkan branch notes
 
 The optional renderer on `vulkan-renderer` has dedicated state in

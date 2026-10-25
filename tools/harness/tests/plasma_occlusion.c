@@ -42,7 +42,7 @@ static int on = 1, queries, allocations, blocked = 1, door, fail_upload;
 static unsigned long time_ms = 1000;
 static int uploads;
 static real specular_scale = 1;
-static int muzzle_on, emitter_on, emitter_occlusion;
+static int muzzle_on, emitter_on, emitter_occlusion, shield_on, shield_occlusion;
 static long last_ignore;
 static unsigned long last_flags;
 static int directional_on, vehicle_only;
@@ -58,8 +58,15 @@ long covenant_emitter_lighting_occlusion_ignore(long i) { return emitter_on && i
 int covenant_emitter_lighting_enabled(void) { return emitter_on; }
 int covenant_emitter_lighting_selected(long i) { return emitter_on && i == 0; }
 int muzzle_lighting_selected(long i) { return muzzle_on && i == 0; }
+int shield_glow_enabled(void) { return shield_on; }
+int shield_glow_selected(long i) { return shield_on && i == 0; }
+void shield_glow_frame_end(void) {}
+void shield_glow_window_begin(void) {}
+void shield_glow_submitted(long l,long r) {}
+float shield_glow_radius(long l,float r) { return r; }
 int config_boolean(const char *name)
 {
+	if (!strcmp(name, "display.plasma_occlusion") && shield_on) return shield_occlusion;
 	if (!strcmp(name, "display.muzzle_lighting")) return muzzle_on;
 	if (!strcmp(name, "display.plasma_occlusion") && emitter_on) return emitter_occlusion;
 	return on;
@@ -448,6 +455,14 @@ int main(int argc, char **argv)
 	plasma_occlusion_reset();plasma_occlusion_submit(501,0);f=field_for(0);
 	CHECK(f&&!(last_flags&FLAG(_collision_test_objects_vehicles_bit)),"other muzzle profiles retain original blockers");
 	CHECK(f->visibility[4095]>.99f,"vehicle-only blocker does not change unrelated lights");
+	plasma_occlusion_reset();
+	plasma_occlusion_reset();
+	on = muzzle_on = emitter_on = directional_on = 0; shield_on = shield_occlusion = 1;
+	plasma_occlusion_window(); plasma_occlusion_submit(600, 0);
+	CHECK(field_for(0), "shield-only lighting receives occlusion");
+	shield_occlusion = 0; n = queries;
+	plasma_occlusion_window(); plasma_occlusion_submit(600, 0);
+	CHECK(!field_for(0) && queries == n, "shield occlusion obeys its independent toggle");
 	plasma_occlusion_reset();
 	return 0;
 }

@@ -23,6 +23,9 @@ parser.add_argument('--kind', choices=['rifle','pistol','charged','rocket','need
 parser.add_argument('--muzzle', choices=['ar','handgun','shotgun','sniper','rifle','pistol','charged','needler','rocket','flamethrower','warthog'])
 parser.add_argument('--both-lighting', action='store_true')
 parser.add_argument('--emitter', choices=['jackal','major','fuel','stationary','ammo-fp','ammo-marine','ammo-player','needler-fp','needler-marine','needler-player','needler-grunt'])
+parser.add_argument('--shield', choices=['normal', 'charge', 'fp', 'elite'])
+parser.add_argument('--glow-intensity', choices=['default','light_show'], default='default')
+parser.add_argument('--shield-look', default='classic', choices=['classic','enhanced','classic_with_sprinkles','classic_honeycomb2'])
 parser.add_argument('--turn', action='store_true', help='Capture-only yaw/pitch sweep for light orientation checks')
 parser.add_argument('--hide-viewmodel', action='store_true', help='Keep the local rifle from obscuring third-person receivers')
 parser.add_argument('--face-camera', action='store_true', help='Face a held-weapon fixture toward the camera to inspect torso and hand spill')
@@ -48,7 +51,7 @@ parser.add_argument('--receiver-distance', type=float)
 args = parser.parse_args()
 if args.exterior and args.muzzle != 'warthog':
     parser.error('--exterior requires --muzzle warthog')
-if args.crouch and args.emitter not in ('ammo-player', 'ammo-marine', 'needler-player', 'needler-marine'):
+if args.crouch and not args.shield and args.emitter not in ('ammo-player', 'ammo-marine', 'needler-player', 'needler-marine'):
     parser.error('--crouch requires a third-person player or Marine emitter')
 if args.map is None:
     # Blood Gulch has no machine door for the moving-occluder fixture.
@@ -111,6 +114,10 @@ if args.emitter:
          'ammo-player':'HALO_AMMO_COUNTER_LIGHTING', 'needler-fp':'HALO_NEEDLER_LIGHTING',
          'needler-player':'HALO_NEEDLER_LIGHTING','needler-marine':'HALO_NEEDLER_LIGHTING',
          'needler-grunt':'HALO_NEEDLER_LIGHTING'}[args.emitter]] = str(args.enabled)
+if args.shield:
+    env.update(HALO_SHIELD_CAPTURE=args.shield, HALO_SHIELD_GLOW=str(args.enabled),
+               HALO_OVERSHIELD_EFFECT=str(int(args.shield in ('charge','fp'))), HALO_VIEWMODEL_SHIELD='1',
+               HALO_SHIELD_LOOK=args.shield_look, HALO_SHIELD_GLOW_INTENSITY=args.glow_intensity, HALO_PLASMA_LIGHTING='0')
 if args.muzzle:
     muzzle_tags = {
         'ar': r'weapons\assault rifle\assault rifle', 'handgun': r'weapons\pistol\pistol',
@@ -179,6 +186,10 @@ report['active_p95_ms'] = sorted(active_deltas)[int((len(active_deltas)-1)*.95)]
 report['homing_shots'] = len(re.findall('PLASMA homing', logs))
 report['selected_tags'] = sorted(set(re.findall(r'PLASMA prepare [^\r\n]+ tag ([^\r\n]+)', logs)))
 report['muzzle'] = args.muzzle
+report['shield'] = args.shield
+report['shield_look'] = args.shield_look
+report['glow_intensity'] = args.glow_intensity
+report['shield_created'] = bool(re.search(r'SHIELD created (?!-1 )', logs))
 report['emitter'] = args.emitter
 report['hide_viewmodel'] = args.hide_viewmodel
 report['face_camera'] = args.face_camera
@@ -197,11 +208,13 @@ print(json.dumps(report), flush=True)
 for path in out.rglob('*.map'):
     assert path.resolve().is_relative_to(out.resolve())
     path.unlink()
-if process.returncode or (report['shots'] != 3 and not args.combat and not args.emitter) or (not args.no_images and not report['screenshots']):
+if process.returncode or (report['shots'] != 3 and not args.combat and not args.emitter and not args.shield) or (not args.no_images and not report['screenshots']):
     raise SystemExit('Capture incomplete; inspect report.json and logs')
+if args.shield and not report['shield_created']:
+    raise SystemExit('Shield fixture did not create its actor')
 if args.emitter and (not report['emitter_created'] or bool(report['emitter_samples']) != bool(args.enabled)):
     raise SystemExit('Emitter creation or activation failed')
-if args.crouch and report['holder_crouch_samples'] != [1.0, 1.0, 0.0]:
+if args.crouch and not args.shield and report['holder_crouch_samples'] != [1.0, 1.0, 0.0]:
     raise SystemExit('Holder did not crouch and return to standing')
 if bool(report['selected_frames']) != bool(args.enabled or (args.muzzle and args.both_lighting)):
     raise SystemExit('Lighting selection did not match the requested mode')
@@ -255,7 +268,7 @@ expected_tags = {
     'mp-shade': 'vehicles\\c gun turret\\mp gun turret',
     'ce-fuel': 'weapons\\plasma_cannon\\plasma_cannon',
 }
-if args.enabled and not args.muzzle and not args.emitter:
+if args.enabled and not args.muzzle and not args.emitter and not args.shield:
     expected = {expected_tags[args.kind]}
     if args.mixed:
         expected = {expected_tags[kind] for kind in ('rifle', 'pistol', 'charged', 'rocket') if args.kind == 'rocket' or kind != 'rocket'}

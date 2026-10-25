@@ -190,8 +190,7 @@ symbols in this file:
 #include "covenant_emitter_lighting.h" /* port: port/linux/game/covenant_emitter_lighting.c */
 #include "rocket_lighting.h" /* port: port/linux/game/rocket_lighting.c */
 #include "plasma_lighting.h" /* port: port/linux/game/plasma_lighting.c */
-void shield_glow_update(void); /* port: port/linux/game/shield_glow.c */
-void shield_glow_reset(void); /* port: port/linux/game/shield_glow.c */
+#include "shield_glow.h" /* port: port/linux/game/shield_glow.c */
 
 /* port: port/linux/src (halo.log) */
 void platform_log(const char *format, ...);
@@ -724,6 +723,7 @@ void lights_dispose(
 	covenant_emitter_lighting_forget(); /* port: discard render-owned emitter identities */
 	rocket_lighting_forget(); /* port: partition and light storage are being discarded */
 	plasma_falloff_dispose(); /* port: release optional resources on shutdown too */
+	shield_glow_reset(); /* port: discard shield and overshield render state */
 	cluster_partition_delete(&light_cluster_partition);
 
 	return;
@@ -1852,6 +1852,7 @@ static void light_compute_bounding_sphere(
 	   Owned glow radii are independent of their borrowed light template. */
 	if (maximum)
 	{
+		light_radius = shield_glow_radius(light_index, light_radius); /* port: body-sized shield bounds */
 		light_radius = muzzle_lighting_radius(light_index, light_radius); /* port: owned flash bounds */
 		light_radius = covenant_emitter_lighting_radius(light_index, light_radius); /* port: owned emitter bounds */
 		light_radius = covenant_lighting_radius(light_index, light->object_index, light_radius); /* port: owned Covenant bounds */

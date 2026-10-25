@@ -8,7 +8,7 @@ enum { _point_light_dynamic_bit = 0 };
 struct object_datum { long definition_index; struct { short type; } object; };
 static struct object_datum projectile = { 1, { _object_type_projectile } };
 static const char *tag_name = "weapons\\plasma rifle\\bolt";
-static int muzzle_on, emitter_on;
+static int muzzle_on, emitter_on, shield_on;
 static int enabled = 1, refreshes, present = 1, interpolation_rendering = 1;
 static int rendered_pose;
 static float connected_radius;
@@ -70,6 +70,12 @@ void covenant_lighting_submitted(long i,long r) {}
 int covenant_lighting_selected(long i) { return 0; }
 int covenant_lighting_owns(long l,long o) { return l == 21; }
 float covenant_lighting_radius(long l,long o,float r) { return r; }
+int shield_glow_enabled(void) { return shield_on; }
+int shield_glow_selected(long i) { return shield_on && i == 23; }
+void shield_glow_frame_end(void) {}
+void shield_glow_window_begin(void) {}
+void shield_glow_submitted(long l,long r) {}
+float shield_glow_radius(long l,float r) { return r; }
 #include "under_test.inc"
 
 int main(int argc, char **argv)
@@ -77,7 +83,18 @@ int main(int argc, char **argv)
 	int i;
 	const char *test = argv[1];
 
-	if (!strcmp(test, "counter_cache"))
+	if (!strcmp(test, "shield"))
+	{
+		enabled = muzzle_on = emitter_on = 0; shield_on = 1;
+		CHECK(plasma_lighting_selected(23), "shield-only selection");
+		plasma_model_lighting_slot(23, 0);
+		CHECK(plasma_model_lighting_mask() == 1, "shield-only model lighting");
+		plasma_lighting_frame_end();
+		CHECK(visibility_resets == 0, "shield-only cache retained");
+		shield_on = 0;
+		CHECK(!plasma_lighting_selected(23), "disabled shield not selected");
+	}
+	else if (!strcmp(test, "counter_cache"))
 	{
 		enabled = muzzle_on = 0;
 		emitter_on = 1;

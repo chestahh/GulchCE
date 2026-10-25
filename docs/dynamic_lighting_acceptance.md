@@ -161,3 +161,94 @@ and SHA-256 hashes in its manifest. Every archive member was verified before
 removing its loose copy. Roughly 300 MiB of evidence remains, including comparison
 sheets. Original maps, user saves, other assignments and installed toolchains
 were preserved. See `build/m2-cleanup.json` for the bounded cleanup totals.
+
+## Shield Glow and animated Overshield addition
+
+The optional Shield Glow now uses the shared soft world/model lighting path,
+selected Shield Look and authored colour channels. Animated Overshield supplies
+one shared layer hue and charge coverage to the surface, arms and emitted light.
+The light rises with the luminous body, follows its rendered pose, and releases
+smoothly instead of changing reach with every hit. Eight lights are selected by
+contribution and distance, with an incumbent bonus to limit selection churn.
+Light Occlusion uses the existing bounded collision budget. The borrowed light
+template's flags, including no-specular, are preserved.
+
+The implementation review covered ownership, selection, repeated render views,
+map/disable cleanup, shader colour evaluation and host policy. Overshield model
+caches and queued arm identities now reset explicitly; duplicate activation
+checks were removed. Feature logic remains in its dedicated modules. The only
+new engine hooks are shield radius bounds and shutdown reset in object_lights.c,
+where private light storage requires integration. Existing map loaders and
+network messages are unchanged. See the [shield lighting reading guide](reading/shield_lighting.md).
+
+Shield Glow and Glow Intensity moved to Dynamic Lighting without changing their
+saved keys. Animated Overshield remains independent in Extra Effects. Both
+switches remain off by default. The host's existing shield-effects policy still
+overrides local shield preferences unless it delegates to PLAYERS' OWN.
+
+The final focused run passed 165 tests; four reference-map tests were skipped.
+This includes the actual shield-light module in a synthetic world, selected
+colour channels, camouflage, green/pink layer agreement, 30/60/120 Hz release
+equivalence, bounded selection, host overrides and cleanup. Windows portable
+release builds and ordinary/full-LTO light-storage checks passed. The latter
+also detected the deliberate legacy pointer-corruption negative control.
+
+Thirteen additional real-menu cases passed: fresh defaults, all nine toggles
+and Light Show saved, fresh-process on/off reloads, Cancel button, Back,
+Defaults/Cancel, Defaults/OK, unchanged OK, Shield Glow alone, intensity alone,
+and 1280x720 layout. Both 640x480 and 1280x720 captures were inspected. Existing
+eight-option acceptance above remains evidence for those independent controls;
+the new cases exercise their combined operation with the two added rows.
+
+Six local web tests could not pass in this Windows environment: five assume
+Unix path separators and one requires pthread.h. The remaining web checks
+passed. Android and web Ninja targets are unavailable in this configuration;
+cross-platform CI is required separately. These limitations do not count as
+successful platform validation.
+
+The Xbox c40 -> MCC Mercury Falling -> CE Death Island -> Xbox Blood Gulch
+transition was repeated with all lighting off at 30 FPS and on at 120 FPS.
+Both completed all three commands, logged the MCC load and CE model conversion,
+returned to the final Xbox map and exited without exceptions. A normal-build
+two-peer Windows smoke test retained 36/32 two-player snapshots and eight
+scripted shooting events per peer, with no logged assertions, exceptions or
+shader failures. Its host requested glow plus overshield while both peers'
+local shield preferences were off; other dynamic lights were on for the host
+and off for the client. These are bounded session/lifecycle checks, supplemented
+by the policy harness, not internet crossplay or simulation-equivalence proof.
+Initial sandboxed attempts could not connect over loopback and are excluded.
+
+Nineteen shield capture runs passed the activation and 5% frame-cap checks:
+ordinary classic hit/recharge, classic overshield charge and enhanced overshield
+charge at 30/60/120 FPS; enhanced first-person arms at all three caps; classic
+and enhanced overshields with added lighting off at 60; enhanced ordinary hits,
+crouching, Light Show, occlusion off, and an Elite at 60. Contact sheets and
+representative frames were inspected. Green/pink surface and light layers agree,
+the radial source follows crouching, ordinary hits release, and disabling glow
+leaves the animated overshield surface intact. Off runs submitted no added lights
+or occlusion updates. The unoccluded run retained light with zero occlusion
+updates. The c40 Elite run exercised world specular draws; carousel's borrowed
+template suppresses them, as authored. None of these checks establishes exact
+mesh shadows or appearance on every map and GPU.
+
+The initial ordinary-hit fixture did not clear its damage-decay timer. Those
+four captures are superseded by corrected hit/recharge runs and are excluded
+from the nineteen accepted cases. Charge and first-person captures remain valid.
+The final code differs from their manifest only by removing redundant overshield
+activation checks; supplemental captures, transition runs and final harnesses
+use the resulting implementation. Frame-cap averages include screenshot overhead
+and initial shader compilation, and are not a general performance guarantee.
+
+Local evidence is in `build/shield-visual-results.json`,
+`build/shield-decay-results.json`, `build/shield-supplemental-results.json`,
+`build/plasma-visual/*shield-*`, `build/shield-menu/`,
+`build/shield-network-verified/` and `build/shield-transitions-verified/`.
+The corrected 60 FPS classic hit case is `60-1-shield-decay-normal-classic`.
+
+Cleanup removed copied maps, generated map caches, capture-only binaries and
+temporary test executables. The 870 inactive test-save files (about 900 MiB
+loose) were archived in `build/shield-inactive-saves.zip` (about 1.8 MiB), with
+their original relative paths and SHA-256 hashes. All members were verified
+before removing loose copies. About 313 MiB of capture/log evidence remains;
+`build/shield-cleanup.json` records the totals. Original maps, user saves,
+previous playtests and other assignments were preserved.

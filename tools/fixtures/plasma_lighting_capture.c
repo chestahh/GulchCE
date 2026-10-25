@@ -357,6 +357,66 @@ int plasma_capture_hold_projectile(long index)
 			return 1;
 	return 0;
 }
+/* Shield-only acceptance: controlled charge, layer loss, hit and recharge.
+   These writes exist exclusively in this test executable. */
+static void shield_capture_tick(void)
+{
+	const char *mode = getenv("HALO_SHIELD_CAPTURE");
+	struct object_placement_data placement;
+	struct unit_datum *unit;
+	long tag;
+	if (capture_ticks == 65)
+	{
+		if (!strcmp(mode, "fp")) capture_target = player_control_get_unit_index(0);
+		else
+		{
+			tag = tag_loaded('bipd', !strcmp(mode, "elite") ? "characters\\elite\\elite" : "characters\\cyborg\\cyborg");
+			if (tag == NONE) { platform_log("SHIELD missing actor"); return; }
+			object_placement_data_new(&placement, tag, NONE);
+			placement.position = capture_camera.position;
+			placement.position.x += capture_camera.forward.i * 2.f;
+			placement.position.y += capture_camera.forward.j * 2.f;
+			capture_ground(&placement.position);
+			placement.forward = capture_camera.forward;
+			placement.forward.i = -placement.forward.i; placement.forward.j = -placement.forward.j; placement.forward.k = 0;
+			normalize3d(&placement.forward);
+			observer_up_from_forward(&placement.forward, &placement.up);
+			capture_target = object_new(&placement);
+		}
+		platform_log("SHIELD created %ld mode %s", capture_target, mode);
+	}
+	if (capture_target == NONE || !(unit = unit_try_and_get(capture_target))) return;
+	if (!strcmp(mode, "charge") || !strcmp(mode, "fp"))
+	{
+		SET_FLAG(unit->object.damage_flags, _object_shield_over_charging_bit, capture_ticks >= 90 && capture_ticks < 150);
+		unit->object.shield_vitality = capture_ticks < 90 ? 1.f : capture_ticks < 150 ? 1.f + (capture_ticks - 90) / 30.f : capture_ticks < 180 ? 3.f : capture_ticks < 220 ? 1.8f : 1.f;
+	}
+	else
+	{
+		if (capture_ticks == 100 || capture_ticks == 130)
+		{
+			unit->object.recent_shield_damage = 1.f;
+			unit->object.current_shield_damage = 1.f;
+			unit->object.shield_damage_decay_timer = 0;
+			unit->object.shield_vitality = .45f;
+		}
+		if (capture_ticks >= 160 && capture_ticks < 210)
+		{
+			SET_FLAG(unit->object.damage_flags, _object_shield_charging_bit, TRUE);
+			unit->object.shield_stun_ticks = 0;
+			unit->object.shield_vitality = .1f + .9f * (capture_ticks - 160) / 50.f;
+		}
+	}
+	if (getenv("HALO_EMITTER_CAPTURE_CROUCH") && capture_ticks == 110)
+	{
+		unit->unit.animation.desired_state = _unit_animation_state_in_combat;
+		unit_persistent_control(capture_target, 65, FLAG(_unit_control_crouch_modifier_bit));
+	}
+	if (capture_ticks % 10 == 0)
+		platform_log("SHIELD state tick %ld vitality %.4f values %.4f %.4f %.4f %.4f", capture_ticks, unit->object.shield_vitality,
+			unit->object.outgoing_function_values[0], unit->object.outgoing_function_values[1], unit->object.outgoing_function_values[2], unit->object.outgoing_function_values[3]);
+}
+
 void plasma_capture_tick(void)
 {
 	struct object_placement_data placement;
@@ -431,6 +491,7 @@ void plasma_capture_tick(void)
 					 capture_camera.position.y, capture_camera.position.z, capture_camera.forward.i,
 					 capture_camera.forward.j, capture_camera.forward.k);
 	}
+	if (getenv("HALO_SHIELD_CAPTURE")) { shield_capture_tick(); return; }
 	if (getenv("HALO_EMITTER_CAPTURE"))
 	{
 		emitter_capture_tick();
@@ -680,6 +741,14 @@ void plasma_capture_frame(void)
 
 int plasma_capture_should_capture(void)
 {
+	static long shield_captured_tick = -1;
+	if (getenv("HALO_SHIELD_CAPTURE"))
+	{
+		if (getenv("HALO_PLASMA_CAPTURE_NO_IMAGES") || capture_ticks < 85 || capture_ticks > 240 ||
+			capture_ticks % 5 || shield_captured_tick == capture_ticks) return FALSE;
+		shield_captured_tick = capture_ticks;
+		return TRUE;
+	}
 	return !getenv("HALO_PLASMA_CAPTURE_NO_IMAGES") && capture_ticks >= 85 && capture_ticks <= 240 &&
 		((capture_ticks % 60 >= 28 && capture_ticks % 60 <= 58) ||
 		 (getenv("HALO_EMITTER_CAPTURE_CROUCH") && capture_ticks >= 180 && capture_ticks < 200));

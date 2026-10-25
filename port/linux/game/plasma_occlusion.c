@@ -8,6 +8,7 @@
 #include "physics/collisions.h"
 #include "plasma_lighting.h"
 #include "muzzle_lighting.h"
+#include "shield_glow.h"
 #include "covenant_emitter_lighting.h"
 #include "rasterizer/rasterizer.h"
 #include "rasterizer/rasterizer_lights.h"
@@ -75,7 +76,7 @@ static unsigned long current_window;
 static long model_slots[2] = {NONE, NONE};
 static int enabled(void)
 {
-	return ((config_boolean("display.plasma_lighting") || covenant_emitter_lighting_enabled()) &&
+	return ((config_boolean("display.plasma_lighting") || covenant_emitter_lighting_enabled() || shield_glow_enabled()) &&
 		config_boolean("display.plasma_occlusion")) ||
 		config_boolean("display.muzzle_lighting");
 }
@@ -370,7 +371,7 @@ void plasma_occlusion_submit(long light, long rasterizer_index)
 {
 	if (((config_boolean("display.plasma_lighting") && config_boolean("display.plasma_occlusion")) ||
 		muzzle_lighting_selected(rasterizer_index) ||
-		(covenant_emitter_lighting_selected(rasterizer_index) && config_boolean("display.plasma_occlusion"))) &&
+		((covenant_emitter_lighting_selected(rasterizer_index) || shield_glow_selected(rasterizer_index)) && config_boolean("display.plasma_occlusion"))) &&
 		submitted_count < OCC_SUBMITTED)
 	{
 		submitted[submitted_count].identity = light;

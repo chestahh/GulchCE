@@ -42,6 +42,8 @@ covenant=ROOT/'port/linux/game/covenant_lighting.c'
 covenant_original=covenant.read_bytes()
 emitter=ROOT/'port/linux/game/covenant_emitter_lighting.c'
 emitter_original=emitter.read_bytes()
+shield=ROOT/'port/linux/game/shield_glow.c'
+shield_original=shield.read_bytes()
 assert not fixture.exists(), 'Refusing to overwrite an existing fixture'
 out = args.output_dir.resolve()
 assert out.is_relative_to((ROOT/'build').resolve()), 'Capture output must stay under build/'
@@ -55,6 +57,13 @@ for path in [ROOT/'source/rasterizer/xbox/rasterizer_xbox_transparent_geometry.c
              ROOT/'port/linux/src/plasma_model_shader.c', ROOT/'port/linux/src/nv2a_vsh.c', ROOT/'port/linux/src/nv2a_psh.c', ROOT/'source/rasterizer/xbox/rasterizer_xbox_environment.c']:
     manifest['source_hashes'][path.relative_to(ROOT).as_posix()] = hashlib.sha256(path.read_bytes()).hexdigest()
 try:
+    for path in [shield, ROOT/'port/linux/game/overshield_effect.c', ROOT/'port/linux/game/shield_look.c']:
+        manifest['source_hashes'][path.relative_to(ROOT).as_posix()] = hashlib.sha256(path.read_bytes()).hexdigest()
+    text = 'void platform_log(const char *format,...);\n' + shield_original.decode().replace('\r\n','\n')
+    marker = '\t\tcolor.blue = sample.color.blue * glow->strength;'
+    assert text.count(marker) == 1
+    text = text.replace(marker, marker+'\n\t\tplatform_log("SHIELD light time %.6f unit %ld strength %.5f position %.5f %.5f %.5f radius %.5f color %.5f %.5f %.5f", now, sample.unit_index, glow->strength, sample.position.x, sample.position.y, sample.position.z, sample.radius, color.red, color.green, color.blue);')
+    shield.write_text(text)
     manifest['source_hashes'][emitter.relative_to(ROOT).as_posix()] = hashlib.sha256(emitter_original).hexdigest()
     text = 'void platform_log(const char *format,...);\n' + emitter_original.decode().replace('\r\n','\n')
     marker = '\t\temitter->connected = TRUE;'
@@ -156,6 +165,7 @@ try:
     manifest['capture_sha256'] = hashlib.sha256((out/'halo-capture.exe').read_bytes()).hexdigest()
     (out/'build-manifest.json').write_text(json.dumps(manifest, indent=2))
 finally:
+    shield.write_bytes(shield_original)
     emitter.write_bytes(emitter_original)
     covenant.write_bytes(covenant_original)
     muzzle.write_bytes(muzzle_original)

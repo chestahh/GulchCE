@@ -11,6 +11,7 @@
 #include "covenant_lighting.h"
 #include "covenant_emitter_lighting.h"
 #include "muzzle_lighting.h"
+#include "shield_glow.h"
 #include <string.h>
 
 int config_boolean(const char *name);
@@ -47,7 +48,7 @@ void plasma_model_lighting_slot(long light_index, short slot)
 unsigned int plasma_model_lighting_mask(void)
 {
 	return (config_boolean("display.plasma_lighting") || config_boolean("display.muzzle_lighting") ||
-		covenant_emitter_lighting_enabled()) ? plasma_model_mask : 0;
+		covenant_emitter_lighting_enabled() || shield_glow_enabled()) ? plasma_model_mask : 0;
 }
 
 void plasma_lighting_prepare(long light_index, long object_index)
@@ -112,6 +113,7 @@ void plasma_lighting_frame_end(void)
 {
 	int index;
 
+	shield_glow_frame_end();
 	muzzle_lighting_frame_end();
 	covenant_emitter_lighting_frame_end();
 	covenant_lighting_frame_end();
@@ -132,10 +134,10 @@ void plasma_lighting_frame_end(void)
 	}
 	plasma_lighting_reset();
 	if (!config_boolean("display.plasma_occlusion") && !config_boolean("display.muzzle_lighting") &&
-		!covenant_emitter_lighting_enabled())
+		!covenant_emitter_lighting_enabled() && !shield_glow_enabled())
 		plasma_occlusion_reset();
 	if (!config_boolean("display.plasma_lighting") && !config_boolean("display.muzzle_lighting") &&
-		!covenant_emitter_lighting_enabled())
+		!covenant_emitter_lighting_enabled() && !shield_glow_enabled())
 		plasma_falloff_dispose();
 }
 
@@ -150,6 +152,7 @@ void plasma_lighting_window_begin(void)
 {
 	int index;
 	plasma_occlusion_window();
+	shield_glow_window_begin();
 	muzzle_lighting_window_begin();
 	covenant_emitter_lighting_window_begin();
 	covenant_lighting_window_begin();
@@ -162,6 +165,7 @@ void plasma_lighting_window_begin(void)
 void plasma_lighting_submitted(long light_index, long rasterizer_index)
 {
 	int index;
+	shield_glow_submitted(light_index, rasterizer_index);
 	muzzle_lighting_submitted(light_index, rasterizer_index);
 	covenant_emitter_lighting_submitted(light_index, rasterizer_index);
 	covenant_lighting_submitted(light_index, rasterizer_index);
@@ -177,7 +181,7 @@ void plasma_lighting_submitted(long light_index, long rasterizer_index)
 int plasma_lighting_selected(long rasterizer_index)
 {
 	int index;
-	if (muzzle_lighting_selected(rasterizer_index) || covenant_emitter_lighting_selected(rasterizer_index))
+	if (shield_glow_selected(rasterizer_index) || muzzle_lighting_selected(rasterizer_index) || covenant_emitter_lighting_selected(rasterizer_index))
 		return TRUE;
 	if (rasterizer_index == NONE || !config_boolean("display.plasma_lighting"))
 		return FALSE;
