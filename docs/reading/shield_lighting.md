@@ -83,3 +83,6 @@ Menu checks verify generated ownership, saved keys and the ten-row layout.
 Runtime evidence and its limits are recorded in the
 [Milestone 2 acceptance record](../dynamic_lighting_acceptance.md). Synthetic
 checks do not establish appearance on every map, GPU or platform.
+The [Milestone 4 compatibility record](../dynamic_lighting_compatibility.md)
+adds mixed-setting multiplayer checks for Xbox, CE and MCC, including received
+host policy, respawns, weapon changes and late joining.
