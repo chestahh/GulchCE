@@ -129,7 +129,8 @@ static short controller_glyph_style(void) {return (short)gems;}
 #define controller_glyphs_dispose() ((void)0)
 static pixel32 drawn_color;
 static int drawn_blend;
-static int config_boolean(char const *key) {(void)key;return enabled;}
+/* Tutorial controls must depend on High-Res HUD, never High-Res Text. */
+static int config_boolean(char const *key) {assert(!strcmp(key,"display.high_res_hud"));return enabled;}
 static char const *config_string(char const *key) {(void)key;return gems==2?"menu_gems":gems?"gems":"classic";}
 static long ticks;
 static long game_time_get(void) {return ticks;}

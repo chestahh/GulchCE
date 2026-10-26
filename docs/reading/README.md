@@ -144,5 +144,8 @@ and file history when comparing a later implementation with this explanation.
 | How do menu generators relate to the saved XML? | [Menu assets](../../port/assets/menus/README.md) |
 | What can tests establish without retail assets? | [Harness](../../tools/harness/README.md) and [Stagekit](../../tools/stagekit/README.md) |
 
+[HUD artwork corrections](hud_corrections.md) explains the supplied reticles,
+zoom labels, transparent Classic letters and separate map-family handling.
+
 [Controller detection and button styles](controller_buttons.md) follows device identity,
 automatic family filtering and gameplay glyph ownership.

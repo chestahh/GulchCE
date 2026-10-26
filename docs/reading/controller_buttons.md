@@ -63,7 +63,8 @@ not evict each other's glyphs. Each allocation retains its originating renderer'
 optional unbind callback. The existing high-res map teardown releases all feature
 textures before map tags disappear, including MCC resources. Repeated cleanup is
 safe; a failed allocation falls back to the established glyph for that map.
-The existing Xbox styles keep their assets and geometry.
+The existing Xbox styles keep their geometry. Xbox Classic's letter transparency
+is corrected as described in [HUD artwork corrections](hud_corrections.md).
 
 ## Artwork, geometry and checks
 
