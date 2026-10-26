@@ -93,6 +93,15 @@ on the host against ownership, weapon/rate rules, target history and other
 constraints. The host deals damage. Clients replay the corresponding
 presentation, with special handling for deaths and authoritative state.
 
+A projectile may remain after its firing object is deleted. The player lookup
+`get_player_index_from_object_or_parents` in
+[damage.c](../../source/objects/damage.c) therefore uses a checked object lookup
+before following a non-unit's parent. An expired datum (including a slot reused
+by a different object) yields no player for the gametype multiplier lookup.
+It does not erase the damage payload's separate player/team attribution or
+change host admission. The [owner lookup tests](../../tools/harness/tests/test_damage_owner_lookup.py)
+cover live units, AI, parent chains, deletion and slot reuse.
+
 OpenCE's host also checks a reported point hit against level geometry in
 `distributed_report_line_of_sight`. For example, a shot reported through
 a solid wall is refused if no eligible recent shooter position has a clear
