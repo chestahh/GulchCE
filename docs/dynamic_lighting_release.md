@@ -104,3 +104,66 @@ This pass adds no shared hook and does not merge map-family implementations.
 The final optimisations above do not claim to fix these limitations. Normal
 player acceptance, including subjective brightness and the user's typical
 combat workload, remains the final sign-off before calling this baseline 1.0.
+
+## Milestone 5 validation and delivery
+
+The final functional changes are in `7b1e8c02`; `152142a4` adds documentation
+and corrects an overshield menu-location comment. The Windows playtest uses
+`152142a4`, built with `--portable --release --lto=off --pgo=off`.
+
+| Check | Observed result |
+| --- | --- |
+| Focused local regressions | 205 passed; five POSIX process/launcher cases skipped on Windows. Includes ownership, off/reset paths, falloff/occlusion, shield policy and body/arms effects, fragment-cache and visibility contracts, settings and MCC networking. |
+| Touch-menu unit | Passed separately with the installed Windows toolchain's explicit x86 target and CRT link flags. The generic pytest invocation did not supply those flags; no touch implementation change was needed. |
+| Short rendered captures | Xbox Needler at 30/120 FPS, CE Needler at 60 FPS, and Xbox overshield charge at 60 FPS with Shield Glow on/off all passed the runner's checks. |
+| Mixed-setting peers | Two hidden Windows instances at 1280x720/60 FPS, Xbox Blood Gulch, with opposite local lighting choices and a host-forced shield policy. Both observed two respawns of the same player and inventory changes. All 139 stable policy samples matched; 81 seconds of paired snapshots had no comparator divergence. |
+| Map lifecycle | One enabled Windows process loaded Xbox c40, MCC Mercury Falling, CE Death Island and Xbox Blood Gulch, with three tick resets, expected shield activation and no exception. |
+| Platform CI | [Windows, Linux, Android and web passed](https://github.com/chestahh/GulchCE/actions/runs/40266569136), including Linux tests, browser/native WebRTC checks and Chromium/Firefox web checks. [MCC validation also passed](https://github.com/chestahh/GulchCE/actions/runs/40266569124). |
+| Delivered ZIP | Archive integrity and every packaged file verified; extracted executable started and displayed the Dynamic Lighting menu. All nine lighting booleans plus Overshield remained false, intensity Default and host policy Stock. No diagnostic fixture strings were present. |
+
+The five short visual scenes use 640x480 isolated captures. Frame-log averages
+were 29.19/119.99 FPS for Xbox Needler, 59.96 for CE Needler and 58.80/60.00
+for shield spill on/off; all met the runner's five-percent tolerance. Image
+inspection showed purple projectile spill, the retained overshield charge
+rise and green-to-pink layer transition. With Shield Glow off, the independently
+enabled overshield surface remained and the added spill disappeared. These
+are scoped visual observations, not sustained performance measurements or
+exhaustive aesthetic acceptance. The capture executable predates only the
+menu-location comment; source hashes and that exact comment-only difference
+were checked. The multiplayer/lifecycle probe and normal build use `152142a4`.
+
+Local Android/web targets are unavailable in this Windows configuration;
+fresh CI supplies those build checks. CI uses debug builds on this branch,
+while the local playtest is release. There was no new AMD hardware test or
+retail internet game. The broader Milestone 4 map/policy matrix and prior
+menu interaction evidence remain in the linked reports; this pass did not
+repeat that entire matrix. The initial test selection exposed a harness
+extraction dependency on the new overshield helper, which was corrected
+before the final passing suite. No assertion or compatibility guard was
+removed to obtain a pass.
+
+Review also confirmed that the final changes leave `source/`, platform
+renderer code, map loaders, host-policy code and network version untouched.
+The normal build was restored after each diagnostic build. No new shared
+hook, gameplay mutation, forced policy or diagnostic is shipped. The review
+retained necessary bounded caches, checks and platform stubs instead of
+removing them solely to reduce code size. Fifty-three local documentation
+links and the newly named functions were checked.
+
+Delivery is `GulchCE-dynamic-lighting-windows-152142a4.zip` under the primary
+checkout's `build/playtest/`, with an adjacent `-PLAYTEST.txt` and `.sha256`.
+The 13.4 MiB ZIP includes its own `PLAYTEST.txt`, stock configuration,
+`BUILD.json`, source download links and licence notices; it contains no maps
+or saves. Its SHA-256 is
+`bce57d6b01ef3733c9f374257ba49070f1306eef04070d9e055cc0ecd724ff06`.
+
+Evidence remains under the active checkout's `build/milestone5-*`,
+`build/plasma-visual/*-m5-*` and `build/lighting-compatibility/m5-*`.
+All owned processes exited. Runners removed staged maps/caches; final cleanup
+removed approximately 60.6 MiB of test binaries/objects and 186.7 MiB of
+redundant capture frames. Representative projectile images, all shield/menu/
+network/transition captures, complete logs and manifests remain. All 167
+archived test-save files (180.1 MiB uncompressed) passed SHA-256 verification.
+Approximately 50.3 MiB of diagnostic evidence remains, besides the delivery
+ZIP and required normal Windows build/symbols. Original maps, saves,
+toolchains, other worktrees and earlier milestone evidence were preserved.
