@@ -135,4 +135,116 @@ Both are separate from the timing-only acceptance cases. Exact SHA-256 grouping
 of captured fragment sources already demonstrates duplicate compilation under
 different cache keys with lighting disabled. This is evidence of redundant
 retained shader objects, not a measurement of their complete driver footprint.
-Final counts, memory trends and the sustained matrix are pending.
+Both clean resource runs completed approximately 600 measured seconds after
+30 seconds of warm-up, with continued 15-bot combat and normal exits. The
+disabled run selected no feature lights and performed no occlusion updates;
+the enabled run reached 28 selected lights and the unchanged eight-field bound.
+
+| Clean resource diagnostic | First memory window (MiB) | Last memory window (MiB) | Peak private (MiB) | Final programs / fragments | Maximum volume guest payload |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Enabled, periodic screenshots | 689.2 | 752.5 | 753.6 | 887 / 851 | 1,636,059 bytes (32 cached volumes) |
+| Disabled, GLSL capture, no screenshots | 693.7 | 727.1 | 728.6 | 683 / 606 | 112,347 bytes (2 cached volumes) |
+
+The memory windows use process elapsed time: 45-105 seconds and 585 seconds
+through the last sample, including shutdown margin. Resource counters use
+gameplay elapsed time. Render targets ended at seven enabled and six disabled;
+immediate-vertex capacity stayed at 512. The enabled volume cache ended with
+29 entries / 1,586,907 guest bytes, demonstrating reuse/eviction rather than
+one new visibility volume retained per update. Counts include stock textures;
+guest payload is not GPU allocation size. Private memory continued to fluctuate
+and grow late in both runs, so these samples do not establish a steady state.
+
+The disabled diagnostic's 606 fragment files exactly match its final cached
+fragment count. SHA-256 grouping found **78 byte-distinct sources and 528
+redundant source copies** across 41 duplicate groups; the largest group contained
+116 entries. The code compiles a new GL shader for each distinct full state key,
+even when generated source is identical. `program_get` then keys links by shader
+object IDs, so different fragment IDs also prevent link reuse when the vertex
+shader is the same. This is a confirmed shared-cache inefficiency with the
+feature disabled. It is not evidence that 87% of process memory is recoverable.
+
+A focused general-renderer follow-up should reuse byte-identical generated
+shader sources, retaining full state-key lookup and exact source comparison
+after hashing. That needs its own shader/program ownership and lifecycle review,
+plus Xbox/CE/MCC and platform regressions; no shared cache implementation was
+changed under this feature-owned collision optimisation. Remaining process
+growth still needs allocation attribution beyond these resource counters.
+
+The initial disabled damage crash did not recur in either clean ten-minute
+resource run, but recurred in the clean 30 FPS enabled timing run below.
+Failed/interrupted controls and pre-Resolve timings are retained and excluded
+from successful acceptance.
+
+## Final clean performance results
+
+These sequential runs followed closure of DaVinci Resolve. Each requested
+300 measured seconds after 30 seconds of warm-up, with 15 Heroic bots and a
+scripted player on Carousel at 2560x1440, 8x MSAA, 16x anisotropic filtering,
+1024-pixel shadows and per-pixel lighting, on an i7-14700K / RTX 5070 Ti.
+No other test game, build or harness ran concurrently. Timing manifests have
+all per-ray, resource and trace-comparison diagnostics disabled. Screenshot
+frames are excluded from pacing statistics and retained in raw evidence.
+Combat is not a deterministic replay, so differences are not a pure measure
+of feature cost.
+
+| Cap | Lighting | Measured seconds | Average FPS | 99th-percentile frame (ms) | Result |
+| ---: | --- | ---: | ---: | ---: | --- |
+| 120 | Off | 300 | 119.47 | 10.427 | Completed |
+| 120 | On | 300 | 115.42 | 12.934 | Completed, below target |
+| 60 | Off | 300 | 60.00 | 16.811 | Completed |
+| 60 | On | 300 | 59.97 | 17.225 | Completed |
+| 30 | Off | 300 | 29.96 | 33.385 | Completed |
+| 30 | On | 240.6 | 30.00 (partial) | 33.387 (partial) | Failed: access violation |
+
+The failed run reached approximately 270.6 seconds of gameplay before the
+same `object_get_and_verify_type` instruction accessed address `0x8`, through
+`object_cause_damage` and `projectile_collision`. This reproduces the stack
+observed with feature lighting disabled; it does not establish the exact
+cause or prove that every possible lighting interaction is excluded. Its
+partial 30 FPS average is not a completed acceptance result. Both symbolized
+stacks and failed reports are retained. A queued repeat was cancelled before
+launch; further endurance reruns cannot substitute for investigating this crash.
+
+## Final regression review and remaining work
+
+All 21 short visual cases passed their runtime checks. Contact sheets were
+inspected for crouched Needler holders, shorter Grunts, first-person AR,
+Warthog turret, moving door and shield charge/depletion at 30, 60 and 120 FPS,
+plus disabled, vertex-lit and CE controls at 60 FPS. The sampled images showed
+consistent weapon spill, chassis/door blocking and shield colour transitions
+without an obvious new visual regression. These are sampled stills, not a
+continuous animation inspection or exhaustive visual acceptance.
+
+A short two-player loopback session with feature lighting enabled on the host
+and disabled on the client exited normally. Both logged two-player gameplay
+and shooting with no detected runtime errors. Host shield policy was configured
+to `glow_overshield` while the client's local policy was `stock`; this is a
+policy integration smoke check, not a comprehensive network synchronisation
+or internet/co-op test. No network format or host-policy implementation changed.
+
+The Xbox c40 -> MCC Mercury Falling -> CE Death Island -> Xbox Blood Gulch
+transition sequence completed with lighting off at 30 FPS and on at 120 FPS.
+Both exited normally without logged exceptions; the enabled comparison recorded
+11,750,401 rays with zero mismatches. This checks these specific loading and
+cleanup paths, not full map-family compatibility. The final focused regression
+rerun passed all 61 tests in 14.83 seconds.
+
+The final review found no further justified production changes: batch ownership,
+bounds/fallbacks and disabled behavior remain isolated to the feature module;
+lighting equations and defaults are unchanged. The subsequent
+[diagnostic-tool build](https://github.com/chestahh/GulchCE/actions/runs/40249519986)
+passed on all four platforms. Remaining acceptance blockers are the intermittent
+projectile-damage crash, unresolved process memory growth and performance below
+the 120 FPS target in busy combat. The collision optimisation is complete;
+Milestone 3 and the dynamic-lighting 1.0 baseline are not yet accepted.
+
+All owned game processes exited. Temporary map copies/caches and run binaries
+were removed, and 932 test-save files (about 1.05 GB uncompressed) were preserved
+in lossless archives whose SHA-256 manifests were verified. Final cleanup
+removed another 128,492,247 bytes of diagnostic binaries and intermediate
+captures. About 492 MB of logs, captures, shader sources, reports and archived
+test saves remain as useful evidence under `build/`; the normal Windows build
+and installed toolchains remain available. Original game assets and saves were
+not changed. The compact combined results are in
+`build/lighting-tracing-clean-sustained.json`, with final visual, network,
+transition and cleanup reports alongside their respective test outputs.
