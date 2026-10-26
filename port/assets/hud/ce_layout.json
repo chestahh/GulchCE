@@ -343,10 +343,10 @@
     },
     {
      "xbox": [
-      51,
-      0,
-      63,
-      12
+      51.5,
+      0.5,
+      61.5,
+      10.5
      ],
      "source_png": "corrections/scope.png",
      "crop": [

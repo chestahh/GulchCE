@@ -36,13 +36,31 @@ def test_packed_corrections_use_supplied_pixels():
             for cell in entry['cells']:
                 with Image.open(ASSETS / cell['source_png']) as supplied:
                     source = supplied.convert('L').crop(cell['crop'])
-                x0,y0,x1,y1 = [v*entry['scale'] for v in cell['xbox']]
+                x0,y0,x1,y1 = [round(v*entry['scale']) for v in cell['xbox']]
                 ratio = min((x1-x0)/source.width, (y1-y0)/source.height)
                 size = tuple(round(n*ratio) for n in source.size)
                 x0 += (x1-x0-size[0])//2
                 y0 += (y1-y0-size[1])//2
                 expected = np.asarray(source.resize(size, Image.Resampling.LANCZOS))
                 assert np.array_equal(actual[y0:y0+size[1], x0:x0+size[0], 3], expected)
+
+
+def test_sniper_reticle_keeps_stock_visible_size_and_position():
+    # Measured stock alpha bounds (>=128), not the padded sprite rectangles.
+    # MCC's original sheet has four times Xbox/CE's texture resolution.
+    for name, scale, sprite, bounds in [
+        ('sniper__hud_reticles_scope__0', 8, [32, 0, 50, 18], [36, 4, 45, 13]),
+        ('ce_sniper_scope', 8, [51, 0, 63, 12], [52, 1, 61, 10]),
+        ('mcc_sniper_scope', 2, [108, 0, 152, 44], [112, 4, 148, 40]),
+    ]:
+        alpha = Image.open(ASSETS / (name+'.png')).getchannel('A')
+        x0,y0,x1,y1 = [n*scale for n in sprite]
+        visible = np.asarray(alpha.crop((x0,y0,x1,y1))) >= 128
+        ys,xs = np.where(visible)
+        actual = np.array([x0+xs.min(), y0+ys.min(), x0+xs.max()+1, y0+ys.max()+1])
+        # Proportional resampling of the supplied image can round one edge
+        # by one high-res pixel (1/8 Xbox/CE texel), not one stock texel.
+        assert np.all(np.abs(actual - np.array(bounds)*scale) <= 1), name
 
 
 def test_classic_letters_are_transparent_cutouts():

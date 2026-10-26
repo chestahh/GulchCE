@@ -16,11 +16,16 @@ def cell(rect, name, crop):
 
 
 def scope_cells(kind):
+    # Stock visible coverage is 9x9 texels: Xbox [36,4,45,13],
+    # CE [52,1,61,10], and MCC [112,4,148,40] at four times the scale.
+    # This supplied crop includes black padding, so a 10x10 placement
+    # reproduces that footprint within one output pixel. Keep the crop,
+    # its antialiasing and the stock centre; do not fill the sprite cell.
     if kind == 'ce':
         return [cell([0, 0, 25, 18], 'scope', [50, 26, 188, 112]),
-                cell([51, 0, 63, 12], 'scope', [241, 12, 301, 73])]
-    rectangles = ([[4, 4, 100, 64], [4, 76, 148, 140], [108, 0, 152, 44]] if kind == 'mcc' else
-                  [[0, 0, 31, 24], [0, 24, 43, 48], [32, 0, 50, 18]])
+                cell([51.5, 0.5, 61.5, 10.5], 'scope', [241, 12, 301, 73])]
+    rectangles = ([[4, 4, 100, 64], [4, 76, 148, 140], [110, 2, 150, 42]] if kind == 'mcc' else
+                  [[0, 0, 31, 24], [0, 24, 43, 48], [35.5, 3.5, 45.5, 13.5]])
     return [cell(rect, 'scope', crop) for rect, crop in zip(rectangles,
         [[50, 26, 188, 112], [50, 168, 247, 253], [241, 12, 301, 73]])]
 

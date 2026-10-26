@@ -12,6 +12,11 @@ These are display changes; input bindings, simulation and networking are unchang
    rectangles. [hud_assets.py](../../tools/hud_assets.py), `build_asset`, converts
    black-background luminance to premultiplied white coverage and proportionally
    resizes the supplied pixels. It does not reconstruct their shapes or font.
+   The sniper reticle fits the stock visible footprint, not the larger padded
+   sprite cell: 9x9 texels on Xbox/CE and 36x36 on MCC's four-times-resolution
+   sheet. These bounds were measured from stock alpha coverage; the supplied
+   image matches their size and centre within one generated high-resolution
+   pixel. Sprite geometry and zoom-label placement remain unchanged.
 2. Xbox retains its existing texture replacement path and atlas layout.
    [hud_hires.c](../../port/linux/src/hud_hires.c), `hud_hires_override_find`, checks
    the setting and original pixel signature. CE's rocket uses its existing
