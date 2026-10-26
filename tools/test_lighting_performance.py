@@ -1,6 +1,6 @@
 """Check that benchmark reports retain real stalls and separate capture overhead."""
 import pytest
-from lighting_performance_run import distribution, summarize
+from lighting_performance_run import distribution, summarize, memory_window_mib
 
 
 def test_percentiles_and_slow_frame_budget():
@@ -28,3 +28,9 @@ def test_warmup_capture_and_minute_boundaries():
 def test_missing_frame_samples_are_not_a_pass():
     with pytest.raises(ValueError,match='No frame samples'):
         distribution([],60)
+
+
+def test_early_exit_keeps_missing_memory_windows_distinct_from_zero():
+    samples=[dict(seconds=45,private=100*2**20),dict(seconds=50,private=120*2**20)]
+    assert memory_window_mib(samples,45,75)==110
+    assert memory_window_mib(samples,585) is None

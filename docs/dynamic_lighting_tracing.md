@@ -53,10 +53,18 @@ with zero mismatches. Cumulative CPU time was 23,176.870 ms for the new path and
 benefit from warmed caches. This is a paired CPU measurement, not an FPS gain
 claim or proof of equivalence for every map.
 
-All 60 focused harness/reporter tests passed, including traversal, cache reset,
+All 61 final focused harness/reporter tests passed, including traversal, cache reset,
 missing models, ignored owners, vehicle flags, malformed leaves, overflow and
 negative controls. Normal Windows and diagnostic/capture builds succeeded.
 Local Ninja has no Android/web targets; their required validation uses CI.
+The [four-platform build](https://github.com/chestahh/GulchCE/actions/runs/40246436679)
+and [MCC validation](https://github.com/chestahh/GulchCE/actions/runs/40246436634)
+both passed for production commit `feb5bc04`.
+The broader local Windows harness run had 1,010 passes and 67 failures in
+unrelated test facilities: POSIX APIs/headers, compiler-wrapper macro and
+deprecation conflicts, CRLF output expectations, and linking Unix `libm`.
+The successful Linux CI test step includes the full harness and touch-menu
+tests. These local failures are recorded rather than counted as passes.
 
 The test builder now refreshes the timing fixture's timestamp. Preserving the
 source timestamp could otherwise reuse an object from a different diagnostic
@@ -77,4 +85,29 @@ An attempted concurrent memory pair discovered the other local session and is
 excluded. The remaining process was stopped and both runs' diagnostics retained.
 The runner now assigns explicit separate loopback addresses. The corrected
 memory runs are sequential, ten minutes each, with lighting disabled/enabled.
-Their results and the final sustained matrix are pending.
+Clipboard joining is disabled and reports reject unexpected extra players.
+
+A subsequent disabled control crashed around 218 seconds of gameplay. Its
+symbolized stack runs through `projectile_collision`, `object_cause_damage`
+and `object_get_and_verify_type`; the latter accessed address `0x8` while
+resolving an object. No lighting batches ran in this disabled control. This
+locates the failure in projectile damage, but does not establish its original
+cause. The partial run is excluded from acceptance, its stack/logs retained,
+and no unrelated damage or networking code was changed. The reporter now
+retains early-exit reports, includes crash exceptions, and represents missing
+memory windows as null rather than throwing a statistics error.
+
+Allocation review found fixed, reused feature storage: eight visibility
+fields with up to three volume textures each, eight fallback emitter slots
+with up to three textures each, and one shared radial falloff texture.
+`plasma_occlusion_reset` and `ammo_counter_falloff_dispose` release their
+textures; `plasma_falloff_dispose` releases the radial texture. Backend texture
+cache entries age out through `xgpu_texture_cache_begin_frame`. The new
+collision batch uses static storage and has no heap allocation. These are
+code findings, not a measurement of all graphics-driver allocations.
+
+The existing backend's `fragment_shader_get` and `program_get` retain compiled
+shader/program combinations for reuse. Its resource counters therefore help
+identify cache warm-up, but do not prove that every byte of process growth
+belongs to shaders. No shared renderer cache policy was changed in this pass.
+The corrected memory results and final sustained matrix are pending.

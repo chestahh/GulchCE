@@ -74,6 +74,11 @@ def process_memory(handle):
     return dict(rss=counters.rss, private=counters.private, faults=counters.faults)
 
 
+def memory_window_mib(samples, start, end=float('inf')):
+    values = [m['private'] for m in samples if start <= m['seconds'] < end]
+    return statistics.mean(values)/2**20 if values else None
+
+
 def safe(path, out):
     assert path.resolve().is_relative_to(out) and path.resolve()!=out
     for parent in [path, *path.parents]:
@@ -139,6 +144,7 @@ def main():
                HALO_WINDOW_SIZE=args.resolution, HALO_RESOLUTION_SCALING='native', HALO_NO_AUDIO='1',
                HALO_MAX_FPS=str(args.fps), HALO_NO_VSYNC='1', HALO_EXIT_AFTER=str(args.warmup+args.seconds+25),
                HALO_NET_ONLINE='0', HALO_NET_PUBLIC_LOBBY='0', HALO_NET_ALLOW_UPNP='0',
+               HALO_NET_JOIN_FROM_CLIPBOARD='0',
                HALO_NET_ADDRESS=f'127.0.0.{81+args.enabled}', HALO_NET_BROADCAST=f'127.0.0.{81+args.enabled}',
                HALO_UPDATE_ANSWER='never', HALO_CRASH_REPORTS='no', HALO_NETWORK_TEST=f'local:{args.map}:slayer',
                HALO_NETWORK_TEST_START='5', HALO_NETWORK_TEST_SCORE='10000', HALO_BOTS=str(args.bots),
@@ -167,20 +173,29 @@ def main():
                     time.sleep(5)
             finally:
                 if process.poll() is None: process.terminate(); process.wait(10)
-        with (out/'frames.csv').open() as frames:
-            rows=[{k:float(v) for k,v in row.items()} for row in csv.DictReader(frames)]
-        report=summarize(rows,args.warmup,args.seconds,args.fps)
+        rows=[]
+        if (out/'frames.csv').exists():
+            with (out/'frames.csv').open() as frames:
+                rows=[{k:float(v) for k,v in row.items()} for row in csv.DictReader(frames)]
+        report={}
+        try:
+            report=summarize(rows,args.warmup,args.seconds,args.fps)
+        except ValueError as error:
+            report['measurement_error']=str(error)
         log=(out/'stderr.log').read_text(errors='replace')
         report.update(exit=process.returncode, fps=args.fps, enabled=args.enabled,
+                      unexpected_players=bool(re.search(r'\bplayer '+str(args.bots+1)+r':', log)),
                       bots_lines=[line for line in log.splitlines() if 'bots: tick' in line],
-                      errors=re.findall(r'(?im)^.*(?:exception halt|assertion failed|GL_INVALID|shader.*(?:error|failed)).*$',log),
-                      peak_private_mib=max(m['private'] for m in memory)/2**20,
-                      peak_rss_mib=max(m['rss'] for m in memory)/2**20,
-                      first_minute_private_mib=statistics.mean(m['private'] for m in memory if args.warmup+15<=m['seconds']<args.warmup+75)/2**20,
-                      last_minute_private_mib=statistics.mean(m['private'] for m in memory if m['seconds']>=args.warmup+args.seconds-45)/2**20)
+                      errors=re.findall(r'(?im)^.*(?:crash: exception|exception halt|assertion failed|GL_INVALID|shader.*(?:error|failed)).*$',log),
+                      peak_private_mib=max((m['private']/2**20 for m in memory),default=None),
+                      peak_rss_mib=max((m['rss']/2**20 for m in memory),default=None),
+                      first_minute_private_mib=memory_window_mib(memory,args.warmup+15,args.warmup+75),
+                      last_minute_private_mib=memory_window_mib(memory,args.warmup+args.seconds-45))
         (out/'report.json').write_text(json.dumps(report,indent=2))
         print(json.dumps(dict(label=args.label, **report)),flush=True)
-        assert report['exit']==0 and not report['errors'] and report['measured_span']>=args.seconds-.2
+        assert report['exit']==0 and not report['errors'], 'Game failed; retained report and logs describe the failure'
+        assert not report.get('measurement_error') and report['measured_span']>=args.seconds-.2, 'Incomplete measurement'
+        assert not report['unexpected_players'], 'Unexpected player joined the isolated workload'
         assert bool(report['selected_max'])==bool(args.enabled), 'Light activation mismatch'
         if args.seconds>=120: assert len(report['bots_lines'])>=args.seconds//60-1, 'Insufficient combat telemetry'
     finally:
