@@ -610,6 +610,8 @@ the setting for one start of the game. It has priority over the file.
 | `audio.volume` | `1.0` | `HALO_VOLUME` | The master volume. |
 | `audio.music_volume` | `1.0` | `HALO_MUSIC_VOLUME` | The music's volume, of the master volume. |
 | `audio.effects_volume` | `1.0` | `HALO_EFFECTS_VOLUME` | The volume of the other sounds (effects and speech), of the master volume. |
+| `audio.talking_timer` | `false` | `HALO_TALKING_TIMER` | Call the game clock aloud in multiplayer: the seconds left in each minute, a countdown from 10, and each minute as it turns, up to 30 minutes. |
+| `audio.timer_volume` | `0.8` | `HALO_TIMER_VOLUME` | The volume of the talking timer's voice, of the master volume. `0.8` plays its clips at their recorded level; `1.0` is 25% louder. |
 | `audio.buffer_frames` | `512` | `HALO_AUDIO_BUFFER_FRAMES` | The audio device's buffer, in sample frames at 48 kHz, from `64` to `8192`. Larger rides out stalls that would cut the sound out; smaller has less delay (512 is 11 ms, 2048 is 43 ms). Not on Android or the web. |
 | `audio.channels` | `"stereo"` | `HALO_AUDIO_CHANNELS` | `"stereo"`, or `"5.1"` for surround sound as with Dolby Digital on the Xbox. `"auto"`: 5.1 if the sound device has 6 or more channels. Linux and Windows only. |
 | `audio.hrtf` | `true` | `HALO_HRTF` | Measured Xbox directional filtering and ear delays for mono 3D voices on stereo headphones, speakers and 5.1. Enabled on every platform. `false` crossfades to panning; authored 2D music/UI remain dry in both modes. |
@@ -2127,6 +2129,7 @@ Other changes:
 | `objects/objects.c`, `objects/object_types.c`, `units/units.c` | An object deleted is passed to the objects that keep track of others (units and projectiles) and not handed to each of the others' types to find they have nothing to do. A unit's test of whether its seat can hold a weapon, which compares the seat's and weapon's labels by name with its animations', is remembered for the map by animation graph and labels: each object deleted makes every unit with no weapon in hand pick one again. In 32x co-op the Silent Cartographer's opening cutscene deletes about 600 weapons at once, with 660 units about: that tick took about 30 ms less. |
 | `physics/collision_models.c` | A vector tested against a model (a body's parts, a vehicle's) passes over a part whose collision geometry's bounding sphere (`object_bounds_cache.c`, worked out once from its vertices) the vector misses, without turning the vector into the part's space. Weapons falling among many bodies tested each body's parts one by one. |
 | `memory/lruv_cache.c` | Making or deleting a block of a cache (the decals', of 2048) checks that block's links with its neighbours, not every block of the cache, before and after: in a big fight each new bullet hole or scorch mark deleted the oldest and walked the whole cache several times, about 6% of a joined co-op player's slow frames. The whole cache is still checked when it is made, flushed or resized. |
+| `main/main.c` | The talking timer (`game/talking_timer.c`) runs each frame. |
 
 The x86 inline assembly of the game is replaced by C. Thus the compiler
 can optimize that code for each processor:
