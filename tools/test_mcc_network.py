@@ -133,8 +133,8 @@ int main(void) {
  CHECK(_distributed_message_chat_up == 87);
  CHECK(_distributed_message_chat_down == 88);
  CHECK(_distributed_message_chat_config == 89);
- CHECK(_distributed_message_mcc_grenades == 92);
- CHECK(_distributed_message_mcc_campaign == 93);
+ CHECK(_distributed_message_mcc_grenades == 93);
+ CHECK(_distributed_message_mcc_campaign == 94);
  for (i = 0; i < NUMBER_OF_DISTRIBUTED_MESSAGES; ++i) {
   h.type = i;
   CHECK(!!map_share_handles_message((word *)&h, sizeof(h)) == (i >= 83 && i <= 86));

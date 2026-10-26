@@ -130,6 +130,12 @@ Each platform has its own instructions:
 | Android (arm64 app, OpenGL ES 3, SDL3) | [port/android/README.md](port/android/README.md) |
 | Web (WebAssembly, WebGL 2, SDL3; desktop Chrome, Edge and Firefox) | [port/web/README.md](port/web/README.md) |
 
+Each release also has `SHA256SUMS`, the SHA-256 of each of its files, and
+`SHA256SUMS.sig`, that file's Ed25519 signature by the project's release
+key, whose public key is [deploy/release-key.pub](deploy/release-key.pub).
+`sha256sum -c --ignore-missing SHA256SUMS` checks the downloads, and
+`tools/release_sign.sh verify SHA256SUMS` (OpenSSL 3) the signature.
+
 The Linux README also covers the controls, every setting and the multiplayer features. These are almost the same on all platforms. The settings are in `config.toml` next to the game, and many are in the menus too.
 
 ## Can I play multiplayer?
