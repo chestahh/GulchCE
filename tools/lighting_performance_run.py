@@ -123,6 +123,7 @@ def main():
     parser.add_argument('--bots', type=int, default=15)
     parser.add_argument('--label', required=True)
     parser.add_argument('--build-dir', type=Path, default=ROOT/'build/lighting-performance-build')
+    parser.add_argument('--dump-shaders', action='store_true', help='Retain GLSL instead of screenshots for cache diagnosis; not an FPS acceptance run')
     args=parser.parse_args()
     assert re.fullmatch(r'[A-Za-z0-9_-]+', args.label)
     assert re.fullmatch(r'[1-9][0-9]*x[1-9][0-9]*', args.resolution)
@@ -149,11 +150,17 @@ def main():
                HALO_UPDATE_ANSWER='never', HALO_CRASH_REPORTS='no', HALO_NETWORK_TEST=f'local:{args.map}:slayer',
                HALO_NETWORK_TEST_START='5', HALO_NETWORK_TEST_SCORE='10000', HALO_BOTS=str(args.bots),
                HALO_BOT_SKILL='heroic', HALO_TEST_INPUT='bot:1', HALO_SCREENSHOT_DIR=str(out/'screenshots'))
+    if args.dump_shaders:
+        (out/'shaders').mkdir()
+        env['HALO_GPU_DUMP_SHADERS']=str(out/'shaders')
+        # Diagnose cache growth without periodic readback/large image allocations.
+        env['HALO_SCREENSHOT_DIR']=''
     build=args.build_dir.resolve()
     assert build.is_relative_to((ROOT/'build').resolve())
     shutil.copy2(build/'manifest.json', out/'build-manifest.json')
     (out/'settings.json').write_text(json.dumps(dict(resolution=args.resolution, fps=args.fps,
-        warmup=args.warmup, seconds=args.seconds, bots=args.bots, map=args.map, display=settings),indent=2))
+        warmup=args.warmup, seconds=args.seconds, bots=args.bots, map=args.map,
+        shader_dump=args.dump_shaders, display=settings),indent=2))
     memory=[]; start=time.monotonic(); process=None
     try:
         for name in ['ui.map', args.map+'.map']:
@@ -183,7 +190,7 @@ def main():
         except ValueError as error:
             report['measurement_error']=str(error)
         log=(out/'stderr.log').read_text(errors='replace')
-        report.update(exit=process.returncode, fps=args.fps, enabled=args.enabled,
+        report.update(exit=process.returncode, fps=args.fps, enabled=args.enabled, shader_dump=args.dump_shaders,
                       unexpected_players=bool(re.search(r'\bplayer '+str(args.bots+1)+r':', log)),
                       bots_lines=[line for line in log.splitlines() if 'bots: tick' in line],
                       errors=re.findall(r'(?im)^.*(?:crash: exception|exception halt|assertion failed|GL_INVALID|shader.*(?:error|failed)).*$',log),

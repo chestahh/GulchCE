@@ -36,6 +36,13 @@ light colours/radii, attenuation and shader equations are unchanged.
 
 ## Collision evidence
 
+The user later identified DaVinci Resolve running in the background and closed
+it. Earlier timings and endurance measurements below are diagnostic history,
+not the final clean acceptance evidence. The paired CPU benchmark, ten-minute
+memory controls and six sustained FPS cases use fresh
+processes after that change. Earlier exact ray comparisons remain correctness
+evidence; background contention does not turn a depth mismatch into a match.
+
 A first interleaved comparison checked at least 55,261,436 rays in combat with
 zero depth mismatches. Six focused 60 FPS comparison cases passed their runtime
 checks: moving door, Warthog, shorter Grunt, disabled Needler, vertex-lit Needler
@@ -53,6 +60,13 @@ with zero mismatches. Cumulative CPU time was 23,176.870 ms for the new path and
 benefit from warmed caches. This is a paired CPU measurement, not an FPS gain
 claim or proof of equivalence for every map.
 
+The completed clean paired repeat recorded 77,265,408 rays across 50,303 batches,
+again with zero mismatches. Cumulative CPU times were 23,347.742 ms accelerated
+and 37,794.423 ms original: **38.2% less tracing CPU time**, or about 0.464 versus
+0.751 ms per batch. These totals include warm-up/shutdown margins around the
+120-second measured combat interval. The doubled-work comparison is separate
+from timing-only FPS acceptance and retains the same cache-order limitation.
+
 All 61 final focused harness/reporter tests passed, including traversal, cache reset,
 missing models, ignored owners, vehicle flags, malformed leaves, overflow and
 negative controls. Normal Windows and diagnostic/capture builds succeeded.
@@ -60,6 +74,8 @@ Local Ninja has no Android/web targets; their required validation uses CI.
 The [four-platform build](https://github.com/chestahh/GulchCE/actions/runs/40246436679)
 and [MCC validation](https://github.com/chestahh/GulchCE/actions/runs/40246436634)
 both passed for production commit `feb5bc04`.
+The subsequent [benchmark-tooling build](https://github.com/chestahh/GulchCE/actions/runs/40247660080)
+also passed; it changes no production game source.
 The broader local Windows harness run had 1,010 passes and 67 failures in
 unrelated test facilities: POSIX APIs/headers, compiler-wrapper macro and
 deprecation conflicts, CRLF output expectations, and linking Unix `libm`.
@@ -110,4 +126,13 @@ The existing backend's `fragment_shader_get` and `program_get` retain compiled
 shader/program combinations for reuse. Its resource counters therefore help
 identify cache warm-up, but do not prove that every byte of process growth
 belongs to shaders. No shared renderer cache policy was changed in this pass.
-The corrected memory results and final sustained matrix are pending.
+
+The clean disabled diagnostic uses `--dump-shaders`: generated GLSL is retained
+instead of periodic screenshots, avoiding their readback and large image
+allocations. The enabled resource run retains its usual screenshots, so these
+two diagnostic runs must not be treated as a matched on/off memory-cost delta.
+Both are separate from the timing-only acceptance cases. Exact SHA-256 grouping
+of captured fragment sources already demonstrates duplicate compilation under
+different cache keys with lighting disabled. This is evidence of redundant
+retained shader objects, not a measurement of their complete driver footprint.
+Final counts, memory trends and the sustained matrix are pending.
