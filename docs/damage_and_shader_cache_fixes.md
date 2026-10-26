@@ -155,3 +155,7 @@ Local evidence includes `build/damage-owner-runtime.json`,
 `build/shader-cache-final-visual.json`, the transition/network report folders,
 `build/damage-shader-final-regression.log` and `build/damage-shader-cleanup.json`.
 Retail data/captures are not committed. No further endurance rerun was queued.
+
+The subsequent approved [20-minute stability check](dynamic_lighting_stability.md)
+records sustained 30/60 FPS, the remaining 120 FPS shortfall and bounded
+process-memory observations on this unchanged implementation.
