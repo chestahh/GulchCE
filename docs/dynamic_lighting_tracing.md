@@ -1,6 +1,9 @@
 # Collision tracing and memory follow-up
 
 This follows the [occlusion/GPU optimisation pass](dynamic_lighting_optimisation.md).
+The later [damage and shader-cache follow-up](damage_and_shader_cache_fixes.md)
+records fixes for the crash and shader duplication identified here. Results
+below describe the earlier implementation and remain historical evidence.
 The assignment preserves current lighting quality, host policy, stock behaviour
 when disabled, and off defaults. CStencil and Modern remain outside scope.
 

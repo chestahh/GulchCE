@@ -82,3 +82,76 @@ shader translation. Source comparison confirms the visibility functions,
 compile/link functions, `program_get`, `prepare_draw`, presentation and shader
 translators remain unchanged. No new AMD hardware run is available; GPU runtime
 observations here use the NVIDIA RTX 5070 Ti.
+
+## Real-renderer cache checks
+
+Two isolated 180-second measured Carousel runs (30-second warm-up, 15 Heroic
+bots, 640x480/30 FPS) completed normally with no detected runtime errors. They
+ran concurrently to check correctness/resource counts, not comparative FPS or
+memory cost. GLSL dumping replaced screenshot readback in these diagnostics.
+
+| Lighting | Full-state keys | Distinct fragment sources | Duplicate compilations avoided | Linked programs | Retained source bytes |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Off | 466 | 64 | 402 (86.3%) | 82 | 381,681 |
+| On | 538 | 65 | 473 (87.9%) | 85 | 386,104 |
+
+Counts are the final samples, including warm-up/shutdown margins. Independent
+SHA-256 grouping of every dumped fragment source exactly matched the source
+cache counts, and file counts matched full-state entries. Each distinct source
+is compiled once; key aliases reuse that object. Percentages describe avoided
+fragment compilation/object duplication in these runs, not FPS or memory savings.
+The new source strings occupy about 0.36-0.37 MiB. The previous diagnostic
+compiled one object per key; its different workload/resolution prevents an
+honest before/after process-memory or program-count percentage claim.
+
+This repairs the confirmed duplication, but does not prove a steady-state
+memory plateau or attribute every remaining allocation. Vertex shaders and
+other retained renderer resources remain outside this focused change.
+
+## Combined validation
+
+The shader commit's [four-platform workflow](https://github.com/chestahh/GulchCE/actions/runs/40255510975)
+passed Windows, Linux, Android and web builds and configured tests; its
+[MCC workflow](https://github.com/chestahh/GulchCE/actions/runs/40255510976) passed.
+Android/web builds were performed in CI, not represented as local hardware runs.
+
+Nine final visual cases passed their runtime checks. Contact sheets were
+inspected for crouched Needler holders at 30 FPS, a shorter Grunt and
+first-person AR at 60, Warthog and shield charge/depletion at 120, a moving door
+at 60, and disabled/vertex-lit/CE controls at 60. No new visual regression was
+observed in these samples. They are 640x480 still captures, not every case at
+every cap, continuous animation review, or full campaign/material coverage.
+
+Xbox c40 -> MCC Mercury Falling -> CE Death Island -> Xbox Blood Gulch
+completed with lighting off at 30 FPS and on at 120 FPS. Each sequence logged
+all requested map loads and exited normally without exceptions. These are
+bounded render/lifecycle checks rather than proof of full map compatibility.
+
+A normal-build two-player Windows loopback session also exited normally, with
+36 host and 32 client two-player snapshots, eight scripted firing events per
+peer and no detected runtime errors. Other lighting was enabled on the host
+and disabled on the client; the host requested `glow_overshield` while the
+client's local policy was `stock`. This supplements the unchanged policy and
+admission tests, not internet crossplay or comprehensive co-op validation.
+
+The combined review covered the complete damage lookup, source cache,
+integration, diagnostics, tests and documentation. No broader refactoring was
+needed. Host policy, optional lighting defaults, shader equations, AMD/NVIDIA
+query delivery and map-family loading/conversion remain unchanged. These fixes
+do not by themselves establish locked 120 FPS or finish the 1.0 performance
+acceptance milestone.
+
+All recorded production source hashes matched the restored sources, and the
+normal Windows binary contains neither damage-owner logging nor capture/timing
+fixtures. No owned game processes remain. Cleanup removed temporary maps and
+generated caches after runs and another 63,314,236 bytes of diagnostic binaries
+and fixture objects at completion. All 332 archived test-save files
+(356,663,960 bytes uncompressed) were verified against their SHA-256 manifests.
+About 55 MiB of diagnostic evidence remains; original maps/saves, toolchains
+and the normal Windows build were preserved.
+
+Local evidence includes `build/damage-owner-runtime.json`,
+`build/shader-cache-runtime.json`, `build/shader-cache-counts.json`,
+`build/shader-cache-final-visual.json`, the transition/network report folders,
+`build/damage-shader-final-regression.log` and `build/damage-shader-cleanup.json`.
+Retail data/captures are not committed. No further endurance rerun was queued.
