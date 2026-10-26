@@ -77,6 +77,26 @@ and the final presentation flip must agree. The opening comment in
 OpenGL ES/WebGL adaptations. Do not assume a desktop GL facility is available
 on Android or the web because the C file is shared.
 
+`fragment_shader_get` first caches the complete pixel-shader state key, so a
+repeat draw does not translate GLSL again. GulchCE's `fragment_source_get`
+then reuses a compiled fragment shader only when the generated source matches
+byte for byte. A hash narrows the search; `strcmp` decides equality. For
+example, two different state keys that emit identical GLSL keep separate key
+entries but reference one compiled shader. `program_get` can consequently reuse
+the same link when the vertex shader also matches. Uniform updates still run
+through the existing per-program serial/state checks.
+
+The source cache owns one generated string and shader result per distinct
+source, including a failed compile result. Full-key entries borrow the shader
+ID. If a source-entry allocation fails, the full-key cache retains its compiled
+result without sharing. These entries have the existing device/context lifetime
+and retain no map pointers; they are not freed during map transitions. This
+does not add context recreation to the backend. See the
+[cache tests](../../tools/harness/tests/test_fragment_source_cache.py) and
+[fix report](../damage_and_shader_cache_fixes.md) for validation and limits.
+Shader generation, AMD's direct visibility readback and the asynchronous
+buffered readback used by NVIDIA remain unchanged.
+
 At presentation, `D3DDevice_Present` unbinds the OpenGL read framebuffer
 before `platform_video_swap`. The read framebuffer selects the image used
 by pixel-read and copy operations; binding zero selects the default window
