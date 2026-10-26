@@ -2,12 +2,12 @@
 #ifndef MCC_PROTOCOL_H
 #define MCC_PROTOCOL_H
 
-/* OpenCE 38 uses advertisement byte 3 for the gametype kind. MCC capability
- * moves to bytes 4-5; version 57 requires the MCC-only 4 KiB script-stack capacity. */
-#define MCC_PROTOCOL_VERSION 57
-#define MCC_PROTOCOL_ADVERTISED_FLAG 0x04
+/* OpenCE 39 owns flag 0x04 and message 92. MCC version 59 separates its
+ * capability flag, gameplay messages and pre-admission envelope from those. */
+#define MCC_PROTOCOL_VERSION 59
+#define MCC_PROTOCOL_ADVERTISED_FLAG 0x08
 #define MCC_PROTOCOL_ADVERTISED_VERSION_OFFSET 4
-#define MCC_PROTOCOL_JOIN_KIND 92
+#define MCC_PROTOCOL_JOIN_KIND 97
 #define MCC_PROTOCOL_JOIN_MAX 256
 
 struct network_game;
