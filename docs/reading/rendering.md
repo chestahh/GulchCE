@@ -122,6 +122,11 @@ specific contracts. They do not establish visual quality across all maps.
 
 ## Vulkan branch notes
 
+On this branch, `shell_xbox.c` runs `server_mode_start` before the optional
+`halo_vulkan_startup_test`. Command-line answers therefore exit before
+graphics initialization, and dedicated servers skip the Vulkan presentation
+test. Ordinary player startup retains the opt-in test and scene selection.
+
 The optional renderer on `vulkan-renderer` has dedicated state in
 [vulkan_game.c](https://github.com/chestahh/GulchCE/blob/vulkan-renderer/port/linux/src/vulkan/vulkan_game.c),
 scene resources and submission in

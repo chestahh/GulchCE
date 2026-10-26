@@ -104,11 +104,18 @@ shell_idle(
 int main(
 	void)
 {
+	/* port: the command line's --version, --keygen..., and a dedicated
+	server's checks of its game data and settings, before anything is
+	allocated or bound (port/linux/src/server_mode.c) */
+	server_mode_start();
 #ifdef HALO_NATIVE_VULKAN
-	/* port: opt-in native presentation test exits before game/map initialization. */
-	int vulkan_test = halo_vulkan_startup_test();
-	if (vulkan_test >= 0)
-		return vulkan_test;
+	/* port: the presentation test is a player startup path, never a dedicated server's. */
+	if (!halo_server_mode())
+	{
+		int vulkan_test = halo_vulkan_startup_test();
+		if (vulkan_test >= 0)
+			return vulkan_test;
+	}
 #endif
 	fuck_code_in_the_eye();
 	rasterizer_preinitialize__fill_you_up_with_the_devils_cock();

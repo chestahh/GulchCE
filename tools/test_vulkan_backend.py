@@ -11,6 +11,37 @@ ROOT = Path(__file__).resolve().parents[1]
 BACKEND = ROOT / "port/linux/src/vulkan"
 
 
+def test_server_startup_skips_vulkan_presentation(tmp_path):
+    from harness import function
+    cc = shutil.which("clang")
+    if not cc:
+        pytest.skip("clang required")
+    entry = function((ROOT / "source/shell/shell_xbox.c").read_text(), "main")
+    entry = entry[:entry.index("\tfuck_code_in_the_eye();")]
+    entry = entry.replace("int main(", "int start_game(") + "return 42;\n}\n"
+    code = r'''
+#define HALO_NATIVE_VULKAN 1
+static int dedicated, started, tested;
+static void server_mode_start(void) {started++;}
+static int halo_server_mode(void) {return dedicated;}
+static int halo_vulkan_startup_test(void) {tested++;return started ? 7 : 8;}
+''' + entry + r'''
+int main(void) {
+    if(start_game()!=7 || started!=1 || tested!=1)return 1;
+    dedicated=1;started=tested=0;
+    if(start_game()!=42 || started!=1 || tested)return 2;
+    return 0;
+}
+'''
+    source = tmp_path / "startup.c"
+    source.write_text(code)
+    output = tmp_path / ("startup.exe" if os.name == "nt" else "startup")
+    flags = ["--target=i686-pc-windows-msvc", "-fuse-ld=lld"] if os.name == "nt" else ["-m32"]
+    subprocess.run([cc, *flags, "-std=gnu89", "-Werror", str(source), "-o", str(output)],
+                   check=True, capture_output=True)
+    subprocess.run([str(output)], check=True, capture_output=True, timeout=10)
+
+
 @pytest.mark.parametrize("fault", [None, "early_fence", "partial", "wait", "wrong_slot", "reuse", "query_error", "teardown"])
 def test_completion_ownership(tmp_path, fault):
     cc = shutil.which("clang")
