@@ -143,3 +143,6 @@ and file history when comparing a later implementation with this explanation.
 | Where are GulchCE's MCC boundaries? | [Coding standards](../../CODINGSTANDARDS.md#scope-and-implementation-boundaries) |
 | How do menu generators relate to the saved XML? | [Menu assets](../../port/assets/menus/README.md) |
 | What can tests establish without retail assets? | [Harness](../../tools/harness/README.md) and [Stagekit](../../tools/stagekit/README.md) |
+
+[Controller detection and button styles](controller_buttons.md) follows device identity,
+automatic family filtering and gameplay glyph ownership.

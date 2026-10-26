@@ -153,3 +153,6 @@ generated XML changes tied to the intended generator change.
 
 Continue with [objects and gameplay](objects_and_gameplay.md), or return to
 the [guide](README.md).
+
+For the optional AUTO BUTTON DETECTION setting and independent manual/family
+preferences, see [controller detection and button styles](controller_buttons.md).

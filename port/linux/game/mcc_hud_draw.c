@@ -16,11 +16,11 @@
 #include "mcc_cache.h"
 #include "mcc_hud_draw.h"
 #include "hud_button_layout.h"
+#include "controller_glyphs.h"
 #include <string.h>
 
 long halo_screen_width(void);
 int config_boolean(char const *name);
-char const *config_string(char const *name);
 long hud_hires_asset_count(void);
 char const *hud_hires_asset_tag(long asset);
 void hud_hires_register_placeholder(long asset, unsigned long const *texture);
@@ -108,8 +108,8 @@ static struct bitmap_data const *mcc_hud_button_bitmap(short index)
     short style;
     if (index<0 || index>=14 || (index>=6 && !config_boolean("display.high_res_hud"))) return NULL;
     /* Keep the established MCC low-res path; the style belongs to High-Res HUD. */
-    style=!config_boolean("display.high_res_hud") || (!strcmp(config_string("display.hud_button_style"), "dark_gems") || !strcmp(config_string("display.hud_button_style"), "menu_gems")) ? 2 :
-        !strcmp(config_string("display.hud_button_style"),"gems");
+    style=config_boolean("display.high_res_hud") ? controller_glyph_style() : 2;
+    if (style>=3) style=0;
     if (style!=mcc_buttons_style) {
         mcc_hud_glyphs_dispose();
         mcc_buttons_style=style;
@@ -206,8 +206,20 @@ boolean mcc_hud_icon_draw(long bitmap_group_index, struct bitmap_data const *bit
     if (!mcc_cache_tags_loaded()) return FALSE;
     viewport_scale=!menu && local_player_count()>1 ? 0.75f : 1.0f;
     if (!menu) {
-        short button_index=mcc_hud_button_index(icon);
-        struct bitmap_data const *button=mcc_hud_button_bitmap(button_index);
+        short button_index;
+        struct bitmap_data const *button;
+        /* MCC identifies its own entries; authored pickup/weapon icons retain
+         * their map artwork. The optional glyph service owns only new styles. */
+        if (config_boolean("display.high_res_hud") && hud_globals &&
+            hud_globals->messaging.button_icons.address) {
+            short entry;
+            struct icon_hud_element_definition const *buttons=hud_globals->messaging.button_icons.address;
+            for (entry=0;entry<18 && entry<hud_globals->messaging.button_icons.count;entry++)
+                if (icon==buttons+entry && controller_glyph_draw(controller_glyph_style(),entry,icon,cursor,color,xgpu_mcc_texture_unbind))
+                    return TRUE;
+        }
+        button_index=mcc_hud_button_index(icon);
+        button=mcc_hud_button_bitmap(button_index);
         if (button) {
             /* Match the native High-Res HUD's 21x26 face, capital center
              * and text advance. Low-res MCC retains its existing geometry. */

@@ -1778,6 +1778,9 @@ static void video_rows_show(struct widget_instance *list)
 
 /* Graphics' button style follows the pending HUD choice, including Defaults.
 The remaining options close the gap; the help and bottom buttons stay put. */
+#include "controller_buttons.h"
+#include "controller_button_menu.inl"
+
 static void hud_button_style_row_show(struct widget_instance *list)
 {
 	struct widget_instance *hud = named(list, "high_res_hud_spinner", 0);
@@ -1787,6 +1790,11 @@ static void hud_button_style_row_show(struct widget_instance *list)
 	short index;
 	boolean visible;
 
+	if (named(list, "op_auto_button_detection", 0))
+	{
+		controller_button_rows_show(list);
+		return;
+	}
 	if (!setting || !row) return;
 	index = hud->parameters.list.selected_index;
 	visible = index >= 0 && index < setting->value_count && !strcmp(setting->values[index], "true");
