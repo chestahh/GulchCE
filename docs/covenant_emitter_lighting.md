@@ -8,7 +8,8 @@ variables are `HALO_JACKAL_SHIELD_LIGHTING`, `HALO_FUEL_ROD_LIGHTING` and
 visibility filter. CStencil and Modern are separate work.
 
 `port/linux/game/covenant_emitter_lighting.c` owns eight additional render lights
-shared by these options and the optional Assault Rifle counter. Stock effects, tag data, damage, weapons, explosions and
+shared by these options, the optional Assault Rifle counter and held Needler.
+Stock effects, tag data, damage, weapons, explosions and
 network state are unchanged. Excess emitters retain stock appearance. Stable
 admission avoids swapping lights every frame when the budget is full. Lights
 fade between 22 and 25 world units from the nearest local camera.

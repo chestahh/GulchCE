@@ -1,7 +1,7 @@
 /*
 OVERSHIELD_EFFECT.C
 
-The overshield, as this machine draws it (Video Setup > Graphics >
+The overshield, as this machine draws it (Video Setup > Extra Effects >
 Overshield, display.overshield_effect; off, the game's own):
 
 - As it charges, the shield's flare rises up the body from the feet to the

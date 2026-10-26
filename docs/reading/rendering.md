@@ -150,9 +150,10 @@ The branch's [plasma reference](https://github.com/chestahh/GulchCE/blob/dynamic
 explains falloff and approximate collision-based occlusion; its
 [emitter reference](https://github.com/chestahh/GulchCE/blob/dynamic-lighting-test/docs/covenant_emitter_lighting.md)
 explains exact tag/marker eligibility and bounded additional lights.
-Approximate occlusion is not a complete shadow system. Read the implementation
-alongside older milestone notes: the plasma document still names its original
-prototype branch, while the combined work is on `dynamic-lighting-test`.
+Approximate occlusion is not a complete shadow system. The
+[release-candidate guide](../dynamic_lighting_release.md) describes current
+controls and known limits; the plasma document retains historical milestone
+evidence, with its original prototype restrictions explicitly labelled.
 
 The branch's [plasma tests](https://github.com/chestahh/GulchCE/blob/dynamic-lighting-test/tools/harness/tests/test_plasma_lighting.py)
 and related falloff, occlusion and emitter harnesses are evidence about

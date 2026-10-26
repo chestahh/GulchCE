@@ -22,7 +22,9 @@ Light Occlusion remains a local rendering preference, as for the other emitters.
    `overshield_effect_light_sample` use `overshield_effect_layer_color`: green
    above 200% total shield, pink at or below it. `overshield_effect_reset` clears
    model-height caches, units and arm pointers on map/light-array boundaries;
-   effective disable also clears this state.
+   effective disable also clears this state. `overshield_effect_find_values`
+   matches queued body/arm draws for both colour and height fading. Colour
+   lookup does not compute unused fade parameters or scan the effect list twice.
 3. [shield_glow.c](../../port/linux/game/shield_glow.c), `shield_glow_sample`,
    resolves the same selected shader and colour rules as the surface. Normal
    flares use its evaluated intensity source/exponent and the selected recharge

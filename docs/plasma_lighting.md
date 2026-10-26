@@ -1,9 +1,16 @@
-# Plasma lighting prototype
+# Dynamic lighting implementation history
 
-Work lives on `plasma-lighting-prototype`, based on `main`.
-`chesters-cool-stuff` remains an unchanged local reference. CStencil, Modern,
-muzzle flashes remain a separate milestone. Rocket flight lighting now uses
-the same optional system.
+The current implementation is on `dynamic-lighting-test`. See the
+[release-candidate guide](dynamic_lighting_release.md) for the current feature
+set, menu controls, known limitations and acceptance status. Muzzle lighting,
+Covenant projectiles, held-weapon emitters and shield lighting are implemented;
+CStencil and Modern remain separate work. `chesters-cool-stuff` remains a local
+reference.
+
+The sections below preserve the chronological implementation and test record,
+starting with `plasma-lighting-prototype`. Earlier radii, exclusions, deferred
+features and test limits describe those stages; later entries supersede them.
+They are not the current release checklist.
 
 Set `plasma_lighting = true` in config.toml's `[display]` section, or
 `HALO_PLASMA_LIGHTING=1`. The default is false. Keep `display.interpolation`
