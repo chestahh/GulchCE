@@ -153,6 +153,19 @@ not execute on Xbox or CE maps. See the
 and the current version constants rather than hard-coding a number from
 this guide.
 
+OpenCE's dedicated-server update adds a separate advertisement flag and a
+client-build report. MCC reserves different values for its capability and
+messages, including its pre-admission join envelope. The envelope is checked
+before ordinary distributed messages, so sharing its number with the build
+report would reject that report before dispatch. `test_mcc_protocol.py`
+checks these assignments, dedicated/MCC flag independence, and admission
+with the server's player-name filter enabled.
+
+For dedicated hosting, start at [dedicated_server.md](../dedicated_server.md),
+then read `server_director.c` for rotation and session ownership and
+`server_commands.c` for administration. These are upstream additions; they
+do not make an MCC capability claim sufficient to pass normal admission.
+
 `online-third-person` has additional camera-related protocol distinctions.
 Read that branch's own NETCODE and protocol headers before assuming that a
 visually local feature has no session compatibility consequences. None of

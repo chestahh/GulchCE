@@ -1,7 +1,7 @@
-"""Admission and the OpenCE 38 baseline with explicit experimental camera extensions.
+"""Admission and the OpenCE 39 baseline with explicit experimental camera extensions.
 
 The AGPL-3.0-or-later baseline fixture comes unchanged from OpenCommunityEdition/OpenCE
-5e27f3a27b2d3c27d3edeb450fe40c24defb9c15, port/linux/network_format.txt.
+3c7ed45e6fe2f286e8e2d175370b04d06f9e1c6e, port/linux/network_format.txt.
 Update it only after auditing and testing a new upstream protocol.
 """
 from pathlib import Path
@@ -15,9 +15,9 @@ import network_format
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def test_opence_38_contract_with_camera_extensions():
-    lines = (ROOT / "tools/fixtures/opence_network_38.txt").read_text().splitlines()
-    assert lines[0] == "version 38"
+def test_opence_39_contract_with_camera_extensions():
+    lines = (ROOT / "tools/fixtures/opence_network_39.txt").read_text().splitlines()
+    assert lines[0] == "version 39"
     expected = {f"{kind} {name}": value for kind, name, value in
                 (line.split(" ", 2) for line in lines[1:])}
     actual = network_format.items()
@@ -32,7 +32,7 @@ def test_opence_38_contract_with_camera_extensions():
     actual["bound DISTRIBUTED_RELAYED_ACTION_MAXIMUM_SIZE"] = "14 + 2 * (DISTRIBUTED_INPUT_HISTORY - 1)"
     assert {key: actual.get(key) for key in expected} == expected
     limits = (ROOT / "port/linux/include/halo_port_limits.h").read_text()
-    assert re.search(r"#define HALO_PORT_NETWORK_VERSION 40\b", limits)
+    assert re.search(r"#define HALO_PORT_NETWORK_VERSION 41\b", limits)
     # All fields of the transmitted prefix match upstream, including names,
     # types and order. The Windows build also asserts the actual ABI offsets.
     header = (ROOT / "source/networking/network_game_manager.h").read_text()
@@ -59,7 +59,7 @@ typedef int boolean;
 #define TRUE 1
 #define FALSE 0
 #define HALO_PORT_NETWORK_GAME_PLAYERS_END 6
-#define HALO_PORT_NETWORK_VERSION 40
+#define HALO_PORT_NETWORK_VERSION 41
 #define HALO_PORT_MAXIMUM_NETWORK_MACHINES 4
 #define NUMBEROF(a) (sizeof(a)/sizeof((a)[0]))
 #define csmemcpy memcpy
@@ -97,7 +97,7 @@ int main(void) {
     byte saved;
     int i;
     memset(&game,0,sizeof(game));strcpy(game.map.name,"levels\\test\\bloodgulch\\bloodgulch");
-    CHECK(mcc_protocol_version(game.map.name)==40);
+    CHECK(mcc_protocol_version(game.map.name)==41);
     CHECK(mcc_protocol_settings_size(&game)==64);
     CHECK(mcc_protocol_settings_valid(&game,64));CHECK(!mcc_protocol_settings_valid(&game,96));
     build_message_header(original,sizeof(original),3,0);
@@ -239,7 +239,7 @@ struct network_message {word header;};
 static struct network_game game;
 static struct network_machine machine;
 static struct network_message fake_reply;
-static int state,late,joined,decode_ok,token_ok,slots,open_game,banned,accepted,capable,requires_mcc;
+static int state,late,joined,decode_ok,token_ok,slots,open_game,banned,accepted,capable,requires_mcc,name_blocked;
 static int decode(void *out) {
  struct message_client_join_game_request *q=out;
  memset(q,0,sizeof(*q));memset(q->join_game_token,token_ok?7:8,16);return decode_ok;
@@ -270,10 +270,12 @@ static int accept(void) {if(banned)return 0;accepted++;return 1;}
 #define network_game_server_send_game_settings_to_client_machine(...) 1
 #define network_game_server_send_game_data_pregame(s) 1
 #define network_game_server_last_refusal_code() 0
+#define network_chat_name_blocked(...) name_blocked
+#define network_game_server_refuse_with(...) ((void)0)
 #define network_event(...) ((void)0)
 ''' + join + r'''
 static void reset(void) {
- state=0;late=joined=banned=accepted=capable=requires_mcc=0;
+ state=0;late=joined=banned=accepted=capable=requires_mcc=name_blocked=0;
  decode_ok=token_ok=slots=open_game=1;
 }
 static int try_join(int capability) {
@@ -289,6 +291,7 @@ int main(void) {
   reset();requires_mcc=mcc;slots=0;CHECK(!try_join(cap) && !accepted);
   reset();requires_mcc=mcc;open_game=0;CHECK(!try_join(cap) && !accepted);
   reset();requires_mcc=mcc;banned=1;CHECK(!try_join(cap) && !accepted);
+  reset();requires_mcc=mcc;name_blocked=1;CHECK(!try_join(cap) && !accepted);
   reset();requires_mcc=mcc;state=1;CHECK(!try_join(cap) && !accepted);
   reset();requires_mcc=mcc;state=1;late=1;CHECK(try_join(cap)==(!mcc||cap));CHECK(accepted==(!mcc||cap));
   reset();requires_mcc=mcc;joined=1;try_join(cap);CHECK(!accepted && !capable);
@@ -351,6 +354,10 @@ int main(void) {
  connection=_game_connection_network_server;check(_distributed_message_player_inputs,NONE);
  if(applied) return 5;
  check(_distributed_message_player_inputs,1);if(applied!=1) return 6;
+ applied=0;mcc=0;connection=_game_connection_network_server;
+ check(_distributed_message_client_build,1);if(applied!=1)return 7;
+ connection=_game_connection_network_client;
+ check(_distributed_message_client_build,NONE);if(applied!=1)return 8;
  return 0;
 }
 '''
@@ -368,12 +375,16 @@ def test_chat_and_mcc_message_ids_are_disjoint():
     assert len(messages.values()) == len(set(messages.values()))
     assert messages["enum _distributed_message_aim_assist_policy"] == 90
     assert messages["enum _distributed_message_shield_effects"] == 91
+    assert messages["enum _distributed_message_client_build"] == 92
+    protocol = (ROOT / "port/linux/game/mcc_protocol.h").read_text()
+    join_kind = int(re.search(r"#define MCC_PROTOCOL_JOIN_KIND (\d+)", protocol).group(1))
+    assert join_kind not in messages.values()
     header = (ROOT / "port/linux/game/network_distributed.h").read_text()
-    assert header.index("_distributed_message_aim_assist_policy = 90") < header.index("_distributed_message_mcc_grenades = 92")
+    assert header.index("_distributed_message_aim_assist_policy = 90") < header.index("_distributed_message_mcc_grenades = 93")
     assert [messages["enum _distributed_message_chat_" + name]
             for name in ("up", "down", "config")] == [87, 88, 89]
     assert [messages["enum _distributed_message_mcc_" + name]
-            for name in ("grenades", "campaign", "object_names", "game_speed")] == [92, 93, 94, 95]
+            for name in ("grenades", "campaign", "object_names", "game_speed")] == [93, 94, 95, 96]
     # The receive boundary must admit chat in ordinary sessions while rejecting
     # MCC data before dispatch; it also applies recursively to batched messages.
     receiver = function((ROOT / "port/linux/game/network_distributed.c").read_text(),
@@ -401,6 +412,8 @@ typedef unsigned short word;
 #define _network_game_server_state_pregame 0
 struct game {struct {char name[32];} map; int variant, variant_options;};
 static struct {word version;byte flags,kind;} network_game_client_advertised_versions[1];
+static int dedicated;
+static int halo_server_mode(void) {return dedicated;}
 static int game_modes_kind(int const *variant,int const *options) {(void)options;return *variant;}
 static int network_game_server_get_state(void *server,void *state) {(void)server;(void)state;return 0;}
 static int network_game_server_game_is_loading(void *server) {(void)server;return 0;}
@@ -427,14 +440,16 @@ static void read_advertisement(byte const *bytes) {
 }
 int main(void) {
     byte bytes[26];int kind,mcc;
-    for(mcc=0;mcc<2;mcc++)for(kind=0;kind<256;kind++) {
+    for(dedicated=0;dedicated<2;dedicated++)for(mcc=0;mcc<2;mcc++)for(kind=0;kind<256;kind++) {
         write_advertisement(bytes,kind,mcc);read_advertisement(bytes);
         if(network_game_client_advertised_versions[0].kind!=kind)return 1;
         if(network_game_client_advertised_versions[0].version!=(mcc?MCC_PROTOCOL_VERSION:BASE_VERSION))return 2;
         if(!(network_game_client_advertised_versions[0].flags&MCC_PROTOCOL_ADVERTISED_FLAG))return 3;
+        if(!!(network_game_client_advertised_versions[0].flags&HALO_PORT_ADVERTISED_DEDICATED_FLAG)!=dedicated)return 6;
         bytes[MCC_PROTOCOL_ADVERTISED_VERSION_OFFSET]^=1;read_advertisement(bytes);
         if(network_game_client_advertised_versions[0].flags&MCC_PROTOCOL_ADVERTISED_FLAG)return 4;
         if(network_game_client_advertised_versions[0].kind!=kind)return 5;
+        if(!!(network_game_client_advertised_versions[0].flags&HALO_PORT_ADVERTISED_DEDICATED_FLAG)!=dedicated)return 7;
     }
     return 0;
 }

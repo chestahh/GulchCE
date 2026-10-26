@@ -138,6 +138,17 @@ def test_host_camera_menu_layout():
         assert all(int(root.find(f"widget[@name='{base}{name}']").attrib["height"]) >= 28 for name in common + mode)
     spinner = root.find(f"widget[@name='{base}camera_policy_spinner']")
     assert spinner.attrib["strings"] == "PLAYER CHOICE|FORCED ON|FORCED OFF"
+    # Camera help adds three entries before map sharing and publisher help.
+    import re
+    menus = (ROOT / "port/linux/game/menu_functions.c").read_text()
+    stored = ET.parse(ROOT / "port/assets/menus/ce/main_menu.multiplayer_type_select.server_settings.xml").getroot()
+    for document in (root, stored):
+        help_text = [entry.attrib["text"] for entry in
+                     document.find(f"strings[@name='{base}help_strings']")]
+        for name, phrase in (("MAP_SHARE_OPTIONS_HELP", "Custom Edition map"),
+                             ("SERVER_LISTING_PUBLISHER_HELP", "publisher key")):
+            index = int(re.search(r"#define " + name + r" (\d+)", menus).group(1))
+            assert phrase in help_text[index]
     spec = port_settings.SCREENS["video_settings/fov_viewmodels"]
     assert 1 + len(spec["rows"]) + len(spec["categories"]) == 10
     assert spec["extra_help"][0].startswith("CONTROLLED BY HOST")
