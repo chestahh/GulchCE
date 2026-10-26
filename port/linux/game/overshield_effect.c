@@ -384,6 +384,21 @@ boolean overshield_effect_arms_values(
 	return TRUE;
 }
 
+/* Queued body and arms draws share the same identity and activation rules. */
+static struct overshield_effect const *overshield_effect_find_values(real const *values)
+{
+	short index;
+	if (!values || !overshield_effect_enabled())
+		return NULL;
+	for (index = 0; index < OVERSHIELD_EFFECT_MAXIMUM; index++)
+	{
+		struct overshield_effect const *effect = &overshield_effects[index];
+		if (effect->unit_index != NONE && (values == effect->body_values || values == effect->arms_values))
+			return effect;
+	}
+	return NULL;
+}
+
 /* a plasma shader drawn with values from overshield_effect_values (or
 overshield_effect_arms_values, with no fade): the speed its energy moves
 at, and the height it fades above on its model (the fade's inverse softness
@@ -394,32 +409,23 @@ boolean overshield_effect_draw(
 	real *inverse_softness,
 	real *height)
 {
-	short index;
-
-	if (!values || !overshield_effect_enabled())
+	struct overshield_effect const *effect = overshield_effect_find_values(values);
+	if (!effect)
 		return FALSE;
-	for (index = 0; index < OVERSHIELD_EFFECT_MAXIMUM; index++)
+	*energy_speed = OVERSHIELD_EFFECT_ENERGY_SPEED;
+	*inverse_softness = 0.f;
+	*height = 0.f;
+	/* (the arms come up whole: they are not on the body's heights) */
+	if (values == effect->body_values && effect->top > effect->bottom && effect->progress < 1.f)
 	{
-		struct overshield_effect const *effect = &overshield_effects[index];
+		real edge = OVERSHIELD_EFFECT_EDGE * (effect->top - effect->bottom);
 
-		if (effect->unit_index == NONE || (values != effect->body_values && values != effect->arms_values))
-			continue;
-		*energy_speed = OVERSHIELD_EFFECT_ENERGY_SPEED;
-		*inverse_softness = 0.f;
-		*height = 0.f;
-		/* (the arms come up whole: they are not on the body's heights) */
-		if (values == effect->body_values && effect->top > effect->bottom && effect->progress < 1.f)
-		{
-			real edge = OVERSHIELD_EFFECT_EDGE * (effect->top - effect->bottom);
-
-			/* (from all of the edge below the feet to all of it above the
-			head) */
-			*inverse_softness = 1.f / edge;
-			*height = effect->bottom + (effect->top - effect->bottom + edge) * effect->progress;
-		}
-		return TRUE;
+		/* (from all of the edge below the feet to all of it above the
+		head) */
+		*inverse_softness = 1.f / edge;
+		*height = effect->bottom + (effect->top - effect->bottom + edge) * effect->progress;
 	}
-	return FALSE;
+	return TRUE;
 }
 
 /* whether an effect a hit on an overshield may play in place of its own:
@@ -469,25 +475,15 @@ boolean overshield_effect_color(
 	real_rgb_color *perpendicular,
 	real_rgb_color *parallel)
 {
-	real energy_speed, inverse_softness, height;
+	struct overshield_effect const *effect = overshield_effect_find_values(values);
 	real peak;
 	real perpendicular_brightness;
 	real parallel_brightness;
-	real_rgb_color const *color = &overshield_effect_rgb;
-	short index;
+	real_rgb_color const *color;
 
-	if (!overshield_effect_draw(values, &energy_speed, &inverse_softness, &height))
+	if (!effect)
 		return FALSE;
-	for (index = 0; index < OVERSHIELD_EFFECT_MAXIMUM; index++)
-	{
-		struct overshield_effect const *effect = &overshield_effects[index];
-
-		if (effect->unit_index != NONE && (values == effect->body_values || values == effect->arms_values))
-		{
-			color = overshield_effect_layer_color(effect);
-			break;
-		}
-	}
+	color = overshield_effect_layer_color(effect);
 	/* Keep the shader's brightness while using the overshield effect's hue. */
 	peak = MAX(color->red, MAX(color->green, color->blue));
 	perpendicular_brightness = MAX(perpendicular->red, MAX(perpendicular->green, perpendicular->blue));

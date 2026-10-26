@@ -58,7 +58,8 @@ float covenant_lighting_scale(const char *name)
 
 static const real_rgb_color covenant_black = {0.0f, 0.0f, 0.0f};
 
-static int covenant_visible(long object_index)
+/* Return the validated profile so admission need not resolve the tag again. */
+static int covenant_visible_profile(long object_index)
 {
 	struct object_datum *object = object_try_and_get(object_index);
 	struct object_definition *definition;
@@ -67,31 +68,31 @@ static int covenant_visible(long object_index)
 	int i, profile;
 	if (!object || object->object.type != _object_type_projectile ||
 		object->object.node_matrices.size < sizeof(real_matrix4x3))
-		return FALSE;
+		return NONE;
 	name = tag_get_name(object->definition_index);
 	profile = covenant_profile_index(name);
 	if (profile == NONE || covenant_profiles[profile].radius <= 0.0f)
-		return FALSE;
+		return NONE;
 	definition = object_definition_get(object->definition_index);
 	/* Model-less projectiles (the stock Wraith mortar) remain invisible in
 	   object_set_visibility even while their particle attachments are visible. */
 	if (TEST_FLAG(object->object.flags, _object_invisible_bit) && definition->object.model.index != NONE)
-		return FALSE;
+		return NONE;
 	/* A custom map's authored attachment takes precedence over a new glow. */
 	for (i = 0; i < definition->object.attachments.count && i < MAXIMUM_NUMBER_OF_ATTACHMENTS_PER_OBJECT; i++)
 	{
 		struct object_attachment_definition *attachment =
 			TAG_BLOCK_GET_ELEMENT(&definition->object.attachments, i, struct object_attachment_definition);
 		if (attachment->type.group_tag == 'ligh' && attachment->type.index != NONE)
-			return FALSE;
+			return NONE;
 	}
 	for (player = local_player_get_next(NONE); player != NONE; player = local_player_get_next(player))
 	{
 		const struct observer_result *camera = observer_get_camera(player);
 		if (camera && distance3d(&object->object.bounding_sphere_center, &camera->position) <= 25.0f)
-			return TRUE;
+			return profile;
 	}
-	return FALSE;
+	return NONE;
 }
 
 static void covenant_release(struct covenant_light *light)
@@ -105,10 +106,10 @@ static void covenant_release(struct covenant_light *light)
 void covenant_lighting_update(void)
 {
 	struct object_iterator iterator;
-	int i, slot;
+	int i, slot, profile;
 	int enabled = config_boolean("display.plasma_lighting");
 	for (i = 0; i < COVENANT_LIGHTS; i++)
-		if (covenant_lights[i].active && (!enabled || !covenant_visible(covenant_lights[i].object_index)))
+		if (covenant_lights[i].active && (!enabled || covenant_visible_profile(covenant_lights[i].object_index) == NONE))
 			covenant_release(&covenant_lights[i]);
 	if (!enabled)
 		return;
@@ -117,7 +118,8 @@ void covenant_lighting_update(void)
 	{
 		struct covenant_light *light;
 		long definition;
-		if (!covenant_visible(iterator.index))
+		profile = covenant_visible_profile(iterator.index);
+		if (profile == NONE)
 			continue;
 		slot = NONE;
 		for (i = 0; i < COVENANT_LIGHTS; i++)
@@ -133,7 +135,7 @@ void covenant_lighting_update(void)
 		if (slot == NONE)
 			continue;
 		light = &covenant_lights[slot];
-		light->profile = covenant_profile_index(tag_get_name(object_try_and_get(iterator.index)->definition_index));
+		light->profile = profile;
 		if (light->active && light_port_glow_set(light->light_index, iterator.index, &covenant_profiles[light->profile].color, covenant_profiles[light->profile].radius))
 		{
 			if (!light->connected)
@@ -142,7 +144,7 @@ void covenant_lighting_update(void)
 			continue;
 		}
 		memset(light, 0, sizeof(*light));
-		light->profile = covenant_profile_index(tag_get_name(object_try_and_get(iterator.index)->definition_index));
+		light->profile = profile;
 		definition = light_port_glow_definition_get();
 		if (definition == NONE)
 			continue;

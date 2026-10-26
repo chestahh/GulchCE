@@ -54,6 +54,7 @@ static struct {real game_time_sec;} global_frame_parameters;
     code += "\n" + function(text, "overshield_effect_layer_color")
     code += "\n" + function(text, "overshield_effect_get")
     code += "\n" + function(text, "overshield_effect_light_sample")
+    code += "\n" + function(text, "overshield_effect_find_values")
     code += "\n" + function(text, "overshield_effect_draw")
     code += "\n" + function(text, "overshield_effect_color")
     code += r'''
@@ -102,6 +103,15 @@ int main(void) {
     CHECK(softness == 0 && height == 0);
     effect->unit_index = NONE;
     CHECK(!overshield_effect_draw(effect->body_values, &speed, &softness, &height));
+    effect = &overshield_effects[OVERSHIELD_EFFECT_MAXIMUM-1];
+    effect->unit_index = 8; effect->shield_vitality = 3.f; effect->arms_values = own;
+    perpendicular = original_perpendicular; parallel = original_parallel;
+    CHECK(overshield_effect_color(own, &perpendicular, &parallel));
+    CHECK(near(perpendicular.green, .8f) && near(parallel.green, .3f));
+    CHECK(overshield_effect_draw(own, &speed, &softness, &height));
+    CHECK(near(speed, .3f) && softness == 0 && height == 0);
+    effect->unit_index = NONE;
+    CHECK(!overshield_effect_color(own, &perpendicular, &parallel));
     global_frame_parameters.game_time_sec = 1.f;
     unit.object.shield_vitality = 3.f;
     effect = overshield_effect_get(7); CHECK(effect && effect->shield_vitality == 3.f);
