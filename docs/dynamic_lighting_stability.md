@@ -121,3 +121,123 @@ archived test-save files (62,968,332 bytes uncompressed) were verified against
 their SHA-256 manifests. About 108 MiB of useful evidence remains (59 files),
 including logs, timings, captures and save archives. Original maps/saves,
 toolchains and the normal Windows build were preserved.
+
+## Focused stall and memory investigation
+
+A subsequent investigation used the same production code at `d84409ac`, on
+the same NVIDIA hardware, resolution, quality settings and Carousel bot
+workload. It ran eight measured minutes with lighting on, then four with it
+off, sequentially, each with a 30-second warm-up. Both exited normally without
+detected runtime errors or unexpected players. No further endurance matrix
+was launched.
+
+The Windows-only test builder now accepts `--stalls`, recording rendering
+thread CPU time and shader compilation/linking time (including status-query
+synchronization), alongside `--resources` counts. Resource diagnostics also
+count vertex-layout objects, samplers, mirror buffers and framebuffers.
+The runner's `--no-captures` disables image allocations and readback without
+dumping shaders. These are diagnostic measurements, not clean FPS acceptance
+runs. No GPU query path or production behaviour was changed.
+
+### Findings
+
+| Lighting | Measured minutes | Average FPS | p99 frame ms | Worst frame ms | Frames over 100 ms |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| On | 8 | 115.98 | 12.978 | 25.092 | 0 |
+| Off | 4 | 119.91 | 9.900 | 51.229 | 0 |
+
+The original 412/221 ms pair did not reproduce. The enabled run still missed
+the sustained 120 FPS target even without large hitches, so those two issues
+must not be conflated. The runs have different combat histories and durations;
+their averages are not a precise measurement of lighting cost.
+
+The disabled run recorded a 51.229 ms frame at frame-log time 267.881 seconds.
+It included one shader compilation (10.977 ms) and one program link
+(36.805 ms), with 46.875 ms of thread CPU time. Thus a newly encountered
+shader/program caused a concrete hitch independently of optional lighting in
+this sample. This does not establish the cause of the earlier, much larger
+pair. CPU accounting is coarse (15.625 ms steps observed); it is useful for
+large stalls, not a precise per-frame CPU budget.
+
+The enabled run performed no further shader compilation or program linking
+after frame-log second 120. From then until the end, programs stayed at 89,
+distinct fragment sources at 78 and retained source text at 530,663 bytes.
+Full-state key entries increased from 547 to 592: 45 additional structs,
+about 12 KiB before allocator overhead, based on the current 32-bit layout.
+Those aliases do not compile more fragment shaders. Render targets (6),
+vertex-layout objects (10), samplers (29), mirror buffers (4), framebuffers
+(11) and immediate-vertex capacity (512) stayed constant throughout the
+measured enabled interval. Texture entries varied between 226 and 290;
+their guest payload was lower at the end than at the start. Counts and guest
+payload do not measure driver-internal allocations.
+
+| Lighting | Early mean MiB | Late mean MiB | Change MiB | Process peak MiB |
+| --- | ---: | ---: | ---: | ---: |
+| On | 645.88 | 649.51 | +3.64 | 652.23 |
+| Off | 645.16 | 645.15 | -0.00 | 674.17 |
+
+Early memory windows are process seconds 90-150. Late windows are 420-480
+for enabled and 180-240 for disabled; peaks include startup and the post-measurement
+tail before exit. Private memory
+fluctuated by several MiB, including downward steps, rather than increasing
+monotonically. The enabled run's fitted slope over process seconds 240-480
+was +1.52 MiB/minute. Comparing the same early/180-240 windows gives +1.48 MiB
+enabled and approximately zero disabled. The shorter control cannot establish
+whether later growth is feature-specific.
+
+The control's flat comparison windows are not a flat whole session: private
+memory rose from 647.08 MiB at process second 275.23 to 673.91 MiB at 280.25,
+then stayed high until exit (674.17 MiB at 295.25). This late approximately
+27 MiB jump was near the compile/link hitch; the frame and process logs have
+different origins. Compiler/driver allocation is therefore a concrete target
+for an allocation trace, but temporal proximity does not prove ownership.
+It also cannot explain the enabled run's later growth without compilation.
+
+Removing captures did not remove the enabled run's upward trend. The later
+increase was not caused by new shader compilation/linking, and the measured
+cache entries do not account for its magnitude. Allocation ownership remains
+unresolved: these observations distinguish neither allocator retention from
+a leak nor engine allocations from driver allocations. The lighting collision
+batch itself has fixed storage. Also, Windows write tracking deliberately
+uses protected-page faults, so the earlier process fault-count spike is not
+evidence of disk paging by itself.
+
+The useful next memory diagnostic is an allocation-stack trace spanning an
+early and late window, rather than another broad FPS matrix. The concrete
+compile/link hitch provides a separate target for evaluating shader warm-up;
+no prewarming, asynchronous compilation, eviction or rendering changes are
+justified as a fix for the original pair by this evidence alone.
+
+### Tool correction, validation and cleanup
+
+The old fixture marked periodic capture slots even when the screenshot
+directory was empty. The game correctly skipped image allocation/readback,
+but the reporter still excluded those frames. The builder now checks the
+directory before marking captures, and the reporter retains all frames when
+captures are disabled, including old binary markers. A regression test keeps
+a real 200 ms hitch in a marked slot with captures disabled.
+
+Both investigation runs used the same diagnostic binary, built before that
+marker guard was corrected. Capture-free summaries were recomputed from all
+raw frames and saved separately as `capture-free-pacing.json`; no stall was
+filtered away and no rerun was needed for that reporting correction.
+
+The final combined review covered diagnostic ownership, clock boundaries,
+cache traversal, source restoration and capture-free reporting. All five
+reporter tests passed; the final Windows diagnostic build and restored normal
+Windows build succeeded. Production source hashes matched their manifests,
+`source/` and `port/` were unchanged, and the normal binary contains no stall
+fixture. These Windows diagnostic tools are not compiled into Android/web
+or shipped in normal builds. No fresh non-Windows, AMD hardware, CE/MCC
+transition or network run is claimed; unchanged implementation evidence from
+the preceding fix report remains applicable. Host policy, off defaults and
+AMD/NVIDIA and Xbox/CE/MCC paths remain unchanged.
+
+Evidence is in `build/lighting-performance/stall-investigation-120-1` and
+`stall-investigation-120-0`, with `build/lighting-stall-summary.json`, build/test
+logs and the cleanup report. All owned game processes exited. The runners
+removed staged maps/caches and per-run binaries; final cleanup removed another
+21,072,779 bytes of diagnostic executable/configuration and fixture object.
+All 74 archived save files (41,978,888 bytes uncompressed) passed SHA-256
+verification. About 10.4 MiB of evidence remains in 32 files. Original maps,
+saves, toolchains and the normal Windows build were preserved.

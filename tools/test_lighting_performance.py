@@ -30,6 +30,17 @@ def test_missing_frame_samples_are_not_a_pass():
         distribution([],60)
 
 
+def test_disabled_capture_keeps_stalls_even_with_old_fixture_markers():
+    rows=[dict(seconds=t,frame_ms=10,selected=2,scene_lights=4,
+               occlusion_updates=1,capture_excluded=0,tick=t*30) for t in range(60)]
+    rows[35].update(frame_ms=200,capture_excluded=1)
+    result=summarize(rows,30,30,120,captures=False)
+    assert result['pacing']==result['raw']
+    assert result['pacing']['worst_ms']==200
+    assert result['excluded_capture_frames']==0
+    assert result['minutes'][0]['worst_ms']==200
+
+
 def test_early_exit_keeps_missing_memory_windows_distinct_from_zero():
     samples=[dict(seconds=45,private=100*2**20),dict(seconds=50,private=120*2**20)]
     assert memory_window_mib(samples,45,75)==110

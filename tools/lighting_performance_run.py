@@ -41,9 +41,11 @@ def distribution(values, cap):
                 over_50ms=sum(v>50 for v in values), over_100ms=sum(v>100 for v in values))
 
 
-def summarize(rows, warmup, seconds, cap):
+def summarize(rows, warmup, seconds, cap, captures=True):
     measured = [r for r in rows if warmup <= r['seconds'] < warmup+seconds and r['frame_ms']>0]
-    clean = [r for r in measured if not r['capture_excluded']]
+    # Older diagnostic binaries still mark capture slots when readback is off.
+    # Such frames must remain in pacing results; there was no capture overhead.
+    clean = [r for r in measured if not captures or not r['capture_excluded']]
     result = dict(raw=distribution([r['frame_ms'] for r in measured], cap),
                   pacing=distribution([r['frame_ms'] for r in clean], cap),
                   excluded_capture_frames=len(measured)-len(clean),
@@ -124,6 +126,7 @@ def main():
     parser.add_argument('--label', required=True)
     parser.add_argument('--build-dir', type=Path, default=ROOT/'build/lighting-performance-build')
     parser.add_argument('--dump-shaders', action='store_true', help='Retain GLSL instead of screenshots for cache diagnosis; not an FPS acceptance run')
+    parser.add_argument('--no-captures', action='store_true', help='Disable screenshot allocations/readback for memory and stall diagnostics')
     args=parser.parse_args()
     assert re.fullmatch(r'[A-Za-z0-9_-]+', args.label)
     assert re.fullmatch(r'[1-9][0-9]*x[1-9][0-9]*', args.resolution)
@@ -155,12 +158,14 @@ def main():
         env['HALO_GPU_DUMP_SHADERS']=str(out/'shaders')
         # Diagnose cache growth without periodic readback/large image allocations.
         env['HALO_SCREENSHOT_DIR']=''
+    if args.no_captures:
+        env['HALO_SCREENSHOT_DIR']=''
     build=args.build_dir.resolve()
     assert build.is_relative_to((ROOT/'build').resolve())
     shutil.copy2(build/'manifest.json', out/'build-manifest.json')
     (out/'settings.json').write_text(json.dumps(dict(resolution=args.resolution, fps=args.fps,
         warmup=args.warmup, seconds=args.seconds, bots=args.bots, map=args.map,
-        shader_dump=args.dump_shaders, display=settings),indent=2))
+        shader_dump=args.dump_shaders, captures=not (args.dump_shaders or args.no_captures), display=settings),indent=2))
     memory=[]; start=time.monotonic(); process=None
     try:
         for name in ['ui.map', args.map+'.map']:
@@ -186,11 +191,13 @@ def main():
                 rows=[{k:float(v) for k,v in row.items()} for row in csv.DictReader(frames)]
         report={}
         try:
-            report=summarize(rows,args.warmup,args.seconds,args.fps)
+            report=summarize(rows,args.warmup,args.seconds,args.fps,
+                             captures=not (args.dump_shaders or args.no_captures))
         except ValueError as error:
             report['measurement_error']=str(error)
         log=(out/'stderr.log').read_text(errors='replace')
         report.update(exit=process.returncode, fps=args.fps, enabled=args.enabled, shader_dump=args.dump_shaders,
+                      captures=not (args.dump_shaders or args.no_captures),
                       unexpected_players=bool(re.search(r'\bplayer '+str(args.bots+1)+r':', log)),
                       bots_lines=[line for line in log.splitlines() if 'bots: tick' in line],
                       errors=re.findall(r'(?im)^.*(?:crash: exception|exception halt|assertion failed|GL_INVALID|shader.*(?:error|failed)).*$',log),

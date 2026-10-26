@@ -19,6 +19,7 @@ def main():
     parser.add_argument('--profile', action='store_true', help='CPU phase timers and asynchronous sampled GPU draw queries')
     parser.add_argument('--diagnose', action='store_true', help='Collision phase timings and retained resource counts (not acceptance timings)')
     parser.add_argument('--resources', action='store_true', help='Retained resource counts without per-ray diagnostic clocks')
+    parser.add_argument('--stalls', action='store_true', help='Windows thread CPU and shader compile/link timings; diagnostic only')
     parser.add_argument('--verify-traces', action='store_true', help='Compare every lighting ray with the stock collision query; not a timing build')
     args = parser.parse_args()
     output = args.output_dir.resolve()
@@ -36,7 +37,7 @@ def main():
     manifest = dict(commit=subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip(),
                     configure_args=saved, production_hashes={p: hashlib.sha256(b).hexdigest() for p, b in originals.items()},
                     fixture_sha256=hashlib.sha256((ROOT/'tools/fixtures/lighting_performance.c').read_bytes()).hexdigest(),
-                    profile=args.profile, diagnose=args.diagnose, resources=args.resources, verify_traces=args.verify_traces)
+                    profile=args.profile, diagnose=args.diagnose, resources=args.resources, stalls=args.stalls, verify_traces=args.verify_traces)
     for path in ['port/linux/src/plasma_occlusion_gl.c', 'port/linux/include/plasma_occlusion.h',
                  'port/linux/include/plasma_collision.h']:
         manifest['production_hashes'][path]=hashlib.sha256((ROOT/path).read_bytes()).hexdigest()
@@ -46,6 +47,8 @@ def main():
             'lighting_resource_diagnostics.inc','lighting_texture_diagnostics.inc')]
     if args.verify_traces:
         diagnostic_sources += ['tools/lighting_trace_check.py','tools/fixtures/lighting_trace_check.inc']
+    if args.stalls:
+        diagnostic_sources += ['tools/fixtures/lighting_stall_diagnostics.inc']
     manifest['diagnostic_hashes']={p:hashlib.sha256((ROOT/p).read_bytes()).hexdigest() for p in diagnostic_sources}
 
     def edit(path, before, after, declaration):
@@ -61,7 +64,7 @@ def main():
              '\t\tmain_frame_rate_debug();\n\t\tif (render_frame && game_in_progress() && game_engine_running()) lighting_performance_frame();',
              'void lighting_performance_frame(void); /* port: test-build-only timing */')
         edit(paths[1], 'if (screenshot_every > 0 && device.frame % (unsigned long)screenshot_every == 0)',
-             'if (lighting_performance_capture())', 'int lighting_performance_capture(void);')
+             'if (*config_string("debug.screenshot_directory") && lighting_performance_capture())', 'int lighting_performance_capture(void);')
         edit(paths[2], '\tshield_glow_frame_end();',
              '\tlighting_performance_lights();\n\tshield_glow_frame_end();', 'void lighting_performance_lights(void);')
         edit(paths[3], '\tupdates_this_window = 0;',
@@ -100,6 +103,21 @@ def main():
             text='void lighting_diagnostics_frame(double);\n'+text
             text=text.replace('\t\t\tfflush(timings);','\t\t\tlighting_diagnostics_frame(now - origin);\n\t\t\tfflush(timings);')
             fixture.write_text(text)
+        if args.stalls:
+            backend = ROOT/paths[1]
+            text = backend.read_text()
+            for kind, call, status in [(0, 'glCompileShader(shader);', 'glGetShaderiv(shader, GL_COMPILE_STATUS, &status);'),
+                                       (1, 'glLinkProgram(program);', 'glGetProgramiv(program, GL_LINK_STATUS, &status);')]:
+                assert text.count(call) == 1 and text.count(status) == 1
+                text = text.replace(call, f'lighting_stall_shader_begin({kind});\n\t'+call)
+                text = text.replace(status, status+f'\n\tlighting_stall_shader_end({kind});')
+            backend.write_text('void lighting_stall_shader_begin(int);\nvoid lighting_stall_shader_end(int);\n'+text+'\n'+
+                               (ROOT/'tools/fixtures/lighting_stall_diagnostics.inc').read_text())
+            text = fixture.read_text()
+            anchor = '\tprevious = now;\n\tocclusion_seconds = 0;'
+            assert text.count(anchor) == 1
+            fixture.write_text('void lighting_stall_frame(double, double);\n'+text.replace(anchor,
+                '\tlighting_stall_frame(now-origin, (now-previous)*1000.0);\n'+anchor))
         if args.profile:
             def replace(path, before, after):
                 text=path.read_text()

@@ -219,6 +219,16 @@ Xbox, CE and MCC use the same existing feature hooks, with no loader changes.
 See the [performance follow-up](../dynamic_lighting_optimisation.md) for
 measurements and the limits of GPU timing versus sustained frame pacing.
 
+For focused Windows stall investigation,
+[lighting_performance_build.py](../../tools/lighting_performance_build.py)
+adds test-only `--stalls` thread CPU and compile/link clocks; `--resources`
+counts retained renderer entries. The runner's `--no-captures` removes image
+allocation/readback and keeps every measured frame in pacing results.
+[The stability report](../dynamic_lighting_stability.md#focused-stall-and-memory-investigation)
+separates observed shader warm-up hitches from unresolved memory ownership
+and the unreproduced long stalls. These tools restore production sources;
+their diagnostic timings are not clean performance acceptance measurements.
+
 The [shield-lighting walkthrough](shield_lighting.md) describes Shield Glow's
 integration with the same falloff, specular and visibility services. Its
 surface animation remains in `overshield_effect.c`; the host policy still
