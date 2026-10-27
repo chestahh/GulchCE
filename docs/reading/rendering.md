@@ -39,6 +39,16 @@ all intervening space. `render_interpolation.c` contains the checks and
 fallbacks for those discontinuities. Rendered poses and simulation positions
 are related values with different purposes.
 
+OpenCE also advances visual function values into the picture's time. Read
+`object_function_values_for_render` in [objects.c](../../source/objects/objects.c):
+for example, a charging plasma weapon's displayed intensity changes between
+ticks without overwriting the simulation's values. `render_object_list` and
+`first_person_weapon_draw` retain these values in frame memory because queued
+transparent draws can read them later. GulchCE's
+[viewmodel shield module](../../port/linux/game/viewmodel_shield.c) copies the
+interpolated unit values into its existing per-player arms storage; the shield
+and overshield modules still own their feature state and activation checks.
+
 ## Draw passes have an order and temporary state
 
 Read `render_window` for the actual order of world/object drawing, lighting,

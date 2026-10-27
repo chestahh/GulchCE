@@ -144,15 +144,19 @@ enum
 	(reliable, once a game, with its ready: distributed_client_send_build).
 	A host without it drops it as a kind it does not know */
 	_distributed_message_client_build = 92,
+	/* where a client's players' shots leave from when not from their
+	units' cameras (a VR build's hand), to the host, unreliably, every tick
+	while they do (network_damage.c): its line of sight check's */
+	_distributed_message_fire_origins = 93,
 
 	/* MCC-only extra grenade slots; ordinary inventory packets stay exact. */
-	_distributed_message_mcc_grenades = 93,
+	_distributed_message_mcc_grenades = 94,
 	/* MCC-only campaign gravity and breadcrumb state. */
-	_distributed_message_mcc_campaign = 94,
+	_distributed_message_mcc_campaign = 95,
 	/* Expanded MCC scenario-name presence, in bounded chunks. */
-	_distributed_message_mcc_object_names = 95,
+	_distributed_message_mcc_object_names = 96,
 	/* MCC host-authorized speed, ordered on the reliable stream, even paused. */
-	_distributed_message_mcc_game_speed = 96,
+	_distributed_message_mcc_game_speed = 97,
 
 	NUMBER_OF_DISTRIBUTED_MESSAGES
 };
@@ -449,7 +453,8 @@ again, having failed to make one of them */
 void network_objects_client_asked(long machine_index, boolean again);
 void network_objects_handle_changes(void const *entries, short count);
 void network_objects_handle_synchronized(void);
-void network_objects_handle_states(void const *entries, short count);
+/* (host_time: the message's, the host's tick its states are of) */
+void network_objects_handle_states(void const *entries, short count, long host_time);
 void network_objects_handle_inventories(void const *entries, short count);
 /* (a client) its own player picked up the weapon, to ready once its unit has it */
 void network_objects_client_picked_up_weapon(short local_player_index, long unit_index, long definition_index);
@@ -483,6 +488,12 @@ void network_damage_host_tick(void);
 void network_damage_client_tick(void);
 void network_damage_handle_events(void const *entries, short count);
 void network_damage_handle_reports(long machine_index, void const *entries, short count);
+void network_damage_handle_fire_origins(long machine_index, void const *entries, short count);
 word network_damage_entry_size(byte type);
+/* what says where a local player's shots leave from when that is not their
+unit's camera: the offset from it (world units), FALSE when they leave from
+the camera; NULL (the default) for a build whose shots always do */
+typedef boolean (*network_damage_fire_origin_source)(short local_player_index, real_vector3d *offset);
+void network_damage_set_fire_origin_source(network_damage_fire_origin_source source);
 
 #endif // __NETWORK_DISTRIBUTED_H

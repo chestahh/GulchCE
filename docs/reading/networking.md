@@ -66,6 +66,14 @@ This diagram describes dependencies, not a promise that every message
 arrives or is sent to every peer at the same rate. Distance, visibility,
 batching and message type affect transmission frequency.
 
+A client with a custom firing position, such as a VR hand, can send OpenCE's
+optional fire-origin message. In `network_damage_handle_fire_origins`, the host
+accepts positions only for players owned by that client and within a bounded
+reach. The hit-report path checks freshness, hand position and line of sight;
+`network.fire_origins` controls whether this can admit a hit the eye cannot see.
+MCC's separate message numbers and admission revision are recorded in
+[NETCODE.md](../../port/linux/NETCODE.md), preserving OpenCE's message 93.
+
 ## Compare states from the same time
 
 Suppose the host replies about tick T, but the client has already moved on.

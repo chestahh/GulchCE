@@ -112,7 +112,7 @@ def hands_hook(source):
     draw = function(source, "first_person_weapon_draw")
     weapon, hands = list(re.finditer(r"\brender_model\(", draw))
     call = re.search(r"viewmodel_shield_apply\(\s*render\.local_player_index,\s*unit_index,\s*"
-                     r"first_person_interface->hands\.index,\s*model_node_matrices,\s*&model_effect\);", draw)
+                     r"first_person_interface->hands\.index,\s*model_node_matrices,\s*unit_functions,\s*&model_effect\);", draw)
     assert call and weapon.start() < call.start() < hands.start()
     assert "viewmodel_shield_apply" not in draw[:weapon.start()]
     assert "&model_effect" in draw[hands.start():]
