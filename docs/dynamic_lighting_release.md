@@ -325,7 +325,8 @@ passed Windows, Linux, Android and web jobs, including the Linux/web tests and
 Chromium/Firefox checks. CI builds debug on this feature branch; release was
 built locally. The MCC Windows adapter job passed. The separate Linux MCC
 validator reached its ten-minute limit installing dependencies before tests
-started; only that job was retried.
+started. The targeted [retry](https://github.com/chestahh/GulchCE/actions/runs/40438187337)
+passed both MCC jobs; no source or workflow change was needed.
 
 Cleanup removed staged maps/caches, three temporary diagnostic executables,
 fixture objects and approximately 892 MiB of redundant images/binaries. All
