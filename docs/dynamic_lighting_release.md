@@ -6,6 +6,27 @@ performance and memory limitations below remain; acceptance does not establish
 sustained 120 FPS or universal map compatibility.
 CStencil and Modern shadows remain separate, later work.
 
+## Android compatibility fallback
+
+Following reports of missing first-person geometry and dark models on multiple
+Android device families, Android builds exclude the optional lighting modules,
+material glow overrides, model-shader additions and extra sampler bindings.
+The supplied clip shows these symptoms on a Custom Edition map; it does not
+establish the underlying driver error. Source inspection found that the added
+model shader code and sampler setup were present even with all toggles off.
+
+Android now links inert feature hooks that preserve stock light values and the
+overshield surface reset. The Dynamic Lighting menu and its default config keys
+are unavailable there; old saved values cannot enable the omitted code. Stock
+lighting and effects remain, as do Animated Overshield surfaces. Network policy
+and messages are unchanged: Android's lack of Shield Glow rendering does not
+change the host's choice for other clients. Desktop and web implementations,
+AMD/NVIDIA workarounds and Xbox/CE/MCC loading boundaries are unchanged.
+
+See [Android lighting availability](../port/android/README.md#lighting-availability)
+for the build boundary. Device testing is required before claiming the reported
+rendering failures are resolved; build and harness checks alone cannot do that.
+
 ## Promotion to testing
 
 The 1.0 promotion combines `testing` at `87eb88e2` with the complete

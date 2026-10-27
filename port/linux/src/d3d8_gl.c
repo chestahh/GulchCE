@@ -516,8 +516,10 @@ struct program_entry
 	/* the lights of a draw lit for each pixel (XGPU_MODEL_LIGHT_COUNT), and
 	constants_serial at their last upload */
 	GLint model_lights;
+#ifndef HALO_ANDROID
 	GLint plasma_model_slots;
 	struct plasma_occlusion_uniforms plasma_occlusion;
+#endif
 	unsigned long long model_lights_serial;
 
 	/* the vertex constants c[0..constant_count) the program uses; with
@@ -3784,9 +3786,11 @@ static struct program_entry *program_get(GLuint vertex_shader, GLuint fragment_s
 	entry->shield_honeycomb = glGetUniformLocation(entry->program, "shield_honeycomb");
 	entry->blend_constant = glGetUniformLocation(entry->program, "blend_constant");
 	entry->model_lights = glGetUniformLocation(entry->program, "model_lights");
+#ifndef HALO_ANDROID
 	entry->plasma_model_slots = glGetUniformLocation(entry->program, "plasma_model_slots");
 	if (entry->plasma_model_slots >= 0)
 		plasma_occlusion_model_initialize(entry->program, &entry->plasma_occlusion);
+#endif
 	for (stage = 0; stage < D3DTSS_MAXSTAGES; stage++)
 	{
 		char name[8];
@@ -4882,12 +4886,14 @@ static struct program_entry *prepare_draw(BOOL immediate)
 		constants_checkpoint_first = XGPU_VERTEX_CONSTANT_COUNT;
 		constants_checkpoint_last = 0;
 	}
+#ifndef HALO_ANDROID
 	if (entry->plasma_model_slots >= 0)
 	{
 		unsigned int mask = plasma_model_lighting_mask();
 		plasma_occlusion_bind_model(&entry->plasma_occlusion);
 		glUniform2f(entry->plasma_model_slots, (mask & 1) ? 1.0f : 0.0f, (mask & 2) ? 1.0f : 0.0f);
 	}
+#endif
 	/* the lights of a draw lit for each pixel, from the same registers, when
 	any of them changed since the program last had them */
 	if (entry->model_lights >= 0 && entry->model_lights_serial != constants_serial)

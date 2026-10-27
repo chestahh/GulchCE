@@ -394,15 +394,19 @@ char *nv2a_vertex_shader_to_glsl(const DWORD *instructions, unsigned long instru
 {
 	struct xgpu_text text = { 0 };
 	unsigned long index;
+#ifndef HALO_ANDROID
 	struct nv2a_vertex_lighting plasma_lighting;
 	BOOL plasma_model = nv2a_vertex_shader_lighting(instructions, instruction_count, &plasma_lighting) && plasma_lighting.lights == 2;
+#endif
 
 #ifdef HALO_GLES
 	xgpu_text_append(&text, "#version %s\n", xgpu_capabilities.shading_language);
 #endif
 	xgpu_text_append(&text, "%s", shader_prologue);
+#ifndef HALO_ANDROID
 	if (plasma_model)
 		plasma_model_emit_uniform(&text);
+#endif
 	/* (the pixel shader's model_lighting; the normal's length in w) */
 	if (lighting)
 		xgpu_text_append(&text, "out vec4 xWorldNormal;\n");
@@ -466,8 +470,10 @@ char *nv2a_vertex_shader_to_glsl(const DWORD *instructions, unsigned long instru
 		xgpu_text_append(&text, "\tB = "); operand(&text, instruction, 'B', relative); xgpu_text_append(&text, ";\n");
 		xgpu_text_append(&text, "\tC = "); operand(&text, instruction, 'C', relative); xgpu_text_append(&text, ";\n");
 
+#ifndef HALO_ANDROID
 		if (plasma_model)
 			plasma_model_emit_vertex(&text, instruction, index, &plasma_lighting);
+#endif
 
 		switch (mac)
 		{

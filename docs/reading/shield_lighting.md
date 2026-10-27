@@ -13,6 +13,14 @@ online: stock suppresses both, the glow/overshield combinations select them, and
 players delegates to local preferences. No packet or protocol version changes.
 Light Occlusion remains a local rendering preference, as for the other emitters.
 
+Android excludes Shield Glow with the rest of the optional lighting renderer,
+even if a host requests glow. The host's transmitted policy is unchanged and
+still controls Animated Overshield surfaces. The
+[Android replacement](../../port/android/guest/dynamic_lighting_disabled.c)
+retains `shield_glow_reset`'s call to `overshield_effect_reset`, so surface state
+does not survive map/light-array replacement. See the
+[Android lighting boundary](../../port/android/README.md#lighting-availability).
+
 ## Reading route
 
 1. [network_shield_effects.c](../../port/linux/game/network_shield_effects.c),

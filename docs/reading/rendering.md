@@ -139,6 +139,12 @@ behaviour; it does not measure real GPU performance.
 
 ## Dynamic lighting 1.0
 
+Android builds exclude the optional lighting modules and their model-shader
+additions. Read the [Android lighting boundary](../../port/android/README.md#lighting-availability)
+and [stock hook implementations](../../port/android/guest/dynamic_lighting_disabled.c)
+for that fallback. Desktop and web keep the implementation described below;
+all optional lighting settings still default off.
+
 These optional features are available on `testing`. The
 [plasma lighting source](../../port/linux/game/plasma_lighting.c)
 is a useful second example after FOV. `plasma_lighting_prepare` selects

@@ -580,8 +580,10 @@ static void model_lighting(struct xgpu_text *text, BOOL point_lights)
 {
 	int light;
 
+#ifndef HALO_ANDROID
 	if (point_lights)
 		plasma_model_emit_pixel(text);
+#endif
 
 	xgpu_text_append(text,
 		"uniform vec4 model_lights[%d];\n"
@@ -610,11 +612,19 @@ static void model_lighting(struct xgpu_text *text, BOOL point_lights)
 			"\t\tvec3 to_light = model_lights[%d].xyz - xWorldPosition;\n"
 			"\t\tfloat distance_squared = dot(to_light, to_light);\n"
 			"\t\tvec3 l = to_light * inversesqrt(max(distance_squared, 1.0e-12));\n"
+#ifdef HALO_ANDROID
+			"\t\tlight += max(1.0 - distance_squared * model_lights[%d].w, 0.0) * clamp(dot(l, n), 0.0, 1.0) *\n"
+#else
 			"\t\tlight += plasma_model_falloff(max(1.0 - distance_squared * model_lights[%d].w, 0.0), plasma_model_slots[%d],%d,xWorldPosition) * clamp(dot(l, n), 0.0, 1.0) *\n"
+#endif
 			"\t\t\tclamp(dot(l, -model_lights[%d].xyz) * model_lights[%d].w + model_lights[%d].w, 0.0, 1.0) *\n"
 			"\t\t\tmodel_lights[%d].xyz;\n"
 			"\t}\n",
-			first, first, light, light, first + 1, first + 1, first + 2, first + 2);
+			first, first,
+#ifndef HALO_ANDROID
+			light, light,
+#endif
+			first + 1, first + 1, first + 2, first + 2);
 	}
 	xgpu_text_append(text, "\treturn clamp(light, 0.0, 1.0);\n}\n");
 }

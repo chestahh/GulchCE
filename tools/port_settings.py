@@ -262,7 +262,7 @@ _video["categories"] = [
     ("FOV AND VIEWMODELS:", "video_settings/fov_viewmodels",
      "The field of view and the first-person\nweapon. Their defaults keep the stock view."),
     ("DYNAMIC LIGHTING:", "video_settings/dynamic_lighting",
-     "Added light from projectiles, weapons and\nenergy shields. Added lights default to off."),
+     "Added light from projectiles, weapons and\nenergy shields. Added lights default to off.", "desktop web"),
     ("EXTRA EFFECTS:", "video_settings/extra_effects",
      "Visual modifiers the stock game does not\nhave, such as HDR and overshields."),
 ]
@@ -288,6 +288,11 @@ SCREENS["video_settings/dynamic_lighting"] = {
          "Block projectile and emitter light behind walls.\nMuzzle flashes always use collision blocking.", None),
     ] + _shield_rows,
 }
+# Android builds omit this renderer. Keep both the entry and its controls
+# unavailable; existing configuration values cannot activate its inert hooks.
+SCREENS["video_settings/dynamic_lighting"]["rows"] = [
+    (*row[:4], "desktop web") for row in SCREENS["video_settings/dynamic_lighting"]["rows"]
+]
 SCREENS["video_settings/fov_viewmodels"] = {
     "screen": "fov_viewmodel_settings_screen", "header": _video["header"], "spacing": 30,
     "rows": [
