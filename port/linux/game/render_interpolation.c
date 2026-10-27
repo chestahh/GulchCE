@@ -50,6 +50,7 @@ unsigned long config_changes(void);
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>
+#include "plasma_lighting.h"
 
 /* ---------- constants */
 
@@ -509,6 +510,7 @@ void render_interpolation_frame_begin(void)
 void render_interpolation_frame_end(void)
 {
 	interpolation_rendering = FALSE;
+	plasma_lighting_frame_end();
 }
 
 real render_interpolation_fraction(void)

@@ -48,7 +48,7 @@ SCREENS = {
     "video_settings": {
         "screen": "video_settings_screen",
         "header": ("header_profile_video_settings", f"{PE}/video_settings/header_profile_video_settings"),
-        # Eleven desktop rows, including categories, above the help text.
+        # Desktop rows and categories fit above the help text.
         # Each platform packs its own rows without gaps for hidden entries.
         "spacing": 26,
         "help_top": 364,
@@ -244,7 +244,9 @@ _graphics = {"display.high_res_hud", "display.hud_button_style", "input.auto_but
              "display.anisotropic_filtering", "display.shadow_resolution", "display.per_pixel_lighting", "display.match_timer",
              "display.model_detail"}
 # (the visual modifiers: a screen of their own, Extra Effects)
-_extra_effects = {"display.shield_glow", "display.shield_glow_intensity", "display.overshield_effect", "display.hdr", "display.hdr_output"}
+_shield_lighting = {"display.shield_glow", "display.shield_glow_intensity"}
+_shield_rows = [row for row in _video["rows"] if row[1] in _shield_lighting]
+_extra_effects = {"display.overshield_effect", "display.hdr", "display.hdr_output"}
 SCREENS["video_settings/graphics"] = {
     "screen": "graphics_settings_screen", "header": _video["header"], "spacing": 27,
     "same_place": ["anti_aliasing_android", "hud_button_style_xbox", "hud_button_style_ps", "hud_button_style_switch"],
@@ -254,14 +256,38 @@ SCREENS["video_settings/extra_effects"] = {
     "screen": "extra_effects_settings_screen", "header": _video["header"], "spacing": 30,
     "rows": [row for row in _video["rows"] if row[1] in _extra_effects],
 }
-_video["rows"] = [row for row in _video["rows"] if row[1] not in _graphics | _extra_effects]
+_video["rows"] = [row for row in _video["rows"] if row[1] not in _graphics | _extra_effects | _shield_lighting]
 _video["categories"] = [
     ("GRAPHICS:", "video_settings/graphics", "The HUD, text, anti-aliasing, shadows,\nlighting and HDR."),
     ("FOV AND VIEWMODELS:", "video_settings/fov_viewmodels",
      "The field of view and the first-person\nweapon. Their defaults keep the stock view."),
+    ("DYNAMIC LIGHTING:", "video_settings/dynamic_lighting",
+     "Added light from projectiles, weapons and\nenergy shields. Added lights default to off."),
     ("EXTRA EFFECTS:", "video_settings/extra_effects",
      "Visual modifiers the stock game does not\nhave, such as HDR and overshields."),
 ]
+SCREENS["video_settings/dynamic_lighting"] = {
+    "screen": "dynamic_lighting_settings_screen", "header": _video["header"], "spacing": 28,
+    "help_top": 360, "help_height": 50,
+    "rows": [
+        ("PROJECTILE LIGHTS:", "display.plasma_lighting", ON_OFF,
+         "Plasma, rockets and Covenant projectiles cast\nsoft light on nearby surfaces and models.", None),
+        ("MUZZLE FLASH LIGHTS:", "display.muzzle_lighting", ON_OFF,
+         "Weapon flashes light nearby surfaces, including\nWarthog and Scorpion guns. Stock effects remain.", None),
+        ("JACKAL SHIELDS:", "display.jackal_shield_lighting", ON_OFF,
+         "Jackal shields light their surroundings,\nmatching their colour and damage flashes.", None),
+        ("STATIONARY SHIELDS:", "display.covenant_shield_lighting", ON_OFF,
+         "Covenant stationary shields cast coloured light\nthat follows damage flashes and shield strength.", None),
+        ("FUEL ROD GLOW:", "display.fuel_rod_lighting", ON_OFF,
+         "Exposed Grunt and Hunter fuel rods cast green\nlight on the holder and nearby surfaces.", None),
+        ("AR COUNTER GLOW:", "display.ammo_counter_lighting", ON_OFF,
+         "The AR ammo screen glows and lights the weapon\nand holder in first and third person.", None),
+        ("NEEDLER GLOW:", "display.needler_lighting", ON_OFF,
+         "Exposed needles glow and spill light around the\nheld weapon, with a soft fade below it.", None),
+        ("LIGHT OCCLUSION:", "display.plasma_occlusion", ON_OFF,
+         "Block projectile and emitter light behind walls.\nMuzzle flashes always use collision blocking.", None),
+    ] + _shield_rows,
+}
 SCREENS["video_settings/fov_viewmodels"] = {
     "screen": "fov_viewmodel_settings_screen", "header": _video["header"], "spacing": 30,
     "rows": [
@@ -507,7 +533,7 @@ def _screen(folder: str, spec: dict, rows: list, list_inputs: list, list_handler
                                           ("bitmap", header_bitmap)], [])
     lines += _widget(f"{base}/help", [("type", "text"), ("controller", 1), ("left", 68),
                                       ("top", spec.get("help_top", 350)), ("width", 482),
-                                      ("height", 60), ("string_list", None if spec.get("dynamic_help") else f"{base}/help_strings"),
+                                      ("height", spec.get("help_height", 60)), ("string_list", None if spec.get("dynamic_help") else f"{base}/help_strings"),
                                       ("font", "ui\\large_ui"), ("color", "#FFFFFFFF")], [])
     children = [f'<data input="{name}"/>' for name in list_inputs] + list_handlers
     # (each row: its widget, platform, and the place it is in, else the next)

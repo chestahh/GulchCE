@@ -267,7 +267,7 @@ Start with the [GulchCE code reader's guide](docs/reading/README.md) for a
 route through startup, input and menus, gameplay objects, rendering,
 networking, map loading, platform support and testing. It includes a
 glossary of engine terms and C conventions, a detailed FOV walkthrough,
-and notes on GulchCE's dynamic-lighting, Vulkan and third-person branches.
+dynamic lighting 1.0, and notes on the Vulkan and third-person branches.
 
 ### Testing
 

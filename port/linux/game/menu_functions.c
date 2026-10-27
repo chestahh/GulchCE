@@ -1751,8 +1751,18 @@ static void settings_help(struct widget_instance *list)
 {
 	struct widget_instance *help = list->parameters.list.extended_description;
 	struct widget_instance *row = list->focused_child;
+	struct widget_instance *child;
 	short index = 0;
 
+	/* Pointer focus clears the old descendant chain. Returning to a generated
+	   setting row with the d-pad must reconnect its spinner to receive input. */
+	if (row && !row->focused_child)
+		for (child = row->child; child; child = child->next)
+			if (child->type == 2 && pc_menu_setting_get(child->definition_tag_index))
+			{
+				row->focused_child = child;
+				break;
+			}
 	if (!help)
 		return;
 	if (row && row->child && row->child->type == 1 && strncmp(row->name, "button", 6))

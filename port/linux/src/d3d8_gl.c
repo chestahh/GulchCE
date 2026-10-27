@@ -22,6 +22,8 @@ Conventions carried over from the Xbox:
 */
 
 #include "xgpu.h"
+#include "plasma_model_shader.h"
+#include "plasma_occlusion.h"
 #include "mcc_environment_shader.h"
 #include "sdl_platform.h"
 #include "halo_ui_pointer.h"
@@ -459,6 +461,16 @@ struct fragment_entry
 	GLuint shader;
 };
 
+/* Full render-state keys can translate to identical GLSL. Own each source
+   and shader once for the GL context's lifetime, like the program cache. */
+struct fragment_source_entry
+{
+	struct fragment_source_entry *next;
+	unsigned long hash;
+	char *source;
+	GLuint shader;
+};
+
 /* the uniforms a draw sets besides the vertex constants */
 struct draw_uniforms
 {
@@ -504,6 +516,8 @@ struct program_entry
 	/* the lights of a draw lit for each pixel (XGPU_MODEL_LIGHT_COUNT), and
 	constants_serial at their last upload */
 	GLint model_lights;
+	GLint plasma_model_slots;
+	struct plasma_occlusion_uniforms plasma_occlusion;
 	unsigned long long model_lights_serial;
 
 	/* the vertex constants c[0..constant_count) the program uses; with
@@ -835,6 +849,7 @@ static void program_cache_store(GLuint program, unsigned long long vertex_hash, 
 #endif
 
 static struct fragment_entry *fragment_buckets[FRAGMENT_BUCKETS];
+static struct fragment_source_entry *fragment_source_buckets[FRAGMENT_BUCKETS];
 static struct program_entry *program_buckets[PROGRAM_BUCKETS];
 
 /* ---------- render targets */
@@ -3564,6 +3579,51 @@ static GLuint vertex_shader_get(struct vertex_shader_object *program, BOOL immed
 
 typedef char pixel_shader_key_size_assert[sizeof(struct nv2a_pixel_shader_key) % 4 == 0 ? 1 : -1];
 
+static unsigned long fragment_source_hash(const char *source)
+{
+	unsigned long hash = 2166136261UL;
+	while (*source)
+		hash = (hash ^ (unsigned char)*source++) * 16777619UL;
+	return hash;
+}
+
+/* Consumes source. A hash only chooses candidates: compare every byte before
+   sharing an object. No generator, driver workaround or shader state is changed. */
+static GLuint fragment_source_get(char *source)
+{
+	unsigned long hash = fragment_source_hash(source);
+	struct fragment_source_entry **bucket = &fragment_source_buckets[hash % FRAGMENT_BUCKETS];
+	struct fragment_source_entry *entry;
+	GLuint shader;
+
+	for (entry = *bucket; entry; entry = entry->next)
+	{
+		if (entry->hash == hash && !strcmp(entry->source, source))
+		{
+			free(source);
+			return entry->shader;
+		}
+	}
+	shader = xgpu_compile_shader(GL_FRAGMENT_SHADER, source, "pixel");
+	/* Register shared objects once for the upstream program-binary cache. */
+	shader_hash_set(shader, source);
+	entry = malloc(sizeof(*entry));
+	if (entry)
+	{
+		entry->hash = hash;
+		entry->source = source;
+		entry->shader = shader;
+		entry->next = *bucket;
+		*bucket = entry;
+	}
+	else
+	{
+		/* The full-key cache still owns the result if sharing cannot allocate. */
+		free(source);
+	}
+	return shader;
+}
+
 static GLuint fragment_shader_get(const struct nv2a_pixel_shader_key *key)
 {
 	/* consecutive draws mostly use one of a few pixel shaders (an object's
@@ -3595,8 +3655,6 @@ static GLuint fragment_shader_get(const struct nv2a_pixel_shader_key *key)
 	entry->hash = hash;
 	entry->key = *key;
 	source = nv2a_pixel_shader_to_glsl(key);
-	entry->shader = xgpu_compile_shader(GL_FRAGMENT_SHADER, source, "pixel");
-	shader_hash_set(entry->shader, source);
 	if (debug_settings.dump_shaders)
 	{
 		char path[512];
@@ -3609,7 +3667,7 @@ static GLuint fragment_shader_get(const struct nv2a_pixel_shader_key *key)
 			fclose(file);
 		}
 	}
-	free(source);
+	entry->shader = fragment_source_get(source);
 	entry->next = *bucket;
 	*bucket = entry;
 	recent[recent_next++ % RECENT_FRAGMENT_COUNT] = entry;
@@ -3726,6 +3784,9 @@ static struct program_entry *program_get(GLuint vertex_shader, GLuint fragment_s
 	entry->shield_honeycomb = glGetUniformLocation(entry->program, "shield_honeycomb");
 	entry->blend_constant = glGetUniformLocation(entry->program, "blend_constant");
 	entry->model_lights = glGetUniformLocation(entry->program, "model_lights");
+	entry->plasma_model_slots = glGetUniformLocation(entry->program, "plasma_model_slots");
+	if (entry->plasma_model_slots >= 0)
+		plasma_occlusion_model_initialize(entry->program, &entry->plasma_occlusion);
 	for (stage = 0; stage < D3DTSS_MAXSTAGES; stage++)
 	{
 		char name[8];
@@ -4820,6 +4881,12 @@ static struct program_entry *prepare_draw(BOOL immediate)
 		constants_checkpoint_serial = constants_serial;
 		constants_checkpoint_first = XGPU_VERTEX_CONSTANT_COUNT;
 		constants_checkpoint_last = 0;
+	}
+	if (entry->plasma_model_slots >= 0)
+	{
+		unsigned int mask = plasma_model_lighting_mask();
+		plasma_occlusion_bind_model(&entry->plasma_occlusion);
+		glUniform2f(entry->plasma_model_slots, (mask & 1) ? 1.0f : 0.0f, (mask & 2) ? 1.0f : 0.0f);
 	}
 	/* the lights of a draw lit for each pixel, from the same registers, when
 	any of them changed since the program last had them */
