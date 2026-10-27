@@ -1856,8 +1856,8 @@ static void master_servers_show(struct widget_instance *list)
 	text_set(value, text);
 }
 
-/* Graphics' button style follows the pending HUD choice, including Defaults.
-The remaining options close the gap; the help and bottom buttons stay put. */
+/* Button Appearance filters its rows in the controller feature module.
+Legacy Graphics menus still follow their pending High-Res HUD choice. */
 #include "controller_buttons.h"
 #include "controller_button_menu.inl"
 
