@@ -167,3 +167,83 @@ archived test-save files (180.1 MiB uncompressed) passed SHA-256 verification.
 Approximately 50.3 MiB of diagnostic evidence remains, besides the delivery
 ZIP and required normal Windows build/symbols. Original maps, saves,
 toolchains, other worktrees and earlier milestone evidence were preserved.
+
+## Scorpion, Hunter and first-person AR additions (2026-10-27)
+
+Implementation and Windows playtest revision: `2522c432`. These additions use
+the existing Muzzle Flash Lights, Fuel Rod Glow and AR Counter Glow options.
+All remain off by default. See the [muzzle notes](muzzle_lighting.md) and
+[emitter notes](covenant_emitter_lighting.md) for tag/marker evidence and tuning.
+The existing performance and memory limitations above remain unresolved.
+
+Self-review covered the combined feature modules, seven marked shared draw
+lines, harnesses, capture fixtures, generated menu help and documentation.
+Scorpion triggers share the existing bounded pool but retain independent
+pulses. A profile flag replaces the repeated Warthog-only occlusion name test.
+The Hunter reuses the fuel-rod profile through its animated biped marker;
+its model-less weapon remains excluded. The AR material lookup is shared by
+its two helpers, and the exact output state is restored after the display
+draw. World-model values and shared fade history are unchanged. No loader,
+network protocol, host policy, shader translator or AMD/NVIDIA workaround
+was modified. Broader renderer refactoring was unnecessary for this scope.
+
+Sixteen hidden Windows captures on an NVIDIA RTX 5070 Ti, driver 617.42,
+used isolated data at 640x480, per-pixel lighting and the requested frame caps.
+The three new cases passed at every cap; observed mean FPS was:
+
+| Case | 30 cap | 60 cap | 120 cap |
+| --- | ---: | ---: | ---: |
+| Scorpion, both guns | 30.00 | 59.99 | 120.04 |
+| Hunter rods, Xbox c40 | 30.00 | 60.02 | 119.99 |
+| First-person AR, Xbox Blood Gulch | 30.00 | 60.05 | 120.02 |
+
+The remaining seven cases were 60-FPS off controls for each addition,
+Warthog and third-person AR regressions, and CE Death Island AR/Scorpion
+captures. Off controls selected no added lights. Images inspected at all
+three rates showed warm Scorpion flashes with a dark underside in the tested
+orientations, green Hunter forearm spill and a brighter readable AR screen.
+Both Scorpion triggers submitted independent pulses; Hunter captures reached
+model diffuse and specular draws. These are short visual checks, not sustained
+performance measurements, exhaustive occlusion coverage or new AMD validation.
+
+The focused regression suite passed 206 tests, with five POSIX-only cases
+skipped on Windows. COFF/full-LTO light storage and the standalone touch-menu
+unit passed. The generic touch/web pytest run hit Windows CRT/link and path
+assumptions; the touch unit passed with explicit x86/CRT flags. Local Android
+and web build targets remain unavailable, so CI supplies platform validation.
+
+Two-peer rendered checks passed on Xbox Blood Gulch, CE Death Island and
+MCC DigsiteMP with opposite local lighting choices. Host policy matched all
+386 stable samples, both peers observed respawns and inventory changes, and
+the existing comparator accepted 81/81/64 seconds of paired snapshots.
+One enabled process then loaded Xbox c40, MCC Mercury Falling, CE Death Island
+and Xbox Blood Gulch: three tick resets, expected shield activation, clean
+exit and no logged exception. This checks representative transitions, not
+campaign completion or every custom model reusing a stock tag name.
+
+[Windows, Linux, Android and web CI passed](https://github.com/chestahh/GulchCE/actions/runs/40432901781),
+including debug builds, Linux tests, browser/native WebRTC and
+Chromium/Firefox web checks. [MCC validation also passed](https://github.com/chestahh/GulchCE/actions/runs/40432901683).
+CI skips release builds on this branch; the Windows playtest was built locally
+in release mode.
+These runs validate the implementation revision `2522c432`; this appended
+acceptance record changes documentation only.
+
+The normal release ZIP uses `--portable --release --lto=off --pgo=off` and
+contains no game maps, saves, symbols or capture fixtures. Its extracted
+executable started, displayed the Dynamic Lighting menu, and retained all nine
+lighting switches plus Overshield off, Default intensity and Stock host policy.
+Archive integrity and every packaged file were verified. The ZIP SHA-256 is
+`8650c86a10a64967f29193308445e96cd2f982aa895fa5231db57a16831d449d`.
+
+Evidence is under `build/lighting-extension-*`,
+`build/plasma-visual/*-extension-*` and `build/lighting-compatibility/extension-*`.
+Capture manifests identify the working-tree sources before commit; their only
+later source differences are two explanatory comments and the Fuel Rod Glow
+configuration description. Runners removed staged maps and caches and archived
+test saves with hash verification. Final cleanup removed another 220.9 MiB of
+diagnostic executables and redundant images, retaining sixteen representative
+images per capture case, full logs, manifests and save archives. The per-run
+evidence totals about 107.0 MiB, besides contact sheets, small build logs, the
+13.6 MiB ZIP and the required normal build/symbols. Original game data, saves
+and earlier evidence remain untouched; all test processes exited.
