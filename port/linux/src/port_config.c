@@ -120,6 +120,11 @@ static const struct config_setting config_settings[] =
 	{ "display.max_fps", _config_integer, "0", "HALO_MAX_FPS", _environment_value, _platform_desktop,
 		"With vsync off, the most frames a second: 0 for twice the display's\n"
 		"refresh rate, -1 for no limit (which can hang some Intel graphics)." },
+	{ "display.frames_in_flight", _config_integer, "3", "HALO_FRAMES_IN_FLIGHT", _environment_value,
+		_platform_desktop,
+		"The most frames the GPU has queued (1 to 8): a frame waits for the GPU\n"
+		"to finish the one this many before it, so that frames come evenly when\n"
+		"the GPU is the slower; 0 leaves it to the driver." },
 	{ "display.anti_aliasing", _config_string, "\"off\"", "HALO_ANTI_ALIASING", _environment_value, _platform_all,
 		"Smoothing of jagged edges, which the Xbox did not have: \"off\"; \"fxaa\"\n"
 		"or \"smaa\" smooth the 3D view once it is drawn (the HUD and menus stay\n"
@@ -179,9 +184,34 @@ static const struct config_setting config_settings[] =
 		"waypoints, scopes) from the high-res assets (8x the maps' bitmaps);\n"
 		"false draws the maps' own bitmaps." },
 	{ "display.hud_button_style", _config_string, "\"classic\"", "HALO_HUD_BUTTON_STYLE", _environment_value, _platform_all,
-		"High-res gameplay controller buttons: classic uses plain Xbox faces;\n"
-		"gems uses shaded Xbox faces; menu_gems uses the menu's button art.\n"
-		"Requires display.high_res_hud." },
+		"Manual high-res gameplay button style, preserved while automatic detection\n"
+		"is on. Xbox: classic, gems, menu_gems (dark gems), xbox_modern.\n"
+		"PlayStation: ps_classic, ps_gems, ps_dark_gems, ps_modern.\n"
+		"Switch: switch_classic, switch_gems, switch_modern. Requires high_res_hud." },
+	{ "display.hud_bumper_style", _config_string, "\"original\"", "HALO_HUD_BUMPER_STYLE", _environment_value, _platform_all,
+		"Xbox Classic, Gems and Dark Gems bumpers: original (black/white) or modern\n"
+		"(LB/RB). Shared by local players, including automatic button detection.\n"
+		"Requires high_res_hud; other button styles keep their own artwork." },
+	{ "input.auto_button_detection", _config_boolean, "true", "HALO_AUTO_BUTTON_DETECTION", _environment_value, _platform_all,
+		"Limit Button Style to the assigned controller's family. Unknown devices\n"
+		"keep the manual choice. Device detection itself is always available." },
+	{ "input.controller_p1", _config_string, "\"\"", "HALO_CONTROLLER_P1", _environment_value, _platform_all,
+        "P1 custom controller layout; empty uses the profile. Edit in Gamepads >\n"
+        "Button Remapping. v2: stores 25 physical-button names, including unbound.\n"
+        "Gameplay and debug camera have separate bindings. Old ten-action layouts\n"
+        "are accepted. See docs/reading/controller_remapping.md for the full order." },
+	{ "input.controller_p2", _config_string, "\"\"", "HALO_CONTROLLER_P2", _environment_value, _platform_all,
+		"P2 custom controller buttons, same format as controller_p1. Empty uses the profile." },
+	{ "input.controller_p3", _config_string, "\"\"", "HALO_CONTROLLER_P3", _environment_value, _platform_all,
+		"P3 custom controller buttons, same format as controller_p1. Empty uses the profile." },
+	{ "input.controller_p4", _config_string, "\"\"", "HALO_CONTROLLER_P4", _environment_value, _platform_all,
+		"P4 custom controller buttons, same format as controller_p1. Empty uses the profile." },
+	{ "display.hud_button_style_xbox", _config_string, "\"classic\"", "HALO_HUD_BUTTON_STYLE_XBOX", _environment_value, _platform_all,
+		"Remembered automatic Xbox style: classic, gems, menu_gems, xbox_modern." },
+	{ "display.hud_button_style_ps", _config_string, "\"ps_classic\"", "HALO_HUD_BUTTON_STYLE_PS", _environment_value, _platform_all,
+		"Remembered automatic PlayStation style: ps_classic, ps_gems, ps_dark_gems, ps_modern." },
+	{ "display.hud_button_style_switch", _config_string, "\"switch_classic\"", "HALO_HUD_BUTTON_STYLE_SWITCH", _environment_value, _platform_all,
+		"Remembered automatic Switch style: switch_classic, switch_gems, switch_modern." },
 	{ "display.high_res_text", _config_boolean, "true", "HALO_HIGH_RES_TEXT", _environment_value, _platform_all,
 		"Draw the menus' and HUD's text with the fonts in port/assets/fonts\n"
 		"(Overpass) at the resolution the game draws at, and the menus' titles\n"
@@ -240,6 +270,10 @@ static const struct config_setting config_settings[] =
 		"screen's top right, with bars (the host: its slowest player's), and\n"
 		"\"Connection problem\" when the host has sent nothing for two seconds;\n"
 		"the scoreboard's pings in the same colours, as this machine times them." },
+	{ "display.shader_cache", _config_boolean, "true", "HALO_SHADER_CACHE", _environment_value, _platform_desktop,
+		"Keep the GPU programs the game links under the save root (shader_cache),\n"
+		"and load them from there next time instead of linking them again, which\n"
+		"stalls a frame on some drivers; false links each every run." },
 	{ "display.per_pixel_lighting", _config_boolean, "false", "HALO_PER_PIXEL_LIGHTING", _environment_value,
 		_platform_all,
 		"Light the models (characters, weapons, vehicles, scenery) for each\n"
@@ -350,6 +384,12 @@ static const struct config_setting config_settings[] =
 		"its light_show intensity, display.overshield_effect); \"players\": not\n"
 		"synced, each player sees their own settings'. SHIELD EFFECTS in Server\n"
 		"Setup > Player Options writes its choice here." },
+	{ "network.fire_origins", _config_boolean, "true", "HALO_NET_FIRE_ORIGINS", _environment_value, _platform_all,
+		"Host: whether a reported hit the shooter's camera had no line of sight\n"
+		"to may still count from where their machine says the shot left, when\n"
+		"that is not the camera (a VR build's hand: past a corner the camera is\n"
+		"behind), no further than a player leaning out and an arm, and in front\n"
+		"of the eye. false: from the camera and vehicles' guns only." },
 	{ "input.mouse_aim_assist", _config_boolean, "false", "HALO_MOUSE_AIM_ASSIST", _environment_value, _platform_desktop,
 		"Magnetism while aiming with the mouse, as with a controller: the view\n"
 		"slowed and dragged along by a target. The last of the mouse and the\n"
@@ -421,7 +461,7 @@ static const struct config_setting config_settings[] =
 	{ "controls.team_chat", _config_string, "\"Y\"", "HALO_KEY_TEAM_CHAT", _environment_value, _platform_all,
 		"Network games' text chat: type a line to your team." },
 
-	{ "game.console_log", _config_string, "\"important\"", "HALO_CONSOLE_LOG", _environment_value, _platform_all,
+	{ "game.console_log", _config_string, "\"none\"", "HALO_CONSOLE_LOG", _environment_value, _platform_all,
 		"What the game's console shows on screen of what it logs: \"important\"\n"
 		"(bans, players dropped for cheating, what refuses a command, and the\n"
 		"asserts that stop the game), \"all\" (every line, the game's own\n"
@@ -461,6 +501,28 @@ static const struct config_setting config_settings[] =
 	{ "bots.teams", _config_string, "\"even\"", "HALO_BOT_TEAMS", _environment_value, _platform_all,
 		"In team games: \"even\" puts the bots on both teams, evening them with\n"
 		"the players; \"against\" puts them all on the team the players are not on." },
+	{ "display.plasma_occlusion", _config_boolean, "false", "HALO_PLASMA_OCCLUSION", _environment_value, _platform_desktop,
+		"Collision-filtered projectile, Covenant emitter and Shield Glow visibility.\n"
+		"Off preserves unoccluded plasma lighting. At most eight occluded lights." },
+	{ "display.jackal_shield_lighting", _config_boolean, "false", "HALO_JACKAL_SHIELD_LIGHTING", _environment_value, _platform_desktop,
+		"Soft illumination from visible Jackal shields, following their colour and pose.\n"
+		"Stock shield effects remain intact. Optional occlusion uses plasma_occlusion." },
+	{ "display.needler_lighting", _config_boolean, "false", "HALO_NEEDLER_LIGHTING", _environment_value, _platform_desktop,
+	  "Soft pink-purple spill and luminous crystals on held Needlers." },
+	{ "display.ammo_counter_lighting", _config_boolean, "false", "HALO_AMMO_COUNTER_LIGHTING", _environment_value, _platform_desktop,
+	  "Blue spill and screen emission from held Assault Rifle ammo counters (off by default)." },
+	{ "display.fuel_rod_lighting", _config_boolean, "false", "HALO_FUEL_ROD_LIGHTING", _environment_value, _platform_desktop,
+		"Soft green illumination from exposed Grunt and Hunter fuel rods.\n"
+		"Stock weapon effects remain intact. Optional occlusion uses plasma_occlusion." },
+	{ "display.covenant_shield_lighting", _config_boolean, "false", "HALO_COVENANT_SHIELD_LIGHTING", _environment_value, _platform_desktop,
+		"Soft illumination from active stationary Covenant shield emitters.\n"
+		"Stock shield effects remain intact. Optional occlusion uses plasma_occlusion." },
+	{ "display.muzzle_lighting", _config_boolean, "false", "HALO_MUZZLE_LIGHTING", _environment_value, _platform_desktop,
+		"Optional soft muzzle illumination with a smooth render-time fade.\n"
+		"Stock flash effects remain intact. Off keeps stock lighting." },
+	{ "display.plasma_lighting", _config_boolean, "false", "HALO_PLASMA_LIGHTING", _environment_value, _platform_desktop,
+		"Supported plasma, Covenant and rocket flight lights follow rendered poses\n"
+		"with soft world/model falloff and omni highlights. Off keeps stock lighting." },
 	{ "display.overshield_effect", _config_boolean, "false", "HALO_OVERSHIELD_EFFECT", _environment_value, _platform_all,
 		"The overshield as this machine draws it: its flare rising up the body as\n"
 		"it charges (2 seconds, 3 from a shield that was down) and staying lit,\n"
@@ -470,12 +532,13 @@ static const struct config_setting config_settings[] =
 		"and heard changes. Online, the host decides through network.shield_effects,\n"
 		"unless it is \"players\" (each player's own)." },
 
-	{ "display.shield_glow", _config_boolean, "false", "HALO_SHIELD_GLOW", _environment_value, _platform_all,
-		"Energy shields light what is around them as they flare, as plasma\n"
-		"does, in the shield's own color. In a network game, the host's\n"
+	{ "display.shield_glow", _config_boolean, "false", "HALO_SHIELD_GLOW", _environment_value, _platform_desktop,
+		"Energy shields cast soft body-sized light using the selected shield\n"
+		"appearance and overshield layer colour. Optional wall blocking uses\n"
+		"plasma_occlusion. In a network game, the host's\n"
 		"network.shield_effects decides, unless it is \"players\" (each\n"
 		"player's own)." },
-	{ "display.shield_glow_intensity", _config_string, "\"default\"", "HALO_SHIELD_GLOW_INTENSITY", _environment_value, _platform_all,
+	{ "display.shield_glow_intensity", _config_string, "\"default\"", "HALO_SHIELD_GLOW_INTENSITY", _environment_value, _platform_desktop,
 		"How far the shield glow reaches: \"default\" or \"light_show\" (three\n"
 		"times as far, and at full strength from a third of the flare).\n"
 		"In a network game, the host's network.shield_effects decides, unless\n"
@@ -1845,7 +1908,12 @@ static const struct
 	{ "display.mode", { "", "fullscreen", "borderless", "windowed", NULL }, "display.fullscreen's" },
 	{ "display.resolution_scaling", { "native", "original", NULL }, NULL },
 	{ "display.anti_aliasing", { "off", "fxaa", "smaa", "ssaa2x", "msaa2x", "msaa4x", "msaa8x", NULL }, NULL },
-	{ "display.hud_button_style", { "classic", "gems", "menu_gems", NULL }, NULL },
+	{ "display.hud_button_style", { "classic", "gems", "menu_gems", "dark_gems", "xbox_modern",
+		"ps_classic", "ps_gems", "ps_dark_gems", "ps_modern", "switch_classic", "switch_gems", "switch_modern", NULL }, NULL },
+	{ "display.hud_button_style_xbox", { "classic", "gems", "menu_gems", "dark_gems", "xbox_modern", NULL }, NULL },
+	{ "display.hud_bumper_style", { "original", "modern", NULL }, NULL },
+	{ "display.hud_button_style_ps", { "ps_classic", "ps_gems", "ps_dark_gems", "ps_modern", NULL }, NULL },
+	{ "display.hud_button_style_switch", { "switch_classic", "switch_gems", "switch_modern", NULL }, NULL },
 	{ "display.shield_look", { "classic", "classic_with_sprinkles", "enhanced", "classic_honeycomb2", NULL }, NULL },
 	{ "display.menus", { "pc", "xbox", NULL }, NULL },
 	{ "display.player_names", { "all", "allies", "enemies", "none", NULL }, NULL },

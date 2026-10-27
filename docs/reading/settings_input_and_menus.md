@@ -57,6 +57,10 @@ gaps. A visible widget alone does not establish that its action is implemented.
 
 ## Follow the forward stick
 
+[Controller button remapping](controller_remapping.md) adds a Gamepad Setup
+submenu with independent P1-P4 layouts. It transforms physical button input
+before keyboard/touch merging, while leaving menu navigation and stick axes intact.
+
 On the normal controller path, the SDL-backed `XInputGetState` supplies the
 Xbox-shaped state consumed by `input_xbox.c`. `input_abstraction_update`
 uses the local player's control preferences to translate stick positions
@@ -104,7 +108,52 @@ with the active input context. It does not start with globally changing the
 key's meaning. Split-screen controller indices and local-player indices
 must remain associated with the intended player.
 
+## MCC pause menus
+
+MCC uses its own pause widgets so an authored map cannot replace the native
+pause actions. Read [mcc_pause.c](../../port/linux/game/mcc_pause.c), starting
+with `mcc_pause_screen`, `mcc_pause_dialog` and `mcc_pause_key`. Their Xbox
+reference layouts include OpenCE's Settings and co-op Friendly Fire entries.
+For example, Revert opens ATTENTION with B=CANCEL and A=OK; confirmation
+reaches `mcc_ui_event_function` in [mcc_ui.c](../../port/linux/game/mcc_ui.c),
+which checks host authority and checkpoint validity before reverting.
+
+[mcc_pause_runtime.c](../../port/linux/game/mcc_pause_runtime.c) appends an
+owned tag table only after construction succeeds. `mcc_pause_borrow_art`
+selects the port's existing panel and alert redraws without modifying their
+original groups or textures. The glyphs use embedded small menu-button
+redraws, not the MCC map's gameplay icons. Teardown releases MCC allocations
+first and leaves borrowed textures for their native owner. Xbox and Custom
+Edition retain their existing pause builders and action routes.
+
+The focused checks are [test_mcc_pause.py](../../tools/test_mcc_pause.py),
+[test_mcc_pause_runtime.py](../../tools/test_mcc_pause_runtime.py) and
+[test_mcc_ui.py](../../tools/test_mcc_ui.py). They cover layout and actions,
+failed construction, resource ownership, controller cleanup and client
+refusal. Real screenshots and host/client menu interaction are still needed
+to verify presentation and navigation. See [MCC pause behavior](../mcc_maps.md#in-game-pause-menus)
+for context-specific choices and split-screen limitations.
+
 ## Evidence and useful checks
+
+On `dynamic-lighting-test`, Video Setup's Dynamic Lighting screen exposes
+eight independent, default-off settings. Its rows come from
+`SCREENS["video_settings/dynamic_lighting"]` in
+[port_settings.py](../../tools/port_settings.py). `setting_load` reads the
+saved values; `setting_changed_save` writes only changed values on OK.
+Defaults changes the pending spinner selections, so Cancel still discards
+those changes. Restarting reads the saved configuration again. Portable
+builds keep `config.toml` beside the executable, independently of the map
+data root; acceptance runners must isolate both locations.
+
+`settings_help` also reconnects a generated setting row to its spinner when
+its descendant focus was cleared by a pointer focus change. Without this,
+returning to the row with the d-pad could show the correct help but ignore
+left/right input. The repair uses existing setting metadata and preserves
+an already-focused child and ordinary button navigation. It stays in the
+port's settings handler; Xbox widget focus semantics are unchanged.
+[test_settings_focus.py](../../tools/harness/tests/test_settings_focus.py)
+exercises that route and a negative control with the repair removed.
 
 The inherited game provides control abstraction, profiles, widgets and unit
 control. The port provides SDL input, keyboard actions, configuration and
@@ -125,5 +174,14 @@ menus and text entry, then check a second local player. For a setting change,
 check default loading, save failure, reload and the actual consumer. Keep
 generated XML changes tied to the intended generator change.
 
+Shield Glow and Glow Intensity now live in Dynamic Lighting; their saved keys
+and host policy are unchanged. Animated Overshield remains in Extra Effects.
+The [shield-lighting guide](shield_lighting.md) explains the distinction between
+saved local preferences and effective host-selected state. Defaults restores
+OFF for light toggles and DEFAULT for intensity; it does not override a host.
+
 Continue with [objects and gameplay](objects_and_gameplay.md), or return to
 the [guide](README.md).
+
+For the optional AUTO BUTTON DETECTION setting and independent manual/family
+preferences, see [controller detection and button styles](controller_buttons.md).

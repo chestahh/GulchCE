@@ -66,6 +66,14 @@ This diagram describes dependencies, not a promise that every message
 arrives or is sent to every peer at the same rate. Distance, visibility,
 batching and message type affect transmission frequency.
 
+A client with a custom firing position, such as a VR hand, can send OpenCE's
+optional fire-origin message. In `network_damage_handle_fire_origins`, the host
+accepts positions only for players owned by that client and within a bounded
+reach. The hit-report path checks freshness, hand position and line of sight;
+`network.fire_origins` controls whether this can admit a hit the eye cannot see.
+MCC's separate message numbers and admission revision are recorded in
+[NETCODE.md](../../port/linux/NETCODE.md), preserving OpenCE's message 93.
+
 ## Compare states from the same time
 
 Suppose the host replies about tick T, but the client has already moved on.
@@ -92,6 +100,15 @@ pickups. `network_damage.c` reports a local player's hits and checks them
 on the host against ownership, weapon/rate rules, target history and other
 constraints. The host deals damage. Clients replay the corresponding
 presentation, with special handling for deaths and authoritative state.
+
+A projectile may remain after its firing object is deleted. The player lookup
+`get_player_index_from_object_or_parents` in
+[damage.c](../../source/objects/damage.c) therefore uses a checked object lookup
+before following a non-unit's parent. An expired datum (including a slot reused
+by a different object) yields no player for the gametype multiplier lookup.
+It does not erase the damage payload's separate player/team attribution or
+change host admission. The [owner lookup tests](../../tools/harness/tests/test_damage_owner_lookup.py)
+cover live units, AI, parent chains, deletion and slot reuse.
 
 OpenCE's host also checks a reported point hit against level geometry in
 `distributed_report_line_of_sight`. For example, a shot reported through
@@ -166,11 +183,27 @@ then read `server_director.c` for rotation and session ownership and
 `server_commands.c` for administration. These are upstream additions; they
 do not make an MCC capability claim sufficient to pass normal admission.
 
-`online-third-person` has additional camera-related protocol distinctions.
-Read that branch's own NETCODE and protocol headers before assuming that a
-visually local feature has no session compatibility consequences. None of
-these branch differences changes the basic requirement to clear capability,
-player and synchronization state when a connection is removed or reused.
+`online-third-person` deliberately disables crossplay with OpenCE and main.
+Xbox/Custom Edition use version 32700; MCC uses 32701. Even first-person-only
+games retain the camera branch's extra shoulder byte in relayed inputs.
+
+Read [third_person_protocol.c](../../port/linux/game/third_person_protocol.c):
+`third_person_protocol_join` wraps an ordinary join or the existing MCC
+admission envelope; `third_person_protocol_unwrap` validates framing, size,
+version and inner message kind. The client hook in `network_game_client_idle_joining`
+and the server hook in `network_game_server_handle_client_message` are needed
+because these shared functions own the reliable join send and dispatch. The
+feature module cannot intercept them through an existing registration interface.
+
+For example, a main client that connects directly to this branch's host is
+rejected before settings or player admission, even if it bypasses discovery.
+A matching camera client passes this stateless check, then still needs the
+usual token, ban, slot and map-capability checks. MCC owns its inner admission
+and connection cleanup; the camera wrapper neither grants MCC capability nor
+adds persistent state. Joined gameplay continues through the existing dispatcher.
+`tools/test_camera_protocol.py` executes the framing and pre-admission gate;
+`tools/test_mcc_protocol.py` covers the downstream MCC and authorization rules.
+These source and harness checks do not establish internet transport behavior.
 
 ## Evidence and useful checks
 

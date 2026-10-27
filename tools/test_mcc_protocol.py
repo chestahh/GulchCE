@@ -1,7 +1,7 @@
-"""Admission and the OpenCE 39 baseline with explicit experimental camera extensions.
+"""Admission and the pinned OpenCE 39 baseline with camera extensions.
 
 The AGPL-3.0-or-later baseline fixture comes unchanged from OpenCommunityEdition/OpenCE
-3c7ed45e6fe2f286e8e2d175370b04d06f9e1c6e, port/linux/network_format.txt.
+22947203a52c6f4b04171eaec426b4f5059b43f4, port/linux/network_format.txt.
 Update it only after auditing and testing a new upstream protocol.
 """
 from pathlib import Path
@@ -32,7 +32,7 @@ def test_opence_39_contract_with_camera_extensions():
     actual["bound DISTRIBUTED_RELAYED_ACTION_MAXIMUM_SIZE"] = "14 + 2 * (DISTRIBUTED_INPUT_HISTORY - 1)"
     assert {key: actual.get(key) for key in expected} == expected
     limits = (ROOT / "port/linux/include/halo_port_limits.h").read_text()
-    assert re.search(r"#define HALO_PORT_NETWORK_VERSION 41\b", limits)
+    assert re.search(r"#define HALO_PORT_NETWORK_VERSION 32700\b", limits)
     # All fields of the transmitted prefix match upstream, including names,
     # types and order. The Windows build also asserts the actual ABI offsets.
     header = (ROOT / "source/networking/network_game_manager.h").read_text()
@@ -59,7 +59,7 @@ typedef int boolean;
 #define TRUE 1
 #define FALSE 0
 #define HALO_PORT_NETWORK_GAME_PLAYERS_END 6
-#define HALO_PORT_NETWORK_VERSION 41
+#define HALO_PORT_NETWORK_VERSION 32700
 #define HALO_PORT_MAXIMUM_NETWORK_MACHINES 4
 #define NUMBEROF(a) (sizeof(a)/sizeof((a)[0]))
 #define csmemcpy memcpy
@@ -97,7 +97,7 @@ int main(void) {
     byte saved;
     int i;
     memset(&game,0,sizeof(game));strcpy(game.map.name,"levels\\test\\bloodgulch\\bloodgulch");
-    CHECK(mcc_protocol_version(game.map.name)==41);
+    CHECK(mcc_protocol_version(game.map.name)==32700);
     CHECK(mcc_protocol_settings_size(&game)==64);
     CHECK(mcc_protocol_settings_valid(&game,64));CHECK(!mcc_protocol_settings_valid(&game,96));
     build_message_header(original,sizeof(original),3,0);
@@ -358,6 +358,14 @@ int main(void) {
  check(_distributed_message_client_build,1);if(applied!=1)return 7;
  connection=_game_connection_network_client;
  check(_distributed_message_client_build,NONE);if(applied!=1)return 8;
+ /* OpenCE fire origins remain client-to-host in both map families. */
+ for(mcc=0;mcc<2;mcc++) {
+  applied=0;connection=_game_connection_network_client;
+  check(_distributed_message_fire_origins,NONE);if(applied)return 9;
+  connection=_game_connection_network_server;
+  check(_distributed_message_fire_origins,NONE);if(applied)return 10;
+  check(_distributed_message_fire_origins,1);if(applied!=1)return 11;
+ }
  return 0;
 }
 '''
@@ -376,15 +384,16 @@ def test_chat_and_mcc_message_ids_are_disjoint():
     assert messages["enum _distributed_message_aim_assist_policy"] == 90
     assert messages["enum _distributed_message_shield_effects"] == 91
     assert messages["enum _distributed_message_client_build"] == 92
+    assert messages["enum _distributed_message_fire_origins"] == 93
     protocol = (ROOT / "port/linux/game/mcc_protocol.h").read_text()
     join_kind = int(re.search(r"#define MCC_PROTOCOL_JOIN_KIND (\d+)", protocol).group(1))
     assert join_kind not in messages.values()
     header = (ROOT / "port/linux/game/network_distributed.h").read_text()
-    assert header.index("_distributed_message_aim_assist_policy = 90") < header.index("_distributed_message_mcc_grenades = 93")
+    assert header.index("_distributed_message_aim_assist_policy = 90") < header.index("_distributed_message_mcc_grenades = 94")
     assert [messages["enum _distributed_message_chat_" + name]
             for name in ("up", "down", "config")] == [87, 88, 89]
     assert [messages["enum _distributed_message_mcc_" + name]
-            for name in ("grenades", "campaign", "object_names", "game_speed")] == [93, 94, 95, 96]
+            for name in ("grenades", "campaign", "object_names", "game_speed")] == [94, 95, 96, 97]
     # The receive boundary must admit chat in ordinary sessions while rejecting
     # MCC data before dispatch; it also applies recursively to batched messages.
     receiver = function((ROOT / "port/linux/game/network_distributed.c").read_text(),

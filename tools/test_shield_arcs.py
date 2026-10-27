@@ -46,6 +46,7 @@ struct tag_data {long size;char pad[16];};
 #define TEST_FLAG(value,bit) ((value)&(1U<<(bit)))
 enum {_object_type_biped=0,_object_dead_bit=0,_object_shield_depleted_bit=1};
 struct object_datum {struct {short type;unsigned damage_flags;float shield_vitality;short shield_stun_ticks;} object;};
+struct unit_datum {struct {short type;unsigned damage_flags;float shield_vitality;short shield_stun_ticks;} object;struct {long player_index;} unit;};
 static int enhanced=1,arms_enabled=1,creates,deletes,fail_texture;
 static int shield_look_enabled(void) {return enhanced;}
 int config_boolean(const char *name) {(void)name;return arms_enabled;}
@@ -56,6 +57,7 @@ static FILE *asset_open(const char *path,const char *mode) {(void)path;return fo
 static void checked_free(void *p) {assert(p);free(p);}
 #define free checked_free
 '''
+    preamble += function((ROOT / "port/linux/game/shield_look.c").read_text(), "shield_look_player")
     stubs = r'''
 static int rasterizer_bitmap_new(struct bitmap_data *b) {
  assert(b->flags==3);assert(b->mipmap_count==2);assert(b->pixels_size==172032);
@@ -71,19 +73,21 @@ void cache_files_set_tag_instances(void *p,long count) {table=p;table_count=coun
 '''
     main = r'''
 int main(int argc,char **argv) {
- struct object_datum object={{0,2,0.f,30}};
+ struct unit_datum object={{0,2,0.f,30},{0}};
  struct shield_arcs_tag original[10];
  int i,expected;
  assert(argc==3);asset_path=argv[2];
- assert(shield_arcs_active(&object,0));assert(shield_arcs_active(&object,1));
- enhanced=0;assert(!shield_arcs_active(&object,0));enhanced=1;
- arms_enabled=0;assert(!shield_arcs_active(&object,1));assert(shield_arcs_active(&object,0));arms_enabled=1;
+ assert(shield_arcs_active((struct object_datum *)&object,0));assert(shield_arcs_active((struct object_datum *)&object,1));
+ object.unit.player_index=NONE;assert(!shield_arcs_active((struct object_datum *)&object,0));assert(!shield_arcs_active((struct object_datum *)&object,1));
+ object.unit.player_index=17;assert(shield_arcs_active((struct object_datum *)&object,0));
+ enhanced=0;assert(!shield_arcs_active((struct object_datum *)&object,0));enhanced=1;
+ arms_enabled=0;assert(!shield_arcs_active((struct object_datum *)&object,1));assert(shield_arcs_active((struct object_datum *)&object,0));arms_enabled=1;
  assert(!shield_arcs_active(NULL,0));
- object.object.damage_flags=3;assert(!shield_arcs_active(&object,0));
- object.object.damage_flags=0;assert(!shield_arcs_active(&object,0));object.object.damage_flags=2;
- object.object.shield_vitality=.01f;assert(!shield_arcs_active(&object,0));object.object.shield_vitality=0;
- object.object.shield_stun_ticks=0;assert(!shield_arcs_active(&object,0));object.object.shield_stun_ticks=30;
- object.object.type=1;assert(!shield_arcs_active(&object,0));
+ object.object.damage_flags=3;assert(!shield_arcs_active((struct object_datum *)&object,0));
+ object.object.damage_flags=0;assert(!shield_arcs_active((struct object_datum *)&object,0));object.object.damage_flags=2;
+ object.object.shield_vitality=.01f;assert(!shield_arcs_active((struct object_datum *)&object,0));object.object.shield_vitality=0;
+ object.object.shield_stun_ticks=0;assert(!shield_arcs_active((struct object_datum *)&object,0));object.object.shield_stun_ticks=30;
+ object.object.type=1;assert(!shield_arcs_active((struct object_datum *)&object,0));
  assert(shield_arcs_random(123)==shield_arcs_random(123));assert(shield_arcs_random(123)!=shield_arcs_random(124));
  table=original;table_count=10;expected=!strcmp(argv[1],"valid");fail_texture=!strcmp(argv[1],"texture-failure");
  shield_arcs_unload(); /* safe before any lazy load */

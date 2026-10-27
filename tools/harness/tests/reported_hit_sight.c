@@ -12,8 +12,18 @@ static struct { struct damage_stuck_projectile stuck[MAXIMUM_STUCK_PROJECTILES];
 static long now = 300;
 static int mode, calls;
 static boolean blocked_eye_muzzle;
+static real muzzle_x = 2.0f;
+static boolean accept_hands = TRUE;
+static unsigned long settings_revision;
+static long damage_hand_reports;
 static long game_time_get(void) { return now; }
 static real distributed_machine_round_trip_ticks(long machine) { CHECK(machine == 0, "machine"); return 0; }
+static unsigned long config_changes(void) { return settings_revision; }
+static int config_boolean(char const *name)
+{
+    CHECK(!strcmp(name, "network.fire_origins"), "unexpected setting");
+    return accept_hands;
+}
 /* Object discovery is a separate boundary; this fixture supplies host-owned notes. */
 static void distributed_note_stuck_projectiles(void) {}
 
@@ -28,9 +38,9 @@ static boolean collision_test_line(unsigned long flags, real_point3d const *from
     /* A centre ray is blocked; both legs through the impact must be clear. */
     if (mode == 2) return from->x == 0 && to->x == 10;
     if (mode == 3) return to->x == 10;
-    /* A mounted muzzle is useful only with a clear eye-to-muzzle segment. */
-    if (from->x == 2) return FALSE;
-    if (to->x == 2) return blocked_eye_muzzle;
+    /* A muzzle or hand is useful only with a clear eye-to-origin segment. */
+    if (from->x == muzzle_x) return FALSE;
+    if (to->x == muzzle_x) return blocked_eye_muzzle;
     return TRUE;
 }
 #include "under_test.inc"
@@ -67,8 +77,31 @@ int main(int argc, char **argv)
     } else if (!strcmp(argv[1], "mounted")) {
         mode = 4; p->mounted = TRUE; p->muzzle.x = 2;
         CHECK(sight(), "mounted weapon rejected");
+        CHECK(!damage_hand_reports, "host-owned muzzle counted as a client hand");
         blocked_eye_muzzle = TRUE;
         CHECK(!sight(), "muzzle beyond cover accepted");
+        blocked_eye_muzzle = FALSE; accept_hands = FALSE; settings_revision++;
+        CHECK(sight(), "hand setting disabled the host-owned muzzle");
+    } else if (!strcmp(argv[1], "hand") || !strcmp(argv[1], "hand_shape") || !strcmp(argv[1], "eye_priority")) {
+        mode = 4; muzzle_x = 0.15f;
+        p->mounted = TRUE; p->hand = TRUE; p->muzzle.x = muzzle_x; p->muzzle.z = 0.9f;
+        if (!strcmp(argv[1], "hand")) {
+            CHECK(sight() && damage_hand_reports == 1, "valid hand fallback rejected or not counted");
+            blocked_eye_muzzle = TRUE;
+            CHECK(!sight() && damage_hand_reports == 1, "hand beyond cover accepted");
+            blocked_eye_muzzle = FALSE; accept_hands = FALSE; settings_revision++;
+            CHECK(!sight() && damage_hand_reports == 1, "disabled hand fallback accepted");
+            accept_hands = TRUE; settings_revision++;
+            CHECK(sight() && damage_hand_reports == 2, "changed hand setting not reread");
+        } else if (!strcmp(argv[1], "hand_shape")) {
+            p->muzzle.y = 0.25f;
+            CHECK(!sight() && !damage_hand_reports, "hand too far around a corner accepted");
+            p->muzzle.y = 0.1f;
+            CHECK(sight() && damage_hand_reports == 1, "valid hand shape rejected");
+        } else {
+            point(now - PLAYER_TRAIL_INTERVAL_TICKS)->position.x = muzzle_x;
+            CHECK(sight() && !damage_hand_reports, "hand took priority over a recent host-owned eye");
+        }
     } else if (!strcmp(argv[1], "missing")) {
         p->time = NONE; CHECK(!sight() && !calls, "absent living history accepted");
     } else if (!strcmp(argv[1], "window")) {

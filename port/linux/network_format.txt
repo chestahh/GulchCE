@@ -1,4 +1,4 @@
-version 60
+version 32701
 bound CHAT_TEXT_SIZE 64
 bound DISCORD_ID_SIZE 24
 bound DISCORD_NAME_SIZE 40
@@ -28,6 +28,7 @@ bound MAP_SHARE_HASH_BYTES 32
 bound MAXIMUM_DEVICE_GROUPS 1024
 bound MAXIMUM_DEVICE_STATES_PER_MESSAGE 64
 bound MAXIMUM_ENTRIES_PER_MESSAGE 64
+bound MAXIMUM_LOCAL_PLAYERS 4
 bound MAXIMUM_OBJECT_LOOKS_PER_MESSAGE 64
 bound MAXIMUM_OBJECT_NAMES_PER_SCENARIO 0x200
 bound MAXIMUM_OBJECT_TRANSFORMS_PER_MESSAGE 64
@@ -49,9 +50,12 @@ define DISTRIBUTED_UNIT_SCALE 32767.0f
 define DISTRIBUTED_VELOCITY_SCALE 1024.0f
 define MCC_PROTOCOL_ADVERTISED_FLAG 0x08
 define MCC_PROTOCOL_ADVERTISED_VERSION_OFFSET 4
-define MCC_PROTOCOL_JOIN_KIND 97
+define MCC_PROTOCOL_JOIN_KIND 98
 define MCC_PROTOCOL_JOIN_MAX 256
-define MCC_PROTOCOL_VERSION 60
+define MCC_PROTOCOL_VERSION 32701
+define THIRD_PERSON_PROTOCOL_JOIN_KIND 99
+define THIRD_PERSON_PROTOCOL_JOIN_MAX 264
+define THIRD_PERSON_PROTOCOL_JOIN_REVISION 1
 enum _distributed_actor_camouflaged_bit 4
 enum _distributed_actor_impulse_aligned_bit 6
 enum _distributed_actor_rides_bit 0
@@ -89,6 +93,7 @@ enum _distributed_message_coop_skip_vote 70
 enum _distributed_message_coop_sounds_retired 67
 enum _distributed_message_damage_animations 75
 enum _distributed_message_damage_events 10
+enum _distributed_message_fire_origins 93
 enum _distributed_message_game_state 7
 enum _distributed_message_hit_reports 11
 enum _distributed_message_inventories 4
@@ -96,10 +101,10 @@ enum _distributed_message_map_share_offer 84
 enum _distributed_message_map_share_progress 86
 enum _distributed_message_map_share_request 83
 enum _distributed_message_map_share_sources 85
-enum _distributed_message_mcc_campaign 94
-enum _distributed_message_mcc_game_speed 96
-enum _distributed_message_mcc_grenades 93
-enum _distributed_message_mcc_object_names 95
+enum _distributed_message_mcc_campaign 95
+enum _distributed_message_mcc_game_speed 97
+enum _distributed_message_mcc_grenades 94
+enum _distributed_message_mcc_object_names 96
 enum _distributed_message_notice 17
 enum _distributed_message_object_changes 5
 enum _distributed_message_object_states 6
@@ -221,7 +226,7 @@ fields server_switch_to_pregame 678699dea271
 layout HALO_PORT_NETWORK_GAME_LOCAL_DATA_OFFSET (HALO_PORT_NETWORK_GAME_PLAYERS_END + 0x36)
 layout HALO_PORT_NETWORK_GAME_SIZE (HALO_PORT_NETWORK_GAME_PLAYERS_END + 0x3A + 32) /* MCC SHA-256 */
 layout HALO_PORT_NETWORK_GAME_VARIANT_OPTIONS_OFFSET (HALO_PORT_NETWORK_GAME_PLAYERS_END + 0xA)
-protocol OpenCE 41
+protocol OpenCE 32700
 size message_client_add_player_request_ingame 0x20
 size message_client_add_player_request_pregame 0x20
 size message_client_broadcast_game_search 0x0C
@@ -287,6 +292,8 @@ struct distributed_damage_animation ae158e21c915
 struct distributed_damage_animations_message 863e25ca3614
 struct distributed_damage_event 659e4d49733b
 struct distributed_damage_event_message c954363dcf26
+struct distributed_fire_origin 700dfdb20582
+struct distributed_fire_origin_message 7613e8f9d43e
 struct distributed_hit_report 9a44ca43a88b
 struct distributed_hit_report_message 37279f2addca
 struct distributed_infection_player d8b98eecf26b

@@ -17,7 +17,7 @@ the menu to the camera, reticle and first-person weapon.
 | 1 | [Startup and the game loop](startup_and_loop.md) | Launch, enter a local map and draw between ticks: what runs when? |
 | 2 | [Settings, input and menus](settings_input_and_menus.md) | Save a setting and push a stick forward: how does an action reach the game? |
 | 3 | [Objects and gameplay](objects_and_gameplay.md) | Spawn, control and retire a player's body: who owns its state? |
-| 4 | [Rendering](rendering.md) | Draw a room and moving player: how do poses become pixels? Includes separate dynamic-lighting and Vulkan branch notes. |
+| 4 | [Rendering](rendering.md) | Draw a room and moving player: how do poses become pixels? Includes dynamic lighting 1.0 and separate Vulkan branch notes. |
 | 5 | [Networking](networking.md) | Move a client player: what is predicted, validated, relayed and corrected? |
 | 6 | [Maps and resources](maps_and_resources.md) | Load a package level: how do Xbox, CE and MCC readers keep their data and lifetimes separate? |
 | 7 | [Platforms and testing](platforms_and_testing.md) | Follow platform entry points and investigate an elevator regression: what evidence reaches the behaviour? |
@@ -143,3 +143,12 @@ and file history when comparing a later implementation with this explanation.
 | Where are GulchCE's MCC boundaries? | [Coding standards](../../CODINGSTANDARDS.md#scope-and-implementation-boundaries) |
 | How do menu generators relate to the saved XML? | [Menu assets](../../port/assets/menus/README.md) |
 | What can tests establish without retail assets? | [Harness](../../tools/harness/README.md) and [Stagekit](../../tools/stagekit/README.md) |
+
+[HUD artwork corrections](hud_corrections.md) explains the supplied reticles,
+zoom labels, transparent Classic letters and separate map-family handling.
+
+[Controller detection and button styles](controller_buttons.md) follows device identity,
+automatic family filtering and gameplay glyph ownership.
+
+[Controller button remapping](controller_remapping.md) covers the Gamepad Setup
+submenu, P1-P4 layouts, physical input isolation and prompt updates.

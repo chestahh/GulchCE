@@ -8,17 +8,19 @@
 #include "interface/hud.h"
 #include "interface/hud_definitions.h"
 #include "interface/hud_draw.h"
+#include "interface/weapon_hud_interface_definition.h"
+#include "tag_files/tag_groups.h"
 #include "text/draw_string.h"
 #include "rasterizer/rasterizer.h"
 #include "rasterizer/xbox/rasterizer_xbox_hardware_bitmaps.h"
 #include "mcc_cache.h"
 #include "mcc_hud_draw.h"
 #include "hud_button_layout.h"
+#include "controller_glyphs.h"
 #include <string.h>
 
 long halo_screen_width(void);
 int config_boolean(char const *name);
-char const *config_string(char const *name);
 long hud_hires_asset_count(void);
 char const *hud_hires_asset_tag(long asset);
 void hud_hires_register_placeholder(long asset, unsigned long const *texture);
@@ -30,6 +32,38 @@ static struct {
     boolean attempted;
 } mcc_buttons[14];
 static short mcc_buttons_style;
+static short mcc_weapon_frame=NONE;
+
+/* The outermost populated parent owns the inherited layout. A weapon can
+ * replace its ammunition artwork without relocating that parent's counter.
+ * Empty/crosshair-only parents cannot override an authored child layout.
+ * Scope the choice to this draw, never to the shared tag or another player. */
+void mcc_hud_weapon_frame_begin(long hud_index)
+{
+    struct weapon_hud_interface_definition const *hud;
+    short depth,frame=FALSE,corner=NONE;
+    mcc_weapon_frame=NONE;
+    if (!mcc_cache_tags_loaded()) return;
+    mcc_weapon_frame=FALSE;
+    for (depth=0;hud_index!=NONE && depth<16;depth++) {
+        hud=tag_get('wphi',hud_index);
+        if (!mcc_cache_contains(hud,sizeof(*hud))) return;
+        if (hud->statics.count || hud->meters.count || hud->numbers.count || hud->overlays.count) {
+            /* A hierarchy spanning distinct authored anchors keeps the MCC
+             * frame; only a common inherited corner uses stock safe margins. */
+            if (corner!=NONE && corner!=hud->absolute_placement.corner) return;
+            corner=hud->absolute_placement.corner;
+            frame=hud->absolute_placement.pad==MCC_HUD_NATIVE_FRAME;
+        }
+        hud_index=hud->parent_hud.index;
+    }
+    if (hud_index==NONE) mcc_weapon_frame=frame;
+}
+
+void mcc_hud_weapon_frame_end(void)
+{
+    mcc_weapon_frame=NONE;
+}
 
 void mcc_hud_glyphs_dispose(void)
 {
@@ -74,8 +108,8 @@ static struct bitmap_data const *mcc_hud_button_bitmap(short index)
     short style;
     if (index<0 || index>=14 || (index>=6 && !config_boolean("display.high_res_hud"))) return NULL;
     /* Keep the established MCC low-res path; the style belongs to High-Res HUD. */
-    style=!config_boolean("display.high_res_hud") || (!strcmp(config_string("display.hud_button_style"), "dark_gems") || !strcmp(config_string("display.hud_button_style"), "menu_gems")) ? 2 :
-        !strcmp(config_string("display.hud_button_style"),"gems");
+    style=config_boolean("display.high_res_hud") ? controller_glyph_style() : 2;
+    if (style>=3) style=0;
     if (style!=mcc_buttons_style) {
         mcc_hud_glyphs_dispose();
         mcc_buttons_style=style;
@@ -100,19 +134,19 @@ static struct bitmap_data const *mcc_hud_button_bitmap(short index)
 
 /* Menu artwork has straight alpha; the gameplay HUD's multiply-add blend
  * would expose RGB stored under transparent pixels around the button. */
-static void mcc_hud_button_draw(struct bitmap_data const *bitmap, point2d const *point,
+static void mcc_hud_button_draw(struct bitmap_data const *bitmap, real x, real bottom,
     real scale, pixel32 color, short index)
 {
     struct rasterizer_dynamic_screen_geometry_parameters parameters;
     struct dynamic_screen_vertex vertices[4];
     short i;
-    real x=point->x, y=point->y-26.0f*scale;
+    real y=bottom-26.0f*scale;
     real width=21.0f*scale, height=26.0f*scale;
     real u=21.0f/32.0f,v=26.0f/32.0f;
     if (index>=6) {
         width=(index<8 ? 44.0f : 32.0f)*scale;
         height=(index<8 ? 33.0f : 34.0f)*scale;
-        y=point->y-13.0f*scale-height*0.5f;
+        y=bottom-13.0f*scale-height*0.5f;
         u=(index<8 ? 50.0f : 36.0f)/64.0f;v=(index<8 ? 35.0f : 40.0f)/64.0f;
         hud_button_control_bounds(index,&x,&y,&width,&height);
     }
@@ -172,20 +206,36 @@ boolean mcc_hud_icon_draw(long bitmap_group_index, struct bitmap_data const *bit
     if (!mcc_cache_tags_loaded()) return FALSE;
     viewport_scale=!menu && local_player_count()>1 ? 0.75f : 1.0f;
     if (!menu) {
-        short button_index=mcc_hud_button_index(icon);
-        struct bitmap_data const *button=mcc_hud_button_bitmap(button_index);
+        short button_index;
+        struct bitmap_data const *button;
+        /* MCC identifies its own entries; authored pickup/weapon icons retain
+         * their map artwork. The optional glyph service owns only new styles. */
+        if (config_boolean("display.high_res_hud") && hud_globals &&
+            hud_globals->messaging.button_icons.address) {
+            short entry;
+            struct icon_hud_element_definition const *buttons=hud_globals->messaging.button_icons.address;
+            for (entry=0;entry<18 && entry<hud_globals->messaging.button_icons.count;entry++)
+                if (icon==buttons+entry && controller_glyph_draw(controller_glyph_style(),entry,icon,cursor,color,xgpu_mcc_texture_unbind))
+                    return TRUE;
+        }
+        button_index=mcc_hud_button_index(icon);
+        button=mcc_hud_button_bitmap(button_index);
         if (button) {
-            /* Crop transparent padding from the native 32px art. A 16x20
-             * icon shares the current font's capital center, and its text
-             * advance uses the text fragments' three-pixel kerning rather than
-             * the map's modern-controller cell width. */
-            real button_scale=viewport_scale*(20.0f/26.0f);
-            point.x=(short)(cursor->x0+2.0f*viewport_scale);
-            point.y=(short)(draw_unicode_string_capital_middle(cursor,L"")+10.0f*viewport_scale);
+            /* Match the native High-Res HUD's 21x26 face, capital center
+             * and text advance. Low-res MCC retains its existing geometry. */
+            boolean high_res=config_boolean("display.high_res_hud");
+            real button_scale=viewport_scale*(high_res ? 1.0f : 20.0f/26.0f);
+            real x=cursor->x0+(high_res ? 4.0f : 2.0f)*viewport_scale;
+            real bottom=draw_unicode_string_capital_middle(cursor,L"")+
+                (high_res ? 13.0f : 10.0f)*viewport_scale;
+            if (!high_res) {x=(short)x;bottom=(short)bottom;}
             /* Preserve the icon opacity override used by the bitmap path. */
-            mcc_hud_button_draw(button,&point,button_scale,icon->flags&2 ? icon->color : color,button_index);
-            cursor->x0=(short)(point.x+(config_boolean("display.high_res_hud") && button_index<4 ?
-                23.0f : button_index>=6 ? (button_index<8 ? 46.0f : 34.0f) : 21.0f)*button_scale-3.0f*viewport_scale);
+            mcc_hud_button_draw(button,x,bottom,button_scale,icon->flags&2 ? icon->color : color,button_index);
+            if (high_res)
+                cursor->x0+=(short)((button_index<4 ? 22.0f : button_index<6 ? 20.0f :
+                    button_index<8 ? 45.0f : 33.0f)*viewport_scale);
+            else
+                cursor->x0=(short)(x+21.0f*button_scale-3.0f*viewport_scale);
             return TRUE;
         }
     }
@@ -231,6 +281,8 @@ boolean mcc_hud_anchor_point(short anchor, struct hud_placement_definition const
     rectangle2d frame;
     long horizontal_inset;
     if (!mcc_cache_tags_loaded() || anchor<0 || anchor>8 || anchor==4) return FALSE;
+    if (anchor<4 && (mcc_weapon_frame!=NONE ? mcc_weapon_frame :
+        placement->pad==MCC_HUD_NATIVE_FRAME)) return FALSE;
     horizontal_inset=halo_screen_width()/20;
     /* MCC's 2.5% title-safe frame versus the Xbox's 7.5%. Derive each
      * player's frame from its viewport; leave the small split-screen seam

@@ -7,6 +7,7 @@
 #include "interface/weapon_hud_interface_definition.h"
 #include "errors.h"
 #include "mcc_runtime.h"
+#include "mcc_hud_draw.h"
 #include <string.h>
 
 char const *config_string(char const *name);
@@ -59,6 +60,8 @@ static unsigned char *mcc_hud_block(struct mcc_runtime *r,unsigned char *p,uint3
     return *count ? mcc_runtime_pointer(r,mcc_hud_word(p+4),*count*stride) : r->tags;
 }
 
+#include "mcc_hud_layout.inl"
+
 static int mcc_hud_multiplayer_text(struct mcc_runtime *r,uint32_t const *entry)
 {
     static char const name[]="ui\\multiplayer_game_text";
@@ -107,6 +110,7 @@ static int mcc_hud_half_bitmap(struct mcc_runtime *r,uint32_t handle,int *half)
 
 static void mcc_hud_offset(struct hud_placement_definition *placement)
 {
+    placement->pad=0;
     /* Legacy high-resolution placements keep their 480p anchor offsets.
      * Other MCC placements use the doubled canvas. Bitmap resolution is
      * independent of this flag. Consume it before native drawing. */
@@ -115,6 +119,16 @@ static void mcc_hud_offset(struct hud_placement_definition *placement)
         placement->offset.y/=2;
     }
     placement->multiplayer_scaling_flags&=~4;
+}
+
+/* Stock messages sit 60 native pixels below the safe-frame corner. Match
+ * that placement, not the font, icon sheet or tag name: those may be replaced
+ * independently. Other authored offsets and edge/center anchors stay MCC. */
+static void mcc_hud_message_frame(struct hud_messaging_parameters_definition *message)
+{
+    if (message->absolute_placement.corner==0 && !message->placement.offset.x &&
+        message->placement.offset.y==60)
+        message->placement.pad=MCC_HUD_NATIVE_FRAME;
 }
 
 static void mcc_hud_scale(struct hud_placement_definition *placement,int half)
@@ -182,6 +196,7 @@ int mcc_hud_bitmaps_prepare(struct mcc_runtime *r)
     uint32_t i,empty=UINT32_MAX;
     for (i=0;i<r->report.tag_count;i++) {
         uint32_t *entry=(uint32_t *)(r->tag_index+i*32),n,count;
+        uint64_t layout=mcc_hud_layout_visit(r,entry,0);
         unsigned char *p,*block;
         if (entry[0]=='unhi') {
             static unsigned const elements[]={0x24,0x8C,0xF4,0x17C,0x1E4,0x26C,0x2D4};
@@ -222,6 +237,7 @@ int mcc_hud_bitmaps_prepare(struct mcc_runtime *r)
             struct hud_globals_definition *globals=mcc_runtime_pointer(r,entry[5],sizeof(*globals));
             if (!globals || !mcc_hud_default(r,globals,&empty)) return 0;
             mcc_hud_offset(&globals->messaging.placement);
+            mcc_hud_message_frame(&globals->messaging);
             globals->waypoint.top_offset*=0.5f;
             globals->waypoint.bottom_offset*=0.5f;
             globals->waypoint.left_offset*=0.5f;
@@ -246,6 +262,8 @@ int mcc_hud_bitmaps_prepare(struct mcc_runtime *r)
         } else if (entry[0]=='ustr') {
             if (!mcc_hud_multiplayer_text(r,entry)) return 0;
         }
+        if (mcc_hud_layout_stock(layout))
+            mcc_hud_layout_visit(r,entry,MCC_HUD_NATIVE_FRAME);
     }
     return 1;
 }

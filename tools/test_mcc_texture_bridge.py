@@ -55,6 +55,11 @@ BOOL xgpu_mcc_texture_upload(GLuint,GLenum,struct xgpu_texture_description const
 #endif
 '''
     (work / "xgpu.h").write_text(header)
+    (work / "zlib.h").write_text(
+        '#ifndef TEST_ZLIB_H\n#define TEST_ZLIB_H\n'
+        'typedef unsigned int uInt;\nunsigned long crc32(unsigned long,const void *,uInt);\n'
+        '#endif\n')
+    (work / "zlib_prefixed.h").write_text('#include "zlib.h"\n')
     helpers = re.search(r"enum texel_kind\s*\{.*?\};", native, re.S).group()
     helpers += '\n' + structure(native, "format_information")
     helpers += '\n' + '\n'.join(function(native, name) for name in ["format_information",
@@ -65,6 +70,18 @@ BOOL xgpu_mcc_texture_upload(GLuint,GLenum,struct xgpu_texture_description const
     source = r'''
 #include "xgpu.h"
 #include <stdio.h>
+#include "hud_hires.h"
+#include "zlib.h"
+const struct hud_hires_embedded hud_hires_embedded[] = {
+    {.tag="mcc\\hud\\rocket_reticle"}, {.tag="mcc\\hud\\sniper_scope"}};
+const unsigned int hud_hires_embedded_count=2;
+static unsigned long mock_crc;
+static int hud_enabled,fail_replacement;
+unsigned long crc32(unsigned long c,const void *p,uInt bytes) {(void)c;(void)p;(void)bytes;return mock_crc;}
+int config_boolean(char const *name) {(void)name;return hud_enabled;}
+unsigned int hud_hires_override_texture(long asset,unsigned long *levels) {
+    *levels=10;return fail_replacement?0:900+(unsigned)asset;
+}
 static unsigned allocations,live_allocations,largest_allocation,fail_allocate;
 static unsigned generated,deleted,uploads,unbound,invalidated,fail_upload,fail_generate;
 static void const *last_pixels;
@@ -93,11 +110,12 @@ BOOL xgpu_mcc_texture_upload(GLuint texture,GLenum target,struct xgpu_texture_de
 #undef free
 struct bitmap_data {short width,height,depth,type,format,mipmap_count;unsigned short flags;void *base_address;};
 static int active=1;
+static int owned_coverage;
 static void const *owned;
 static unsigned long owned_bytes;
 static int mcc_cache_tags_loaded(void) {return active;}
-static void const *mcc_cache_bitmap_pixels(struct bitmap_data const *b,unsigned long *bytes) {
-    (void)b;*bytes=owned_bytes;return owned;
+static void const *mcc_cache_bitmap_pixels(struct bitmap_data const *b,unsigned long *bytes,int *coverage) {
+    (void)b;if(coverage)*coverage=owned_coverage;*bytes=owned_bytes;return owned;
 }
 static unsigned rasterizer_xbox_bitmap_get_max_mipmap_count(struct bitmap_data *b) {return b->mipmap_count;}
 static unsigned bitmap_mipmap_get_row_pitch(struct bitmap_data *b,int level) {(void)level;return b->width*4;}
@@ -115,7 +133,31 @@ int main(int argc,char **argv) {
     unsigned char pixels[1024]={0};int owner=0,other=0;
     DWORD *header;GLuint texture=0;GLenum target=0;
     if(argc!=2)return 100;
-    if(!strcmp(argv[1],"identity")) {
+    if(!strcmp(argv[1],"hud")) {
+        unsigned char *data=calloc(262144,1);
+        struct xgpu_texture_description d;
+        DWORD *original;
+        mock_crc=3704827890UL;
+        header=mcc_texture_bridge_register(&owner,format(8,8,0,1,0),0,data,262144);
+        if(!header || !get(header,&texture,&target) || texture>=900 || uploads!=1)return 40;
+        hud_enabled=1;
+        if(!xgpu_mcc_texture_get(header,NULL,&texture,&target,&d) || texture!=900 || !d.hires ||
+            d.width!=256 || d.height!=256 || d.levels!=10 || uploads!=1)return 41;
+        hud_enabled=0;
+        if(!get(header,&texture,&target) || texture>=900 || uploads!=1)return 42;
+        hud_enabled=1;fail_replacement=1;
+        if(!xgpu_mcc_texture_get(header,NULL,&texture,&target,&d) || texture>=900 || d.hires || d.levels!=1)return 43;
+        fail_replacement=0;mock_crc++;
+        original=mcc_texture_bridge_register(&other,format(8,8,0,1,0),0,data,262144);
+        if(!original || !get(original,&texture,&target) || texture>=900)return 44;
+        if(mcc_hud_texture_asset(&d,NULL,262144)!=-1)return 45;
+        mock_crc=1422780498UL;
+        if(mcc_hud_texture_asset(&d,data,262143)!=-1 || mcc_hud_texture_asset(&d,data,262144)!=1)return 46;
+        d.cube_map=1;if(mcc_hud_texture_asset(&d,data,262144)!=-1)return 47;
+        d.cube_map=0;d.width=128;if(mcc_hud_texture_asset(&d,data,262144)!=-1)return 48;
+        mcc_texture_bridge_dispose();free(data);
+        if(deleted!=2 || live_allocations)return 49;
+    } else if(!strcmp(argv[1],"identity")) {
         DWORD copy[5];
         header=mcc_texture_bridge_register(&owner,format(2,2,0,1,0),0,pixels,sizeof(pixels));
         if(!header||header!=mcc_texture_bridge_find(&owner)||mcc_texture_bridge_find(&other))return 1;
@@ -144,12 +186,16 @@ int main(int argc,char **argv) {
         fail_upload=0;
         if(!get(header,&texture,&target)||!texture||uploads!=2||deleted!=1||last_bytes!=sizeof(pixels))return 11;
     } else if(!strcmp(argv[1],"dispose")) {
+        struct xgpu_texture_description d;
         header=mcc_texture_bridge_register(&owner,format(2,2,0,1,0),0,pixels,sizeof(pixels));
-        if(!get(header,&texture,&target))return 12;
+        mcc_texture_bridge_meter(&owner);
+        if(!xgpu_mcc_texture_get(header,NULL,&texture,&target,&d) ||
+            !d.hires || !d.hires_coverage || !d.hires_point_threshold)return 12;
         mcc_texture_bridge_dispose();
         if(live_allocations||deleted!=1||unbound!=1||invalidated!=1||mcc_texture_bridge_find(&owner)||get(header,&texture,&target))return 13;
         header=mcc_texture_bridge_register(&owner,format(2,2,0,1,0),0,pixels,sizeof(pixels));
-        if(!get(header,&texture,&target)||uploads!=2||generated!=2)return 14;
+        if(!xgpu_mcc_texture_get(header,NULL,&texture,&target,&d)||uploads!=2||generated!=2 ||
+            d.hires || d.hires_coverage || d.hires_point_threshold)return 14;
     } else if(!strcmp(argv[1],"palette")) {
         D3DCOLOR palette[256]={0};struct xgpu_texture_description d;
         DWORD f=(format(2,2,0,1,0)&~D3DFORMAT_FORMAT_MASK)|(D3DFMT_P8<<D3DFORMAT_FORMAT_SHIFT);
@@ -170,21 +216,25 @@ int main(int argc,char **argv) {
         active=0;if(mcc_texture_cache_get(&b[0],TRUE))return 16;active=1;
         for(i=0;i<4;i++) {
             struct xgpu_texture_description d;
+            owned_coverage=i==0;
             header=mcc_texture_cache_get(&b[i],TRUE);
             if(!header||b[i].base_address!=pixels||header!=mcc_texture_cache_get(&b[i],FALSE)||
                 !xgpu_mcc_texture_get(header,NULL,&texture,&target,&d)||target!=expected_targets[i]||
                 d.width!=(unsigned)b[i].width||d.height!=(unsigned)b[i].height||
                 d.depth!=(unsigned)b[i].depth||d.levels!=(unsigned)b[i].mipmap_count+1||
+                d.hires_coverage!=(i==0)||d.hires!=(i==0)||d.hires_point_threshold!=(i==0)||
                 xgpu_texture_face_size(&d)*(d.cube_map?6:1)!=expected_bytes[i])return 17;
         }
     } else if(!strcmp(argv[1],"wide_linear")) {
         struct bitmap_data b={15360,256,1,0,11,0,16,NULL};
         struct xgpu_texture_description d;
         unsigned long fmt=(D3DFMT_LIN_A8R8G8B8<<D3DFORMAT_FORMAT_SHIFT)|(1<<D3DFORMAT_MIPMAP_SHIFT);
+        owned_coverage=1;
         owned_bytes=15360*256*4;owned=malloc(owned_bytes);if(!owned)return 26;
         header=mcc_texture_cache_get(&b,TRUE);
         if(!header || !xgpu_mcc_texture_get(header,NULL,&texture,&target,&d) ||
             d.width!=15360 || d.height!=256 || d.pitch!=61440 || !d.linear ||
+            !d.hires_coverage || !d.hires || !d.hires_point_threshold ||
             xgpu_texture_face_size(&d)!=owned_bytes || last_pixels!=owned)return 27;
         if(mcc_texture_bridge_register_linear(&other,fmt,15360,256,61440,owned,owned_bytes-1) ||
             mcc_texture_bridge_register_linear(&other,fmt,15360,256,16384,owned,owned_bytes) ||
@@ -236,7 +286,7 @@ int main(int argc,char **argv) {
     return binary
 
 
-@pytest.mark.parametrize("case", ["identity", "bounds", "failure", "dispose", "palette", "descriptors", "pressure", "credits", "wide_linear"])
+@pytest.mark.parametrize("case", ["hud", "identity", "bounds", "failure", "dispose", "palette", "descriptors", "pressure", "credits", "wide_linear"])
 def test_mcc_texture_bridge(bridge_tool, case):
     result = subprocess.run([str(bridge_tool), case], capture_output=True, text=True, timeout=30)
     assert result.returncode == 0, f"{case}: exit {result.returncode}\n{result.stdout}{result.stderr}"

@@ -44,18 +44,24 @@ static int near(real a, real b) {real d = a - b; return d > -.00001f && d < .000
 static boolean overshield_effects_initialized;
 #define OVERSHIELD_EFFECT_MODELS 8
 static struct {long model_index;} overshield_effect_models[OVERSHIELD_EFFECT_MODELS];
+static short overshield_effect_next_model;
 struct unit_datum {struct {real shield_vitality; unsigned long damage_flags;} object;};
 static struct unit_datum unit;
 static struct unit_datum *unit_try_and_get(long index) {return index == 7 ? &unit : NULL;}
 static struct {real game_time_sec;} global_frame_parameters;
 """
+    code += "\n" + function(text, "overshield_effect_reset")
+    code += "\n" + function(text, "overshield_effect_layer_color")
     code += "\n" + function(text, "overshield_effect_get")
+    code += "\n" + function(text, "overshield_effect_light_sample")
+    code += "\n" + function(text, "overshield_effect_find_values")
     code += "\n" + function(text, "overshield_effect_draw")
     code += "\n" + function(text, "overshield_effect_color")
     code += r'''
 int main(void) {
     struct overshield_effect *effect = &overshield_effects[0];
-    real own[4] = {0}, speed, softness, height;
+    real own[4] = {0}, speed, softness, height, coverage;
+    real_rgb_color light;
     real_rgb_color perpendicular = {.1f, .8f, .2f}, parallel = {.3f, .2f, .1f};
     real_rgb_color original_perpendicular = perpendicular, original_parallel = parallel;
     real layers[] = {3.f, 2.0001f, 2.f, 1.0001f, 2.5f};
@@ -97,10 +103,21 @@ int main(void) {
     CHECK(softness == 0 && height == 0);
     effect->unit_index = NONE;
     CHECK(!overshield_effect_draw(effect->body_values, &speed, &softness, &height));
+    effect = &overshield_effects[OVERSHIELD_EFFECT_MAXIMUM-1];
+    effect->unit_index = 8; effect->shield_vitality = 3.f; effect->arms_values = own;
+    perpendicular = original_perpendicular; parallel = original_parallel;
+    CHECK(overshield_effect_color(own, &perpendicular, &parallel));
+    CHECK(near(perpendicular.green, .8f) && near(parallel.green, .3f));
+    CHECK(overshield_effect_draw(own, &speed, &softness, &height));
+    CHECK(near(speed, .3f) && softness == 0 && height == 0);
+    effect->unit_index = NONE;
+    CHECK(!overshield_effect_color(own, &perpendicular, &parallel));
     global_frame_parameters.game_time_sec = 1.f;
     unit.object.shield_vitality = 3.f;
     effect = overshield_effect_get(7); CHECK(effect && effect->shield_vitality == 3.f);
+    CHECK(overshield_effect_light_sample(7, &light, &coverage) && light.green > light.red);
     unit.object.shield_vitality = 2.f;
+    CHECK(overshield_effect_light_sample(7, &light, &coverage) && light.red > light.green);
     CHECK(overshield_effect_get(7) == effect && effect->shield_vitality == 2.f);
     unit.object.shield_vitality = 1.f;
     CHECK(!overshield_effect_get(7));
@@ -113,6 +130,11 @@ int main(void) {
     CHECK(!overshield_effect_color(effect->body_values, &perpendicular, &parallel));
     enabled = TRUE; unit.object.damage_flags = 1 << _object_dead_bit;
     CHECK(!overshield_effect_get(7));
+    overshield_effect_models[0].model_index = 17;
+    overshield_effect_next_model = 5;
+    overshield_effect_reset();
+    CHECK(overshield_effect_models[0].model_index == NONE && overshield_effect_next_model == 0);
+    CHECK(overshield_effects[0].unit_index == NONE && overshield_effects[0].arms_values == NULL);
     return 0;
 }
 '''

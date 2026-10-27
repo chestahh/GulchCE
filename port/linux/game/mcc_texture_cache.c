@@ -20,6 +20,7 @@ void *mcc_texture_cache_get(struct bitmap_data const *bitmap,boolean load)
          D3DFMT_LIN_X8R8G8B8,D3DFMT_LIN_A8R8G8B8,-1,-1,-1,-1,-1,-1}};
     unsigned long format,size=0,bytes,pitch;
     boolean linear;
+    int coverage;
     void const *pixels;
     void *registered;
     if (!bitmap || !mcc_cache_tags_loaded()) return NULL;
@@ -28,14 +29,14 @@ void *mcc_texture_cache_get(struct bitmap_data const *bitmap,boolean load)
         /* CPU object lighting samples the same packed pixels after asking
          * the hardware cache whether the lightmap/diffuse map is ready. */
         if (!bitmap->base_address) {
-            pixels=mcc_cache_bitmap_pixels(bitmap,&bytes);
+            pixels=mcc_cache_bitmap_pixels(bitmap,&bytes,NULL);
             if (!pixels) return NULL;
             ((struct bitmap_data *)bitmap)->base_address=(void *)pixels;
         }
         return registered;
     }
     if (!load) return NULL;
-    pixels=mcc_cache_bitmap_pixels(bitmap,&bytes);
+    pixels=mcc_cache_bitmap_pixels(bitmap,&bytes,&coverage);
     if (!pixels || bitmap->format<0 || bitmap->format>=18) return NULL;
     linear=(bitmap->flags&(1<<4))!=0;
     if (formats[linear][bitmap->format]<0) return NULL;
@@ -47,6 +48,7 @@ void *mcc_texture_cache_get(struct bitmap_data const *bitmap,boolean load)
             format|=(1<<D3DFORMAT_MIPMAP_SHIFT)|(2<<D3DFORMAT_DIMENSION_SHIFT);
             registered=mcc_texture_bridge_register_linear(bitmap,format,bitmap->width,bitmap->height,
                 (pitch+63)&~63UL,pixels,bytes);
+            if (registered && coverage) mcc_texture_bridge_meter(bitmap);
             if (registered) ((struct bitmap_data *)bitmap)->base_address=(void *)pixels;
             return registered;
         }
@@ -64,6 +66,7 @@ void *mcc_texture_cache_get(struct bitmap_data const *bitmap,boolean load)
             (bitmap->type==2 ? D3DFORMAT_CUBEMAP : 0);
     }
     registered=mcc_texture_bridge_register(bitmap,format,size,pixels,bytes);
+    if (registered && coverage) mcc_texture_bridge_meter(bitmap);
     if (registered) ((struct bitmap_data *)bitmap)->base_address=(void *)pixels;
     return registered;
 }

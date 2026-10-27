@@ -14,14 +14,16 @@ import subprocess
 import time
 
 
-def run_case(binary, maps, output, name, policy, preferences, coop=False, late=False, combat=False, latency=0):
+def run_case(binary, maps, output, name, policy, preferences, coop=False, late=False, combat=False, latency=0, saves=None):
     jobs = []
     results = []
     expected_policy = {"player_choice": 0, "forced_on": 1, "forced_off": 2}[policy]
     try:
         for index, role in enumerate(("host", "client")):
             folder = output / name / role
-            (folder / "maps").mkdir(parents=True, exist_ok=True)
+            (folder / "maps").mkdir(parents=True)
+            if saves:
+                shutil.copytree(saves, folder / "saves")
             for filename in ("halo.exe", "SDL3.dll"):
                 shutil.copy2(binary.parent / filename, folder / filename)
             for filename in ("ui.map", "carousel.map", "bloodgulch.map", *(["a30.map"] if coop else [])):
@@ -30,8 +32,9 @@ def run_case(binary, maps, output, name, policy, preferences, coop=False, late=F
             env = {k: v for k, v in os.environ.items() if not k.startswith("HALO_")}
             env.update(SDL_VIDEO_DRIVER="dummy", SDL_AUDIO_DRIVER="dummy", HALO_NULL_RENDERER="1",
                        HALO_HIDDEN_WINDOW="1", HALO_NO_AUDIO="1", HALO_NET_ONLINE="0",
+                       HALO_NET_PUBLIC_LOBBY="0", HALO_NET_ALLOW_UPNP="0", HALO_MAX_FPS="30",
                        HALO_NETWORK_TEST_PUBLIC="0", HALO_NET_JOIN_FROM_CLIPBOARD="0",
-                       HALO_NETWORK_TEST=("host:levels\\a30\\a30:coop" if coop else "host:bloodgulch") if index == 0 else "join",
+                       HALO_NETWORK_TEST=("host:levels\\a30\\a30:coop" if coop else "host:levels\\test\\bloodgulch\\bloodgulch:slayer") if index == 0 else "join",
                        HALO_NETWORK_TEST_START="10", HALO_NET_ADDRESS=f"127.0.0.{236+index}",
                        HALO_NET_BROADCAST=f"127.0.0.{237-index}", HALO_DATA_ROOT=str(folder),
                        HALO_SAVE_ROOT=str(folder / "saves"), HALO_UPDATE_ANSWER="never",
@@ -41,7 +44,7 @@ def run_case(binary, maps, output, name, policy, preferences, coop=False, late=F
                 time.sleep(20)
             if combat:
                 env.update(HALO_TEST_INPUT=f"bot:{index}", HALO_NETWORK_LATENCY=str(latency),
-                           HALO_NETWORK_LOSS="0.05" if latency else "0")
+                           HALO_NETWORK_LOSS="5" if latency else "0")
             process = subprocess.Popen([str(folder / "halo.exe")], cwd=folder, env=env,
                                        creationflags=subprocess.CREATE_NO_WINDOW)
             jobs.append((role, folder, process))
@@ -92,6 +95,7 @@ def main():
     parser.add_argument("--binary", type=Path, required=True)
     parser.add_argument("--maps", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--saves", type=Path, help="Copy a preselected profile into each isolated save folder")
     parser.add_argument("--combat", action="store_true", help="Fire bot weapons and check muzzle decisions on both peers")
     args = parser.parse_args()
     results = []
@@ -103,9 +107,9 @@ def main():
         ("coop", "forced_on", (0, 0), True, False),
     ):
         print("Starting " + name, flush=True)
-        results += run_case(args.binary.resolve(), args.maps.resolve(), args.output.resolve(), name, policy, preferences, coop, late, args.combat)
+        results += run_case(args.binary.resolve(), args.maps.resolve(), args.output.resolve(), name, policy, preferences, coop, late, args.combat, saves=args.saves)
     if args.combat:
-        results += run_case(args.binary.resolve(), args.maps.resolve(), args.output.resolve(), "latency", "forced_on", (0, 0), combat=True, latency=0.1)
+        results += run_case(args.binary.resolve(), args.maps.resolve(), args.output.resolve(), "latency", "forced_on", (0, 0), combat=True, latency=100, saves=args.saves)
     (args.output / "results.json").write_text(json.dumps(results, indent=2))
     return 0 if len(results) == (12 if args.combat else 10) and all(row["passed"] for row in results) else 1
 

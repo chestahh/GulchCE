@@ -16,6 +16,29 @@ Physical mice use the same control bindings. During play, F12 toggles mouse
 capture; captured mode hides Android's pointer and uses relative movement for
 continuous aiming, while releasing capture restores normal pointer behavior.
 
+## Lighting availability
+
+The optional Dynamic Lighting renderer is excluded from Android builds after
+reports of missing or dark models across multiple device families. Video Setup
+does not show its submenu. Saved projectile, muzzle, emitter, AR/Needler glow,
+Shield Glow and occlusion settings cannot activate it; their values may remain
+in an older `config.toml`, but are ignored. New Android configs omit these keys.
+The stock game's lights, muzzle flashes, explosions and shield surfaces remain.
+
+The build replaces the feature modules with
+[`dynamic_lighting_disabled.c`](guest/dynamic_lighting_disabled.c), which leaves
+stock radii, colours and materials unchanged and retains the overshield map
+reset. Android's model shaders omit the added uniforms and volume samplers,
+including when Per-Pixel Lighting is enabled. Disabling settings alone would
+not remove shader code emitted regardless of their values.
+
+Network host policy and messages are unchanged. Android can still host or join
+games with other lighting settings; it cannot render Shield Glow even when
+requested by the host. Animated Overshield surfaces remain available and obey
+the existing host policy. This is an Android compatibility fallback, not a
+diagnosis or repair of every device rendering issue. Device playtests are still
+needed to confirm recovery on the affected devices.
+
 ## Requirements
 
 You do not need the Xbox SDK. You need the tools of the Linux build (Python,
@@ -504,6 +527,14 @@ writes a buffer a queued draw reads, and the static ranges' reuse, unload
 and reload, address reuse and allocation failure.
 
 ## Find problems
+
+CI APK packages include a `diagnostics` folder with a bounded, read-only
+[shader-log collector](diagnostics/collect_shader_logs.py) and
+[instructions](diagnostics/README.txt). Run it on a computer with Python 3 and
+Android platform-tools, then relaunch the app and reproduce the problem. It
+records the game's log tag, shader source/errors and device information into
+a ZIP without changing app settings or saves. Device logs remain on the
+computer until the tester chooses to share them.
 
 - Enter `adb logcat -s halo` to see the log of the port and the errors of
   the game. `files/debug.txt` is the log of the game.

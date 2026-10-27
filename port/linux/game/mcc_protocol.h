@@ -2,12 +2,12 @@
 #ifndef MCC_PROTOCOL_H
 #define MCC_PROTOCOL_H
 
-/* OpenCE 39 owns flag 0x04 and message 92. MCC version 60 separates its
- * capability flag, gameplay messages and pre-admission envelope from those, with the camera branch shoulder relay. */
-#define MCC_PROTOCOL_VERSION 60
+/* OpenCE 39 owns flag 0x04 and messages through 93. MCC messages and admission
+ * stay past fire origins. This camera branch uses a separate MCC version. */
+#define MCC_PROTOCOL_VERSION 32701
 #define MCC_PROTOCOL_ADVERTISED_FLAG 0x08
 #define MCC_PROTOCOL_ADVERTISED_VERSION_OFFSET 4
-#define MCC_PROTOCOL_JOIN_KIND 97
+#define MCC_PROTOCOL_JOIN_KIND 98
 #define MCC_PROTOCOL_JOIN_MAX 256
 
 struct network_game;

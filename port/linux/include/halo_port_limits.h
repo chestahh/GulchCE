@@ -66,8 +66,9 @@ is newer (network_client_manager.c). A host advertises it, with its netcode,
 in its game's advertisement's reserved bytes (network_server_message_handler.c),
 which hosts built before there was a version send as zeros: version 0.
 Raise it with any change to what the machines send each other. */
-/* OpenCE 39 plus the shoulder policy and input relay; branch-specific wire format. */
-#define HALO_PORT_NETWORK_VERSION 41
+/* Experimental shoulder relay and mandatory camera admission; no OpenCE crossplay.
+Keep this branch outside the ordinary OpenCE/GulchCE version sequence. */
+#define HALO_PORT_NETWORK_VERSION 32700
 /* ... the advertisement's reserved bytes: the version (a little-endian word),
 then flags, then the game's kind (an OpenCE gametype's mode, and Hardcore:
 port/linux/game/game_modes.h's game_modes_kind), for the server browser */

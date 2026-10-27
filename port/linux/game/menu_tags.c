@@ -402,6 +402,9 @@ static char const *const port_function_names[] =
 	"port changelog init", "port changelog up", "port changelog down",
 	"port gulch build label",
 	"port changelog corner focus", "port changelog main focus",
+	"port controller init", "port controller close", "port controller defaults",
+	"port controller save", "port controller bind", "port controller left", "port controller right",
+	"port controller clear", "port controller cancel",
 };
 
 /* the PC version's game data functions that the Xbox's have not, from
@@ -423,6 +426,7 @@ static char const *const port_game_data_input_names[] =
 	/* (the profile settings' picture: the Xbox's of the button settings,
 	on Gamepad Setup's row) */
 	"port gamepad layout preview",
+	"port controller update",
 	/* (the main menu's Mods) */
 	"port mods update",
 	"port changelog focus update",

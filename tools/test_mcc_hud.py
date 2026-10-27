@@ -141,8 +141,10 @@ static struct bitmap_group group;
 static struct {struct bitmap_data *bitmap;long asset;boolean attempted;} mcc_buttons[14];
 static short mcc_buttons_style;
 static int high_res,style;
+static short controller_glyph_style(void) {return (short)style;}
+#define controller_glyph_draw(style,index,icon,cursor,color,unbind) 0
+#define controller_glyphs_dispose() ((void)0)
 static int config_boolean(char const *name) {(void)name;return high_res;}
-static char const *config_string(char const *name) {(void)name;return style==2 ? "menu_gems" : style==1 ? "gems" : "classic";}
 static struct {struct {struct {long count;void *address;} button_icons;} messaging;} globals,*hud_globals;
 static int allocations,registrations,deletions;
 static struct bitmap_data native_bitmap;
@@ -315,7 +317,8 @@ def anchor_tool(tmp_path_factory):
         pytest.skip("clang is needed")
     work = tmp_path_factory.mktemp("mcc-anchors")
     source = (ROOT / "port/linux/game/mcc_hud_draw.c").read_text()
-    routines = "\n".join(function(source, n) for n in ["mcc_hud_edge", "mcc_hud_frame_inset", "mcc_hud_anchor_point",
+    routines = "\n".join(function(source, n) for n in ["mcc_hud_weapon_frame_begin", "mcc_hud_weapon_frame_end",
+                            "mcc_hud_edge", "mcc_hud_frame_inset", "mcc_hud_anchor_point",
                             "mcc_hud_anchor_bounds", "mcc_hud_anchor_number"])
     code = r'''
 #include <stdlib.h>
@@ -326,20 +329,56 @@ typedef struct {short x,y;} point2d;
 typedef struct {short x0,y0,x1,y1;} rectangle2d;
 typedef struct {float x0,x1,y0,y1;} real_rectangle2d;
 struct bitmap_data {short width,height;point2d registration_point;};
-struct hud_placement_definition {point2d offset;};
+struct hud_placement_definition {point2d offset;short pad;};
+#define MCC_HUD_NATIVE_FRAME 0x4D53
+#define NONE (-1)
+static short mcc_weapon_frame=NONE;
 #define TRUE 1
 #define FALSE 0
 #define MIN(a,b) ((a)<(b)?(a):(b))
 static int loaded;
+struct weapon_hud_interface_definition {
+    struct {long index;} parent_hud;
+    struct {short corner,pad;} absolute_placement;
+    struct {long count;} statics,meters,numbers,overlays;
+};
+static struct weapon_hud_interface_definition hud[2];
+static void *tag_get(long group,long index) {(void)group;return index>=0&&index<2 ? hud+index : NULL;}
+static int mcc_cache_contains(void const *p,long size) {(void)size;return p==hud||p==hud+1;}
 static long halo_screen_width(void) {return 840;}
 static int mcc_cache_tags_loaded(void) {return loaded;}
 ''' + routines + r'''
 int main(int argc,char **argv) {
-    struct hud_placement_definition placement={{10,20}};
+    struct hud_placement_definition placement={{10,20},0};
     rectangle2d window={40,30,840,430},viewport={20,10,860,450};
     point2d point={-99,-99};
     real_rectangle2d bounds={-99,-99,-99,-99};
     short cursor=-99,anchor;int a,b,c;float scale;
+    if(argc==2) {
+        int test=atoi(argv[1]);
+        loaded=test!=0;
+        hud[0].parent_hud.index=1;hud[1].parent_hud.index=NONE;
+        hud[0].absolute_placement.pad=hud[1].absolute_placement.pad=MCC_HUD_NATIVE_FRAME;
+        hud[0].meters.count=hud[1].numbers.count=1;
+        placement.pad=MCC_HUD_NATIVE_FRAME;
+        if(test==2)hud[0].absolute_placement.pad=0;
+        if(test==3)hud[1].absolute_placement.pad=0;
+        if(test==4)hud[1].parent_hud.index=0;
+        if(test==5)hud[1].parent_hud.index=9;
+        if(test==6) {hud[1].numbers.count=0;hud[1].absolute_placement.pad=0;}
+        if(test==7) {hud[1].numbers.count=0;hud[0].absolute_placement.pad=0;}
+        if(test==8)hud[1].absolute_placement.corner=1;
+        if(test==9)hud[0].absolute_placement.pad=hud[1].absolute_placement.pad=0;
+        mcc_hud_weapon_frame_begin(0);
+        a=mcc_hud_anchor_point(0,&placement,NULL,1,&window,&viewport,&point);
+        if(a!=(test==3 || test==4 || test==5 || test>=7))return 10;
+        if(a && (point.x!=16 || point.y!=26))return 11;
+        mcc_hud_weapon_frame_end();
+        if(mcc_weapon_frame!=NONE || mcc_hud_anchor_point(0,&placement,NULL,1,&window,&viewport,&point))return 12;
+        placement.pad=0;
+        if(mcc_hud_anchor_point(0,&placement,NULL,1,&window,&viewport,&point)!=loaded)return 13;
+        return 0;
+    }
     if(argc!=4 && argc!=5)return 2;
     if(argc==5) {
         if(atoi(argv[4])==1) {window=(rectangle2d){64,36,422,236};viewport=(rectangle2d){0,0,426,240};}
@@ -363,6 +402,12 @@ int main(int argc,char **argv) {
     result=subprocess.run(command,capture_output=True,text=True)
     assert result.returncode==0,result.stderr
     return binary
+
+
+@pytest.mark.parametrize("case",range(10))
+def test_weapon_frame_keeps_parent_and_child_together_and_resets(anchor_tool,case):
+    result=subprocess.run([str(anchor_tool),str(case)],capture_output=True,text=True)
+    assert result.returncode==0,result.stderr
 
 
 @pytest.fixture(scope="module")
@@ -562,11 +607,12 @@ def test_high_res_mcc_button_visible_size(hud_tool, style, button, players):
     alpha = np.asarray(Image.open(ROOT / "port/assets/buttons" / name))[..., 3]
     ys, xs = np.where(alpha >= 128)
     viewport = 1.0 if players == 1 else 0.75
-    scale = viewport * 20 / 26
+    scale = viewport
     assert (right-left) * (xs.max()+1-xs.min()) / 168 == pytest.approx(21*scale, abs=0.0001)
     assert (bottom-top) * (ys.max()+1-ys.min()) / 208 == pytest.approx(26*scale, abs=0.0001)
-    assert left + xs.min()*(right-left)/168 == pytest.approx(int(100+2*viewport), abs=0.0001)
-    assert int(fields[5]) == int(int(100+2*viewport)+23*scale-3*viewport)
+    assert left + xs.min()*(right-left)/168 == pytest.approx(100+4*viewport, abs=0.0001)
+    assert top + ys.min()*(bottom-top)/208 == pytest.approx(128-13*viewport, abs=0.0001)
+    assert int(fields[5]) == int(100+22*viewport)
 
 
 @pytest.mark.parametrize("style", range(3))
@@ -584,11 +630,67 @@ def test_high_res_mcc_controls_visible_size(hud_tool, style, button, players):
     alpha = np.asarray(Image.open(ROOT/'port/assets/buttons'/(name+'__0.png')))[...,3]
     ys,xs=np.where(alpha>=128)
     viewport=1.0 if players==1 else 0.75
-    scale=viewport*20/26
+    scale=viewport
     cw,ch=(400,280) if button<8 else (288,320)
     w,h=(44,33) if button<8 else (32,34)
     assert (right-left)*(xs.max()+1-xs.min())/cw == pytest.approx(w*scale, abs=0.0001)
     assert (bottom-top)*(ys.max()+1-ys.min())/ch == pytest.approx(h*scale, abs=0.0001)
-    assert left+xs.min()*(right-left)/cw == pytest.approx(int(100+2*viewport), abs=0.0001)
-    assert int(fields[5]) == int(int(100+2*viewport)+(w+2)*scale-3*viewport)
+    assert left+xs.min()*(right-left)/cw == pytest.approx(100+4*viewport, abs=0.0001)
+    assert top+ys.min()*(bottom-top)/ch == pytest.approx(128-h*viewport/2, abs=0.0001)
+    assert int(fields[5]) == int(100+(w+1)*viewport)
     assert int(fields[6]) == 0x7fabcdef
+
+@pytest.fixture(scope="module")
+def message_frame_tool(tmp_path_factory):
+    compiler = shutil.which("clang")
+    if not compiler:
+        pytest.skip("clang is needed")
+    work = tmp_path_factory.mktemp("mcc-message-frame")
+    source = (ROOT / "port/linux/game/mcc_hud.c").read_text()
+    code = r'''
+#include <stdlib.h>
+#define MCC_HUD_NATIVE_FRAME 0x4d53
+struct hud_placement_definition {
+    struct {short x,y;} offset;
+    float scale_x,scale_y;
+    unsigned short multiplayer_scaling_flags;
+    short pad;
+};
+struct hud_messaging_parameters_definition {
+    struct {short corner;} absolute_placement;
+    struct hud_placement_definition placement;
+};
+''' + function(source,"mcc_hud_offset") + '\n' + function(source,"mcc_hud_message_frame") + r'''
+int main(int argc,char **argv) {
+    struct hud_messaging_parameters_definition message;
+    short x,y;unsigned flags;
+    int expected;
+    if(argc!=6)return 1;
+    message.absolute_placement.corner=(short)atoi(argv[1]);
+    x=message.placement.offset.x=(short)atoi(argv[2]);
+    y=message.placement.offset.y=(short)atoi(argv[3]);
+    flags=message.placement.multiplayer_scaling_flags=(unsigned short)atoi(argv[4]);
+    message.placement.pad=MCC_HUD_NATIVE_FRAME;
+    expected=atoi(argv[5]);
+    mcc_hud_offset(&message.placement);
+    mcc_hud_message_frame(&message);
+    return (message.placement.pad==MCC_HUD_NATIVE_FRAME)!=expected ||
+        message.placement.offset.x!=(flags&4 ? x : x/2) ||
+        message.placement.offset.y!=(flags&4 ? y : y/2) ||
+        message.placement.multiplayer_scaling_flags!=(flags&~4u);
+}
+'''
+    path=work/'message.c';path.write_text(code);binary=work/'message.exe'
+    target=["--target=i686-pc-windows-msvc","-fuse-ld=lld"] if sys.platform=="win32" else ["-m32"]
+    result=subprocess.run([compiler,*target,"-std=gnu89","-Wall","-Wextra","-Werror",str(path),"-o",str(binary)],capture_output=True,text=True)
+    assert result.returncode==0,result.stderr
+    return binary
+
+
+@pytest.mark.parametrize("anchor,x,y,flags,native", [
+    (0,0,120,0,1),(0,0,60,4,1),(0,37,85,4,0),(0,2,120,0,0),
+    (0,0,118,0,0),(0,0,122,0,0),(1,0,120,0,0),(4,0,120,0,0),
+    (5,0,120,0,0),(0,0,120,4,0),(0,0,120,3,1)])
+def test_stock_message_margin_preserves_authored_positions(message_frame_tool,anchor,x,y,flags,native):
+    result=subprocess.run([str(message_frame_tool),*map(str,(anchor,x,y,flags,native))],capture_output=True,text=True)
+    assert result.returncode==0,result.stderr

@@ -22,10 +22,13 @@ Conventions carried over from the Xbox:
 */
 
 #include "xgpu.h"
+#include "plasma_model_shader.h"
+#include "plasma_occlusion.h"
 #include "mcc_environment_shader.h"
 #include "sdl_platform.h"
 #include "halo_ui_pointer.h"
 #include "port_config.h"
+#include "posix.h"
 #include "main/console.h"
 
 #include <SDL3/SDL.h>
@@ -436,6 +439,13 @@ struct vertex_shader_object
 	/* a shader lit for each pixel failed to compile or link: lit as the
 	vertex shader lights it from then on */
 	BOOL lighting_failed;
+#ifndef HALO_ANDROID
+	/* Optional model lighting has separate lazy variants and failure state;
+	   toggling it off must recover the original shaders. */
+	GLuint plasma_shader[2], plasma_lit_shader[2];
+	BOOL plasma_lighting_failed;
+	BOOL plasma_model;
+#endif
 #ifndef HALO_GLES
 	/* the vertex array its draws last used, and the streams they had
 	(setup_streams: the layout follows from the two) */
@@ -443,8 +453,8 @@ struct vertex_shader_object
 	unsigned long vertex_array_streams;
 #endif
 	/* which of shader[] and lit_shader[] have been compiled (bits 0 and 1,
-	and 2 and 3): one that failed stays 0 and is not compiled again at each
-	draw */
+	and 2 and 3), with bits 4..7 for their optional lighting variants:
+	one that failed stays 0 and is not compiled again at each draw */
 	unsigned char shaders_tried;
 };
 
@@ -455,6 +465,16 @@ struct fragment_entry
 	struct fragment_entry *next;
 	unsigned long hash;
 	struct nv2a_pixel_shader_key key;
+	GLuint shader;
+};
+
+/* Full render-state keys can translate to identical GLSL. Own each source
+   and shader once for the GL context's lifetime, like the program cache. */
+struct fragment_source_entry
+{
+	struct fragment_source_entry *next;
+	unsigned long hash;
+	char *source;
 	GLuint shader;
 };
 
@@ -503,6 +523,10 @@ struct program_entry
 	/* the lights of a draw lit for each pixel (XGPU_MODEL_LIGHT_COUNT), and
 	constants_serial at their last upload */
 	GLint model_lights;
+#ifndef HALO_ANDROID
+	GLint plasma_model_slots;
+	struct plasma_occlusion_uniforms plasma_occlusion;
+#endif
 	unsigned long long model_lights_serial;
 
 	/* the vertex constants c[0..constant_count) the program uses; with
@@ -520,7 +544,321 @@ struct program_entry
 #define FRAGMENT_BUCKETS 1024
 #define PROGRAM_BUCKETS 1024
 
+/* ---------- the program cache on disk (desktop)
+
+Linking a program is where the drivers do most of their work: on Intel
+graphics on Windows up to 70 ms a program, and a large Custom Edition map
+makes a hundred or more as new things come into view, each a stalled frame.
+A linked program's binary (glGetProgramBinary) is kept in a file of the
+driver's (its vendor, renderer and version) under the save root, by the
+hashes of its two shaders' GLSL: the next time the program is wanted, in this
+run or another, it is loaded from that instead of linked, in under 2 ms
+(display.shader_cache). The binaries share one file, opened once: on Windows
+opening or making a file of its own for each took 3-110 ms (the antivirus's
+look at it), as much as the link it saved. A binary the driver refuses is
+forgotten and the program linked again. OpenGL ES keeps its programs to
+itself: its drivers' binaries are not all to be trusted. */
+
+/* each compiled shader's GLSL hash, by its name (shader_hash_set) */
+static unsigned long long *shader_hashes;
+static GLuint shader_hashes_size;
+
+static unsigned long long source_hash(const char *source)
+{
+	unsigned long long hash = 14695981039346656037ULL;
+
+	while (*source)
+		hash = (hash ^ (unsigned char)*source++) * 1099511628211ULL;
+	return hash;
+}
+
+static void shader_hash_set(GLuint shader, const char *source)
+{
+	if (!shader)
+		return;
+	if (shader >= shader_hashes_size)
+	{
+		GLuint size = shader_hashes_size ? shader_hashes_size : 256;
+		unsigned long long *grown;
+
+		while (size <= shader)
+			size *= 2;
+		grown = realloc(shader_hashes, size * sizeof(*grown));
+		if (!grown)
+			return;
+		memset(grown + shader_hashes_size, 0, (size - shader_hashes_size) * sizeof(*grown));
+		shader_hashes = grown;
+		shader_hashes_size = size;
+	}
+	shader_hashes[shader] = source_hash(source);
+}
+
+#ifndef HALO_GLES
+static unsigned long long shader_hash(GLuint shader)
+{
+	return shader < shader_hashes_size ? shader_hashes[shader] : 0;
+}
+
+/* the cache file: entries one after another, each a header (magic, the two
+shaders' GLSL hashes, the binary's format and length, and its data's hash)
+then the binary. Entries are appended as programs are linked; at the start
+the file is read through once for its index (the place of each entry), and
+a program found in it is read from the open file. Reading stops at the first
+entry that is not whole (a write a crash cut short): the next entry is
+written over it. */
+#define PROGRAM_CACHE_MAGIC 0x31435048 /* "HPC1" */
+#define PROGRAM_CACHE_BUCKETS 1024
+/* a file grown past this starts again empty (each binary is 10-60 KB) */
+#define PROGRAM_CACHE_MAXIMUM_SIZE (64UL * 1024 * 1024)
+
+struct program_cache_header
+{
+	unsigned long magic;
+	unsigned long long vertex_hash;
+	unsigned long long fragment_hash;
+	unsigned long format;
+	unsigned long length;
+	unsigned long long data_hash;
+};
+
+struct program_cache_entry
+{
+	struct program_cache_entry *next;
+	unsigned long long vertex_hash;
+	unsigned long long fragment_hash;
+	unsigned long format;
+	unsigned long length;
+	unsigned long long data_hash;
+	/* where its binary starts in the file */
+	unsigned long offset;
+};
+
+static struct
+{
+	BOOL enabled;
+	FILE *file;
+	/* the end of the file's last whole entry: the next is written there */
+	unsigned long end;
+	struct program_cache_entry *buckets[PROGRAM_CACHE_BUCKETS];
+	/* this run's: programs loaded from the cache, linked, written to it,
+	and binaries the driver refused */
+	unsigned long loaded, linked, written, refused;
+} program_cache;
+
+static unsigned long long data_hash(const void *data, unsigned long size)
+{
+	const unsigned char *bytes = data;
+	unsigned long long hash = 14695981039346656037ULL;
+
+	while (size--)
+		hash = (hash ^ *bytes++) * 1099511628211ULL;
+	return hash;
+}
+
+static struct program_cache_entry **program_cache_bucket(unsigned long long vertex_hash,
+	unsigned long long fragment_hash)
+{
+	unsigned long long key = vertex_hash * 0x9e3779b97f4a7c15ULL ^ fragment_hash;
+
+	return &program_cache.buckets[(unsigned long)(key >> 32 ^ key) % PROGRAM_CACHE_BUCKETS];
+}
+
+static struct program_cache_entry *program_cache_find(unsigned long long vertex_hash,
+	unsigned long long fragment_hash)
+{
+	struct program_cache_entry *entry;
+
+	for (entry = *program_cache_bucket(vertex_hash, fragment_hash); entry; entry = entry->next)
+	{
+		if (entry->vertex_hash == vertex_hash && entry->fragment_hash == fragment_hash)
+			return entry;
+	}
+	return NULL;
+}
+
+/* the file read through once for its entries' places (their data is read
+when it is wanted): a later entry for the same program takes the place of
+an earlier */
+static void program_cache_index(void)
+{
+	struct program_cache_header header;
+	unsigned long offset = 0, size;
+
+	fseek(program_cache.file, 0, SEEK_END);
+	size = (unsigned long)ftell(program_cache.file);
+	while (offset + sizeof(header) <= size && fseek(program_cache.file, (long)offset, SEEK_SET) == 0 &&
+		fread(&header, sizeof(header), 1, program_cache.file) == 1 && header.magic == PROGRAM_CACHE_MAGIC &&
+		header.length && header.length <= size - offset - sizeof(header))
+	{
+		struct program_cache_entry *entry = program_cache_find(header.vertex_hash, header.fragment_hash);
+
+		if (!entry)
+		{
+			struct program_cache_entry **bucket = program_cache_bucket(header.vertex_hash, header.fragment_hash);
+
+			entry = calloc(1, sizeof(*entry));
+			if (!entry)
+				break;
+			entry->vertex_hash = header.vertex_hash;
+			entry->fragment_hash = header.fragment_hash;
+			entry->next = *bucket;
+			*bucket = entry;
+		}
+		entry->format = header.format;
+		entry->length = header.length;
+		entry->data_hash = header.data_hash;
+		entry->offset = offset + sizeof(header);
+		offset += sizeof(header) + header.length;
+	}
+	program_cache.end = offset;
+}
+
+static void program_cache_initialize(void)
+{
+	GLint formats = 0;
+	char path[512];
+	unsigned long long driver;
+	const char *strings[3];
+	int index;
+
+	program_cache.enabled = FALSE;
+	if (!config_boolean("display.shader_cache"))
+		return;
+	glGetIntegerv(GL_NUM_PROGRAM_BINARY_FORMATS, &formats);
+	if (formats <= 0)
+	{
+		platform_log("shader cache: off (the driver keeps no program binaries)");
+		return;
+	}
+	strings[0] = (const char *)glGetString(GL_VENDOR);
+	strings[1] = (const char *)glGetString(GL_RENDERER);
+	strings[2] = (const char *)glGetString(GL_VERSION);
+	driver = 14695981039346656037ULL;
+	for (index = 0; index < 3; index++)
+		driver = (driver ^ source_hash(strings[index] ? strings[index] : "")) * 1099511628211ULL;
+	snprintf(path, sizeof(path), "%s/shader_cache", platform_save_root());
+	posix_make_directory(path);
+	snprintf(path, sizeof(path), "%s/shader_cache/%016llx.bin", platform_save_root(), driver);
+	program_cache.file = fopen(path, "r+b");
+	if (program_cache.file)
+	{
+		fseek(program_cache.file, 0, SEEK_END);
+		if ((unsigned long)ftell(program_cache.file) > PROGRAM_CACHE_MAXIMUM_SIZE)
+		{
+			fclose(program_cache.file);
+			program_cache.file = NULL;
+		}
+	}
+	if (!program_cache.file)
+		program_cache.file = fopen(path, "w+b");
+	if (!program_cache.file)
+	{
+		platform_log("shader cache: off (%s cannot be opened)", path);
+		return;
+	}
+	program_cache_index();
+	program_cache.enabled = TRUE;
+	platform_log("shader cache: %s, %lu KB", path, program_cache.end / 1024);
+}
+
+/* the cached binary of the program of these shaders, loaded into a new
+program; 0 if there is none or the driver refuses it (then forgotten: the
+program is linked again, and its new binary written after) */
+static GLuint program_cache_load(unsigned long long vertex_hash, unsigned long long fragment_hash)
+{
+	struct program_cache_entry *entry;
+	void *binary;
+	GLuint program = 0;
+	GLint status = 0;
+
+	if (!program_cache.enabled || !vertex_hash || !fragment_hash)
+		return 0;
+	entry = program_cache_find(vertex_hash, fragment_hash);
+	if (!entry || !entry->length || !(binary = malloc(entry->length)))
+		return 0;
+	if (fseek(program_cache.file, (long)entry->offset, SEEK_SET) == 0 &&
+		fread(binary, entry->length, 1, program_cache.file) == 1 &&
+		data_hash(binary, entry->length) == entry->data_hash)
+	{
+		program = glCreateProgram();
+		glProgramBinary(program, (GLenum)entry->format, binary, (GLsizei)entry->length);
+		glGetProgramiv(program, GL_LINK_STATUS, &status);
+		if (!status)
+		{
+			glDeleteProgram(program);
+			program = 0;
+		}
+	}
+	free(binary);
+	if (!program)
+	{
+		program_cache.refused++;
+		entry->length = 0;
+		return 0;
+	}
+	program_cache.loaded++;
+	return program;
+}
+
+/* a linked program's binary, written after the file's last whole entry */
+static void program_cache_store(GLuint program, unsigned long long vertex_hash, unsigned long long fragment_hash)
+{
+	struct program_cache_header header;
+	struct program_cache_entry *entry;
+	GLint length = 0;
+	GLenum format = 0;
+	void *binary;
+
+	if (!program_cache.enabled || !vertex_hash || !fragment_hash)
+		return;
+	glGetProgramiv(program, GL_PROGRAM_BINARY_LENGTH, &length);
+	if (length <= 0 || program_cache.end + sizeof(header) + (unsigned long)length > PROGRAM_CACHE_MAXIMUM_SIZE ||
+		!(binary = malloc((size_t)length)))
+	{
+		return;
+	}
+	glGetProgramBinary(program, length, &length, &format, binary);
+	memset(&header, 0, sizeof(header));
+	header.magic = PROGRAM_CACHE_MAGIC;
+	header.vertex_hash = vertex_hash;
+	header.fragment_hash = fragment_hash;
+	header.format = format;
+	header.length = (unsigned long)length;
+	header.data_hash = data_hash(binary, header.length);
+	if (length > 0 && fseek(program_cache.file, (long)program_cache.end, SEEK_SET) == 0 &&
+		fwrite(&header, sizeof(header), 1, program_cache.file) == 1 &&
+		fwrite(binary, header.length, 1, program_cache.file) == 1 && fflush(program_cache.file) == 0)
+	{
+		entry = program_cache_find(vertex_hash, fragment_hash);
+		if (!entry)
+		{
+			struct program_cache_entry **bucket = program_cache_bucket(vertex_hash, fragment_hash);
+
+			entry = calloc(1, sizeof(*entry));
+			if (entry)
+			{
+				entry->vertex_hash = vertex_hash;
+				entry->fragment_hash = fragment_hash;
+				entry->next = *bucket;
+				*bucket = entry;
+			}
+		}
+		if (entry)
+		{
+			entry->format = header.format;
+			entry->length = header.length;
+			entry->data_hash = header.data_hash;
+			entry->offset = program_cache.end + sizeof(header);
+		}
+		program_cache.end += sizeof(header) + header.length;
+		program_cache.written++;
+	}
+	free(binary);
+}
+#endif
+
 static struct fragment_entry *fragment_buckets[FRAGMENT_BUCKETS];
+static struct fragment_source_entry *fragment_source_buckets[FRAGMENT_BUCKETS];
 static struct program_entry *program_buckets[PROGRAM_BUCKETS];
 
 /* ---------- render targets */
@@ -818,6 +1156,23 @@ static struct
 	const char *dump_shaders;
 	BOOL statistics;
 } debug_settings;
+
+#ifndef HALO_GLES
+/* display.frames_in_flight: a fence after each frame's swap, and the frame
+that many before waited for (frame_pacing_wait). Without it a driver queues
+frames until its own limit, then blocks for several at once at whatever
+call fills its queue: on Intel graphics on Windows, a frame of 50-60 ms
+every sixth frame (some 15 fps felt at 80 fps). OpenGL ES's frames are
+paced by its stream buffer ring instead (host_gl_wait_frame). */
+#define MAXIMUM_FRAMES_IN_FLIGHT 8
+
+static struct
+{
+	long limit;
+	GLsync fences[MAXIMUM_FRAMES_IN_FLIGHT];
+	long next;
+} frame_pacing;
+#endif
 
 /* ---------- GL state cache
 
@@ -2013,6 +2368,14 @@ static void gl_initialize(void)
 	debug_settings.dump_shaders = *config_string("debug.gpu_dump_shaders") ?
 		config_string("debug.gpu_dump_shaders") : NULL;
 	debug_settings.statistics = config_boolean("debug.gpu_stats");
+#ifndef HALO_GLES
+	program_cache_initialize();
+	frame_pacing.limit = config_integer("display.frames_in_flight");
+	if (frame_pacing.limit < 0)
+		frame_pacing.limit = 0;
+	if (frame_pacing.limit > MAXIMUM_FRAMES_IN_FLIGHT)
+		frame_pacing.limit = MAXIMUM_FRAMES_IN_FLIGHT;
+#endif
 	{
 		GLint renderbuffer_size = 0;
 
@@ -3013,6 +3376,15 @@ HRESULT WINAPI D3DDevice_CreateVertexShader(CONST DWORD *declaration, CONST DWOR
 		memcpy(object->instructions, function + 1, object->instruction_count * 4 * sizeof(DWORD));
 	}
 	parse_declaration(object, declaration);
+#ifndef HALO_ANDROID
+	if (object->instructions)
+	{
+		struct nv2a_vertex_lighting lighting;
+		/* Keep the feature's instruction-based recognition independent of
+		   which programs the game marks for per-pixel lighting. */
+		object->plasma_model = nv2a_vertex_shader_lighting(object->instructions, object->instruction_count, &lighting) && lighting.lights == 2;
+	}
+#endif
 	/* odd values are FVF codes; programmable shader handles are even */
 	*handle = (DWORD)object;
 	return S_OK;
@@ -3191,26 +3563,34 @@ static BOOL words_equal(const void *a, const void *b, unsigned long size)
 
 /* lit: the shader that hands the lighting's normal and position on
 (vertex_shader_object lit_shader) */
-static GLuint vertex_shader_get(struct vertex_shader_object *program, BOOL immediate, BOOL lit)
+static GLuint vertex_shader_get(struct vertex_shader_object *program, BOOL immediate, BOOL lit, BOOL plasma_model)
 {
 	int variant = immediate ? 1 : 0;
 	GLuint *shader = lit ? &program->lit_shader[variant] : &program->shader[variant];
 	unsigned char tried = (unsigned char)(1 << (variant + (lit ? 2 : 0)));
 
+#ifndef HALO_ANDROID
+	if (plasma_model)
+	{
+		shader = lit ? &program->plasma_lit_shader[variant] : &program->plasma_shader[variant];
+		tried <<= 4;
+	}
+#endif
 	if (!*shader && !(program->shaders_tried & tried))
 	{
 		char *source = nv2a_vertex_shader_to_glsl(program->instructions, program->instruction_count,
-			immediate ? 0 : device.vertex_shader->packed_mask, lit ? &program->lighting : NULL);
+			immediate ? 0 : device.vertex_shader->packed_mask, lit ? &program->lighting : NULL, plasma_model);
 
 		program->shaders_tried |= tried;
 		*shader = xgpu_compile_shader(GL_VERTEX_SHADER, source, "vertex");
+		shader_hash_set(*shader, source);
 		if (debug_settings.dump_shaders)
 		{
 			char path[512];
 			FILE *file;
 
-			snprintf(path, sizeof(path), "%s/vs%03lu_%d%s.glsl", debug_settings.dump_shaders, program->id, variant,
-				lit ? "_lit" : "");
+			snprintf(path, sizeof(path), "%s/vs%03lu_%d%s%s.glsl", debug_settings.dump_shaders, program->id, variant,
+				lit ? "_lit" : "", plasma_model ? "_plasma" : "");
 			if ((file = fopen(path, "w")) != NULL)
 			{
 				fputs(source, file);
@@ -3223,6 +3603,51 @@ static GLuint vertex_shader_get(struct vertex_shader_object *program, BOOL immed
 }
 
 typedef char pixel_shader_key_size_assert[sizeof(struct nv2a_pixel_shader_key) % 4 == 0 ? 1 : -1];
+
+static unsigned long fragment_source_hash(const char *source)
+{
+	unsigned long hash = 2166136261UL;
+	while (*source)
+		hash = (hash ^ (unsigned char)*source++) * 16777619UL;
+	return hash;
+}
+
+/* Consumes source. A hash only chooses candidates: compare every byte before
+   sharing an object. No generator, driver workaround or shader state is changed. */
+static GLuint fragment_source_get(char *source)
+{
+	unsigned long hash = fragment_source_hash(source);
+	struct fragment_source_entry **bucket = &fragment_source_buckets[hash % FRAGMENT_BUCKETS];
+	struct fragment_source_entry *entry;
+	GLuint shader;
+
+	for (entry = *bucket; entry; entry = entry->next)
+	{
+		if (entry->hash == hash && !strcmp(entry->source, source))
+		{
+			free(source);
+			return entry->shader;
+		}
+	}
+	shader = xgpu_compile_shader(GL_FRAGMENT_SHADER, source, "pixel");
+	/* Register shared objects once for the upstream program-binary cache. */
+	shader_hash_set(shader, source);
+	entry = malloc(sizeof(*entry));
+	if (entry)
+	{
+		entry->hash = hash;
+		entry->source = source;
+		entry->shader = shader;
+		entry->next = *bucket;
+		*bucket = entry;
+	}
+	else
+	{
+		/* The full-key cache still owns the result if sharing cannot allocate. */
+		free(source);
+	}
+	return shader;
+}
 
 static GLuint fragment_shader_get(const struct nv2a_pixel_shader_key *key)
 {
@@ -3255,7 +3680,6 @@ static GLuint fragment_shader_get(const struct nv2a_pixel_shader_key *key)
 	entry->hash = hash;
 	entry->key = *key;
 	source = nv2a_pixel_shader_to_glsl(key);
-	entry->shader = xgpu_compile_shader(GL_FRAGMENT_SHADER, source, "pixel");
 	if (debug_settings.dump_shaders)
 	{
 		char path[512];
@@ -3268,14 +3692,14 @@ static GLuint fragment_shader_get(const struct nv2a_pixel_shader_key *key)
 			fclose(file);
 		}
 	}
-	free(source);
+	entry->shader = fragment_source_get(source);
 	entry->next = *bucket;
 	*bucket = entry;
 	recent[recent_next++ % RECENT_FRAGMENT_COUNT] = entry;
 	return entry->shader;
 }
 
-static struct program_entry *program_get(GLuint vertex_shader, GLuint fragment_shader)
+static struct program_entry *program_get(GLuint vertex_shader, GLuint fragment_shader, BOOL plasma_model)
 {
 	static struct program_entry *last;
 	unsigned long hash = (vertex_shader * 2654435761UL) ^ fragment_shader;
@@ -3304,9 +3728,38 @@ static struct program_entry *program_get(GLuint vertex_shader, GLuint fragment_s
 	if (!vertex_shader || !fragment_shader)
 		return NULL;
 
+#ifndef HALO_GLES
+	entry->program = program_cache_load(shader_hash(vertex_shader), shader_hash(fragment_shader));
+	if (!entry->program)
+	{
+		/* (linked as xgpu_link_program does, keeping its binary) */
+		GLint status = 0;
+
+		entry->program = glCreateProgram();
+		glAttachShader(entry->program, vertex_shader);
+		glAttachShader(entry->program, fragment_shader);
+		if (program_cache.enabled)
+			glProgramParameteri(entry->program, GL_PROGRAM_BINARY_RETRIEVABLE_HINT, GL_TRUE);
+		glLinkProgram(entry->program);
+		glGetProgramiv(entry->program, GL_LINK_STATUS, &status);
+		if (!status)
+		{
+			char log[4096];
+
+			glGetProgramInfoLog(entry->program, sizeof(log), NULL, log);
+			platform_log("cannot link the shader program: %s", log);
+			glDeleteProgram(entry->program);
+			entry->program = 0;
+			return NULL;
+		}
+		program_cache.linked++;
+		program_cache_store(entry->program, shader_hash(vertex_shader), shader_hash(fragment_shader));
+	}
+#else
 	entry->program = xgpu_link_program(vertex_shader, fragment_shader, "shader");
 	if (!entry->program)
 		return NULL;
+#endif
 	state_program(entry->program);
 	entry->constants = glGetUniformLocation(entry->program, "c");
 	entry->constant_count = XGPU_VERTEX_CONSTANT_COUNT;
@@ -3356,6 +3809,17 @@ static struct program_entry *program_get(GLuint vertex_shader, GLuint fragment_s
 	entry->shield_honeycomb = glGetUniformLocation(entry->program, "shield_honeycomb");
 	entry->blend_constant = glGetUniformLocation(entry->program, "blend_constant");
 	entry->model_lights = glGetUniformLocation(entry->program, "model_lights");
+#ifndef HALO_ANDROID
+	entry->plasma_model_slots = -1;
+	if (plasma_model)
+	{
+		entry->plasma_model_slots = glGetUniformLocation(entry->program, "plasma_model_slots");
+		if (entry->plasma_model_slots >= 0)
+			plasma_occlusion_model_initialize(entry->program, &entry->plasma_occlusion);
+	}
+#else
+	(void)plasma_model;
+#endif
 	for (stage = 0; stage < D3DTSS_MAXSTAGES; stage++)
 	{
 		char name[8];
@@ -3364,6 +3828,44 @@ static struct program_entry *program_get(GLuint vertex_shader, GLuint fragment_s
 		glUniform1i(glGetUniformLocation(entry->program, name), stage);
 	}
 	last = entry;
+	return entry;
+}
+
+/* Select both stages together. Only actual selected feature lights need the
+   optional variant; the mask already respects local settings and host policy. */
+static BOOL per_pixel_lighting(void);
+static struct program_entry *draw_program_get(struct vertex_shader_object *program, BOOL immediate,
+	struct nv2a_pixel_shader_key *key, unsigned int plasma_mask)
+{
+	struct program_entry *entry = NULL;
+	BOOL plasma_model = FALSE;
+	BOOL *failed = &program->lighting_failed;
+#ifndef HALO_ANDROID
+	plasma_model = plasma_mask && program->plasma_model;
+	if (plasma_model)
+		failed = &program->plasma_lighting_failed;
+#else
+	(void)plasma_mask;
+#endif
+	key->plasma_model = 0;
+	key->per_pixel_lighting = 0;
+	if (program->lighting.lights && !*failed && per_pixel_lighting())
+	{
+		key->per_pixel_lighting = (unsigned char)program->lighting.lights;
+		key->plasma_model = (unsigned char)plasma_model;
+		entry = program_get(vertex_shader_get(program, immediate, TRUE, plasma_model), fragment_shader_get(key), plasma_model);
+		if (!entry)
+		{
+			/* Keep each variant's fallback independent of the other. */
+			platform_log("GPU: vertex shader %lu cannot be lit for each pixel here (refer to the shader log above): "
+				"lit for each vertex", program->id);
+			*failed = TRUE;
+			key->per_pixel_lighting = 0;
+			key->plasma_model = 0;
+		}
+	}
+	if (!entry)
+		entry = program_get(vertex_shader_get(program, immediate, FALSE, plasma_model), fragment_shader_get(key), plasma_model);
 	return entry;
 }
 
@@ -4282,6 +4784,7 @@ static struct program_entry *prepare_draw(BOOL immediate)
 	struct program_entry *entry;
 	struct draw_uniforms uniforms;
 	BOOL has_depth = FALSE;
+	unsigned int plasma_mask = 0;
 	int stage;
 
 	/* (the fixed-function pipeline's draws: immediate mode's only) */
@@ -4349,23 +4852,11 @@ static struct program_entry *prepare_draw(BOOL immediate)
 	key.count_samples = device.visibility_test_active && xgpu_capabilities.atomic_counters;
 #endif
 
-	entry = NULL;
-	if (program->lighting.lights && !program->lighting_failed && per_pixel_lighting())
-	{
-		key.per_pixel_lighting = (unsigned char)program->lighting.lights;
-		entry = program_get(vertex_shader_get(program, immediate, TRUE), fragment_shader_get(&key));
-		if (!entry)
-		{
-			/* drawn as the vertex shader lights it instead (not at all,
-			were it to fail too) */
-			platform_log("GPU: vertex shader %lu cannot be lit for each pixel here (refer to the shader log above): "
-				"lit for each vertex", program->id);
-			program->lighting_failed = TRUE;
-			key.per_pixel_lighting = 0;
-		}
-	}
-	if (!entry)
-		entry = program_get(vertex_shader_get(program, immediate, FALSE), fragment_shader_get(&key));
+#ifndef HALO_ANDROID
+	if (program->plasma_model)
+		plasma_mask = plasma_model_lighting_mask();
+#endif
+	entry = draw_program_get(program, immediate, &key, plasma_mask);
 	if (!entry)
 	{
 		stats.skipped_link++;
@@ -4451,6 +4942,13 @@ static struct program_entry *prepare_draw(BOOL immediate)
 		constants_checkpoint_first = XGPU_VERTEX_CONSTANT_COUNT;
 		constants_checkpoint_last = 0;
 	}
+#ifndef HALO_ANDROID
+	if (plasma_mask && entry->plasma_model_slots >= 0)
+	{
+		plasma_occlusion_bind_model(&entry->plasma_occlusion);
+		glUniform2f(entry->plasma_model_slots, (plasma_mask & 1) ? 1.0f : 0.0f, (plasma_mask & 2) ? 1.0f : 0.0f);
+	}
+#endif
 	/* the lights of a draw lit for each pixel, from the same registers, when
 	any of them changed since the program last had them */
 	if (entry->model_lights >= 0 && entry->model_lights_serial != constants_serial)
@@ -7107,6 +7605,28 @@ static void front_buffer_take(void)
 	device.front_buffer_taken = device.frame + 1;
 }
 
+#ifndef HALO_GLES
+/* after the swap: this frame's fence, then a wait for the frame
+frame_pacing.limit before it (a second at most: a GPU that slow is not
+waited for longer) */
+static void frame_pacing_wait(void)
+{
+	GLsync *slot;
+
+	if (!frame_pacing.limit)
+		return;
+	frame_pacing.fences[frame_pacing.next] = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
+	frame_pacing.next = (frame_pacing.next + 1) % frame_pacing.limit;
+	slot = &frame_pacing.fences[frame_pacing.next];
+	if (*slot)
+	{
+		glClientWaitSync(*slot, GL_SYNC_FLUSH_COMMANDS_BIT, 1000000000ull);
+		glDeleteSync(*slot);
+		*slot = NULL;
+	}
+}
+#endif
+
 void WINAPI D3DDevice_Present(CONST RECT *source_rectangle, CONST RECT *destination_rectangle,
 	void *unused, void *unused2)
 {
@@ -7170,6 +7690,7 @@ void WINAPI D3DDevice_Present(CONST RECT *source_rectangle, CONST RECT *destinat
 		glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
 		platform_video_swap();
 #ifndef HALO_GLES
+		frame_pacing_wait();
 		visibility_read_batch();
 #endif
 		xgpu_gl_state_invalidate();
@@ -7252,6 +7773,18 @@ void WINAPI D3DDevice_Present(CONST RECT *source_rectangle, CONST RECT *destinat
 			stats.mirrored_bytes / stats.presents / 1024, stats.streamed_bytes / stats.presents / 1024,
 			stats.texture_uploads, stats.texture_upload_bytes / 1024, stats.most_draws, stats.slowest_frame);
 		memset(&stats, 0, sizeof(stats));
+#ifndef HALO_GLES
+		{
+			static unsigned long shown = ~0UL;
+
+			if (program_cache.loaded + program_cache.linked != shown)
+			{
+				shown = program_cache.loaded + program_cache.linked;
+				platform_log("programs: %lu from the shader cache, %lu linked (%lu written to it, %lu refused by the driver)",
+					program_cache.loaded, program_cache.linked, program_cache.written, program_cache.refused);
+			}
+		}
+#endif
 	}
 	platform_pump_events();
 

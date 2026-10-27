@@ -84,7 +84,8 @@ def generated(control=None):
                                                              "OVERSHIELD_EFFECT_ARMS_LENGTH"]] +
                       [structure(overshield, "overshield_effect")])
     code = "\n".join([define(shield, "VIEWMODEL_SHIELD_STAND_OFF"), per_player_state(shield)] +
-                     [function(overshield, name) for name in ["overshield_effect_arms_values", "overshield_effect_draw"]] +
+                     [function(overshield, name) for name in ["overshield_effect_arms_values",
+                                                           "overshield_effect_find_values", "overshield_effect_draw"]] +
                      [function(shield, name) for name in ["viewmodel_shield_enabled", "viewmodel_shield_arms_distance",
                                                           "viewmodel_shield_maximum_offset", "viewmodel_shield_apply",
                                                           "viewmodel_shield_offset_amount"]] +
@@ -111,7 +112,7 @@ def hands_hook(source):
     draw = function(source, "first_person_weapon_draw")
     weapon, hands = list(re.finditer(r"\brender_model\(", draw))
     call = re.search(r"viewmodel_shield_apply\(\s*render\.local_player_index,\s*unit_index,\s*"
-                     r"first_person_interface->hands\.index,\s*model_node_matrices,\s*&model_effect\);", draw)
+                     r"first_person_interface->hands\.index,\s*model_node_matrices,\s*unit_functions,\s*&model_effect\);", draw)
     assert call and weapon.start() < call.start() < hands.start()
     assert "viewmodel_shield_apply" not in draw[:weapon.start()]
     assert "&model_effect" in draw[hands.start():]

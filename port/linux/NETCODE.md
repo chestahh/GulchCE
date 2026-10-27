@@ -163,13 +163,23 @@ lockstep netcode was removed, set to play it): it tells the player why.
 
 ## GulchCE crossplay boundary
 
-This experimental camera branch uses network version 41 for Xbox and Custom
-Edition, based on OpenCE network version 39, pinned to
-OpenCommunityEdition/OpenCE commit `3c7ed45e6fe2f286e8e2d175370b04d06f9e1c6e`.
+The main-branch baseline for Xbox and Custom Edition is OpenCE network version 39, pinned to
+OpenCommunityEdition/OpenCE commit `22947203a52c6f4b04171eaec426b4f5059b43f4`.
 This is an explicit protocol baseline, not automatic compatibility with future
 OpenCE releases. Do not change the base version without auditing its wire format,
 simulation rules and admission behavior and testing unmodified upstream clients.
 The pinned fixture and settings-prefix check are in `tools/test_mcc_protocol.py`.
+
+The following historical checks describe main, not experimental camera crossplay.
+The 22947203 integration was checked on Windows against official OpenCE
+build 309. Xbox Blood Gulch passed both host/client directions. Custom Edition
+Death Island passed with GulchCE hosting and with OpenCE hosting a movement
+run. An earlier CE pickup probe diverged during its forced startup teleports;
+that evidence is retained separately. MCC Mercury Falling admitted two peers
+with different package folder names and reached gameplay. Its comparator had
+only one matching gameplay second, so this is a co-op smoke check rather than
+full synchronization coverage. Public internet transport was not validated on
+this Windows host; the native/browser harness requires Unix path handling.
 
 The OpenCE 36 integration was checked on Windows against the official build
 of the pinned commit. Xbox Blood Gulch passed in both host/client directions
@@ -180,12 +190,17 @@ names and synchronized its opening sequence; the short run did not provide
 enough on-foot samples for the comparator's full drift verdict. These checks
 do not establish full campaign or public internet transport compatibility.
 
-MCC sessions on this camera branch use separate MCC protocol version 60.
-Version 60 reserves upstream flag `0x04` and message 92, moving MCC capability
-to `0x08`, gameplay IDs to 93-96 and the join envelope to 97.
-Testing uses MCC protocol 59; the shoulder relay remains branch-specific.
-Version 58 combines that relay with testing's music-gain campaign snapshots
-and MCC-only 4 KiB script-stack capacity. OpenCE 38 adds the
+Main uses MCC protocol version 60. Version 60 moves MCC
+gameplay messages to 94-97 and the join envelope to 98, reserving message 93
+for OpenCE 39's optional client fire origins. Main retains protocol 39 for Xbox and Custom Edition crossplay. This branch
+uses separate versions described below; it cannot join those sessions.
+Version 59 moved the MCC
+capability to flag `0x08`, gameplay messages to 93-96 and the join envelope to
+97, leaving OpenCE 39's dedicated flag `0x04` and client-build message 92 intact.
+Version 58 remains reserved for the older third-person branch. Version 56 adds music gain
+to campaign snapshots; version 57 requires the MCC-only 4 KiB script-stack
+capacity. These revisions leave the OpenCE 38 contract unchanged. Version 55
+incorporated OpenCE 38, which adds the
 players-own shield effects policy and uses advertisement byte 3 for the game
 kind; MCC capability moves from bytes 3-4 to bytes 4-5. Version 54 was used
 by the experimental third-person branch and is not reused here. Older MCC
@@ -369,6 +384,20 @@ remote) and the mods it plays, a line each ("folder version", in the load
 order); the host keeps it printable and logs it once, and a dedicated
 server shows it in `/api/players` (`client`). A host without the message
 drops it as a kind it does not know.
+Distributed message 93 (`network_damage.c`) needs no new version either,
+as a host that does not know it drops it: a client whose players' shots
+leave from elsewhere than their units' cameras (a VR build, whose weapon
+fires from the player's hand) sends the host where from, unreliably when it
+changes and every eighth tick: an offset from the camera of no more than 0.4
+world units (a player leaning out and an arm). The host keeps it a second,
+for that machine's own players only. When none of the shooter's eyes (nor a
+vehicle's gun) had a line to a reported hit's target, the host's line of
+sight check then also looks from the hand, with the line from the eye to it
+clear (a hand through a wall does not hit) and the hand where one firing at
+the target can be: no more than 0.05 world units behind the eye along the
+line to the target, 0.2 to its side and 0.1 above it (a client cannot claim
+a hand far past a corner). Such hits are counted in the host's log, and the
+host's `network.fire_origins` (true by default) turns the hand off.
 
 `port/linux/network_format.txt` records the wire format of the current
 version (`tools/network_format.py`): `test_linux_port.py` fails when the
@@ -919,13 +948,12 @@ its name alone beside it, has its name given back as the map lists find it.
    rest is on the ground, so it lies limp again where it stops instead of
    keeping the pose of its fall in the air. A client puts its copies there, and the difference is
    drawn fading over a few ticks (`render_interpolation.c`) instead of a
-   jump. A vehicle no player drives is carried between those updates along
-   the positions the host sent, a recording's lifepod as well as a Pelican.
-   Its physics velocity swings about that path, so the carry steps from
-   one of those positions to the next, and a jump further than a step of
-   the path is left where the host put it. The host's word that it is at
-   rest stops that step, and the step is kept only for the last gap
-   between positions, so a late word does not drive it on. A client drives its own player's vehicle and sends where it is,
+   jump. A vehicle no player drives, a recording's lifepod as well as a
+   Pelican, moves toward each new position the host sends at its path's
+   speed (the last two positions' difference over the host's ticks between
+   them), and goes on along the path for a few ticks if the next is late,
+   coming back to the newest if none comes. A
+   jump further than a step of the path is left where the host put it. A client drives its own player's vehicle and sends where it is,
    which the host takes within a tolerance, as it does its own player's
    unit, and no further from an anchor (one it took, a newer once a
    second) than the vehicle moves in the client's ticks since, those no
@@ -1178,7 +1206,9 @@ effects or exercise the public internet transport.
 
 `tools/camera_policy_sessions.py --binary build/windows/halo.exe --maps
 dist/halo-windows-release/maps --output build/camera-policy-sessions` runs
-two headless Windows instances with isolated saves over loopback. It checks
+two headless Windows instances with isolated saves over loopback. Add
+`--saves <profile-folder>` to copy a preselected profile for unattended startup;
+the source saves are never changed. Use a new output folder for every run. It checks
 all policies, an opposing client host preference, a late join and co-op.
 The supplied map directory must contain ui, carousel, bloodgulch and a30.
 The policy, saved preference, effective setting and active shoulder view
@@ -1238,15 +1268,29 @@ action button where the host has nothing for them to pick up, with where it
 has them and the nearest item: a client that sees a pickup the host does
 not.
 
-The online-third-person branch uses version 41 for Xbox/CE and MCC protocol
-version 60: OpenCE 39 and MCC 59 combined with shoulder-camera policy, input
-relay and muzzle-origin shots. Camera policy moves to bits 2-3 so bit 1
-remains upstream ally friendly fire. Stock OpenCE and testing cannot join
-this experimental branch; all participants must use the combined build.
-MCC protocol version 60 reserves OpenCE text chat (87-89), aim assist (90),
-shield effects (91) and client build reports (92), with MCC data messages
-at 93-96 and the admission envelope at 97. Xbox and Custom Edition sessions
-on this branch use camera protocol 41.
+The `online-third-person` branch uses version 32700 for Xbox/Custom Edition
+and MCC protocol version 32701. These separate experimental revisions retain
+the shoulder-policy bits and extra input-relay byte. They incorporate main's
+OpenCE fire-origin message 93 and keep MCC messages at 94-97 and MCC admission
+at 98. Camera admission reserves data-message kind 99.
+
+Every join, including a first-person-only game, must carry an eight-byte camera
+envelope: the normal two-byte data header, kind 99, revision 1, little-endian
+base camera version 32700, and two zero reserved bytes. The inner message is
+either the original join packet or the existing MCC envelope. The maximum is
+264 bytes. The host validates this before normal admission; an advertised
+version alone would leave direct joins unprotected. MCC validates its own
+inner envelope and capability independently. Tokens, bans, session state and
+slot checks still apply. There is no persistent camera-admission state.
+
+OpenCE, main and older camera builds are rejected in either host/client
+role. Matching experimental builds retain LAN, internet, dedicated-server
+and co-op paths, subject to the existing transport and map requirements.
+Turning the camera off does not restore crossplay: the input wire format
+still differs. No runtime option bypasses this boundary. Asset-free coverage
+is in `tools/test_camera_protocol.py`, `tools/test_mcc_protocol.py` and
+`tools/test_camera_wire.py`; passing those checks is not proof of public
+internet transport or full campaign compatibility.
 
 ### Comparing two builds
 

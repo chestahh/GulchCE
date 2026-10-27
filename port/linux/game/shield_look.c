@@ -1,7 +1,7 @@
 /*
 SHIELD_LOOK.C
 
-Optional plasma profiles overriding biped shield materials. The map owns its tags and pixels; this module owns only
+Optional plasma profiles overriding player biped shield materials. The map owns its tags and pixels; this module owns only
 the draw-time shader copies. See docs/shield_look.md for the inspected
 data, appearance precedence and shared-engine hooks.
 */
@@ -100,6 +100,14 @@ static boolean shield_look_enabled(void)
 	char const *value = config_string("display.shield_look");
 	return value && (!strcmp(value, "enhanced") || !strcmp(value, "enhanced2") ||
 		!strcmp(value, "classic_with_sprinkles") || !strcmp(value, "classic_honeycomb2"));
+}
+
+/* Ownership is per instance, never per model or definition: AI can share
+player assets. The unit player index also covers remote and co-op players. */
+static boolean shield_look_player(struct object_datum const *object)
+{
+	return object && object->object.type == _object_type_biped &&
+		((struct unit_datum const *)object)->unit.player_index != NONE;
 }
 
 static uint32_t shield_look_hash(uint32_t hash, void const *data, size_t size)
@@ -245,7 +253,7 @@ static struct shield_look_entry *shield_look_for_unit(long object_index, long ha
 		!strcmp(config_string("display.shield_look"), "classic_honeycomb2");
 	honeycomb = !strcmp(config_string("display.shield_look"), "classic_honeycomb2");
 	object = object_try_and_get(object_index);
-	if (!object || object->object.type != _object_type_biped)
+	if (!shield_look_player(object))
 		return NULL;
 	for (index = 0; index < shield_look_count; index++)
 	{
@@ -478,11 +486,20 @@ boolean shield_look_arms(short local_player_index, long unit_index, long hands_m
 selected modifier already supplies that layer, omit the authored plasma
 part before submitting either the base material or another modifier copy.
 Other transparent materials (visors, lamps and decals) are not shields. */
-boolean shield_look_skip_shell(struct model const *model, struct shader const *surface)
+boolean shield_look_skip_shell(long object_index, struct model const *model, struct shader const *surface,
+	boolean first_person)
 {
+	struct object_datum *object;
 	short index;
 
 	if (!surface || !model || !shield_look_enabled())
+		return FALSE;
+	/* The engine identifies a first-person hands draw by its weapon. Keep
+	that identity intact and resolve its owning unit only for this gate. */
+	object = object_try_and_get(object_index);
+	if (first_person && object && object->object.type == _object_type_weapon)
+		object = object_try_and_get(object->object.parent_object_index);
+	if (!shield_look_player(object))
 		return FALSE;
 	for (index = 0; index < shield_look_count; index++)
 	{

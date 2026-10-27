@@ -388,6 +388,7 @@ symbols in this file:
 #include "networking/network_game_globals.h"
 #include "networking/network_game_manager.h"
 #include "mcc_protocol.h" /* port: negotiate MCC only with an advertising host */
+#include "third_person_protocol.h" /* port: port/linux/game/third_person_protocol.c */
 void network_game_client_reset_settings_staging(void); /* port: discard partial settings across connections */
 #include "mcc_identity.h" /* port: MCC content admission and local package resolution */
 #include "networking/network_game_protocol.h"
@@ -2894,6 +2895,7 @@ static boolean network_game_client_idle_joining(
 				struct message_client_join_game_request join_game_request;
 				message_header *message;
 				word mcc_join[MCC_PROTOCOL_JOIN_MAX / sizeof(word)]; /* port: bounded optional envelope */
+				word camera_join[THIRD_PERSON_PROTOCOL_JOIN_MAX / sizeof(word)]; /* port: required camera admission */
 
 				csmemset(&join_game_request, 0, sizeof(join_game_request));
 				network_game_generate_local_machine_name(join_game_request.machine_name);
@@ -2916,6 +2918,8 @@ static boolean network_game_client_idle_joining(
 					sizeof(join_game_request));
 				if (message)
 					message = (message_header *)mcc_protocol_join(message, GET_MESSAGE_SIZE(*message), mcc_join); /* port */
+				if (message) /* port: camera contract required regardless of map or camera preference */
+					message = (message_header *)third_person_protocol_join(message, GET_MESSAGE_SIZE(*message), camera_join);
 				if (message)
 				{
 					if (network_game_client_write(
@@ -3217,7 +3221,7 @@ boolean network_game_client_advertised_game_compatible(
 	{
 		char message[400];
 		csprintf(message, "This MCC game requires GulchCE with MCC network version %u.\n\n"
-			"OpenCE clients can join Xbox and Custom Edition games only.", MCC_PROTOCOL_VERSION);
+			"Use matching online-third-person builds. OpenCE and GulchCE main crossplay is disabled.", MCC_PROTOCOL_VERSION); /* port: experimental branch */
 		platform_show_message("Halo: cannot join this game", message);
 	}
 	else if (tell)
@@ -3232,7 +3236,7 @@ void network_game_client_tell_version(
 	boolean distributed)
 {
 	unsigned int ours = HALO_PORT_NETWORK_VERSION;
-	char message[400];
+	char message[600]; /* port: room for the experimental branch's compatibility notice */
 
 	if (theirs == ours)
 	{
@@ -3256,6 +3260,9 @@ void network_game_client_tell_version(
 			"Ask the host to update the game.",
 			ours, theirs);
 	}
+	/* port: numeric ordering alone cannot explain this branch's reserved versions. */
+	csstrcat(message, "\n\nThis experimental camera build requires a matching online-third-person build. "
+		"OpenCE and GulchCE main crossplay is disabled.");
 	network_event("not joining a host of network version %u%s (this machine's is %u)", theirs,
 		distributed ? "" : " with the lockstep netcode", ours);
 	platform_show_message("Halo: cannot join this game", message);

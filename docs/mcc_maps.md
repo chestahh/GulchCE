@@ -6,6 +6,20 @@ menus. It is an experimental
 runtime adapter, with explicit format limits below. A successful menu
 probe or file audit is not proof that a map plays correctly.
 
+## Loading feedback
+
+MCC map conversion displays OpenCE's original animated loading effect. Its
+progress follows resource checks, conversion and validation, then initial
+scenario setup. It represents completed work, not a time estimate. Long audio
+and texture operations refresh the display between bounded pieces of work;
+a single blocking read or allocation can still pause it briefly. A refused
+map closes the effect and uses the existing error message.
+
+The screen uses the Xbox installation's `maps/loading.tga` imported from the
+disc image. If that file is missing, the original renderer has no loading
+picture to show. Lobby/catalog checks before loading are unchanged. The effect
+does not run gameplay or alter network readiness, authority or map validation.
+
 ## Installation and menus
 
 Put the map in the game data root's `mcc_maps` directory, beside `maps` and
@@ -168,36 +182,41 @@ without changing their contents.
 
 | Context | Available actions |
 | --- | --- |
-| Local campaign | Resume Game, Revert to Saved, Restart Level, Save and Quit. |
-| Cooperative host | Resume Game, Revert to Saved, Restart Level, Leave Game. |
-| Cooperative client | Resume and Leave Game. |
-| Local multiplayer | Resume, Restart Game and Leave Game. |
-| Multiplayer host | Resume, Restart Game, End Game and Leave Game; Choose Team in team games. |
-| Multiplayer client | Resume and Leave Game; Choose Team in team games. |
+| Local campaign | Resume Game, Settings, Revert to Saved, Restart Level, Save and Quit. |
+| Cooperative host and client | The campaign actions plus Friendly Fire On/Off. Clients cannot perform host-only checkpoint/restart actions. |
+| Local multiplayer and multiplayer client | Resume Game, Settings and Leave Game. |
+| Multiplayer host | Resume Game, Settings, End Game and Leave Game. |
 
-All full-screen MCC pause menus offer **Settings**, including campaign,
-network co-op and multiplayer, with either main-menu style. This opens
-OpenCEs native in-game audio, video and controls screens for the initiating
-controller, using upstreams option filtering and profile saving. Campaign
-menus use 30-pixel row spacing and taller panels to accommodate the option. Split-screen players use Settings
-from the main menu, since the native editor needs a full viewport.
-Restart,
-revert and leaving/end-game actions use confirmation
-dialogs with Cancel selected initially. B returns from a confirmation to
-the pause screen; Start closes the current player's menu and its navigation
-history. At the main pause screen, either resumes play. Resume and team
-selection also close only the initiating player's menu, preserving other
-local players' screens. Each pause layout uses the native A/B button-icon
-tokens in its footer, drawing the map's HUD button glyphs beside Select/Back.
-Only local campaign pauses
-the simulation; network games continue while a menu is open.
+The full-screen menus match the Xbox layouts and content, including the
+port's Settings and co-op Friendly Fire additions. The extra MCC Choose Team
+and multiplayer Restart Game entries have been removed for content parity.
+Authored widgets still use the existing MCC action adapter. Split-screen
+players use Settings from the main menu, since the editor needs a full viewport.
 
-Save and Quit preserves the last valid local campaign checkpoint. Revert
-requires a valid checkpoint, and cooperative restart/revert remain
-host-controlled. A network restart retains the selected map, variant,
-options and players through the native lobby/countdown route. End Game is
-host-only and ends the round. Team changes remain subject to authenticated
-player identity, host authority and balance checks.
+Revert and Restart use the Xbox ATTENTION dialog: B/Back cancels and
+A/Start accepts. Save and Quit uses the three-second SAVING screen and
+preserves the last valid checkpoint; it does not create a new checkpoint.
+The wording, including the inherited Xbox-console saving message, follows
+the Xbox reference. Multiplayer Leave and host End Game act directly, as
+on Xbox. Only local campaign menus pause simulation; network games continue.
+
+Footers use separate B=CANCEL and A=SELECT widgets, with B=CANCEL and A=OK
+on confirmations. Their bitmap placeholders reference OpenCE's embedded
+small menu-button redraws, independently of the map's gameplay glyphs.
+Panel and alert bitmap descriptors borrow the native menu loader's redraw
+textures read-only, with MCC-owned groups and frame selections. Unload drops
+these descriptors before the native menu loader releases the textures.
+Selection highlights are drawn independently with antialiased rounded edges.
+
+Friendly Fire changes only the existing `network.coop_own_friendly_fire`
+preference, through the same configuration service as Xbox. The generated
+button reloads its label after a successful change. This introduces no new
+network message or authority: checkpoint/restart and End Game still require
+the host; clients cannot turn the preference into control of other players.
+The menu callbacks close only their initiating controller's tree and history.
+
+All full-screen Settings entries open OpenCE's existing in-game audio, video
+and controls editor, with upstream's option filtering and profile saving.
 
 The MCC Settings route uses the initiating controller's profile and widget
 history. It does not replace another active profile editor. Its ownership
@@ -356,6 +375,19 @@ that require different channel layouts gets separate MCC-owned tag and
 pixel copies, with the relevant consumer's reference redirected. The tag
 index can grow into a separate checked allocation for those copies.
 
+Unflagged (Gearbox-order) MCC meters also omit the Xbox RGB opacity tint.
+Their converted clone stores fill order in red/blue and authored shape coverage
+in green/alpha. The MCC texture bridge selects the renderer's existing filtered
+coverage and discrete-threshold interfaces for that clone only. This preserves
+the scene beneath partially covered edge pixels, filters curved fills like
+their adjacent outlines, and avoids interpolating ammunition segment IDs.
+The original bitmap, explicitly Xbox-order MCC meters, and Xbox/CE texture
+paths keep their existing sampling. Descent provided concrete examples:
+`decent\ui\hud\odst_eva` uses opacity 1 for its unflagged shield meter;
+its shield and health shapes occupy different curves within 512-by-64 images.
+Those authored shapes and the space between them are retained, not enlarged
+to fill their surrounding outline.
+
 Unflagged MCC HUD placements use a 960p canvas, converted to native 480p
 coordinates in MCC-owned tags. Legacy high-resolution placements (flag 4)
 already carry 480p anchor offsets and retain them. Bitmap size conversion
@@ -384,6 +416,49 @@ The field occupies the native header's padding at byte 6, as documented by
 Each draw resolves a temporary placement without changing the parent tag.
 This places A50_Revisited's visor at the screen edges; invalid child anchors
 retain the parent placement. Xbox/CE returns the original parent untouched.
+
+Stock corner HUDs use the native safe frame instead of the wider MCC frame.
+`mcc_hud_layout.inl` recognizes component layouts before conversion from their
+anchors, placements, number layout and overlay counts. Unit HUD recognition
+also includes bitmap names/dimensions/registration points and sprite geometry.
+Weapon and grenade counter panels deliberately exclude artwork identity and
+sprite choices: a custom replacement bitmap does not relocate a stock counter.
+Grenade icons retain their own authored size and offset within the counter's
+frame. Bitmap and overlay references are still bounds-checked. Handles,
+padding, colors and independently centered crosshairs do not select the frame.
+The fingerprints were measured from locally installed MCC version-13 a10,
+b30, b40, d40, bloodgulch, deathisland and carousel caches. No map assets are
+embedded. Unknown layouts retain the authored MCC frame; this is deliberately
+conservative and is not a security or content-identity check.
+
+Recognition writes a marker into runtime-owned MCC placement padding, clearing
+map-supplied values first. A weapon and its inherited parent HUDs share one
+frame: `mcc_hud_weapon_frame_begin` follows the outermost populated parent
+layout in the bounded chain, ignoring empty/crosshair-only parents. A chain
+with distinct authored anchors retains the MCC frame. This lets a custom ammo
+meter inherit its stock parent counter's margin without moving shared tags or
+classifying the whole map as stock. `mcc_hud_weapon_frame_end` clears the choice
+after that draw. The three-line additive hook in `hud_weapon.c` is needed
+because a parent tag can be shared by both custom and stock weapon HUDs;
+conversion alone cannot know which child is currently drawing it. No shared
+parent tag is mutated during rendering. Xbox/CE dispatch remains neutral.
+
+Stock top-left messages (zero horizontal offset, 60 native pixels down) use
+the same native safe margin. Other message offsets and anchors retain their
+authored MCC placement. With High-Res HUD enabled, MCC controller glyphs use
+the native HUD's dimensions, capital-center alignment and text advance, with
+the selected button style and split-screen scaling. Low-resolution glyphs
+retain their existing geometry. Mercury Falling's pistol, ability counters
+and vehicle prompts exposed these separate cases; the rules do not depend
+on map or weapon names. Descent's custom layouts remain separate.
+
+The asset-free layout, channel and texture-ownership tests are in
+`tools/test_mcc_hud_layout.py`, `tools/test_mcc_shader_channels.py` and
+`tools/test_mcc_texture_bridge.py`. `tools/test_mcc_hud_meter_render.py` renders
+synthetic converted meters through the production GPU shader, checking full,
+empty and partial fill with fractional coverage and placement. Visual checks
+must also cover real stock/custom MCC HUDs at native resolution; synthetic
+tests alone cannot establish that every authored layout matches MCC.
 
 MCC Chicago shaders that explicitly request Custom Edition blending (extra
 flag `0x4`) use black-neutral modulation for double multiply. Frogfoot's
@@ -1083,7 +1158,7 @@ a complete playthrough. Its four script refusals were traced to writes to
   in the campaign snapshot's flag bit 3. It preserves player volume settings,
   survives checkpoints, follows the host, and clears on map disposal.
 - `map_reset` uses the existing restart operation: a local reset in
-  singleplayer, and the MCC pause menu's reliable round restart in a network
+  singleplayer, and the MCC action adapter's reliable round restart in a network
   game. A client cannot request it through this script function.
 
 B30 Evolved also exposed two rendering problems, handled only for MCC:

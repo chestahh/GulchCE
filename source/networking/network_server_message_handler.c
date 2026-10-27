@@ -260,6 +260,7 @@ symbols in this file:
 #include "networking/network_game_globals.h"
 #include "networking/network_game_manager.h"
 #include "mcc_protocol.h" /* port: MCC-only admission and settings envelope */
+#include "third_person_protocol.h" /* port: port/linux/game/third_person_protocol.c */
 #include "mcc_identity.h" /* port: attach MCC content identity to host settings */
 #include "networking/network_game_protocol.h"
 #include "networking/network_messages.h"
@@ -1183,6 +1184,7 @@ boolean network_game_server_handle_client_message(
 	boolean result = TRUE;
 	word message_type;
 	byte packet_type;
+	word camera_join[THIRD_PERSON_PROTOCOL_JOIN_MAX / sizeof(word)], camera_join_size; /* port */
 
 	/* port: the size comes from the wire, and an assert is no check (an
 	empty message read its packet type from before the buffer): the machine
@@ -1192,6 +1194,20 @@ boolean network_game_server_handle_client_message(
 	{
 		network_event("server received a client message of a bad size (#%d)", message_buffer_size);
 		return FALSE;
+	}
+
+	/* port: require camera compatibility before either ordinary or MCC admission.
+	The normal join handler still owns tokens, bans, slots and MCC authorization. */
+	if (!network_game_server_client_machine_is_joined_to_game(server, machine))
+	{
+		if (!third_person_protocol_unwrap(message, message_buffer_size, camera_join, &camera_join_size))
+		{
+			network_event("camera admission rejected: matching online-third-person protocol %u required",
+				HALO_PORT_NETWORK_VERSION);
+			return FALSE;
+		}
+		message = camera_join;
+		message_buffer_size = (short)camera_join_size;
 	}
 
 	match_assert(
