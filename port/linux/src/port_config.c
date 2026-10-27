@@ -453,7 +453,7 @@ static const struct config_setting config_settings[] =
 	{ "display.ammo_counter_lighting", _config_boolean, "false", "HALO_AMMO_COUNTER_LIGHTING", _environment_value, _platform_all,
 	  "Blue spill and screen emission from held Assault Rifle ammo counters (experimental, off by default)." },
 	{ "display.fuel_rod_lighting", _config_boolean, "false", "HALO_FUEL_ROD_LIGHTING", _environment_value, _platform_all,
-		"Soft green illumination from the Grunt fuel-rod weapon's exposed rods.\n"
+		"Soft green illumination from exposed Grunt and Hunter fuel rods.\n"
 		"Stock weapon effects remain intact. Optional occlusion uses plasma_occlusion." },
 	{ "display.covenant_shield_lighting", _config_boolean, "false", "HALO_COVENANT_SHIELD_LIGHTING", _environment_value, _platform_all,
 		"Soft illumination from active stationary Covenant shield emitters.\n"

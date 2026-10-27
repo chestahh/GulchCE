@@ -6,6 +6,9 @@ int ammo_counter_lighting_position(long weapon, real_point3d *position, real_vec
 
 struct shader;
 void ammo_counter_lighting_screen(struct shader *shader, real_rgb_color *color, int first_person);
+/* Balanced around one model material draw, before any following fog pass. */
+void ammo_counter_lighting_draw_begin(struct shader *shader, int first_person, unsigned long output);
+void ammo_counter_lighting_draw_end(void);
 void ammo_counter_lighting_forget(void);
 
 #endif

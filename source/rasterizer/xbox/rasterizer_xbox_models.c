@@ -2344,6 +2344,11 @@ void _rasterizer_model_draw(
 						shader_model->model.flags,
 						_shader_model_true_atmospheric_fog_bit));
 
+				/* port: boost only the optional first-person AR display draw. */
+				ammo_counter_lighting_draw_begin(shader,
+					TEST_FLAG(local_parameters->geometry_flags, _rasterizer_geometry_first_person_bit),
+					pixel_shader.rgb_outputs[7]);
+
 				IDirect3DDevice8_SetRenderState(
 					global_d3d_device,
 					D3DRS_CULLMODE,
@@ -2432,6 +2437,8 @@ void _rasterizer_model_draw(
 								vertex_buffer);
 					}
 				}
+				/* port: restore the display output before fog or another material. */
+				ammo_counter_lighting_draw_end();
 			}
 
 			if (local_environment_fog_screen_flag)

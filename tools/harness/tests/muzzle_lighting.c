@@ -3,7 +3,7 @@
 #define MAX(a,b) ((a)>(b)?(a):(b))
 #define NUMBEROF(a) (sizeof(a)/sizeof((a)[0]))
 typedef struct { real red,green,blue; } real_rgb_color;
-typedef struct { real_point3d position; } real_matrix4x3;
+typedef struct { real_point3d position; real_vector3d forward; } real_matrix4x3;
 enum { _object_invisible_bit, _point_light_port_glow_bit, _point_light_connected_to_map_bit, MAXIMUM_WEAPONS_PER_UNIT=4 };
 struct weapon_datum { long definition_index; struct { long parent_object_index; int flags; struct { int size; } node_matrices; } object; };
 struct unit_datum { struct { short current_weapon_index; } unit; };
@@ -30,8 +30,8 @@ static struct weapon_datum *object_get(long w) { return &weapons[w]; }
 static struct unit_datum *unit_try_and_get(long u) { return present && u==20 ? &unit : NULL; }
 static const char *tag_get_name(long d) { return tag; }
 static long unit_inventory_get_weapon(long u,short s) { return held; }
-static int first_person_weapon_adjust_light(long w,const char *n,real_point3d *p,real_vector3d *f,real_vector3d *u) { p->x=marker_x;p->y=p->z=0;return marker; }
-static int object_get_marker_by_name(long w,const char *n,struct object_marker *m,short c) { m->matrix.position.x=marker_x;m->matrix.position.y=m->matrix.position.z=0;return world_marker; }
+static int first_person_weapon_adjust_light(long w,const char *n,real_point3d *p,real_vector3d *f,real_vector3d *u) { p->x=marker_x;p->y=p->z=0;*f=forward;return marker; }
+static int object_get_marker_by_name(long w,const char *n,struct object_marker *m,short c) { m->matrix.forward=forward;m->matrix.position.x=!strcmp(n,"cannon flash")?4:marker_x;m->matrix.position.y=m->matrix.position.z=0;return world_marker; }
 static short local_player_get_next(short p) { return p==NONE?0:NONE; }
 static const struct observer_result *observer_get_camera(short p) { return &camera; }
 static real distance3d(const real_point3d *a,const real_point3d *b) { return a->x-b->x; }
@@ -73,7 +73,7 @@ int main(int argc,char **argv)
  }
  else if(!strcmp(name,"profiles"))
  {
-  for(i=0;i<NUMBEROF(muzzle_profiles);i++) { tag=muzzle_profiles[i].tag;tick++;muzzle_lighting_shot(1,0);CHECK(pulses[0].active,"supported weapon");muzzle_lighting_forget(); }
+  for(i=0;i<NUMBEROF(muzzle_profiles);i++) { tag=muzzle_profiles[i].tag;tick++;muzzle_lighting_shot(1,muzzle_profiles[i].triggers==2?1:0);CHECK(pulses[0].active,"supported weapon");muzzle_lighting_forget(); }
   tag="weapons\\plasma pistol\\plasma pistol";tick++;muzzle_lighting_shot(1,1);CHECK(pulses[0].radius==2.2f && pulses[0].duration==0.16f,"charged profile");
   muzzle_lighting_forget();tag="custom\\weapon";muzzle_lighting_shot(1,0);CHECK(!pulses[0].active,"unknown stays stock");
  }
@@ -126,6 +126,25 @@ int main(int argc,char **argv)
   muzzle_lighting_frame_end();marker_x=1;render_time+=1.0f/120;muzzle_lighting_update();
   CHECK(lights[0].position.x==1 && lights[0].color.red<1,"turret follows rendered aim with smooth fade");
   world_marker=0;muzzle_lighting_update();CHECK(deletes==1,"missing vehicle marker releases pulse");
+ }
+ else if(!strcmp(name,"scorpion"))
+ {
+  tag="vehicles\\scorpion\\scorpion cannon";marker=0;world_marker=1;marker_x=2;
+  weapons[1].object.flags=FLAG(_object_invisible_bit);weapons[1].object.node_matrices.size=0;
+  weapons[20].object.node_matrices.size=sizeof(real_matrix4x3);
+  muzzle_lighting_shot(1,0);muzzle_lighting_shot(1,1);muzzle_lighting_update();
+  CHECK(allocs==2&&pulses[0].trigger==0&&pulses[1].trigger==1,"simultaneous tank guns retain separate pulses");
+  CHECK(lights[0].radius==7&&lights[1].radius==5,"cannon has wider spill than coaxial gun");
+  CHECK(lights[0].position.x==4&&lights[1].position.x>2.079f&&lights[1].position.x<2.081f,"distinct rendered sources beyond barrels");
+  CHECK(muzzle_lighting_vehicle_occlusion(0)&&muzzle_lighting_vehicle_occlusion(1),"both guns include chassis blockers");
+  muzzle_lighting_frame_end();render_time=1.05f;tick++;muzzle_lighting_update();old=lights[0].color.red;
+  muzzle_lighting_shot(1,1);muzzle_lighting_update();
+  CHECK(lights[0].color.red==old&&lights[1].color.red==1&&allocs==2,"machinegun does not restart or replace cannon pulse");
+  muzzle_lighting_shot(1,1);render_time=1.08f;muzzle_lighting_update();
+  CHECK(lights[1].color.red<1,"duplicate shot does not postpone machinegun decay");
+  render_time=1.18f;tick+=4;muzzle_lighting_update();
+  CHECK(lights[0].active&&!lights[1].active,"each trigger expires on its own envelope");
+  on=0;muzzle_lighting_update();CHECK(deletes==2,"disable releases both tank lights");
  }
  else if(!strcmp(name,"move"))
  {

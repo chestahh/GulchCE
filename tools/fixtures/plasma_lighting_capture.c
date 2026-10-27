@@ -51,6 +51,14 @@ int plasma_capture_turret_fire(void)
 	return capture_ticks >= 75 && capture_ticks % 30 < 23;
 }
 
+int plasma_capture_scorpion_fire(void)
+{
+	if (capture_ticks < 75 || capture_ticks > 240) return 0;
+	if (capture_ticks < 120) return 2;
+	if (capture_ticks < 170) return 1;
+	return 3;
+}
+
 /* Render-only exterior view: the seated player's ordinary controls still aim
    and fire the turret. Keep the chassis and adjacent ground in the picture. */
 void plasma_capture_camera(void)
@@ -59,7 +67,8 @@ void plasma_capture_camera(void)
 	struct object_datum *vehicle;
 	real_point3d target;
 	real_vector3d right;
-	if (!getenv("HALO_WARTHOG_CAPTURE_EXTERIOR") || capture_vehicle == NONE ||
+	int scorpion = getenv("HALO_SCORPION_CAPTURE") != NULL;
+	if ((!getenv("HALO_WARTHOG_CAPTURE_EXTERIOR") && !scorpion) || capture_vehicle == NONE ||
 		!(vehicle = object_try_and_get(capture_vehicle)))
 		return;
 	camera = (struct observer_result *)observer_get_camera(0);
@@ -67,9 +76,9 @@ void plasma_capture_camera(void)
 	target.z += 0.6f;
 	cross_product3d(&capture_camera.forward, &capture_camera.up, &right);
 	camera->position = vehicle->object.position;
-	camera->position.x += 3.0f * right.i - 1.5f * capture_camera.forward.i;
-	camera->position.y += 3.0f * right.j - 1.5f * capture_camera.forward.j;
-	camera->position.z += 1.1f;
+	camera->position.x += (scorpion ? 6.0f : 3.0f) * right.i - (scorpion ? 2.5f : 1.5f) * capture_camera.forward.i;
+	camera->position.y += (scorpion ? 6.0f : 3.0f) * right.j - (scorpion ? 2.5f : 1.5f) * capture_camera.forward.j;
+	camera->position.z += scorpion ? 2.4f : 1.1f;
 	vector_from_points3d(&camera->position, &target, &camera->forward);
 	normalize3d(&camera->forward);
 	observer_up_from_forward(&camera->forward, &camera->up);
@@ -181,6 +190,7 @@ static void emitter_capture_tick(void)
 	{
 		const char *name = !strcmp(kind, "stationary") ? "scenery\\c_field_generator\\c_field_generator" :
 			!strcmp(kind, "fuel") ? "weapons\\fuel rod gun\\fuel rod" :
+			!strcmp(kind, "hunter") ? "characters\\hunter\\hunter" :
 			!strcmp(kind, "major") ? "characters\\jackal\\jackal major" : "characters\\jackal\\jackal";
 		capture_emitter_attached = FALSE;
 		tag = tag_loaded(!strcmp(kind, "stationary") ? 'scen' : !strcmp(kind, "fuel") ? 'weap' : 'bipd', name);
@@ -190,7 +200,7 @@ static void emitter_capture_tick(void)
 		placement.position.x += capture_camera.forward.i * 2.5f;
 		placement.position.y += capture_camera.forward.j * 2.5f;
 		placement.position.z -= 0.65f;
-		if (!strcmp(kind, "stationary"))
+		if (!strcmp(kind, "stationary") || !strcmp(kind, "hunter"))
 		{
 			struct collision_result ground;
 			real_vector3d down = {0, 0, -5};
@@ -237,7 +247,7 @@ static void emitter_capture_tick(void)
 	}
 	if (capture_emitter != NONE && object_try_and_get(capture_emitter))
 	{
-		if (strcmp(kind, "fuel") && (capture_ticks == 100 || capture_ticks == 112 ||
+		if (strcmp(kind, "fuel") && strcmp(kind, "hunter") && (capture_ticks == 100 || capture_ticks == 112 ||
 			capture_ticks == 140 || capture_ticks == 160 || capture_ticks == 195))
 		{
 			struct object_datum *object = object_get(capture_emitter);
@@ -254,7 +264,7 @@ static void emitter_capture_tick(void)
 			capture_emitter_attached = TRUE;
 			platform_log("EMITTER attached");
 		}
-		if (capture_ticks == 110 && strcmp(kind, "fuel"))
+		if (capture_ticks == 110 && strcmp(kind, "fuel") && strcmp(kind, "hunter"))
 		{
 			struct damage_network_state state;
 			damage_get_network_state(capture_emitter, &state);
@@ -264,12 +274,12 @@ static void emitter_capture_tick(void)
 			damage_set_network_state(capture_emitter, &state);
 			platform_log("EMITTER hit %ld", capture_emitter);
 		}
-		if (capture_ticks == 150 && strcmp(kind, "fuel"))
+		if (capture_ticks == 150 && strcmp(kind, "fuel") && strcmp(kind, "hunter"))
 		{
 			object_deplete_shield(capture_emitter);
 			platform_log("EMITTER depleted %ld", capture_emitter);
 		}
-		if (capture_ticks == 180 && strcmp(kind, "fuel"))
+		if (capture_ticks == 180 && strcmp(kind, "fuel") && strcmp(kind, "hunter"))
 		{
 			struct damage_network_state state;
 			damage_get_network_state(capture_emitter, &state);
@@ -445,7 +455,7 @@ void plasma_capture_tick(void)
 		cheat.deathless_player = TRUE;
 	}
 	capture_ticks++;
-	if (getenv("HALO_WARTHOG_CAPTURE_EXTERIOR") && capture_vehicle != NONE &&
+	if ((getenv("HALO_WARTHOG_CAPTURE_EXTERIOR") || getenv("HALO_SCORPION_CAPTURE")) && capture_vehicle != NONE &&
 		object_try_and_get(capture_vehicle))
 	{
 		real_vector3d facing = object_get(capture_vehicle)->object.forward;
@@ -501,11 +511,13 @@ void plasma_capture_tick(void)
 	{
 		long unit = player_control_get_unit_index(0);
 		const char *role = getenv("HALO_NETWORK_TEST");
-		if (getenv("HALO_WARTHOG_CAPTURE"))
+		if (getenv("HALO_WARTHOG_CAPTURE") || getenv("HALO_SCORPION_CAPTURE"))
 		{
 			long vehicle;
+			int scorpion = getenv("HALO_SCORPION_CAPTURE") != NULL;
 			if (role && !strncmp(role, "join", 4)) return;
-			tag = tag_loaded('vehi', "vehicles\\warthog\\warthog");
+			tag = tag_loaded('vehi', scorpion ? "vehicles\\scorpion\\scorpion_mp" : "vehicles\\warthog\\warthog");
+			if (tag == NONE && scorpion) tag = tag_loaded('vehi', "vehicles\\scorpion\\scorpion");
 			if (tag == NONE || unit == NONE) return;
 			object_placement_data_new(&placement, tag, NONE);
 			placement.position = capture_camera.position;
@@ -520,10 +532,10 @@ void plasma_capture_tick(void)
 			capture_vehicle = vehicle;
 			if (vehicle != NONE)
 			{
-				unit_scripting_enter_vehicle(unit, vehicle, "W-gunner");
+				unit_scripting_enter_vehicle(unit, vehicle, scorpion ? "scorpion-driver" : "W-gunner");
 				platform_log("WARTHOG seat vehicle %ld parent %ld", vehicle, object_get(unit)->object.parent_object_index);
 				if (object_get(unit)->object.parent_object_index == vehicle)
-					platform_log("PLASMA combat equipped Warthog %ld", vehicle);
+					platform_log("PLASMA combat equipped %s %ld", scorpion ? "Scorpion" : "Warthog", vehicle);
 			}
 			return;
 		}
@@ -742,10 +754,10 @@ void plasma_capture_frame(void)
 int plasma_capture_should_capture(void)
 {
 	static long shield_captured_tick = -1;
-	if (getenv("HALO_SHIELD_CAPTURE"))
+	if (getenv("HALO_SHIELD_CAPTURE") || getenv("HALO_LIGHTING_CAPTURE_SPARSE"))
 	{
 		if (getenv("HALO_PLASMA_CAPTURE_NO_IMAGES") || capture_ticks < 85 || capture_ticks > 240 ||
-			capture_ticks % 5 || shield_captured_tick == capture_ticks) return FALSE;
+			capture_ticks % (getenv("HALO_LIGHTING_CAPTURE_SPARSE") ? 3 : 5) || shield_captured_tick == capture_ticks) return FALSE;
 		shield_captured_tick = capture_ticks;
 		return TRUE;
 	}

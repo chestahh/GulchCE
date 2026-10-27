@@ -17,7 +17,7 @@ def generated(fault=None):
     return (('under_test.inc', code),)
 
 
-@pytest.mark.parametrize('case', ['pulse', 'profiles', 'off', 'capacity', 'lifecycle', 'failures', 'world', 'move', 'warthog'])
+@pytest.mark.parametrize('case', ['pulse', 'profiles', 'off', 'capacity', 'lifecycle', 'failures', 'world', 'move', 'warthog', 'scorpion'])
 def test_case(case):
     status, output = run(build('muzzle_lighting', generated()), case)
     assert status == 0, output

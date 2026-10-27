@@ -24,6 +24,7 @@ established these identities; no third-party implementation was copied.
 | Jackal minor / major | `characters\jackal\jackal`, `characters\jackal\jackal major` | `shield light` | 3.6 |
 | Stationary shield | `scenery\c_field_generator\c_field_generator` | `shield light` | 2.8 |
 | Fuel rods | `weapons\fuel rod gun\fuel rod` (weapon group) | `lens flare` | 1.6 |
+| Hunter fuel rods | `characters\hunter\hunter` (biped group) | `rodflare` | 1.6 |
 
 Shield colour comes from runtime change colour C, the stock shield shader's
 colour source: minor blue, major gold and stationary violet. Blue Jackals use a
@@ -40,7 +41,10 @@ maximum body vitality remains eligible.
 
 Fuel rods use a restrained green light at the back of the weapon, not its muzzle.
 A held weapon must be the unit's current weapon; a dropped visible weapon stays
-luminous until stock removal. The model-less Hunter weapon is excluded. Renamed
+luminous until stock removal. The Hunter's exposed rods use its biped model's
+`rodflare` marker on the animated right forearm, with the same green profile.
+This includes visible corpse rods until stock removal. Its model-less weapon
+remains excluded, avoiding a second misplaced light. Renamed
 custom tags are deliberately not guessed from substrings.
 
 The rendered marker pose follows existing render interpolation. An 80 ms
@@ -87,6 +91,19 @@ raises its emissive minimum to (0.22, 0.75, 1). The authored multipurpose textur
 still masks the emission. It does not add global bloom or alter tag data. The
 cached shader identity is cleared by the existing map/light-storage lifecycle.
 The setting-off path returns before looking up or changing any shader.
+
+The first-person display keeps its brighter emissive minimum (0.45, 1, 1).
+Its constants are already saturated, so `ammo_counter_lighting_draw_begin`
+additionally doubles the completed RGB output for that display material only,
+before fog. A paired `ammo_counter_lighting_draw_end` restores the exact saved
+combiner output before another material or view. These minimal marked calls in
+`_rasterizer_model_draw` are necessary to bracket the engine's draw; policy and
+state remain in the feature module. Authored output scaling/bias is preserved.
+There is no shader translator or GPU workaround change. The first-person spill
+gain is 1.35, with the existing 0.95-unit radius and directional mask. The world
+display, third-person strength (0.65), radius and falloff are unchanged. Per-view
+gain does not enter shared fade history, so a first-person view cannot brighten
+a later third-person view.
 
 Only the exact `weapons\assault rifle\assault rifle` weapon currently held by a
 visible unit participates. That includes Marines and remote players without

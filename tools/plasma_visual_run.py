@@ -20,9 +20,9 @@ parser.add_argument('--enabled', required=True, type=int, choices=[0, 1])
 parser.add_argument('--label', default='')
 parser.add_argument('--map', choices=['bloodgulch', 'carousel', 'a10', 'b40', 'c40', 'ce-deathisland'])
 parser.add_argument('--kind', choices=['rifle','pistol','charged','rocket','needle','ghost','banshee','banshee-fuel','shade','fuel','wraith','mp-needle','mp-banshee-fuel','mp-shade','ce-fuel'], default='rifle')
-parser.add_argument('--muzzle', choices=['ar','handgun','shotgun','sniper','rifle','pistol','charged','needler','rocket','flamethrower','warthog'])
+parser.add_argument('--muzzle', choices=['ar','handgun','shotgun','sniper','rifle','pistol','charged','needler','rocket','flamethrower','warthog','scorpion'])
 parser.add_argument('--both-lighting', action='store_true')
-parser.add_argument('--emitter', choices=['jackal','major','fuel','stationary','ammo-fp','ammo-marine','ammo-player','needler-fp','needler-marine','needler-player','needler-grunt'])
+parser.add_argument('--emitter', choices=['jackal','major','fuel','hunter','stationary','ammo-fp','ammo-marine','ammo-player','needler-fp','needler-marine','needler-player','needler-grunt'])
 parser.add_argument('--shield', choices=['normal', 'charge', 'fp', 'elite'])
 parser.add_argument('--glow-intensity', choices=['default','light_show'], default='default')
 parser.add_argument('--shield-look', default='classic', choices=['classic','enhanced','classic_with_sprinkles','classic_honeycomb2'])
@@ -31,7 +31,8 @@ parser.add_argument('--hide-viewmodel', action='store_true', help='Keep the loca
 parser.add_argument('--face-camera', action='store_true', help='Face a held-weapon fixture toward the camera to inspect torso and hand spill')
 parser.add_argument('--grounded', action='store_true', help='Place the held-weapon actor on the actual floor')
 parser.add_argument('--crouch', action='store_true', help='Exercise a held-weapon actor crouching and standing again')
-parser.add_argument('--exterior', action='store_true', help='View the Warthog fixture from outside to inspect chassis blocking')
+parser.add_argument('--exterior', action='store_true', help='View the vehicle fixture from outside to inspect chassis blocking')
+parser.add_argument('--sparse-images', action='store_true', help='Retain one image every three simulation ticks')
 parser.add_argument('--mixed', action='store_true')
 parser.add_argument('--model', action='store_true')
 parser.add_argument('--occlusion', type=int, choices=[0,1], default=0)
@@ -49,8 +50,8 @@ parser.add_argument('--height', type=float)
 parser.add_argument('--drop', type=float)
 parser.add_argument('--receiver-distance', type=float)
 args = parser.parse_args()
-if args.exterior and args.muzzle != 'warthog':
-    parser.error('--exterior requires --muzzle warthog')
+if args.exterior and args.muzzle not in ('warthog', 'scorpion'):
+    parser.error('--exterior requires --muzzle warthog or scorpion')
 if args.crouch and not args.shield and args.emitter not in ('ammo-player', 'ammo-marine', 'needler-player', 'needler-marine'):
     parser.error('--crouch requires a third-person player or Marine emitter')
 if args.map is None:
@@ -105,14 +106,16 @@ if args.grounded:
     env['HALO_EMITTER_CAPTURE_GROUNDED'] = '1'
 if args.crouch:
     env['HALO_EMITTER_CAPTURE_CROUCH'] = '1'
-if args.exterior:
+if args.exterior and args.muzzle == 'warthog':
     env['HALO_WARTHOG_CAPTURE_EXTERIOR'] = '1'
+if args.sparse_images:
+    env['HALO_LIGHTING_CAPTURE_SPARSE'] = '1'
 if args.emitter:
     env['HALO_EXIT_AFTER'] = '70' if args.map == 'b40' else '35'
     env['HALO_EMITTER_CAPTURE'] = args.emitter
     env['HALO_PLASMA_LIGHTING'] = '0'
     env[{'jackal':'HALO_JACKAL_SHIELD_LIGHTING', 'major':'HALO_JACKAL_SHIELD_LIGHTING',
-         'fuel':'HALO_FUEL_ROD_LIGHTING', 'stationary':'HALO_COVENANT_SHIELD_LIGHTING',
+         'fuel':'HALO_FUEL_ROD_LIGHTING', 'hunter':'HALO_FUEL_ROD_LIGHTING', 'stationary':'HALO_COVENANT_SHIELD_LIGHTING',
          'ammo-fp':'HALO_AMMO_COUNTER_LIGHTING','ammo-marine':'HALO_AMMO_COUNTER_LIGHTING',
          'ammo-player':'HALO_AMMO_COUNTER_LIGHTING', 'needler-fp':'HALO_NEEDLER_LIGHTING',
          'needler-player':'HALO_NEEDLER_LIGHTING','needler-marine':'HALO_NEEDLER_LIGHTING',
@@ -130,12 +133,13 @@ if args.muzzle:
         'needler': r'weapons\needler\mp_needler' if args.map == 'ce-deathisland' else r'weapons\needler\needler',
         'rocket': r'weapons\rocket launcher\rocket launcher', 'flamethrower': r'weapons\flamethrower\flamethrower',
         'warthog': r'vehicles\warthog\warthog gun',
+        'scorpion': r'vehicles\scorpion\scorpion cannon',
     }
     env['HALO_MUZZLE_CAPTURE_WEAPON'] = muzzle_tags[args.muzzle]
     env['HALO_MUZZLE_LIGHTING'] = str(args.enabled)
     env['HALO_PLASMA_LIGHTING'] = str(int(args.both_lighting))
-    if args.muzzle == 'warthog':
-        env['HALO_WARTHOG_CAPTURE'] = '1'
+    if args.muzzle in ('warthog', 'scorpion'):
+        env['HALO_' + args.muzzle.upper() + '_CAPTURE'] = '1'
         # The vehicle fixture equips its own weapon. Use the combat fixture's
         # sustained bursts rather than the handheld muzzle fixture's tap input.
         env.pop('HALO_MUZZLE_CAPTURE_WEAPON')
@@ -289,3 +293,6 @@ if args.muzzle and not args.enabled and report['muzzle_submissions']:
 
 if args.muzzle == "warthog" and args.enabled and r"MUZZLE profile vehicles\warthog\warthog gun" not in logs:
     raise SystemExit("Capture did not fire the Warthog turret")
+if args.muzzle == 'scorpion' and args.enabled:
+    if r'MUZZLE profile vehicles\scorpion\scorpion cannon' not in logs or set(re.findall(r'MUZZLE sample[^\r\n]+ trigger ([01])', logs)) != {'0', '1'}:
+        raise SystemExit('Capture did not fire both Scorpion guns')

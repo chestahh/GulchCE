@@ -1,12 +1,14 @@
-/* The AR display is luminous in both models. Sample its rendered pose only;
-   the emitter module owns allocation, fading and frame cleanup. */
+/* The AR display's rendered pose and optional material emission.
+   The emitter module owns light allocation, fading and frame cleanup. */
 #include "cseries.h"
+#include <xtl.h>
 #include "objects/objects.h"
 #include "items/weapons.h"
 #include "units/units.h"
 #include "interface/first_person_weapons.h"
 #include "ammo_counter_lighting.h"
 #include "shaders/shader_definitions.h"
+#include "rasterizer/xbox/rasterizer_xbox.h"
 #include <string.h>
 
 int config_boolean(const char *name);
@@ -65,29 +67,58 @@ int ammo_counter_lighting_position(long index, real_point3d *position, real_vect
 /* Cache only within a loaded map; the emitter lifecycle clears this pointer. */
 static struct shader *ammo_counter_screen;
 static int ammo_counter_screen_checked;
+static int ammo_counter_draw_active;
+static unsigned long ammo_counter_draw_output;
 
 void ammo_counter_lighting_forget(void)
 {
 	ammo_counter_screen = NULL;
 	ammo_counter_screen_checked = FALSE;
+	ammo_counter_draw_active = FALSE;
 }
 
-void ammo_counter_lighting_screen(struct shader *shader, real_rgb_color *color, int first_person)
+static int ammo_counter_is_screen(struct shader *shader)
 {
 	long index;
 	if (!config_boolean("display.ammo_counter_lighting"))
-		return;
+		return FALSE;
 	if (!ammo_counter_screen_checked)
 	{
 		index = tag_loaded('soso', "weapons\\assault rifle\\fp\\shaders\\display");
 		ammo_counter_screen = index == NONE ? NULL : shader_definition_get(index);
 		ammo_counter_screen_checked = TRUE;
 	}
-	if (!shader || shader != ammo_counter_screen)
+	return shader && shader == ammo_counter_screen;
+}
+
+void ammo_counter_lighting_screen(struct shader *shader, real_rgb_color *color, int first_person)
+{
+	if (!ammo_counter_is_screen(shader))
 		return;
 	/* The authored multipurpose-map mask confines emission to the screen.
 	   Both stock AR models share this shader; retain any brighter animation. */
 	color->red = MAX(color->red, first_person ? 0.45f : 0.22f);
 	color->green = MAX(color->green, first_person ? 1.0f : 0.75f);
 	color->blue = MAX(color->blue, 1.0f);
+}
+
+/* Colour constants are already saturated. Boost the completed display RGB
+   before fog, confined to this material and view. Restore the exact output
+   after drawing so the shared model shader and other views remain unchanged. */
+void ammo_counter_lighting_draw_begin(struct shader *shader, int first_person, unsigned long output)
+{
+	if (!first_person || !ammo_counter_is_screen(shader) || (output & 0x38000UL))
+		return;
+	ammo_counter_draw_output = output;
+	ammo_counter_draw_active = TRUE;
+	IDirect3DDevice8_SetRenderState(global_d3d_device, D3DRS_PSRGBOUTPUTS7, output | 0x10000UL);
+}
+
+void ammo_counter_lighting_draw_end(void)
+{
+	if (ammo_counter_draw_active)
+	{
+		IDirect3DDevice8_SetRenderState(global_d3d_device, D3DRS_PSRGBOUTPUTS7, ammo_counter_draw_output);
+		ammo_counter_draw_active = FALSE;
+	}
 }

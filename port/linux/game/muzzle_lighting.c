@@ -24,6 +24,10 @@ static const struct muzzle_profile
 	const char *tag;
 	real_rgb_color color;
 	real radius, duration;
+	short triggers; /* bit mask; zero keeps the existing shared pulse */
+	boolean vehicle_occlusion;
+	const char *marker;
+	real forward_offset;
 } muzzle_profiles[] = {
 	{"weapons\\assault rifle\\assault rifle", {1.0f, 0.65f, 0.25f}, 1.8f, 0.10f},
 	{"weapons\\pistol\\pistol", {1.0f, 0.65f, 0.25f}, 1.8f, 0.12f},
@@ -37,7 +41,12 @@ static const struct muzzle_profile
 	{"weapons\\flamethrower\\flamethrower", {1.0f, 0.40f, 0.10f}, 1.4f, 0.08f},
 	/* The model-less turret weapon uses the vehicle's rendered muzzle marker.
 	   A wider warm pulse lights the hull and ground without changing its flash. */
-	{"vehicles\\warthog\\warthog gun", {1.0f, 0.75f, 0.35f}, 5.0f, 0.16f},
+	{"vehicles\\warthog\\warthog gun", {1.0f, 0.75f, 0.35f}, 5.0f, 0.16f, 0, TRUE},
+	/* Separate triggers retain both pulses when the tank fires both guns.
+	   The cannon flash is ahead of its projectile marker; move the coaxial
+	   source just beyond its barrel so the vehicle can occlude it correctly. */
+	{"vehicles\\scorpion\\scorpion cannon", {1.0f, 0.78f, 0.42f}, 7.0f, 0.22f, 1, TRUE, "cannon flash", 0.0f},
+	{"vehicles\\scorpion\\scorpion cannon", {1.0f, 0.75f, 0.35f}, 5.0f, 0.12f, 2, TRUE, "secondary trigger", 0.08f},
 };
 enum { MUZZLE_LIGHTS = 8 };
 static struct muzzle_pulse
@@ -79,13 +88,15 @@ void muzzle_lighting_shot(long weapon_index, short trigger_index)
 	if (!name)
 		return;
 	for (profile = 0; profile < NUMBEROF(muzzle_profiles); profile++)
-		if (!strcmp(name, muzzle_profiles[profile].tag))
+		if (!strcmp(name, muzzle_profiles[profile].tag) &&
+			(!muzzle_profiles[profile].triggers || TEST_FLAG(muzzle_profiles[profile].triggers, trigger_index)))
 			break;
 	if (profile == NUMBEROF(muzzle_profiles))
 		return; /* unfamiliar custom weapons retain their authored effects */
 	for (i = 0; i < MUZZLE_LIGHTS; i++)
 	{
-		if (pulses[i].active && pulses[i].weapon == weapon_index)
+		if (pulses[i].active && pulses[i].weapon == weapon_index &&
+			(!muzzle_profiles[profile].triggers || pulses[i].trigger == trigger_index))
 		{
 			slot = i;
 			break;
@@ -126,10 +137,13 @@ static int muzzle_position(struct muzzle_pulse *pulse, real_point3d *position)
 	const char *name = pulse->trigger ? "secondary trigger" : "primary trigger";
 	short player;
 	real_vector3d forward, up;
+	const struct muzzle_profile *profile = &muzzle_profiles[pulse->profile];
 	if (!weapon || !unit || weapon->object.parent_object_index != pulse->owner ||
 		unit->unit.current_weapon_index < 0 || unit->unit.current_weapon_index >= MAXIMUM_WEAPONS_PER_UNIT ||
 		unit_inventory_get_weapon(pulse->owner, unit->unit.current_weapon_index) != pulse->weapon)
 		return FALSE;
+	if (profile->marker)
+		name = profile->marker;
 	if (!first_person_weapon_adjust_light(pulse->weapon, name, position, &forward, &up))
 	{
 		long object = TEST_FLAG(weapon->object.flags, _object_invisible_bit) ? pulse->owner : pulse->weapon;
@@ -137,6 +151,13 @@ static int muzzle_position(struct muzzle_pulse *pulse, real_point3d *position)
 			!object_get_marker_by_name(object, name, &marker, 1))
 			return FALSE;
 		*position = marker.matrix.position;
+		forward = marker.matrix.forward;
+	}
+	if (profile->forward_offset != 0.0f)
+	{
+		position->x += forward.i * profile->forward_offset;
+		position->y += forward.j * profile->forward_offset;
+		position->z += forward.k * profile->forward_offset;
 	}
 	for (player = local_player_get_next(NONE); player != NONE; player = local_player_get_next(player))
 	{
@@ -269,7 +290,7 @@ int muzzle_lighting_vehicle_occlusion(long light)
 		return FALSE;
 	for (i = 0; i < MUZZLE_LIGHTS; i++)
 		if (pulses[i].active && pulses[i].light == light &&
-			!strcmp(muzzle_profiles[pulses[i].profile].tag, "vehicles\\warthog\\warthog gun"))
+			muzzle_profiles[pulses[i].profile].vehicle_occlusion)
 			return TRUE;
 	return FALSE;
 }

@@ -127,11 +127,12 @@ static int emitter_sample(long index, struct emitter_sample *sample)
 			0.7f + 0.15f * PIN(object->object.shield_vitality, 0.0f, 1.0f) +
 			0.15f * PIN(object->object.recent_shield_damage, 0.0f, 1.0f) : 0.0f;
 	}
-	else if (object->object.type == _object_type_weapon && !strcmp(name, "weapons\\fuel rod gun\\fuel rod"))
+	else if ((object->object.type == _object_type_weapon && !strcmp(name, "weapons\\fuel rod gun\\fuel rod")) ||
+		(object->object.type == _object_type_biped && !strcmp(name, "characters\\hunter\\hunter")))
 	{
 		/* The rod marker is on the back of this model, not at its muzzle.
 		   Dropped rods remain luminous while their stock model still exists. */
-		if (object->object.parent_object_index != NONE)
+		if (object->object.type == _object_type_weapon && object->object.parent_object_index != NONE)
 		{
 			struct unit_datum *unit = unit_try_and_get(object->object.parent_object_index);
 			if (!unit || TEST_FLAG(unit->object.flags, _object_invisible_bit) ||
@@ -141,7 +142,9 @@ static int emitter_sample(long index, struct emitter_sample *sample)
 		}
 		sample->kind = 1;
 		sample->radius = 1.6f;
-		marker_name = "lens flare";
+		/* The Hunter's visible rods and rodflare marker belong to its animated
+		   forearm, not its separate model-less weapon. */
+		marker_name = object->object.type == _object_type_biped ? "rodflare" : "lens flare";
 		sample->color.red = 0.15f;
 		sample->color.green = 1.0f;
 		sample->color.blue = 0.05f;
@@ -157,7 +160,7 @@ static int emitter_sample(long index, struct emitter_sample *sample)
 		sample->color.blue = 1.0f;
 		/* Keep view-specific brightness out of the shared temporal history. */
 		sample->strength = 0.65f;
-		sample->view_gain = counter_pose == 2 ? 1.0f / 0.65f : 1.0f;
+		sample->view_gain = counter_pose == 2 ? 1.35f / 0.65f : 1.0f;
 		marker_name = NULL;
 	}
 	else if (object->object.type == _object_type_weapon && needler_lighting_position(index, &sample->position, &sample->direction))

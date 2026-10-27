@@ -33,6 +33,13 @@ static real now,marker_x=1;
 static int count=1,shield_on=1,fuel_on,stationary_on,allocs,deletes,disconnects,missing,fail,marker_missing;
 static long inventory=0;
 static int ammo_on,needler_on,first_person;
+static const char *last_marker;
+static void *global_d3d_device;
+enum { D3DRS_PSRGBOUTPUTS7=7 };
+static int screen_draw_calls;
+static unsigned long screen_output;
+static void IDirect3DDevice8_SetRenderState(void *device,int state,unsigned long output)
+{ CHECK(state==D3DRS_PSRGBOUTPUTS7,"only display RGB output is touched");screen_output=output;screen_draw_calls++; }
 #define weapon_datum object_datum
 static struct { int active,connected; real radius; real_rgb_color color; real_point3d position; } storage[64];
 static real_vector3d forward={1,0,0};
@@ -50,7 +57,7 @@ static struct object_definition *object_definition_get(long i) { return &definit
 static struct model *model_definition_get(long i) { return &model; }
 static const char *tag_get_name(long i) { return names[i]; }
 static int object_get_marker_by_name(long i,const char *name,struct object_marker *m,int count)
-{ memset(m,0,sizeof(*m));m->matrix.forward.i=1;m->matrix.up.k=1;m->matrix.position.x=marker_x;return !marker_missing; }
+{ last_marker=name;memset(m,0,sizeof(*m));m->matrix.forward.i=1;m->matrix.up.k=1;m->matrix.position.x=marker_x;return !marker_missing; }
 static int first_person_weapon_adjust_light(long i,const char *n,real_point3d *p,real_vector3d *f,real_vector3d *u)
 { memset(p,0,sizeof(*p));memset(f,0,sizeof(*f));memset(u,0,sizeof(*u));p->x=5;f->j=1;u->k=1;return first_person&&!marker_missing; }
 static short local_player_get_next(short i) { return i==NONE?0:NONE; }
@@ -98,6 +105,17 @@ int main(int argc,char **argv)
  CHECK(screen.blue==1&&screen.green==.75f,"screen uses emissive mask");
  ammo_counter_lighting_screen(&screen_shader,&screen,1);
  CHECK(screen.green==1&&screen.red==.45f,"first person screen enhanced independently");
+ ammo_counter_lighting_draw_begin(&screen_shader,0,0xC00);ammo_counter_lighting_draw_end();
+ ammo_counter_lighting_draw_begin(&other_shader,1,0xC00);ammo_counter_lighting_draw_end();
+ CHECK(screen_draw_calls==0,"world models and other materials never change draw state");
+ ammo_counter_lighting_draw_begin(&screen_shader,1,0xC00);
+ CHECK(screen_draw_calls==1&&screen_output==0x10C00,"FP display RGB doubled before fog");
+ ammo_counter_lighting_draw_end();ammo_counter_lighting_draw_end();
+ CHECK(screen_draw_calls==2&&screen_output==0xC00,"exact output restored once before next material");
+ ammo_counter_lighting_draw_begin(&screen_shader,1,0x18C00);ammo_counter_lighting_draw_end();
+ CHECK(screen_draw_calls==2,"custom biased output is preserved");
+ ammo_on=0;ammo_counter_lighting_draw_begin(&screen_shader,1,0xC00);ammo_counter_lighting_draw_end();
+ CHECK(screen_draw_calls==2,"disabled screen does not touch render state");ammo_on=1;
  ammo_counter_lighting_forget();screen_present=0;screen.blue=.35f;
  ammo_counter_lighting_screen(&screen_shader,&screen, 0);
  CHECK(screen.blue==.35f,"missing screen after map switch stays stock");
@@ -145,6 +163,11 @@ int main(int argc,char **argv)
  CHECK(emitter_sample(0,&sample),"held current weapon eligible");
  names[0]="weapons\\fuel rod gun\\hunter fuel rod";
  CHECK(!emitter_sample(0,&sample),"no phantom rods on model-less Hunter gun");
+ names[0]="characters\\hunter\\hunter";objects[0].object.type=_object_type_biped;objects[0].object.parent_object_index=NONE;
+ CHECK(emitter_sample(0,&sample)&&sample.kind==1&&sample.color.green==1,"Hunter rods share fuel-rod setting and profile");
+ CHECK(!strcmp(last_marker,"rodflare")&&sample.position.x==marker_x,"Hunter source follows the forearm rod marker");
+ marker_missing=1;CHECK(!emitter_sample(0,&sample),"missing Hunter rods do not invent a light");marker_missing=0;
+ fuel_on=0;CHECK(!emitter_sample(0,&sample),"Hunter glow off with existing fuel-rod switch");fuel_on=1;
  names[0]="characters\\jackal\\jackal";objects[0].object.type=0;objects[0].object.parent_object_index=NONE;
  objects[0].object.maximum_body_vitality=objects[0].object.body_vitality=1;
  covenant_emitter_lighting_update();
@@ -192,7 +215,7 @@ int main(int argc,char **argv)
  first_person=1;
  CHECK(emitter_sample(0,&sample)&&sample.position.x==5&&fabs(sample.position.y+.18f)<.0001,"first person follows rotated rendered marker");
  CHECK(fabs(sample.position.z-.025f)<.0001,"first person has separate offset");
- CHECK(fabs(sample.strength*sample.view_gain-1.0f)<.0001,"first person counter has brighter spill");
+ CHECK(fabs(sample.strength*sample.view_gain-1.35f)<.0001,"first person counter has brighter spill");
  CHECK(sample.direction.i==0&&fabs(sample.direction.j+.8f)<.0001&&fabs(sample.direction.k-.6f)<.0001,"screen direction rotates with rendered weapon");
  inventory=1;CHECK(!emitter_sample(0,&sample),"holstered counter rejected");inventory=0;
  objects[0].object.parent_object_index=NONE;CHECK(!emitter_sample(0,&sample),"dropped counter is off");
@@ -200,7 +223,7 @@ int main(int argc,char **argv)
  first_person=1;frame(.01f);frame(.1f);
  slow=storage[emitters[0].light-100].color.blue;
  first_person=0;frame(0);
- CHECK(fabs(storage[emitters[0].light-100].color.blue-slow*.65f)<.0001,"first person boost does not leak into another view");
+ CHECK(fabs(storage[emitters[0].light-100].color.blue-slow*.65f/1.35f)<.0001,"first person boost does not leak into another view");
  first_person=1;frame(0);
  CHECK(fabs(storage[emitters[0].light-100].color.blue-slow)<.0001,"view order does not change first person brightness");
  first_person=0;ammo_on=0;old=deletes;frame(.01f);

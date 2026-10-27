@@ -174,6 +174,17 @@ real captures from those synthetic checks. Muzzle collision blocking is
 automatic with muzzle lighting; the separate Light Occlusion toggle controls
 projectile and emitter blocking.
 
+The AR display uses `ammo_counter_lighting_screen` and the paired
+`ammo_counter_lighting_draw_begin` / `ammo_counter_lighting_draw_end` helpers in
+[ammo_counter_lighting.c](../../port/linux/game/ammo_counter_lighting.c).
+`_rasterizer_model_draw` calls them around the display draw: first-person RGB
+is doubled before fog and the exact output state is then restored. The
+world-model display keeps its existing treatment. This narrow shared hook is
+needed because a feature-owned point light cannot brighten the screen's own
+material or bracket its draw. The setting and exact material identity guard
+the change; the [emitter guide](../covenant_emitter_lighting.md) describes the
+separate per-view spill gain and map cleanup.
+
 Visibility history is translated and uniformly scaled between fields.
 `field_for` prepares sixteen interpolation coordinates per axis, then shares
 them across the 4096 cells; the sample weights, accumulation order and fallback

@@ -15,13 +15,13 @@ choices for this screen. Saved choices persist across launches.
 | Menu row | What it controls |
 | --- | --- |
 | Projectile Lights | Plasma, rockets and the supported Covenant projectile profiles, including Needler, Shade, fuel rod, Ghost, Banshee, Wraith and dropship fire. |
-| Muzzle Flash Lights | Extra short-lived weapon illumination, including the Warthog turret; stock flash and explosion effects remain intact. |
+| Muzzle Flash Lights | Extra short-lived weapon illumination, including the Warthog turret and both Scorpion guns; stock flash and explosion effects remain intact. |
 | Jackal Shields | Blue/orange shield spill, following the shield's damage colour. |
 | Stationary Shields | Covenant shield-emitter spill, including the red damage flash. |
-| Fuel Rod Glow | Illumination from the held fuel rod weapon. |
+| Fuel Rod Glow | Illumination from the held/dropped fuel rod weapon and exposed Hunter cannon rods. |
 | AR Counter Glow | Screen emission and directed spill in first and third person. |
 | Needler Glow | Needle emission and soft outward spill on the weapon and its holder. |
-| Light Occlusion | Optional blocking for projectile and emitter lights. Muzzle lights retain their own collision blocking, including the Warthog chassis. |
+| Light Occlusion | Optional blocking for projectile and emitter lights. Muzzle lights retain their own collision blocking, including Warthog and Scorpion chassis. |
 | Shield Glow | Player/unit shield spill, subject to the host's shield-effects policy. |
 | Glow Intensity | Default or Light Show intensity for Shield Glow; this does not enable it. |
 

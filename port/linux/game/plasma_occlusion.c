@@ -1,5 +1,5 @@
 /* A filtered local visibility field avoids rejecting a whole model at a door.
-   Queries see structure, scenery and machines, plus vehicles for Warthog flashes.
+   Queries see structure, scenery and machines, plus vehicles for turret flashes.
    The field
    is approximate within one cell of an edge; this is not a shadow renderer. */
 #include "plasma_occlusion.h"

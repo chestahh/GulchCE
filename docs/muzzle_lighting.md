@@ -9,7 +9,7 @@ Keep render interpolation enabled for smooth fades between simulation ticks.
 ## Supported weapons
 
 Profiles match exact stock weapon tag names, including both Xbox and Custom
-Edition Needler names and the stock Warthog chaingun. Unknown custom weapons keep their
+Edition Needler names, the Warthog chaingun and both Scorpion guns. Unknown custom weapons keep their
 authored behaviour. Radii below are engine world units, durations are seconds.
 
 | Weapon | Colour | Radius | Duration |
@@ -25,6 +25,8 @@ authored behaviour. Radii below are engine world units, durations are seconds.
 | Rocket launcher | Orange | 2.0 | 0.14 |
 | Flamethrower | Orange | 1.4 | 0.08 |
 | Warthog chaingun | Warm amber | 5.0 | 0.16 |
+| Scorpion main cannon | Warm amber | 7.0 | 0.22 |
+| Scorpion machinegun | Warm amber | 5.0 | 0.12 |
 
 The Warthog profile matches `vehicles\warthog\warthog gun`. Read-only Xbox
 Blood Gulch tag inspection confirms that this weapon has no model; the vehicle
@@ -33,13 +35,22 @@ weapon fallback follows that rendered vehicle marker. Its broader warm pulse
 illuminates the hull and nearby ground; rapid shots refresh one bounded light.
 No new shared-engine hook or stock flash changes are needed.
 
+The Scorpion's `vehicles\scorpion\scorpion cannon` weapon has two triggers.
+Each retains an independent pulse, so machinegun fire cannot restart or replace
+the cannon's flash. Both count against the existing eight-light limit. The
+vehicle's animated `cannon flash` marker places the main source ahead of the
+barrel; `secondary trigger` plus 0.08 units along its forward direction places
+the machinegun source just beyond its barrel. Read-only Xbox Blood Gulch and
+b40 inspection established these marker names and positions. Both profiles
+include vehicles in their collision queries, as the Warthog already does.
+
 ## Ownership and integration
 
 `port/linux/game/muzzle_lighting.c` owns the profiles, eight bounded pulse
 records, rendered marker placement, smoothstep decay and cleanup. A successful
 shot records identities only; rendering creates the light. Dry fire, charging,
 reloads and failed shots do not create pulses. Repeated shots refresh the same
-weapon's pulse. Excess simultaneous weapons retain their stock effects; an
+weapon's pulse (one per gun on the Scorpion). Excess simultaneous weapons retain their stock effects; an
 existing pulse is not evicted. Only muzzles within 25 units of a local camera
 are retained.
 

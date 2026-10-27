@@ -81,7 +81,7 @@ try:
     assert text.count(marker) == 1
     text = text.replace(marker, marker+'\n\t\tplatform_log("EMITTER sample time %.6f strength %.6f kind %d position %.5f %.5f %.5f color %.5f %.5f %.5f", now, emitter->strength, emitter->kind, sample.position.x, sample.position.y, sample.position.z, color.red, color.green, color.blue);')
     emitter.write_text(text)
-    text='int plasma_capture_skip_cinematic(void);\nint plasma_capture_turret_fire(void);\n'+input_original.decode().replace('\r\n','\n')
+    text='int plasma_capture_skip_cinematic(void);\nint plasma_capture_turret_fire(void);\nint plasma_capture_scorpion_fire(void);\n'+input_original.decode().replace('\r\n','\n')
     marker='\tif (seed < 0)'
     assert marker in text
     text=text.replace(marker,'\tif (getenv("HALO_PLASMA_CAPTURE_DOOR")) { pad->bAnalogButtons[XINPUT_GAMEPAD_A] = SDL_GetTicks()%1000 < 100 ? 255 : 0; return; }\n\tif (getenv("HALO_PLASMA_CAPTURE_COMBAT")) { pad->bAnalogButtons[XINPUT_GAMEPAD_RIGHT_TRIGGER] = (getenv("HALO_PLASMA_CAPTURE_KIND") && !strcmp(getenv("HALO_PLASMA_CAPTURE_KIND"), "pistol") ? SDL_GetTicks()%400 < 100 : SDL_GetTicks()%3000 < 2200) ? 255 : 0; return; }\n'+marker,1)
@@ -95,6 +95,8 @@ try:
     text = text[:at]+line+text[at:]
     at = text.index('\tif (getenv("HALO_PLASMA_CAPTURE_COMBAT"))')
     text = text[:at]+'\tif (getenv("HALO_WARTHOG_CAPTURE_EXTERIOR")) { pad->bAnalogButtons[XINPUT_GAMEPAD_RIGHT_TRIGGER] = plasma_capture_turret_fire() ? 255 : 0; return; }\n'+text[at:]
+    at = text.index('\tif (getenv("HALO_PLASMA_CAPTURE_COMBAT"))')
+    text = text[:at]+'\tif (getenv("HALO_SCORPION_CAPTURE")) { int fire = plasma_capture_scorpion_fire(); pad->bAnalogButtons[XINPUT_GAMEPAD_RIGHT_TRIGGER] = fire & 1 ? 255 : 0; pad->bAnalogButtons[XINPUT_GAMEPAD_LEFT_TRIGGER] = fire & 2 ? 255 : 0; return; }\n'+text[at:]
     text = text.replace(marker, '\tif (getenv("HALO_COVENANT_CAPTURE_CAMPAIGN") && plasma_capture_skip_cinematic()) pad->bAnalogButtons[XINPUT_GAMEPAD_A] = SDL_GetTicks()%1000 < 100 ? 255 : 0;\n'+marker,1)
     at = text.index('\tif (getenv("HALO_MUZZLE_CAPTURE_WEAPON")')
     text = text[:at] + '\tif (getenv("HALO_LIGHTING_CAPTURE_TURN")) { pad->sThumbRX = (SHORT)(sin(SDL_GetTicks()*0.0007)*22000); pad->sThumbRY = (SHORT)(sin(SDL_GetTicks()*0.0004)*16000); }\n' + text[at:]
@@ -165,7 +167,7 @@ try:
     text = 'void platform_log(const char *format,...);\n' + text
     marker = '\t\tpulse->connected = TRUE;'
     assert text.count(marker) == 1
-    text = text.replace(marker, marker+'\n\t\tplatform_log("MUZZLE sample tick %ld time %.6f strength %.6f position %.5f %.5f %.5f weapon %ld", game_time_get(), now, strength, position.x, position.y, position.z, pulse->weapon);\n\t\tplatform_log("MUZZLE profile %s", muzzle_profiles[pulse->profile].tag);')
+    text = text.replace(marker, marker+'\n\t\tplatform_log("MUZZLE sample tick %ld time %.6f strength %.6f position %.5f %.5f %.5f weapon %ld trigger %d", game_time_get(), now, strength, position.x, position.y, position.z, pulse->weapon, pulse->trigger);\n\t\tplatform_log("MUZZLE profile %s", muzzle_profiles[pulse->profile].tag);')
     marker = '\t\t\tpulses[i].rasterizer = rasterizer_index;'
     assert text.count(marker) == 1
     text = text.replace(marker, marker+'\n\t\t\tplatform_log("MUZZLE submit %ld", rasterizer_index);')
