@@ -1999,8 +1999,7 @@ void _rasterizer_model_draw(
 				}
 
 				/* port: optional AR screen emission, confined to its authored mask. */
-				ammo_counter_lighting_screen(shader, &self_illumination_color,
-					TEST_FLAG(local_parameters->geometry_flags, _rasterizer_geometry_first_person_bit));
+				ammo_counter_lighting_screen(shader, &self_illumination_color);
 				/* port: optional masked needle emission in both weapon models. */
 				needler_lighting_material(shader, &self_illumination_color);
 
@@ -2344,10 +2343,8 @@ void _rasterizer_model_draw(
 						shader_model->model.flags,
 						_shader_model_true_atmospheric_fog_bit));
 
-				/* port: boost only the optional first-person AR display draw. */
-				ammo_counter_lighting_draw_begin(shader,
-					TEST_FLAG(local_parameters->geometry_flags, _rasterizer_geometry_first_person_bit),
-					pixel_shader.rgb_outputs[7]);
+				/* port: boost only the optional AR display material draw. */
+				ammo_counter_lighting_draw_begin(shader, pixel_shader.rgb_outputs[7]);
 
 				IDirect3DDevice8_SetRenderState(
 					global_d3d_device,

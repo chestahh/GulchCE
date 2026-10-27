@@ -97,27 +97,24 @@ int main(int argc,char **argv)
 {
  int i,old;real slow,fast;struct emitter_sample sample;
  real_rgb_color screen={0,.2f,.35f};
- ammo_counter_lighting_screen(&screen_shader,&screen, 0);
+ ammo_counter_lighting_screen(&screen_shader,&screen);
  CHECK(screen.blue==.35f,"disabled screen untouched");
- ammo_on=1;ammo_counter_lighting_screen(&other_shader,&screen, 0);
+ ammo_on=1;ammo_counter_lighting_screen(&other_shader,&screen);
  CHECK(screen.blue==.35f,"unrelated shaders untouched");
- ammo_counter_lighting_screen(&screen_shader,&screen, 0);
- CHECK(screen.blue==1&&screen.green==.75f,"screen uses emissive mask");
- ammo_counter_lighting_screen(&screen_shader,&screen,1);
- CHECK(screen.green==1&&screen.red==.45f,"first person screen enhanced independently");
- ammo_counter_lighting_draw_begin(&screen_shader,0,0xC00);ammo_counter_lighting_draw_end();
- ammo_counter_lighting_draw_begin(&other_shader,1,0xC00);ammo_counter_lighting_draw_end();
- CHECK(screen_draw_calls==0,"world models and other materials never change draw state");
- ammo_counter_lighting_draw_begin(&screen_shader,1,0xC00);
- CHECK(screen_draw_calls==1&&screen_output==0x10C00,"FP display RGB doubled before fog");
+ ammo_counter_lighting_screen(&screen_shader,&screen);
+ CHECK(screen.blue==1&&screen.green==1&&screen.red==.45f,"both models share the stronger masked screen emission");
+ ammo_counter_lighting_draw_begin(&other_shader,0xC00);ammo_counter_lighting_draw_end();
+ CHECK(screen_draw_calls==0,"unrelated materials never change draw state");
+ ammo_counter_lighting_draw_begin(&screen_shader,0xC00);
+ CHECK(screen_draw_calls==1&&screen_output==0x10C00,"display RGB doubled before fog");
  ammo_counter_lighting_draw_end();ammo_counter_lighting_draw_end();
  CHECK(screen_draw_calls==2&&screen_output==0xC00,"exact output restored once before next material");
- ammo_counter_lighting_draw_begin(&screen_shader,1,0x18C00);ammo_counter_lighting_draw_end();
+ ammo_counter_lighting_draw_begin(&screen_shader,0x18C00);ammo_counter_lighting_draw_end();
  CHECK(screen_draw_calls==2,"custom biased output is preserved");
- ammo_on=0;ammo_counter_lighting_draw_begin(&screen_shader,1,0xC00);ammo_counter_lighting_draw_end();
+ ammo_on=0;ammo_counter_lighting_draw_begin(&screen_shader,0xC00);ammo_counter_lighting_draw_end();
  CHECK(screen_draw_calls==2,"disabled screen does not touch render state");ammo_on=1;
  ammo_counter_lighting_forget();screen_present=0;screen.blue=.35f;
- ammo_counter_lighting_screen(&screen_shader,&screen, 0);
+ ammo_counter_lighting_screen(&screen_shader,&screen);
  CHECK(screen.blue==.35f,"missing screen after map switch stays stock");
  ammo_counter_lighting_forget();screen_present=1;ammo_on=0;
  for(i=0;i<10;i++) {

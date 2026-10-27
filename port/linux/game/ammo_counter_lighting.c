@@ -91,23 +91,23 @@ static int ammo_counter_is_screen(struct shader *shader)
 	return shader && shader == ammo_counter_screen;
 }
 
-void ammo_counter_lighting_screen(struct shader *shader, real_rgb_color *color, int first_person)
+void ammo_counter_lighting_screen(struct shader *shader, real_rgb_color *color)
 {
 	if (!ammo_counter_is_screen(shader))
 		return;
 	/* The authored multipurpose-map mask confines emission to the screen.
 	   Both stock AR models share this shader; retain any brighter animation. */
-	color->red = MAX(color->red, first_person ? 0.45f : 0.22f);
-	color->green = MAX(color->green, first_person ? 1.0f : 0.75f);
+	color->red = MAX(color->red, 0.45f);
+	color->green = MAX(color->green, 1.0f);
 	color->blue = MAX(color->blue, 1.0f);
 }
 
 /* Colour constants are already saturated. Boost the completed display RGB
-   before fog, confined to this material and view. Restore the exact output
-   after drawing so the shared model shader and other views remain unchanged. */
-void ammo_counter_lighting_draw_begin(struct shader *shader, int first_person, unsigned long output)
+   before fog, confined to this material in either model. Restore the exact
+   output after drawing so other materials and views remain unchanged. */
+void ammo_counter_lighting_draw_begin(struct shader *shader, unsigned long output)
 {
-	if (!first_person || !ammo_counter_is_screen(shader) || (output & 0x38000UL))
+	if (!ammo_counter_is_screen(shader) || (output & 0x38000UL))
 		return;
 	ammo_counter_draw_output = output;
 	ammo_counter_draw_active = TRUE;

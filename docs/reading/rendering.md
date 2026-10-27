@@ -146,6 +146,15 @@ rocket lights, muzzle lighting and Covenant emitters. Their activation,
 budgets and cleanup must be read in their own modules, not inferred from
 the existence of the common plasma setting.
 
+For the Grunt/Hunter fuel-rod flight light, `lights_preprocess_scene` passes a copy of the
+evaluated colour through `covenant_lighting_color` in
+[covenant_lighting.c](../../port/linux/game/covenant_lighting.c). With Projectile
+Lights enabled, the exact projectile/exhaust pair gets less red and blue while
+green modulation stays authored. Only the rasterizer submission is adjusted;
+the source light still supplies stock flare and simulation colours. See the
+[Covenant projectile reference](../covenant_lighting.md) for tag evidence and
+map-lifecycle handling.
+
 The branch's [plasma reference](https://github.com/chestahh/GulchCE/blob/dynamic-lighting-test/docs/plasma_lighting.md)
 explains falloff and approximate collision-based occlusion; its
 [emitter reference](https://github.com/chestahh/GulchCE/blob/dynamic-lighting-test/docs/covenant_emitter_lighting.md)
@@ -177,9 +186,10 @@ projectile and emitter blocking.
 The AR display uses `ammo_counter_lighting_screen` and the paired
 `ammo_counter_lighting_draw_begin` / `ammo_counter_lighting_draw_end` helpers in
 [ammo_counter_lighting.c](../../port/linux/game/ammo_counter_lighting.c).
-`_rasterizer_model_draw` calls them around the display draw: first-person RGB
-is doubled before fog and the exact output state is then restored. The
-world-model display keeps its existing treatment. This narrow shared hook is
+`_rasterizer_model_draw` calls them around the display draw: first- and third-person
+RGB is doubled before fog and the exact output state is then restored. Both
+models share the same emissive floor; their separate spill strengths are unchanged.
+This narrow shared hook is
 needed because a feature-owned point light cannot brighten the screen's own
 material or bracket its draw. The setting and exact material identity guard
 the change; the [emitter guide](../covenant_emitter_lighting.md) describes the

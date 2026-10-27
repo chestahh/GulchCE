@@ -87,13 +87,12 @@ self-illumination colour before shader selection and constant submission. A
 feature-only light cannot brighten the screen's own emissive mask, hence this
 addition to the shared Xbox/CE/MCC model drawing path. The helper matches only
 `weapons\assault rifle\fp\shaders\display`, shared by both stock models, and
-raises its emissive minimum to (0.22, 0.75, 1). The authored multipurpose texture
+raises its emissive minimum to (0.45, 1, 1) in both views. The authored multipurpose texture
 still masks the emission. It does not add global bloom or alter tag data. The
 cached shader identity is cleared by the existing map/light-storage lifecycle.
 The setting-off path returns before looking up or changing any shader.
 
-The first-person display keeps its brighter emissive minimum (0.45, 1, 1).
-Its constants are already saturated, so `ammo_counter_lighting_draw_begin`
+The display constants are already saturated, so `ammo_counter_lighting_draw_begin`
 additionally doubles the completed RGB output for that display material only,
 before fog. A paired `ammo_counter_lighting_draw_end` restores the exact saved
 combiner output before another material or view. These minimal marked calls in
@@ -101,7 +100,8 @@ combiner output before another material or view. These minimal marked calls in
 state remain in the feature module. Authored output scaling/bias is preserved.
 There is no shader translator or GPU workaround change. The first-person spill
 gain is 1.35, with the existing 0.95-unit radius and directional mask. The world
-display, third-person strength (0.65), radius and falloff are unchanged. Per-view
+display now shares the first-person material boost; third-person light strength
+(0.65), radius and falloff are unchanged. Per-view
 gain does not enter shared fade history, so a first-person view cannot brighten
 a later third-person view.
 

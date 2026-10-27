@@ -65,9 +65,31 @@ void plasma_capture_camera(void)
 {
 	struct observer_result *camera;
 	struct object_datum *vehicle;
+	struct object_marker marker;
 	real_point3d target;
 	real_vector3d right;
 	int scorpion = getenv("HALO_SCORPION_CAPTURE") != NULL;
+	if (getenv("HALO_EMITTER_CAPTURE_COUNTER_DETAIL") && capture_emitter != NONE &&
+		object_try_and_get(capture_emitter) &&
+		object_get_marker_by_name(capture_emitter, "primary trigger", &marker, 1))
+	{
+		/* Look over the holder's shoulder at the world-model display. This
+		   changes only the capture camera, never the material or light. */
+		camera = (struct observer_result *)observer_get_camera(0);
+		target = marker.matrix.position;
+		target.x -= 0.18f * marker.matrix.forward.i;
+		target.y -= 0.18f * marker.matrix.forward.j;
+		target.z -= 0.18f * marker.matrix.forward.k;
+		cross_product3d(&marker.matrix.forward, &marker.matrix.up, &right);
+		camera->position.x = target.x - 0.55f * marker.matrix.forward.i + 0.35f * right.i + 0.35f * marker.matrix.up.i;
+		camera->position.y = target.y - 0.55f * marker.matrix.forward.j + 0.35f * right.j + 0.35f * marker.matrix.up.j;
+		camera->position.z = target.z - 0.55f * marker.matrix.forward.k + 0.35f * right.k + 0.35f * marker.matrix.up.k;
+		vector_from_points3d(&camera->position, &target, &camera->forward);
+		normalize3d(&camera->forward);
+		observer_up_from_forward(&camera->forward, &camera->up);
+		scenario_location_from_point(&camera->location, &camera->position);
+		return;
+	}
 	if ((!getenv("HALO_WARTHOG_CAPTURE_EXTERIOR") && !scorpion) || capture_vehicle == NONE ||
 		!(vehicle = object_try_and_get(capture_vehicle)))
 		return;

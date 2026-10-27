@@ -12,6 +12,12 @@ def test_owned_lights():
     assert status == 0, output
 
 
+def test_render_color_and_map_lifecycle():
+    code = re.sub(r'^#include.*$', '', read('port/linux/game/covenant_lighting.c'), flags=re.M)
+    status, output = run(build('covenant_lighting', (('under_test.inc', code),)), 'color')
+    assert status == 0, output
+
+
 def test_missing_reconnection_is_detected():
     code = re.sub(r'^#include.*$', '', read('port/linux/game/covenant_lighting.c'), flags=re.M)
     assert code.count('light_reconnect_to_map(light->light_index);') == 1

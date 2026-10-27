@@ -11,6 +11,7 @@ int covenant_lighting_selected(long rasterizer_index);
 float covenant_lighting_radius(long light_index, long object_index, float radius);
 
 float covenant_lighting_scale(const char *name);
+void covenant_lighting_color(long object_index, long definition_index, real_rgb_color *color);
 
 int covenant_lighting_owns(long light_index, long object_index);
 

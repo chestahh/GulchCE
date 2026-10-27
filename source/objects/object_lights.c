@@ -1277,6 +1277,10 @@ void lights_preprocess_scene(
 					light_parameters.up = light->up;
 					light_parameters.radius = light->radius;
 					light_parameters.color = light->color;
+					/* port: optional flight-light tint affects only this render copy;
+					   the authored datum still supplies flares and simulation queries. */
+					if (light->parent_light_index == NONE)
+						covenant_lighting_color(light->object_index, light->definition_index, &light_parameters.color);
 					match_assert(
 						"c:\\halo\\SOURCE\\objects\\object_lights.c",
 						0x1EE,

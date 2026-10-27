@@ -33,6 +33,8 @@ parser.add_argument('--grounded', action='store_true', help='Place the held-weap
 parser.add_argument('--crouch', action='store_true', help='Exercise a held-weapon actor crouching and standing again')
 parser.add_argument('--exterior', action='store_true', help='View the vehicle fixture from outside to inspect chassis blocking')
 parser.add_argument('--sparse-images', action='store_true', help='Retain one image every three simulation ticks')
+parser.add_argument('--counter-detail', action='store_true', help='View a held world-model AR display over its holder\'s shoulder')
+parser.add_argument('--resolution', default='640x480', help='Capture window size, for example 1280x720')
 parser.add_argument('--mixed', action='store_true')
 parser.add_argument('--model', action='store_true')
 parser.add_argument('--occlusion', type=int, choices=[0,1], default=0)
@@ -50,6 +52,10 @@ parser.add_argument('--height', type=float)
 parser.add_argument('--drop', type=float)
 parser.add_argument('--receiver-distance', type=float)
 args = parser.parse_args()
+if not re.fullmatch(r'[1-9][0-9]{2,3}x[1-9][0-9]{2,3}', args.resolution):
+    parser.error('--resolution must be WIDTHxHEIGHT')
+if args.counter_detail and args.emitter not in ('ammo-player', 'ammo-marine'):
+    parser.error('--counter-detail requires a third-person AR holder')
 if args.exterior and args.muzzle not in ('warthog', 'scorpion'):
     parser.error('--exterior requires --muzzle warthog or scorpion')
 if args.crouch and not args.shield and args.emitter not in ('ammo-player', 'ammo-marine', 'needler-player', 'needler-marine'):
@@ -91,11 +97,11 @@ env.update(HALO_DATA_ROOT=str(out), HALO_SAVE_ROOT=str(out/'saves'), HALO_HIDDEN
            HALO_NO_AUDIO='1', HALO_MAX_FPS=str(args.fps), HALO_NO_VSYNC='1', HALO_EXIT_AFTER='25' if args.door else '13',
            HALO_NET_ONLINE='0', HALO_NET_PUBLIC_LOBBY='0', HALO_UPDATE_ANSWER='never',
            HALO_NET_JOIN_FROM_CLIPBOARD='0', HALO_NET_ALLOW_UPNP='0',
-           HALO_CRASH_REPORTS='no', HALO_WINDOW_SIZE='640x480', HALO_PLASMA_LIGHTING=str(args.enabled),
+           HALO_CRASH_REPORTS='no', HALO_WINDOW_SIZE=args.resolution, HALO_PLASMA_LIGHTING=str(args.enabled),
            HALO_SCREENSHOT_DIR=str(out/'screenshots'), HALO_PLASMA_OCCLUSION=str(args.occlusion))
 if args.map in ('b40', 'c40'):
     env['HALO_COVENANT_CAPTURE_CAMPAIGN'] = '1'
-    env['HALO_EXIT_AFTER'] = '70'
+    env['HALO_EXIT_AFTER'] = '70' if args.map == 'b40' else '35'
 if args.turn:
     env['HALO_LIGHTING_CAPTURE_TURN'] = '1'
 if args.hide_viewmodel:
@@ -110,6 +116,8 @@ if args.exterior and args.muzzle == 'warthog':
     env['HALO_WARTHOG_CAPTURE_EXTERIOR'] = '1'
 if args.sparse_images:
     env['HALO_LIGHTING_CAPTURE_SPARSE'] = '1'
+if args.counter_detail:
+    env['HALO_EMITTER_CAPTURE_COUNTER_DETAIL'] = '1'
 if args.emitter:
     env['HALO_EXIT_AFTER'] = '70' if args.map == 'b40' else '35'
     env['HALO_EMITTER_CAPTURE'] = args.emitter
@@ -205,6 +213,8 @@ report['crouch'] = args.crouch
 report['exterior'] = args.exterior
 report['holder_crouch_samples'] = [float(x) for x in re.findall(r'EMITTER holder tick \d+ crouch ([0-9.]+)', logs)]
 report['turn'] = args.turn
+report['counter_detail'] = args.counter_detail
+report['resolution'] = args.resolution
 report['emitter_samples'] = len(re.findall('EMITTER sample', logs))
 report['emitter_created'] = bool(re.search(r'EMITTER created (?!-1 )', logs))
 report['both_lighting'] = args.both_lighting

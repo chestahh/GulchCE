@@ -24,7 +24,7 @@ tags are modified by this feature.
 | Banshee fuel rod | `vehicles\banshee\banshee fuel rod`, `vehicles\banshee\mp_banshee fuel rod` | Authored radius x2.75 |
 | Shade/dropship | `vehicles\c gun turret\c gun turret` | Authored radius x2.5 |
 | CE multiplayer Shade | `vehicles\c gun turret\mp gun turret` | Authored radius x2.0 |
-| Grunt/Hunter fuel rod | `weapons\fuel rod gun\fuel rod` | Authored radius x2.75 |
+| Grunt/Hunter fuel rod | `weapons\fuel rod gun\fuel rod` | Authored radius x2.75; greener flight illumination |
 | CE fuel-rod cannon | `weapons\plasma_cannon\plasma_cannon` | Authored radius x2.75 |
 | Wraith | `vehicles\wraith\wraith mortar` | Missing-light fallback: blue-violet, radius 3.5 |
 
@@ -39,10 +39,28 @@ extension; the previously supported rockets are unchanged.
 
 `port/linux/game/covenant_lighting.c` owns exact-tag policy and eight bounded
 fallback slots. Existing authored attachments use `plasma_lighting.c` and its
-soft diffuse/model/specular falloff. Authored colours, light modulation and
-no-specular flags remain authoritative. Needler and Wraith fallbacks use the
+soft diffuse/model/specular falloff. Light modulation and no-specular flags remain
+authoritative. Authored colours are preserved except for the optional Grunt/Hunter
+flight-light tint described below. Needler and Wraith fallbacks use the
 existing glow bridge and rendered attachment pose, with no simulation updates.
 Keep render interpolation enabled for smooth movement between ticks.
+
+`covenant_lighting_color` matches only the shared Grunt/Hunter projectile and its
+`weapons\fuel rod gun\fuel rod exhaust` light. Read-only Xbox c40 inspection found
+authored lower/upper RGB values of approximately (0.557, 1, 0.510) and
+(0.678, 0.996, 0.447), producing a pale yellow-green. With Projectile Lights on,
+the submitted render colour multiplies red by 0.30 and blue by 0.20; green and
+authored modulation remain unchanged. The helper caches the light tag only until
+the existing map/light-storage reset. Missing tags and unrelated attachments
+retain their authored colour. CE's differently named cannon and Banshee shots
+are not retinted.
+
+The minimal `port:` call in `lights_preprocess_scene` adjusts only the local submission
+copy, used by world diffuse, model lighting and eligible specular passes. The
+feature module cannot otherwise access that private render copy. It does not
+write the light datum used by flares and simulation illumination queries, or
+touch transient impact/explosion lights. Disabling the setting takes effect on
+the next submission without colour restoration state.
 
 Fallback lights stay dark and disconnected between rendered frames. They are
 released on disable, projectile deletion, modeled-object invisibility or leaving the 25-unit

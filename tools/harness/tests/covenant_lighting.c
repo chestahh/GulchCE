@@ -26,6 +26,13 @@ static void object_iterator_new(struct object_iterator *i, int mask, int flags) 
 static void *object_iterator_next(struct object_iterator *i) { return ++i->index < count ? &objects[i->index] : NULL; }
 static struct object_datum *object_try_and_get(long i) { return i >= 0 && i < count ? &objects[i] : NULL; }
 static const char *tag_get_name(long i) { tag_queries++; return name; }
+static long exhaust_tag=77;
+static int exhaust_queries;
+static long tag_loaded(long group,const char *tag)
+{
+ CHECK(group=='ligh'&&!strcmp(tag,"weapons\\fuel rod gun\\fuel rod exhaust"),"only the known flight light is resolved");
+ exhaust_queries++;return exhaust_tag;
+}
 static struct object_definition *object_definition_get(long i) { return &definition; }
 static short local_player_get_next(short i) { return i == NONE ? 0 : NONE; }
 static const struct observer_result *observer_get_camera(short i) { return &camera; }
@@ -49,11 +56,41 @@ static void light_disconnect_from_map(long l) { CHECK(storage[l-100].connected,"
 static void light_reconnect_to_map(long l) { CHECK(!storage[l-100].connected,"connect requires disconnected light"); storage[l-100].connected=1; }
 void plasma_occlusion_submit(long l,long r) { submits++; }
 #include "under_test.inc"
-int main(void)
+static void color_checks(void)
+{
+ real_rgb_color authored={.6f,.8f,.5f},color;
+ name="weapons\\fuel rod gun\\fuel rod";
+ color=authored;enabled=0;covenant_lighting_color(0,77,&color);
+ CHECK(!memcmp(&color,&authored,sizeof(color))&&exhaust_queries==0,"disabled colour stays authored without resolving tags");
+ enabled=1;color=authored;covenant_lighting_color(NONE,77,&color);
+ CHECK(!memcmp(&color,&authored,sizeof(color)),"ownerless effect untouched");
+ objects[0].object.type=0;covenant_lighting_color(0,77,&color);
+ CHECK(!memcmp(&color,&authored,sizeof(color)),"non-projectile untouched");objects[0].object.type=5;
+ name="vehicles\\banshee\\banshee fuel rod";covenant_lighting_color(0,77,&color);
+ CHECK(!memcmp(&color,&authored,sizeof(color)),"other fuel-rod profiles keep their colour");
+ name="weapons\\fuel rod gun\\fuel rod";covenant_lighting_color(0,78,&color);
+ CHECK(!memcmp(&color,&authored,sizeof(color)),"unrelated attached light untouched");
+ covenant_lighting_color(0,77,&color);
+ CHECK(color.red==authored.red*.30f&&color.green==authored.green&&color.blue==authored.blue*.20f,"flight light is greener with unchanged green intensity");
+ CHECK(authored.red==.6f&&authored.green==.8f&&authored.blue==.5f,"authored source remains unchanged");
+ color=authored;covenant_lighting_color(0,77,&color);
+ CHECK(color.red==authored.red*.30f&&exhaust_queries==1,"fresh submissions do not compound and tag lookup is cached");
+ color.red=color.green=color.blue=0;covenant_lighting_color(0,77,&color);
+ CHECK(color.red==0&&color.green==0&&color.blue==0,"authored dark intervals stay dark");
+ covenant_lighting_forget();exhaust_tag=NONE;color=authored;covenant_lighting_color(0,77,&color);
+ covenant_lighting_color(0,77,&color);
+ CHECK(!memcmp(&color,&authored,sizeof(color))&&exhaust_queries==2,"missing map tag stays stock and is cached");
+ covenant_lighting_forget();exhaust_tag=78;covenant_lighting_color(0,77,&color);
+ CHECK(!memcmp(&color,&authored,sizeof(color)),"old map handle is rejected after transition");
+ covenant_lighting_color(0,78,&color);
+ CHECK(color.red==authored.red*.30f&&exhaust_queries==3,"new map handle is resolved after transition");
+}
+int main(int argc,char **argv)
 {
  int i, before;
  long held;
  for(i=0;i<10;i++) { objects[i].object.node_matrices.size=sizeof(real_matrix4x3); objects[i].object.type=5; objects[i].object.bounding_sphere_center.x=1; }
+ if(argc>1&&!strcmp(argv[1],"color")) { color_checks();return 0; }
  CHECK(covenant_lighting_scale(NULL)==0 && covenant_lighting_scale("unknown")==0,"exact profile admission");
  for(i=0;i<NUMBEROF(covenant_profiles);i++) CHECK(covenant_lighting_scale(covenant_profiles[i].tag)==covenant_profiles[i].scale,"all authored profiles");
  covenant_lighting_update(); CHECK(allocs==8,"bounded eight owned lights");

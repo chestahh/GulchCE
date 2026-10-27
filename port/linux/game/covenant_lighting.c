@@ -57,6 +57,30 @@ float covenant_lighting_scale(const char *name)
 }
 
 static const real_rgb_color covenant_black = {0.0f, 0.0f, 0.0f};
+static long covenant_fuel_exhaust = NONE - 1;
+
+/* Tint only the submitted copy of the shared Grunt/Hunter flight light.
+   Keep its green channel and authored modulation; reducing red and blue
+   removes the pale cast without brightening or recolouring stock effects. */
+void covenant_lighting_color(long object_index, long definition_index, real_rgb_color *color)
+{
+	struct object_datum *object;
+	const char *name;
+	if (!config_boolean("display.plasma_lighting"))
+		return;
+	object = object_try_and_get(object_index);
+	if (!object || object->object.type != _object_type_projectile)
+		return;
+	name = tag_get_name(object->definition_index);
+	if (!name || strcmp(name, "weapons\\fuel rod gun\\fuel rod"))
+		return;
+	if (covenant_fuel_exhaust == NONE - 1)
+		covenant_fuel_exhaust = tag_loaded('ligh', "weapons\\fuel rod gun\\fuel rod exhaust");
+	if (covenant_fuel_exhaust == NONE || definition_index != covenant_fuel_exhaust)
+		return;
+	color->red *= 0.30f;
+	color->blue *= 0.20f;
+}
 
 /* Return the validated profile so admission need not resolve the tag again. */
 static int covenant_visible_profile(long object_index)
@@ -182,6 +206,7 @@ void covenant_lighting_forget(void)
 {
 	/* Called only as the engine discards its entire light array/partition. */
 	memset(covenant_lights, 0, sizeof(covenant_lights));
+	covenant_fuel_exhaust = NONE - 1;
 }
 
 void covenant_lighting_window_begin(void)
