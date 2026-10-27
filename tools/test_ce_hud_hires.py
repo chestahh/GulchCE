@@ -189,6 +189,7 @@ int main(void) {
 def test_ce_meter_recipe_retains_thresholds_and_is_reproducible():
     assets = ROOT / 'port/assets/hud'
     entries = json.loads((assets / 'ce_layout.json').read_text())['assets']
+    entries = [entry for entry in entries if entry.get('coverage')]
     assert {entry['name'] for entry in entries} == {'ce_hud_unit_meters', 'ce_hud_ammo_meters'}
     for entry in entries:
         generated = build_asset(entry)

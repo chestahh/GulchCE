@@ -63,6 +63,10 @@ The port-owned pause panels can be regenerated without the PC tags:
 `python tools/ce_menus.py --pause-art-only`. This updates only their SVGs,
 PNGs, bitmap definitions and the asset manifest.
 
+Port-owned settings screens can also be regenerated without the PC tags:
+`python tools/ce_menus.py --settings-only`. This writes `port_settings.py`'s
+screens and registers new XML files in the embedding manifest.
+
 Child positions in `tools/ce_menus.py`'s `CHILD_OFFSETS` can be applied to
 the existing XML without the PC tags: `python tools/ce_menus.py --child-offsets-only`.
 This uses the same positions as a full regeneration and leaves other widget

@@ -336,6 +336,13 @@ def hek_bitmap_group(path: Path) -> dict:
 
 
 def render_svg(svg: Path, zoom: float = 1) -> np.ndarray:
+    if not shutil.which("rsvg-convert"):
+        # Windows asset builds can use the same standalone SVG renderer
+        # without installing GTK. Both paths rasterize authored SVG only.
+        import io
+        import resvg_py
+        return np.asarray(Image.open(io.BytesIO(resvg_py.svg_to_bytes(
+            svg_path=str(svg), zoom=zoom))).convert("RGBA")).copy()
     with tempfile.TemporaryDirectory() as directory:
         output = Path(directory) / "render.png"
         subprocess.run(["rsvg-convert", "-z", str(zoom), "-o", str(output), str(svg)], check=True)
@@ -641,6 +648,10 @@ def reticles(arguments) -> None:
             # (named as layout names them)
             name = tag[len(HUD):].replace("combined\\", "").replace("\\", "__").replace(" ", "_") + f"__{index}"
             old = next((entry for entry in entries if entry["name"] == name), None)
+            if old and old.get("correction"):
+                # Explicitly laid out corrections must not be fitted back to
+                # the old artwork. Rebuild with tools/hud_corrections.py.
+                continue
             cells = {}
             for sequence_index, sequence in enumerate(group["sequences"]):
                 for sprite_index, sprite in enumerate(sequence):
@@ -700,7 +711,7 @@ def reticles(arguments) -> None:
                 if position is None:
                     position = max(i for i, e in enumerate(entries) if e["tag"].startswith(folder))
                 entries.insert(position + 1, entry)
-    used = {cell["svg"] for entry in entries for cell in entry["cells"]}
+    used = {cell["svg"] for entry in entries for cell in entry["cells"] if "svg" in cell}
     for svg in (ASSETS / "svg").glob("*.svg"):
         if svg.name not in used:
             svg.unlink()
@@ -825,6 +836,25 @@ def build_asset(entry: dict, renders: dict) -> np.ndarray:
     scale = entry["scale"]
     image = np.zeros((entry["height"] * scale, entry["width"] * scale, 4), np.uint8)
     for cell in entry["cells"]:
+        if "source_png" in cell:
+            # Supplied monochrome pictures: luminance becomes coverage,
+            # retaining their antialiasing and all interior cutouts. Never
+            # threshold, trace or reconstruct the artwork or its lettering.
+            source = Image.open(ASSETS / cell["source_png"]).convert("L")
+            left, top, right, bottom = cell["crop"]
+            if not 0 <= left < right <= source.width or not 0 <= top < bottom <= source.height:
+                raise ValueError("correction crop outside supplied image")
+            alpha = source.crop(cell["crop"])
+            x0, y0, x1, y1 = [round(v * scale) for v in cell["xbox"]]
+            if not 0 <= x0 < x1 <= image.shape[1] or not 0 <= y0 < y1 <= image.shape[0]:
+                raise ValueError("correction cell outside atlas")
+            ratio = min((x1-x0)/alpha.width, (y1-y0)/alpha.height)
+            alpha = alpha.resize((max(1, round(alpha.width*ratio)), max(1, round(alpha.height*ratio))), Image.Resampling.LANCZOS)
+            x0 += (x1-x0-alpha.width)//2
+            y0 += (y1-y0-alpha.height)//2
+            # HUD blend mode expects premultiplied white: RGB equals alpha.
+            image[y0:y0+alpha.height, x0:x0+alpha.width] = np.asarray(alpha)[..., None]
+            continue
         # (the redraw drawn at the texture's scale, its coordinates with it:
         # a whole multiple of the redraw's for the PC sheets', any for the
         # reticles')
@@ -859,6 +889,11 @@ def thresholds(arguments) -> None:
 def build(arguments) -> None:
     description = json.loads(LAYOUT.read_text())
     names = {f"{entry['name']}.png" for entry in description["assets"]}
+    # Other map families own their layouts and generated pictures. A native
+    # rebuild must not treat their independently generated atlases as stale.
+    for listing in ("ce_layout.json", "mcc_layout.json"):
+        if (ASSETS / listing).is_file():
+            names.update(f"{entry['name']}.png" for entry in json.loads((ASSETS / listing).read_text())["assets"])
     for stale in ASSETS.glob("*.png"):
         if stale.name not in names:
             stale.unlink()

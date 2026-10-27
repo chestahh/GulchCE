@@ -37,6 +37,7 @@ struct widget_instance {
     struct {struct {short selected_index;} list;} parameters;
 };
 struct pc_menu_setting {int value_count;char const *values[2];};
+static void controller_button_rows_show(struct widget_instance *list) {(void)list;assert(0);}
 static struct widget_instance spinner;
 static struct pc_menu_setting setting={2,{"true","false"}};
 static struct pc_menu_setting *pc_menu_setting_get(int id) {(void)id;return &setting;}
@@ -92,6 +93,8 @@ def test_six_button_styles_toggle_and_dispose(tmp_path, mcc):
     start = source.index('static struct' if mcc else '/* Original Xbox controller faces')
     end = source.index('/* Identify the controller entry' if mcc else '/* ---------- private code */', start)
     state = source[start:end]
+    if mcc:
+        state = source[start:source.index('static short mcc_weapon_frame', start)] + function(source, 'mcc_hud_glyphs_dispose') + '\n'
     names = ['mcc_hud_button_bitmap'] if mcc else ['hud_hires_button_draw']
     routines = (ROOT/'port/linux/game/hud_button_layout.h').read_text() + '\n'.join(function(source, name) for name in names)
     tags = [a['tag'] for a in json.loads((ROOT/'port/assets/buttons/buttons.json').read_text())['assets']
@@ -121,9 +124,13 @@ struct rasterizer_dynamic_screen_geometry_parameters {
     struct bitmap_data *map[3];struct {float i,j;}map_texture_scale[3],map_scale[3];int framebuffer_blend_function;
 };
 static int enabled=1,gems,live,last_asset=-1,draws;
+static short controller_glyph_style(void) {return (short)gems;}
+#define controller_glyph_draw(style,index,icon,cursor,color,unbind) 0
+#define controller_glyphs_dispose() ((void)0)
 static pixel32 drawn_color;
 static int drawn_blend;
-static int config_boolean(char const *key) {(void)key;return enabled;}
+/* Tutorial controls must depend on High-Res HUD, never High-Res Text. */
+static int config_boolean(char const *key) {assert(!strcmp(key,"display.high_res_hud"));return enabled;}
 static char const *config_string(char const *key) {(void)key;return gems==2?"menu_gems":gems?"gems":"classic";}
 static long ticks;
 static long game_time_get(void) {return ticks;}

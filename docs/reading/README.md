@@ -143,3 +143,12 @@ and file history when comparing a later implementation with this explanation.
 | Where are GulchCE's MCC boundaries? | [Coding standards](../../CODINGSTANDARDS.md#scope-and-implementation-boundaries) |
 | How do menu generators relate to the saved XML? | [Menu assets](../../port/assets/menus/README.md) |
 | What can tests establish without retail assets? | [Harness](../../tools/harness/README.md) and [Stagekit](../../tools/stagekit/README.md) |
+
+[HUD artwork corrections](hud_corrections.md) explains the supplied reticles,
+zoom labels, transparent Classic letters and separate map-family handling.
+
+[Controller detection and button styles](controller_buttons.md) follows device identity,
+automatic family filtering and gameplay glyph ownership.
+
+[Controller button remapping](controller_remapping.md) covers the Gamepad Setup
+submenu, P1-P4 layouts, physical input isolation and prompt updates.
