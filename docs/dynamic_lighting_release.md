@@ -59,7 +59,7 @@ after that correction; CI supplies the Linux confirmation.
 
 ## Promotion to main
 
-The main promotion merges all of `testing` through `93d6da01` into main at
+The main promotion merges all of `testing` through `a83584c6` into main at
 `08baa774`. The merge is conflict-free and its implementation is identical
 to testing; only documentation differs, retaining main's release-checksum
 instructions and recording availability on main. Dynamic lighting remains
@@ -67,6 +67,14 @@ off by default, with the existing host policy and compatibility boundaries.
 Controller, HUD and upstream renderer updates already integrated on testing
 are included in the same promotion. The main workflow builds and validates
 the release packages; the known limitations below remain applicable.
+
+The final testing CI passed 1,757 engine/harness cases before exposing three
+controller-artwork regeneration failures on Pillow 13. Its new RGBA thumbnail
+reduction pass differed from the committed Pillow 12.3 output. The follow-up
+sets `reducing_gap=None` in the artwork generators; all 28 controller/HUD
+checks pass with both Pillow versions, preserving exact committed pixels.
+No shipped artwork or runtime code changed. The main promotion also passed
+174 changelog/release-note checks and generated its required player notes.
 
 ## Player controls
 
