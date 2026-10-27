@@ -189,7 +189,7 @@
 	<strings name="main_menu/settings_select/player_setup/player_profile_edit/video_settings/graphics/help_strings">
 		<string text=""/>
 		<string text="Draw the HUD from the high-res redraws; off\ndraws the game's own pictures."/>
-		<string text="Limit Button Style to your controller's family.\nOff lets you choose any style. Unknown: manual choice."/>
+		<string text="Show styles for your controller's family.\nOff or unknown controller: choose any style."/>
 		<string text="Manual gameplay button artwork, kept when auto\ndetection is on. Requires High-Res HUD."/>
 		<string text="Preferred Xbox artwork for automatic detection.\nEach local player uses their assigned controller."/>
 		<string text="Preferred PlayStation artwork for auto detection.\nEach local player uses their assigned controller."/>

@@ -1,6 +1,7 @@
 # Controller detection and button styles
 
-GulchCE adds AUTO BUTTON DETECTION to Graphics, off by default. With High-Res HUD
+GulchCE adds AUTO BUTTON DETECTION to Graphics, on by default for new configurations.
+Existing saved choices are preserved. With High-Res HUD
 on, the manual Button Style row offers all eleven styles. Turning detection on
 restricts that row to the controller assigned to the player editing the menu;
 the caption identifies P1 through P4. Devices are identified even while the

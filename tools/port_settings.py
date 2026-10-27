@@ -85,7 +85,7 @@ SCREENS = {
             ("HIGH-RES HUD:", "display.high_res_hud", ON_OFF,
              "Draw the HUD from the high-res redraws; off\ndraws the game's own pictures.", None),
             ("AUTO BUTTON DETECTION:", "input.auto_button_detection", ON_OFF,
-             "Limit Button Style to your controller's family.\nOff lets you choose any style. Unknown: manual choice.", None),
+             "Show styles for your controller's family.\nOff or unknown controller: choose any style.", None),
             ("BUTTON STYLE:", "display.hud_button_style", XBOX_BUTTON_STYLES + PS_BUTTON_STYLES + SWITCH_BUTTON_STYLES,
              "Manual gameplay button artwork, kept when auto\ndetection is on. Requires High-Res HUD.", None),
             ("BUTTON STYLE:", "display.hud_button_style_xbox", XBOX_BUTTON_STYLES,

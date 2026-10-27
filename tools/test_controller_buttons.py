@@ -148,7 +148,7 @@ def test_artwork_mapping_transparency_labels_and_regeneration():
         assert bounds and bounds[0] > 0 and bounds[1] > 0 and bounds[2] < 512 and bounds[3] < 512
 
 
-def test_menu_generated_and_default_off():
+def test_menu_generated_and_default_on():
     import port_settings
     for name, lines in port_settings.settings_files().items():
         assert (ROOT / 'port/assets/menus/ce' / name).read_text() == '\n'.join(lines)
@@ -163,7 +163,7 @@ def test_menu_generated_and_default_off():
     rows = port_settings.SCREENS['video_settings/graphics']['rows']
     assert len(next(r[2] for r in rows if r[1] == 'display.hud_button_style')) == 11
     config = (ROOT / 'port/linux/src/port_config.c').read_text()
-    assert re.search(r'"input.auto_button_detection", _config_boolean, "false"', config)
+    assert re.search(r'"input.auto_button_detection", _config_boolean, "true"', config)
 
 
 def test_real_glyph_geometry_opacity_cache_and_teardown(tmp_path):
