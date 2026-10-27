@@ -133,7 +133,7 @@ def main():
             replace(occlusion, '\tfield->texture_mask |= 1 << pass;', '\tlighting_profile_end(2);\n\tfield->texture_mask |= 1 << pass;')
             backend=ROOT/paths[1]
             backend.write_text(declarations+'int lighting_profile_model, lighting_profile_world;\n'+backend.read_text())
-            replace(backend, '\tif (entry->plasma_model_slots >= 0)\n\t{', '\tlighting_profile_model = entry->plasma_model_slots >= 0 && plasma_model_lighting_mask() ? 1 : 0;\n\tif (entry->plasma_model_slots >= 0)\n\t{')
+            replace(backend, '\tif (plasma_mask && entry->plasma_model_slots >= 0)\n\t{', '\tlighting_profile_model = plasma_mask && entry->plasma_model_slots >= 0 ? 1 : 0;\n\tif (plasma_mask && entry->plasma_model_slots >= 0)\n\t{')
             bind='\t\tplasma_occlusion_bind_model(&entry->plasma_occlusion);'
             replace(backend, bind, '\t\tlighting_profile_begin(3);\n'+bind+'\n\t\tlighting_profile_end(3);')
             gpu=(ROOT/'tools/fixtures/lighting_gpu_profile.inc').read_text()

@@ -439,6 +439,13 @@ struct vertex_shader_object
 	/* a shader lit for each pixel failed to compile or link: lit as the
 	vertex shader lights it from then on */
 	BOOL lighting_failed;
+#ifndef HALO_ANDROID
+	/* Optional model lighting has separate lazy variants and failure state;
+	   toggling it off must recover the original shaders. */
+	GLuint plasma_shader[2], plasma_lit_shader[2];
+	BOOL plasma_lighting_failed;
+	BOOL plasma_model;
+#endif
 #ifndef HALO_GLES
 	/* the vertex array its draws last used, and the streams they had
 	(setup_streams: the layout follows from the two) */
@@ -446,8 +453,8 @@ struct vertex_shader_object
 	unsigned long vertex_array_streams;
 #endif
 	/* which of shader[] and lit_shader[] have been compiled (bits 0 and 1,
-	and 2 and 3): one that failed stays 0 and is not compiled again at each
-	draw */
+	and 2 and 3), with bits 4..7 for their optional lighting variants:
+	one that failed stays 0 and is not compiled again at each draw */
 	unsigned char shaders_tried;
 };
 
@@ -3369,6 +3376,15 @@ HRESULT WINAPI D3DDevice_CreateVertexShader(CONST DWORD *declaration, CONST DWOR
 		memcpy(object->instructions, function + 1, object->instruction_count * 4 * sizeof(DWORD));
 	}
 	parse_declaration(object, declaration);
+#ifndef HALO_ANDROID
+	if (object->instructions)
+	{
+		struct nv2a_vertex_lighting lighting;
+		/* Keep the feature's instruction-based recognition independent of
+		   which programs the game marks for per-pixel lighting. */
+		object->plasma_model = nv2a_vertex_shader_lighting(object->instructions, object->instruction_count, &lighting) && lighting.lights == 2;
+	}
+#endif
 	/* odd values are FVF codes; programmable shader handles are even */
 	*handle = (DWORD)object;
 	return S_OK;
@@ -3547,16 +3563,23 @@ static BOOL words_equal(const void *a, const void *b, unsigned long size)
 
 /* lit: the shader that hands the lighting's normal and position on
 (vertex_shader_object lit_shader) */
-static GLuint vertex_shader_get(struct vertex_shader_object *program, BOOL immediate, BOOL lit)
+static GLuint vertex_shader_get(struct vertex_shader_object *program, BOOL immediate, BOOL lit, BOOL plasma_model)
 {
 	int variant = immediate ? 1 : 0;
 	GLuint *shader = lit ? &program->lit_shader[variant] : &program->shader[variant];
 	unsigned char tried = (unsigned char)(1 << (variant + (lit ? 2 : 0)));
 
+#ifndef HALO_ANDROID
+	if (plasma_model)
+	{
+		shader = lit ? &program->plasma_lit_shader[variant] : &program->plasma_shader[variant];
+		tried <<= 4;
+	}
+#endif
 	if (!*shader && !(program->shaders_tried & tried))
 	{
 		char *source = nv2a_vertex_shader_to_glsl(program->instructions, program->instruction_count,
-			immediate ? 0 : device.vertex_shader->packed_mask, lit ? &program->lighting : NULL);
+			immediate ? 0 : device.vertex_shader->packed_mask, lit ? &program->lighting : NULL, plasma_model);
 
 		program->shaders_tried |= tried;
 		*shader = xgpu_compile_shader(GL_VERTEX_SHADER, source, "vertex");
@@ -3566,8 +3589,8 @@ static GLuint vertex_shader_get(struct vertex_shader_object *program, BOOL immed
 			char path[512];
 			FILE *file;
 
-			snprintf(path, sizeof(path), "%s/vs%03lu_%d%s.glsl", debug_settings.dump_shaders, program->id, variant,
-				lit ? "_lit" : "");
+			snprintf(path, sizeof(path), "%s/vs%03lu_%d%s%s.glsl", debug_settings.dump_shaders, program->id, variant,
+				lit ? "_lit" : "", plasma_model ? "_plasma" : "");
 			if ((file = fopen(path, "w")) != NULL)
 			{
 				fputs(source, file);
@@ -3676,7 +3699,7 @@ static GLuint fragment_shader_get(const struct nv2a_pixel_shader_key *key)
 	return entry->shader;
 }
 
-static struct program_entry *program_get(GLuint vertex_shader, GLuint fragment_shader)
+static struct program_entry *program_get(GLuint vertex_shader, GLuint fragment_shader, BOOL plasma_model)
 {
 	static struct program_entry *last;
 	unsigned long hash = (vertex_shader * 2654435761UL) ^ fragment_shader;
@@ -3787,9 +3810,15 @@ static struct program_entry *program_get(GLuint vertex_shader, GLuint fragment_s
 	entry->blend_constant = glGetUniformLocation(entry->program, "blend_constant");
 	entry->model_lights = glGetUniformLocation(entry->program, "model_lights");
 #ifndef HALO_ANDROID
-	entry->plasma_model_slots = glGetUniformLocation(entry->program, "plasma_model_slots");
-	if (entry->plasma_model_slots >= 0)
-		plasma_occlusion_model_initialize(entry->program, &entry->plasma_occlusion);
+	entry->plasma_model_slots = -1;
+	if (plasma_model)
+	{
+		entry->plasma_model_slots = glGetUniformLocation(entry->program, "plasma_model_slots");
+		if (entry->plasma_model_slots >= 0)
+			plasma_occlusion_model_initialize(entry->program, &entry->plasma_occlusion);
+	}
+#else
+	(void)plasma_model;
 #endif
 	for (stage = 0; stage < D3DTSS_MAXSTAGES; stage++)
 	{
@@ -3799,6 +3828,44 @@ static struct program_entry *program_get(GLuint vertex_shader, GLuint fragment_s
 		glUniform1i(glGetUniformLocation(entry->program, name), stage);
 	}
 	last = entry;
+	return entry;
+}
+
+/* Select both stages together. Only actual selected feature lights need the
+   optional variant; the mask already respects local settings and host policy. */
+static BOOL per_pixel_lighting(void);
+static struct program_entry *draw_program_get(struct vertex_shader_object *program, BOOL immediate,
+	struct nv2a_pixel_shader_key *key, unsigned int plasma_mask)
+{
+	struct program_entry *entry = NULL;
+	BOOL plasma_model = FALSE;
+	BOOL *failed = &program->lighting_failed;
+#ifndef HALO_ANDROID
+	plasma_model = plasma_mask && program->plasma_model;
+	if (plasma_model)
+		failed = &program->plasma_lighting_failed;
+#else
+	(void)plasma_mask;
+#endif
+	key->plasma_model = 0;
+	key->per_pixel_lighting = 0;
+	if (program->lighting.lights && !*failed && per_pixel_lighting())
+	{
+		key->per_pixel_lighting = (unsigned char)program->lighting.lights;
+		key->plasma_model = (unsigned char)plasma_model;
+		entry = program_get(vertex_shader_get(program, immediate, TRUE, plasma_model), fragment_shader_get(key), plasma_model);
+		if (!entry)
+		{
+			/* Keep each variant's fallback independent of the other. */
+			platform_log("GPU: vertex shader %lu cannot be lit for each pixel here (refer to the shader log above): "
+				"lit for each vertex", program->id);
+			*failed = TRUE;
+			key->per_pixel_lighting = 0;
+			key->plasma_model = 0;
+		}
+	}
+	if (!entry)
+		entry = program_get(vertex_shader_get(program, immediate, FALSE, plasma_model), fragment_shader_get(key), plasma_model);
 	return entry;
 }
 
@@ -4717,6 +4784,7 @@ static struct program_entry *prepare_draw(BOOL immediate)
 	struct program_entry *entry;
 	struct draw_uniforms uniforms;
 	BOOL has_depth = FALSE;
+	unsigned int plasma_mask = 0;
 	int stage;
 
 	/* (the fixed-function pipeline's draws: immediate mode's only) */
@@ -4784,23 +4852,11 @@ static struct program_entry *prepare_draw(BOOL immediate)
 	key.count_samples = device.visibility_test_active && xgpu_capabilities.atomic_counters;
 #endif
 
-	entry = NULL;
-	if (program->lighting.lights && !program->lighting_failed && per_pixel_lighting())
-	{
-		key.per_pixel_lighting = (unsigned char)program->lighting.lights;
-		entry = program_get(vertex_shader_get(program, immediate, TRUE), fragment_shader_get(&key));
-		if (!entry)
-		{
-			/* drawn as the vertex shader lights it instead (not at all,
-			were it to fail too) */
-			platform_log("GPU: vertex shader %lu cannot be lit for each pixel here (refer to the shader log above): "
-				"lit for each vertex", program->id);
-			program->lighting_failed = TRUE;
-			key.per_pixel_lighting = 0;
-		}
-	}
-	if (!entry)
-		entry = program_get(vertex_shader_get(program, immediate, FALSE), fragment_shader_get(&key));
+#ifndef HALO_ANDROID
+	if (program->plasma_model)
+		plasma_mask = plasma_model_lighting_mask();
+#endif
+	entry = draw_program_get(program, immediate, &key, plasma_mask);
 	if (!entry)
 	{
 		stats.skipped_link++;
@@ -4887,11 +4943,10 @@ static struct program_entry *prepare_draw(BOOL immediate)
 		constants_checkpoint_last = 0;
 	}
 #ifndef HALO_ANDROID
-	if (entry->plasma_model_slots >= 0)
+	if (plasma_mask && entry->plasma_model_slots >= 0)
 	{
-		unsigned int mask = plasma_model_lighting_mask();
 		plasma_occlusion_bind_model(&entry->plasma_occlusion);
-		glUniform2f(entry->plasma_model_slots, (mask & 1) ? 1.0f : 0.0f, (mask & 2) ? 1.0f : 0.0f);
+		glUniform2f(entry->plasma_model_slots, (plasma_mask & 1) ? 1.0f : 0.0f, (plasma_mask & 2) ? 1.0f : 0.0f);
 	}
 #endif
 	/* the lights of a draw lit for each pixel, from the same registers, when

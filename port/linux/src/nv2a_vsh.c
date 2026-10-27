@@ -390,13 +390,15 @@ static const char shader_prologue[] =
 	"}\n";
 
 char *nv2a_vertex_shader_to_glsl(const DWORD *instructions, unsigned long instruction_count,
-	unsigned long packed_attribute_mask, const struct nv2a_vertex_lighting *lighting)
+	unsigned long packed_attribute_mask, const struct nv2a_vertex_lighting *lighting, BOOL plasma_model)
 {
 	struct xgpu_text text = { 0 };
 	unsigned long index;
 #ifndef HALO_ANDROID
 	struct nv2a_vertex_lighting plasma_lighting;
-	BOOL plasma_model = nv2a_vertex_shader_lighting(instructions, instruction_count, &plasma_lighting) && plasma_lighting.lights == 2;
+	plasma_model = plasma_model && nv2a_vertex_shader_lighting(instructions, instruction_count, &plasma_lighting) && plasma_lighting.lights == 2;
+#else
+	(void)plasma_model;
 #endif
 
 #ifdef HALO_GLES

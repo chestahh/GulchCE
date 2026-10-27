@@ -105,9 +105,11 @@ header). Attributes whose bit is set in packed_attribute_mask are fed as
 NORMPACKED3 32-bit integers and unpacked in the shader. With lighting (else
 NULL), the normal and world position go to the pixel shader too, which
 lights the diffuse color for each pixel (nv2a_pixel_shader_key
-per_pixel_lighting). Returns a malloc'd string. */
+per_pixel_lighting). plasma_model adds optional light falloff/occlusion;
+FALSE emits the original translation. Android always omits the additions.
+Returns a malloc'd string. */
 char *nv2a_vertex_shader_to_glsl(const DWORD *instructions, unsigned long instruction_count,
-	unsigned long packed_attribute_mask, const struct nv2a_vertex_lighting *lighting);
+	unsigned long packed_attribute_mask, const struct nv2a_vertex_lighting *lighting, BOOL plasma_model);
 /* the fixed-function pipeline's vertex shader (the loading screen's draws):
 positions already in clip space. Returns a malloc'd string. */
 char *nv2a_fixed_function_glsl(void);
@@ -167,6 +169,8 @@ struct nv2a_pixel_shader_key
 	unsigned char source_blend;
 	/* MCC environment lightmap pass only; part of the compiled shader key. */
 	unsigned char mcc_bump_attenuation;
+	/* Optional model-light falloff/occlusion, only for selected point lights. */
+	unsigned char plasma_model;
 };
 
 char *nv2a_pixel_shader_to_glsl(const struct nv2a_pixel_shader_key *key);

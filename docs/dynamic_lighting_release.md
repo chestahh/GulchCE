@@ -6,6 +6,55 @@ performance and memory limitations below remain; acceptance does not establish
 sustained 120 FPS or universal map compatibility.
 CStencil and Modern shadows remain separate, later work.
 
+## Disabled desktop shader isolation
+
+Desktop and web model draws now select stock shader variants whenever no
+optional model light is selected. This removes optional shader helpers and
+samplers from those variants and skips their GPU setup. Enhanced variants are
+compiled lazily, cached separately and selected using the existing effective
+light mask, including host-controlled Shield Glow. Defaults remain off.
+
+This closes a gap in the previous disabled-path checks: no submitted feature
+lights did not establish that the underlying shaders and sampler setup were
+stock. Previously recorded disabled performance results used the extended
+shaders and must not be treated as measurements of this corrected path.
+No FPS or memory improvement is claimed without a new measured comparison.
+First-use shader hitches and the unresolved sustained-performance/memory
+limitations below remain; used shader variants retain context-lifetime caches.
+
+See the [rendering guide](reading/rendering.md#dynamic-lighting-10) for variant
+ownership and the unchanged Android boundary.
+
+The focused Windows validation passed 125 tests covering shader variants,
+source-cache reuse, light lifecycle, occlusion, host policy, Android exclusion
+and MCC shader boundaries. Generated model GLSL was compared with the prior
+revision for 67 real vertex programs, packed/unpacked inputs and per-vertex/
+per-pixel modes: enabled output was byte-identical, and disabled output matched
+the prior translator with its optional additions excluded. Desktop, web and
+Android preprocessing were checked separately.
+
+Six short rendered Blood Gulch checks at 1280x720 passed at 30, 60 and 120 FPS,
+with lighting on and off. Disabled runs selected no optional lights and made
+no occlusion updates; enabled runs reached enhanced model draws. Captures were
+inspected on an NVIDIA RTX 5070 Ti. These checks are not new sustained-performance
+measurements or AMD hardware coverage. The local Windows portable release
+build passed; Android/web targets are unavailable in this local toolchain and
+require the platform CI builds.
+
+The rendered two-peer Xbox check observed joining, weapon changes, two respawns
+and host-forced Shield Glow on a client with its local setting off. All 140
+stable policy samples agreed with the host, with no shader errors or reported
+state divergences. Its strict paired-snapshot verdict remained incomplete:
+the once-per-second logs were offset by more than the comparator's two-tick
+window, so zero snapshots were paired. The Custom Edition Death Island check
+passed the full scenario, including 80 seconds of paired snapshots and host
+stock-shield policy overriding the client's setting. MCC `DigsiteMP/1` also
+passed, with 64 seconds paired, respawns, weapon changes and independent local
+lighting under the host's `players` policy. Neither scenario reported shader
+errors or snapshot divergences. Initial sandboxed attempts
+could not establish local sockets and are excluded from gameplay validation;
+the working checks ran outside that sandbox, with internet publishing disabled.
+
 ## Android compatibility fallback
 
 Following reports of missing first-person geometry and dark models on multiple

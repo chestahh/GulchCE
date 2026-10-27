@@ -145,6 +145,29 @@ and [stock hook implementations](../../port/android/guest/dynamic_lighting_disab
 for that fallback. Desktop and web keep the implementation described below;
 all optional lighting settings still default off.
 
+On desktop and web, `prepare_draw` obtains `plasma_model_lighting_mask` only
+for instruction-recognized point-light model programs. `draw_program_get`
+selects the stock vertex and fragment variants when this mask is zero. A
+selected optional light chooses lazy enhanced variants instead; the per-pixel
+fragment key includes this distinction. This also honors host-controlled
+Shield Glow, because the mask uses the existing effective feature policy.
+An enabled setting without a selected light still uses stock model shaders.
+
+The stock variants contain no optional model-light uniforms, samplers or
+falloff helpers. They skip optional uniform lookup, sampler initialization
+and per-draw bindings. Enhanced compile/link failures have separate fallback
+state and cannot disable stock per-pixel lighting. Both variants use the
+existing source-deduplication and driver-specific binary caches. Previously
+used variants remain cached, so toggling back does not recompile them; the
+first use can still incur a compile/link hitch. This separation changes no
+AMD/NVIDIA translation workarounds or map-family loading paths.
+The [shader isolation harness](../../tools/harness/tests/test_dynamic_shader_isolation.py)
+checks lazy caching, repeated switches, independent failure recovery and zero
+optional GPU calls for stock draws. The
+[translator harness](../../tools/harness/tests/test_plasma_model_shader.py)
+checks the real vertex programs and point-light formulas on desktop, web and
+Android. These CPU tests do not establish driver performance or visual parity.
+
 These optional features are available on `testing`. The
 [plasma lighting source](../../port/linux/game/plasma_lighting.c)
 is a useful second example after FOV. `plasma_lighting_prepare` selects
@@ -258,7 +281,7 @@ the same pose; its doubled workload is excluded from FPS acceptance.
 The [collision and memory follow-up](../dynamic_lighting_tracing.md) records
 the measurements, real-engine comparisons and remaining acceptance limits.
 
-For model draws, `plasma_occlusion_model_initialize` in
+For enhanced model draws only, `plasma_occlusion_model_initialize` in
 [plasma_occlusion_gl.c](../../port/linux/src/plasma_occlusion_gl.c) resolves
 uniform locations while the linked program is current. Its small record belongs
 to `program_entry` in the GL backend, so recycled GL names cannot reuse stale
@@ -266,8 +289,10 @@ locations. `plasma_occlusion_bind_model` uses those locations and an immutable
 linear/clamped sampler on reserved units 6/7. The sampler and white fallback
 texture have GL-context lifetime, like the existing shader-program cache;
 per-light field textures are still released by `plasma_occlusion_reset`.
-The backend additions only store and initialise this feature-owned binding
-record: the backend owns shader linking, which the game module cannot observe.
+These context resources are created only after an enhanced draw needs them;
+disabled draws neither create nor bind them. The backend owns variant selection,
+shader linking and this feature-owned binding record, which the game module
+cannot manage through its light-selection hooks alone.
 Xbox, CE and MCC use the same existing feature hooks, with no loader changes.
 See the [performance follow-up](../dynamic_lighting_optimisation.md) for
 measurements and the limits of GPU timing versus sustained frame pacing.
