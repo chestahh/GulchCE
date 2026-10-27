@@ -149,3 +149,6 @@ zoom labels, transparent Classic letters and separate map-family handling.
 
 [Controller detection and button styles](controller_buttons.md) follows device identity,
 automatic family filtering and gameplay glyph ownership.
+
+[Controller button remapping](controller_remapping.md) covers the Gamepad Setup
+submenu, P1-P4 layouts, physical input isolation and prompt updates.

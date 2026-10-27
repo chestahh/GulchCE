@@ -80,6 +80,7 @@ their handlers open opens.
 #include "text/unicode.h"
 
 #include "halo_menus.h"
+#include "controller_remap.h"
 #include "custom_edition_cache.h"
 #include "mcc_ui.h"
 #include "custom_edition_maps.h"
@@ -2462,6 +2463,8 @@ static void controls_update(struct widget_instance *list)
 			controls_screen.capturing_control != NONE ? 2 : focused_row ? 1 : 0;
 	}
 }
+
+#include "controller_remap_menu.inl"
 
 /* ---------- Mods (the main menu's: tools/port_settings.py's _mods), laid
 out as the lobby is: the mods folder's mods, a row each (op_mod_<n>), as a
@@ -6649,6 +6652,8 @@ boolean pc_menu_event_function_invoke(
 
 		if (!name)
 			return FALSE;
+		if (!strncmp(name, "port controller ", 16))
+			return pad_editor_event(widget, name);
 		if (!strncmp(name, "port changelog ", 15))
 		{
 			return changelog_menu_event(widget, name);
@@ -7081,6 +7086,8 @@ void pc_menu_game_data_function_invoke(
 	}
 	else if (!strcmp(name, "controls update menu"))
 		controls_update(widget);
+	else if (!strcmp(name, "port controller update"))
+		pad_editor_update(widget);
 	else if (!strcmp(name, "port mods update"))
 		mods_update(widget);
 	else if (!strcmp(name, "color picker update"))

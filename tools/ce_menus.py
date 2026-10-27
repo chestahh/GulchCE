@@ -641,12 +641,26 @@ def regenerate_child_offsets():
             path.write_text(updated)
 
 
+def regenerate_settings():
+    """Write port-owned settings and register any new screens for embedding."""
+    screens = port_settings.settings_files()
+    for name, lines in screens.items():
+        (CE / name).write_text("\n".join(lines))
+    manifest = MENUS / "menus.json"
+    data = json.loads(manifest.read_text())
+    files = set(data["files"]) | {"ce/" + name for name in screens}
+    data["files"] = sorted(name for name in files if name.endswith(".xml")) + sorted(
+        name for name in files if not name.endswith(".xml"))
+    manifest.write_text(json.dumps(data, indent=1) + "\n")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--pause-art-only", action="store_true", help="regenerate only the port-owned pause panels")
     parser.add_argument("--child-offsets-only", action="store_true", help="apply child positions to existing menu XML")
     parser.add_argument("--changelog-only", action="store_true", help="regenerate only the sample changelog menus")
-    partial_only = any(option in sys.argv for option in ("--pause-art-only", "--child-offsets-only", "--changelog-only"))
+    parser.add_argument("--settings-only", action="store_true", help="regenerate port-owned settings screens and their manifest")
+    partial_only = any(option in sys.argv for option in ("--pause-art-only", "--child-offsets-only", "--changelog-only", "--settings-only"))
     parser.add_argument("--tags", type=Path, required=not partial_only)
     parser.add_argument("--definitions", type=Path, required=not partial_only)
     parser.add_argument("--redraws", type=Path, required=not partial_only)
@@ -654,6 +668,9 @@ def main() -> None:
     parser.add_argument("--pictures", type=Path,
                         help="the PC version's pictures, as PNGs by tag path: only where each is, to place its placeholder")
     arguments = parser.parse_args()
+    if arguments.settings_only:
+        regenerate_settings()
+        return
     if arguments.changelog_only:
         changelog_menu.regenerate()
         return

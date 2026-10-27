@@ -4,7 +4,8 @@ GulchCE adds AUTO BUTTON DETECTION to Graphics, off by default. With High-Res HU
 on, the manual Button Style row offers all eleven styles. Turning detection on
 restricts that row to the controller assigned to the player editing the menu;
 the caption identifies P1 through P4. Devices are identified even while the
-option is off. This feature does not add controller remapping or change input.
+option is off. Detection and style selection do not change input;
+[controller remapping](controller_remapping.md) is a separate Gamepad Setup submenu.
 
 For example, a DualSense assigned to P2 exposes PS Classic, PS Gems, PS Dark Gems
 and PS Modern. Choosing PS Modern saves the PlayStation preference. Turning

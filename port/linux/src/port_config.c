@@ -165,6 +165,17 @@ static const struct config_setting config_settings[] =
 	{ "input.auto_button_detection", _config_boolean, "false", "HALO_AUTO_BUTTON_DETECTION", _environment_value, _platform_all,
 		"Limit Button Style to the assigned controller's family. Unknown devices\n"
 		"keep the manual choice. Device detection itself is always available." },
+	{ "input.controller_p1", _config_string, "\"\"", "HALO_CONTROLLER_P1", _environment_value, _platform_all,
+		"P1 custom controller buttons, empty for the profile's layout. Set in Gamepads >\n"
+		"Button Remapping. Ten comma-separated physical buttons, in order: jump,\n"
+		"grenade type, use/reload, weapon, melee, flashlight, grenade, fire, crouch, zoom.\n"
+		"Use each once: south,east,west,north,rb,lb,lt,rt,ls,rs. Invalid lists use the profile." },
+	{ "input.controller_p2", _config_string, "\"\"", "HALO_CONTROLLER_P2", _environment_value, _platform_all,
+		"P2 custom controller buttons, same format as controller_p1. Empty uses the profile." },
+	{ "input.controller_p3", _config_string, "\"\"", "HALO_CONTROLLER_P3", _environment_value, _platform_all,
+		"P3 custom controller buttons, same format as controller_p1. Empty uses the profile." },
+	{ "input.controller_p4", _config_string, "\"\"", "HALO_CONTROLLER_P4", _environment_value, _platform_all,
+		"P4 custom controller buttons, same format as controller_p1. Empty uses the profile." },
 	{ "display.hud_button_style_xbox", _config_string, "\"classic\"", "HALO_HUD_BUTTON_STYLE_XBOX", _environment_value, _platform_all,
 		"Remembered automatic Xbox style: classic, gems, menu_gems, xbox_modern." },
 	{ "display.hud_button_style_ps", _config_string, "\"ps_classic\"", "HALO_HUD_BUTTON_STYLE_PS", _environment_value, _platform_all,

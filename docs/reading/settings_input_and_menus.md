@@ -57,6 +57,10 @@ gaps. A visible widget alone does not establish that its action is implemented.
 
 ## Follow the forward stick
 
+[Controller button remapping](controller_remapping.md) adds a Gamepad Setup
+submenu with independent P1-P4 layouts. It transforms physical button input
+before keyboard/touch merging, while leaving menu navigation and stick axes intact.
+
 On the normal controller path, the SDL-backed `XInputGetState` supplies the
 Xbox-shaped state consumed by `input_xbox.c`. `input_abstraction_update`
 uses the local player's control preferences to translate stick positions
