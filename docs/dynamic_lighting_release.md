@@ -49,6 +49,14 @@ applicable to unchanged feature code. Local Android/web toolchains remain
 unavailable; the testing push runs the platform and MCC workflows. Known
 performance and memory limitations remain documented below.
 
+The first MCC CI run exposed an existing mock-header defect in testing's
+texture-bridge harness: both the fixture and included bridge pull in its
+unguarded `zlib.h`. Linux C99 rejects the duplicate `uInt` typedef under
+`-Werror`; the Windows compiler accepted it. A follow-up adds the missing
+mock-header guard without changing runtime code or suppressing diagnostics.
+All ten texture-bridge cases and fifteen fragment-cache cases passed locally
+after that correction; CI supplies the Linux confirmation.
+
 ## Player controls
 
 Open **Settings > Video Setup > Dynamic Lighting**. All lighting switches

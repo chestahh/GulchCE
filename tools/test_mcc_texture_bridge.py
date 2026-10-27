@@ -55,7 +55,10 @@ BOOL xgpu_mcc_texture_upload(GLuint,GLenum,struct xgpu_texture_description const
 #endif
 '''
     (work / "xgpu.h").write_text(header)
-    (work / "zlib.h").write_text('typedef unsigned int uInt;\nunsigned long crc32(unsigned long,const void *,uInt);\n')
+    (work / "zlib.h").write_text(
+        '#ifndef TEST_ZLIB_H\n#define TEST_ZLIB_H\n'
+        'typedef unsigned int uInt;\nunsigned long crc32(unsigned long,const void *,uInt);\n'
+        '#endif\n')
     (work / "zlib_prefixed.h").write_text('#include "zlib.h"\n')
     helpers = re.search(r"enum texel_kind\s*\{.*?\};", native, re.S).group()
     helpers += '\n' + structure(native, "format_information")
