@@ -135,6 +135,12 @@ def main() -> int:
     for output in outputs:
         shutil.copy2(ROOT / output, dist)
         print(f"{output} -> {dist.relative_to(ROOT)}", flush=True)
+    if args.platform == "android":
+        diagnostics = dist / "diagnostics"
+        shutil.copytree(ROOT / "port/android/diagnostics", diagnostics,
+                        ignore=shutil.ignore_patterns("__pycache__", "*.pyc"))
+        revision = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip()
+        (diagnostics / "build-revision.txt").write_text(revision + "\n", encoding="utf-8")
     if args.platform == "windows":
         # the symbols of halo.exe and SDL3.dll, apart (players do not need
         # them): the workflow uploads them to Sentry, which turns the crash

@@ -528,6 +528,14 @@ and reload, address reuse and allocation failure.
 
 ## Find problems
 
+CI APK packages include a `diagnostics` folder with a bounded, read-only
+[shader-log collector](diagnostics/collect_shader_logs.py) and
+[instructions](diagnostics/README.txt). Run it on a computer with Python 3 and
+Android platform-tools, then relaunch the app and reproduce the problem. It
+records the game's log tag, shader source/errors and device information into
+a ZIP without changing app settings or saves. Device logs remain on the
+computer until the tester chooses to share them.
+
 - Enter `adb logcat -s halo` to see the log of the port and the errors of
   the game. `files/debug.txt` is the log of the game.
 - If the guest code stops, the log shows the registers and the frame chain.

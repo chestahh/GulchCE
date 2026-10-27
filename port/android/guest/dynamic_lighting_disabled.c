@@ -3,6 +3,7 @@
    policy cannot create extra lights, textures, traces or material overrides.
    Overshield surfaces still follow host policy and keep their map reset. */
 #include "cseries.h"
+#include "real_math.h"
 #include "plasma_lighting.h"
 #include "plasma_model_shader.h"
 #include "rocket_lighting.h"

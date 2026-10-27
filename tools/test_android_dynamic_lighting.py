@@ -46,11 +46,13 @@ def test_android_hooks_preserve_stock_values_and_surface_reset(tmp_path):
     (tmp_path / 'cseries.h').write_text('''
 typedef int boolean;
 typedef float real;
+#define FALSE 0
+#define NONE (-1)
+''')
+    (tmp_path / 'real_math.h').write_text('''
 typedef struct { float x, y, z; } real_point3d;
 typedef struct { float i, j, k; } real_vector3d;
 typedef struct { float red, green, blue; } real_rgb_color;
-#define FALSE 0
-#define NONE (-1)
 ''')
     (tmp_path / 'plasma_model_shader.h').write_text(
         (ROOT / 'port/linux/include/plasma_model_shader.h').read_text())
