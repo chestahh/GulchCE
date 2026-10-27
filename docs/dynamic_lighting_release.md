@@ -14,7 +14,7 @@ choices for this screen. Saved choices persist across launches.
 
 | Menu row | What it controls |
 | --- | --- |
-| Projectile Lights | Plasma, rockets and the supported Covenant projectile profiles, including Needler, Shade, fuel rod, Ghost, Banshee, Wraith and dropship fire. |
+| Projectile Lights | Plasma, rockets and the supported Covenant projectile profiles, including Needler, Shade, greener Grunt/Hunter fuel-rod illumination, Ghost, Banshee, Wraith and dropship fire. |
 | Muzzle Flash Lights | Extra short-lived weapon illumination, including the Warthog turret and both Scorpion guns; stock flash and explosion effects remain intact. |
 | Jackal Shields | Blue/orange shield spill, following the shield's damage colour. |
 | Stationary Shields | Covenant shield-emitter spill, including the red damage flash. |
@@ -247,3 +247,89 @@ images per capture case, full logs, manifests and save archives. The per-run
 evidence totals about 107.0 MiB, besides contact sheets, small build logs, the
 13.6 MiB ZIP and the required normal build/symbols. Original game data, saves
 and earlier evidence remain untouched; all test processes exited.
+
+
+## AR world display and fuel-rod colour tuning (2026-10-27)
+
+Implementation revision: `f76fc69c`; comparison baseline: `9cac0595` (the
+previous `2522c432` implementation plus its acceptance documentation). The
+existing AR Counter Glow and Projectile Lights options remain off by default.
+The world-model display now shares the first-person emissive material boost.
+Its spill module is byte-for-byte identical between the capture builds;
+recorded steady world-light RGB remains (0.156, 0.4225, 0.65).
+
+The exact shared Grunt/Hunter projectile exhaust gets less red and blue in
+its render submission, retaining the authored green channel and modulation.
+Read-only Xbox c40 trigger references establish that both weapons use that
+projectile. Runtime tests below exercise this shared projectile definition,
+not separate AI firing sessions for each weapon. The source light datum,
+stock flare, trail, impact and explosion remain unchanged. See the
+[emitter](covenant_emitter_lighting.md) and
+[projectile](covenant_lighting.md) notes for policy and tag evidence.
+
+The combined review covered both feature modules, declarations, shared hooks,
+fixtures, tests and documentation. It removed the redundant material-helper
+view argument, kept AR spill and renderer translation untouched, and added
+only a four-line marked hook for the private render-colour copy. The new
+map-scoped tag cache uses existing reset boundaries. No loader, host policy,
+network contract or AMD/NVIDIA workaround changed. The existing performance,
+memory and approximate-occlusion limitations remain.
+
+Focused regressions passed: 207 tests, with five POSIX-only launcher/process
+cases skipped on Windows. Ordinary and full-LTO light-storage checks passed,
+including their deliberate pointer-corruption negative control. The new colour
+case covers off, invalid owners, unrelated tags/lights, modulation, missing tags
+and map resets. Existing emitter coverage retains exact third-person/first-person
+spill gains and checks material-state restoration.
+
+Hidden, serial Windows captures used 1280x720, an NVIDIA RTX 5070 Ti (617.42),
+per-pixel lighting and Light Occlusion. Both old and new enabled tuning were
+captured at each cap and visually reviewed. Measured short-capture means:
+
+| Case | 30 cap | 60 cap | 120 cap |
+| --- | ---: | ---: | ---: |
+| AR world display, before | 30.01 | 60.02 | 119.85 |
+| AR world display, after | 30.00 | 60.02 | 120.02 |
+| Native fuel-rod flight/impact, before | 29.30 | 58.33 | 119.99 |
+| Native fuel-rod flight/impact, after | 29.67 | 59.99 | 119.71 |
+
+The 60 FPS disabled controls selected no feature lights and performed no
+occlusion updates. The first-person AR control retained its existing appearance.
+A separate paired 60 FPS probe sweeps the real fuel-rod projectile along a
+controlled path to show its surface/model spill without an impact immediately
+overwhelming it; the native-flight cases above also retain collision and impacts.
+These short visual captures include readback and initial shader work, and are
+not sustained-performance or AMD-hardware certification.
+
+Comparison PNGs and source-image hashes are retained locally under
+`build/ar-fuel-comparisons/`; complete reports, source manifests and logs are in
+`build/plasma-visual/*-ar-fuel-*`. Comparisons use matching scene, camera,
+settings and simulation ticks. Only cropping, identical resizing and labels
+were applied; interpolated fractions and stock particle phases can differ.
+
+
+The additional CE Death Island world-display capture passed at 59.02 FPS.
+An initial Marine fixture was rejected because that multiplayer map contains
+no Marine tag; it was replaced by the map's stock player model, with no game
+code change. Eighteen captures completed successfully overall. A hidden enabled
+transition run loaded Xbox c40, MCC Mercury Falling, CE Death Island and Xbox
+Blood Gulch, with three tick resets and no exceptions or forced shutdown.
+This checks those map boundaries, not every custom asset or multiplayer scenario.
+No new multiplayer session was required for these render-only changes; the
+existing host-policy and networking harnesses passed.
+
+The Windows portable release build was restored after each diagnostic build;
+its executable contains no capture-fixture markers. Local Android/web targets
+remain unavailable. [Platform CI](https://github.com/chestahh/GulchCE/actions/runs/40438187298)
+passed Windows, Linux, Android and web jobs, including the Linux/web tests and
+Chromium/Firefox checks. CI builds debug on this feature branch; release was
+built locally. The MCC Windows adapter job passed. The separate Linux MCC
+validator reached its ten-minute limit installing dependencies before tests
+started; only that job was retried.
+
+Cleanup removed staged maps/caches, three temporary diagnostic executables,
+fixture objects and approximately 892 MiB of redundant images/binaries. All
+121 archived test-save files passed SHA-256 verification. About 147 MiB of
+comparison images, representative frames, complete logs/manifests and archived
+saves remain, plus the normal build. User maps, saves, previous playtest packages
+and earlier milestone evidence were preserved.
