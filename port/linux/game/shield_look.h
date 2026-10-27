@@ -1,4 +1,4 @@
-/* SHIELD LOOK: optional render-only profiles; CLASSIC preserves map-authored shields. */
+/* SHIELD LOOK: optional player-only profiles; DEFAULT preserves map-authored shields. */
 #ifndef SHIELD_LOOK_H
 #define SHIELD_LOOK_H
 
@@ -20,7 +20,8 @@ void shield_recharge_draw(struct shader const *shader, real const *values, real 
 real shield_look_honeycomb_scale(struct shader const *shader);
 short shield_look_honeycomb_classic_mode(struct shader const *shader);
 void shield_look_reset(void);
-boolean shield_look_skip_shell(struct model const *model, struct shader const *surface);
+boolean shield_look_skip_shell(long object_index, struct model const *model, struct shader const *surface,
+	boolean first_person);
 struct shader *shield_look_body(long object_index, struct shader *original);
 boolean shield_look_arms(short local_player_index, long unit_index, long hands_model_index,
 	struct render_model_effect *effect);

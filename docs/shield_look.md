@@ -9,6 +9,28 @@ Video Setup > FOV and Viewmodels > SHIELD LOOK offers these presets in order:
 | MARK VI | `enhanced` | ENHANCED |
 | INFINITE HONEYCOMB | `classic_honeycomb2` | CLASSIC HONEYCOMB |
 
+SHIELD LOOK overrides apply only to bipeds with a current player index,
+including remote/co-op players. AI bipeds retain their authored shield
+materials and do not receive the preset's depleted arcs or recharge envelope.
+Eligibility is checked per instance before the definition cache is consulted,
+so a player and an enemy may safely share a model or biped definition.
+The shell-suppression hook receives the draw's object identity and first-person
+flag. Hands retain the engine's weapon identity; the feature resolves the
+weapon's parent unit only for its player-ownership check. Arm Shields remains
+authoritative, including suppression of authored player hand shells when OFF.
+Losing player ownership restores the authored look on subsequent draws.
+
+The player-only correction was reproduced by failing regressions for all
+three non-default presets. After the fix, 164 shield/enclosure checks and
+Windows, Android and web release builds passed. Hidden Windows b30 campaign
+runs loaded and rendered with DEFAULT and INFINITE HONEYCOMB. These were
+startup smoke checks, not controlled Elite flare comparisons. Shared-model,
+remote-player ownership, loss of ownership, first-person weapon identity,
+Arm Shields OFF, arcs and recharge are covered by the harness. No live CE/MCC
+combat, multiplayer or physical Android/web GPU comparison was performed.
+The final self-review retained the feature-owned guard and minimal model-hook
+arguments; no shader formulas or simulation state were changed.
+
 The retained presets keep their saved values and exact visual formulas.
 HONEYCOMB CLEAR and HONEYCOMB LAYERED have been removed, including their
 exclusive shader paths. Saved `honeycomb` and `classic_honeycomb` selections

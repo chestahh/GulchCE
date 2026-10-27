@@ -95,7 +95,7 @@ validation results and remaining compatibility limits.
 ## About upstream OpenCE
 
 **OpenCE** (Open Community Edition) is an open source port of the Halo: Combat Evolved decompilation (Halo CE) based on an early Xbox development build (2342) and forked from
-[bnunu/halo-1](https://github.com/bnunu/halo-1). 
+[bnunu/halo-1](https://github.com/bnunu/halo-1).
 
 The project aims to enhance the existing game and adds many features, such as 128-player multiplayer, online campaign co-op, mod packs, field-of-view settings, a server browser, peer-to-peer hosting, automatic map downloads, voice chat, support for Custom Edition maps and much more!
 
@@ -137,6 +137,12 @@ Each platform has its own instructions:
 | Web (WebAssembly, WebGL 2, SDL3; desktop Chrome, Edge and Firefox) | [port/web/README.md](port/web/README.md) |
 
 The Linux README also covers the controls, every setting and the multiplayer features. These are almost the same on all platforms. The settings are in `config.toml` next to the game, and many are in the menus too.
+
+Each release also has `SHA256SUMS`, the SHA-256 of each of its files, and
+`SHA256SUMS.sig`, that file's Ed25519 signature by the project's release
+key, whose public key is [deploy/release-key.pub](deploy/release-key.pub).
+`sha256sum -c --ignore-missing SHA256SUMS` checks the downloads, and
+`tools/release_sign.sh verify SHA256SUMS` (OpenSSL 3) the signature.
 
 ## Can I play multiplayer?
 
@@ -267,7 +273,7 @@ Start with the [GulchCE code reader's guide](docs/reading/README.md) for a
 route through startup, input and menus, gameplay objects, rendering,
 networking, map loading, platform support and testing. It includes a
 glossary of engine terms and C conventions, a detailed FOV walkthrough,
-and notes on GulchCE's dynamic-lighting, Vulkan and third-person branches.
+dynamic lighting 1.0, and notes on the Vulkan and third-person branches.
 
 ### Testing
 

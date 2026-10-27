@@ -5,6 +5,7 @@ import re
 import shutil
 import subprocess
 import pytest
+from harness import function
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -29,17 +30,19 @@ typedef int boolean;
 #define TEST_FLAG(x,b) ((x)&(1U<<(b)))
 enum {_object_type_biped=0,_object_dead_bit=0,_object_shield_depleted_bit=1,_object_shield_over_charging_bit=2,_object_shield_charging_bit=3};
 struct object_datum {struct {int type;unsigned damage_flags;int shield_stun_ticks;float shield_vitality;} object;};
+struct unit_datum {struct {int type;unsigned damage_flags;int shield_stun_ticks;float shield_vitality;} object;struct {long player_index;} unit;};
+#define NONE (-1)
 struct shader {int id;};
 struct shield_look_plasma {struct shader shader;real offset_amount;};
 struct {struct shield_look_plasma body,arms;boolean sprinkles;} shield_looks[2];
 static short shield_look_count=2;
 struct render_model_effect {struct shader *modifier_shader;struct {real const *values;} modifier_animation;};
 struct {real game_time_sec;} global_frame_parameters;
-static struct object_datum objects[140];
+static struct unit_datum objects[140];
 static int enhanced=1,arms=1;
 static unsigned long changes=1;
 static real body_values[140][4],arm_values[2][4];
-static struct object_datum *object_try_and_get(long n) {return n>=0 && n<140?&objects[n]:NULL;}
+static struct object_datum *object_try_and_get(long n) {return n>=0 && n<140?(struct object_datum *)&objects[n]:NULL;}
 static int shield_look_enabled(void) {return enhanced;}
 unsigned long config_changes(void) {return changes;}
 int config_boolean(char const *name) {(void)name;return arms;}
@@ -47,6 +50,7 @@ static real viewmodel_shield_offset_amount(real const *values,real amount) {
  return values==arm_values[0] || values==arm_values[1]?MIN(amount,.004f):amount;
 }
 '''
+    preamble += function((ROOT / "port/linux/game/shield_look.c").read_text(), "shield_look_player")
     main = r'''
 static struct render_model_effect prepare(long n,real level,real time,int side) {
  struct render_model_effect e;
@@ -77,6 +81,7 @@ int main(int argc,char **argv) {
  assert(!memcmp(&original,&shield_looks[0].body,sizeof(original)));assert(body_values[0][0]==0);
  shield_recharge_reset();e=prepare(0,.5f,3.f,0);
  if(!strcmp(argv[1],"damage"))objects[0].object.shield_stun_ticks=30;
+ else if(!strcmp(argv[1],"ai"))objects[0].unit.player_index=NONE;
  else if(!strcmp(argv[1],"dead"))objects[0].object.damage_flags|=1;
  else if(!strcmp(argv[1],"depleted"))objects[0].object.damage_flags|=2;
  else if(!strcmp(argv[1],"overcharging"))objects[0].object.damage_flags|=4;
@@ -144,7 +149,7 @@ int main(int argc,char **argv) {
     assert result.returncode==0,result.stdout+result.stderr
     return output
 
-@pytest.mark.parametrize('case',['damage','dead','depleted','overcharging','not-charging','classic','reset','arms','respawn','time','capacity','unrelated','full','sprinkles'])
+@pytest.mark.parametrize('case',['damage','ai','dead','depleted','overcharging','not-charging','classic','reset','arms','respawn','time','capacity','unrelated','full','sprinkles'])
 def test_recharge(recharge_tool,case):
     result=subprocess.run([str(recharge_tool),case],capture_output=True,text=True)
     assert result.returncode==0,result.stdout+result.stderr

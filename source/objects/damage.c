@@ -2225,13 +2225,20 @@ static long get_player_index_from_object_or_parents(
 
 	while (object_index != NONE)
 	{
+		struct object_datum *object;
+
 		if (unit_try_and_get(object_index))
 		{
 			player_index = player_index_from_unit_index(object_index);
 			break;
 		}
 
-		object_index = object_get(object_index)->object.parent_object_index;
+		/* port: a projectile can outlive its owner; do not dereference a
+		   deleted object or follow a replacement in the same datum slot. */
+		object = object_try_and_get(object_index);
+		if (!object)
+			break;
+		object_index = object->object.parent_object_index;
 	}
 
 	return player_index;

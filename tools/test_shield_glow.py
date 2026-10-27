@@ -34,7 +34,8 @@ static char const *config_string(char const *key) { (void)key; return intensity;
     code += enum_with(policy, "_shield_effects_stock")
     code += structure(glow, "shield_glow")
     code += "\nstatic struct shield_glow shield_glows[8];\n"
-    code += "static unsigned long shield_glow_frame;\nstatic real shield_glow_scale = 1.f;\n"
+    code += "static real shield_glow_time;\nstatic real shield_glow_scale = 1.f;\n"
+    code += "static boolean overshield_effects_initialized;\nstatic void overshield_effect_reset(void) {}\n"
     code += function(glow, "shield_glow_reset")
     code += function(glow, "shield_glow_enabled")
     code += function(overshield, "overshield_effect_enabled")
@@ -54,11 +55,11 @@ int main(void) {
     if (!shield_glow_enabled() || shield_glow_scale != 3.f || !overshield_effect_enabled()) return 6;
     local_glow = local_overshield = 0; changes++;
     if (shield_glow_enabled() || overshield_effect_enabled()) return 7;
-    memset(shield_glows, 0x55, sizeof(shield_glows)); shield_glow_frame = 100;
+    memset(shield_glows, 0x55, sizeof(shield_glows)); shield_glow_time = 100;
     shield_glow_reset(); shield_glow_reset();
-    if (shield_glow_frame) return 8;
+    if (shield_glow_time) return 8;
     for (i = 0; i < 8; i++)
-        if (shield_glows[i].unit_index != NONE || shield_glows[i].light_index != NONE || shield_glows[i].frame) return 9;
+        if (shield_glows[i].unit_index != NONE || shield_glows[i].light_index != NONE || shield_glows[i].connected) return 9;
     return 0;
 }
 '''
