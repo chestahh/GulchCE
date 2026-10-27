@@ -241,6 +241,15 @@ def test_generated_controller_submenu_and_stock_keyboard_menu():
             assert '"'+event.get('run')+'"' in registered
     help_widgets = [widget for widget in root.iter('widget') if widget.get('name', '').endswith('/help')]
     assert help_widgets and all('string_list' not in widget.attrib for widget in help_widgets)
+    widgets = {widget.get('name'): widget for widget in root.iter('widget')}
+    options = next(widget for name, widget in widgets.items() if name.endswith('/options_menu'))
+    rows = [child for child in options.findall('child') if '/op_' in child.get('widget', '')]
+    row_bottom = max(int(row.get('y')) + int(widgets[row.get('widget')].get('height')) for row in rows)
+    button_bar = next(child for child in options.findall('child') if child.get('widget', '').endswith('/button_bar'))
+    help_widget = help_widgets[0]
+    assert row_bottom < int(help_widget.get('top'))
+    assert int(help_widget.get('height')) >= 4 * 21  # Four full-size help lines.
+    assert int(help_widget.get('top')) + int(help_widget.get('height')) <= int(button_bar.get('y'))
     assert 'ce/' + prefix + '.controller_remapping.xml' in json.loads(
         (ROOT / 'port/assets/menus/menus.json').read_text())['files']
     parent = ET.fromstring('\n'.join(files[prefix + '.gamepad_setup.xml']))
