@@ -28,7 +28,7 @@ static int solid_draws, shadow_draws, selected_geometry[8];
 static int legs_calls, legs_expected, legs_empty;
 /* These enclosure fixtures use CLASSIC; shield override eligibility is
    exercised separately by the shield-look harness. */
-static boolean shield_look_skip_shell(struct model const *m, struct shader const *shader)
+static boolean shield_look_skip_shell(long object_index, struct model const *m, struct shader const *shader, boolean first_person)
 {
     return FALSE;
 }

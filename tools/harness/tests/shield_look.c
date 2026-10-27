@@ -13,6 +13,7 @@
 #define NUMBER_OF_OUTGOING_OBJECT_FUNCTIONS 4
 #define TAG_STRING_LENGTH 31
 #define _object_type_biped 0
+#define _object_type_weapon 2
 #define _shader_type_transparent_plasma_glow 10
 #define CHECK(x) do { if (!(x)) { fprintf(stderr, "line %d: %s\n", __LINE__, #x); return 1; } } while (0)
 typedef unsigned char boolean;
@@ -29,8 +30,8 @@ struct object_definition { struct {
     struct tag_reference model, modifier_shader;
     short function_modes[4]; struct tag_block functions;
 } object; };
-struct object_datum { long definition_index; struct { short type; } object; };
-struct unit_datum { struct { real outgoing_function_values[4]; real_rgb_color outgoing_change_colors[4]; } object; };
+struct object_datum { long definition_index; struct { short type; long parent_object_index; } object; };
+struct unit_datum { long definition_index; struct { short type; long parent_object_index; real outgoing_function_values[4]; real_rgb_color outgoing_change_colors[4]; } object; struct { long player_index; } unit; };
 struct model { struct tag_block shaders; };
 struct bitmap_data { short width, height, depth, type, format, mipmap_count; word flags; long pixels_size, pixels_offset; };
 struct bitmap_group { struct tag_block bitmaps; };
@@ -44,7 +45,8 @@ struct render_model_effect { struct shader *modifier_shader; struct {
 static const char *setting = "enhanced";
 static void *tags[16];
 static unsigned long groups[16];
-static struct object_datum object;
+static struct unit_datum object;
+static struct object_datum weapon;
 static struct unit_datum unit;
 static struct game_globals globals;
 static int noise_matches = 1;
@@ -64,8 +66,8 @@ static void *object_definition_get(long i) { return tags[i]; }
 static boolean shader_type_is_valid_for_modifier(short type) { return type == 1 || (type > 4 && type <= 10); }
 static void *shader_definition_get(long i) { return tags[i]; }
 static void *model_definition_get(long i) { return tags[i]; }
-static struct object_datum *object_get(long i) { (void)i; return &object; }
-static struct object_datum *object_try_and_get(long i) { return i == NONE ? NULL : &object; }
+static struct object_datum *object_get(long i) { (void)i; return (struct object_datum *)&object; }
+static struct object_datum *object_try_and_get(long i) { return i == NONE ? NULL : i == 1 ? &weapon : (struct object_datum *)&object; }
 static struct unit_datum *unit_get(long i) { (void)i; return &unit; }
 static struct game_globals *scenario_get_game_globals(void) { return &globals; }
 static int SwitchToThread(void) { return 0; }
@@ -179,6 +181,34 @@ int main(int argc, char **argv)
         }
         CHECK(shield_look_read_noise(3)); reference_pixels[0] ^= 1; CHECK(!shield_look_read_noise(3));
         reference_pixels[0] ^= 1; read_failed = 1; CHECK(!shield_look_read_noise(3)); free(reference_pixels);
+        return 0;
+    }
+    if (!strcmp(argv[1], "player-only")) {
+        struct shader *player_shader;
+        object.unit.player_index = NONE;
+        CHECK(shield_look_body(0, &stock.shader) == &stock.shader);
+        CHECK(shield_look_count == 0);
+        object.unit.player_index = 0;
+        player_shader = shield_look_body(0, &stock.shader);
+        CHECK(player_shader != &stock.shader);
+        CHECK(shield_look_skip_shell(0, &model, &stock.shader, FALSE));
+        weapon.object.type = _object_type_weapon; weapon.object.parent_object_index = 0;
+        CHECK(shield_look_skip_shell(1, &hands_model, &stock.shader, TRUE));
+        CHECK(!shield_look_skip_shell(1, &hands_model, &stock.shader, FALSE));
+        object.unit.player_index = NONE;
+        CHECK(!shield_look_skip_shell(0, &model, &stock.shader, FALSE));
+        CHECK(!shield_look_skip_shell(0, &hands_model, &stock.shader, FALSE));
+        CHECK(!shield_look_skip_shell(1, &hands_model, &stock.shader, TRUE));
+        CHECK(shield_look_body(0, &stock.shader) == &stock.shader);
+        CHECK(!draw_arms(0, 0, 7, &effect));
+        CHECK(effect.modifier_shader == &stock.shader);
+        object.unit.player_index = 17; /* Remote player: not a local slot. */
+        CHECK(shield_look_body(0, &stock.shader) == player_shader);
+        CHECK(draw_arms(0, 0, 7, &effect));
+        arm_setting = 0; CHECK(!draw_arms(0, 0, 7, &effect));
+        CHECK(shield_look_skip_shell(1, &hands_model, &stock.shader, TRUE));
+        weapon.object.parent_object_index = NONE;
+        CHECK(!shield_look_skip_shell(1, &hands_model, &stock.shader, TRUE));
         return 0;
     }
     if (!strcmp(argv[1], "removed")) {
@@ -325,7 +355,7 @@ int main(int argc, char **argv)
         !strcmp(argv[1], "missing") || !strcmp(argv[1], "no-noise")) {
         CHECK(shield_look_body(0, &stock.shader) == &stock.shader);
         CHECK(!draw_arms(0, 0, 7, &effect)); CHECK(effect.modifier_shader == &stock.shader);
-        CHECK(!shield_look_skip_shell(&hands_model, &stock.shader)); return 0;
+        CHECK(!shield_look_skip_shell(0, &hands_model, &stock.shader, FALSE)); return 0;
     }
     if (!strcmp(argv[1], "malformed-noise")) {
         CHECK(!shield_look_read_noise(NONE)); CHECK(!shield_look_read_noise(3));
@@ -343,13 +373,13 @@ int main(int argc, char **argv)
         CHECK(((struct shield_look_plasma *)body)->primary_map.index == (noise_matches ? 3 : 9));
         CHECK(((struct shield_look_plasma *)effect.modifier_shader)->primary_scale == 45.f);
         CHECK(((struct shield_look_plasma *)effect.modifier_shader)->offset_amount == 0.03f);
-        CHECK(shield_look_skip_shell(&hands_model, &stock.shader) == (stock.shader.base.type > 4));
-        CHECK(shield_look_skip_shell(&model, &stock.shader) == (stock.shader.base.type > 4));
-        CHECK(!shield_look_skip_shell(&model, &opaque.shader));
+        CHECK(shield_look_skip_shell(0, &hands_model, &stock.shader, FALSE) == (stock.shader.base.type > 4));
+        CHECK(shield_look_skip_shell(0, &model, &stock.shader, FALSE) == (stock.shader.base.type > 4));
+        CHECK(!shield_look_skip_shell(0, &model, &opaque.shader, FALSE));
         setting = "classic";
         CHECK(overshield_effect_intensity_source(0) ==
             (stock.shader.base.type == 10 ? stock.intensity_source - 1 : NONE));
-        CHECK(!shield_look_skip_shell(&hands_model, &stock.shader));
+        CHECK(!shield_look_skip_shell(0, &hands_model, &stock.shader, FALSE));
         CHECK(shield_look_body(0, &stock.shader) == &stock.shader);
         CHECK(!draw_arms(0, 0, 7, &effect));
         return 0;
@@ -362,7 +392,7 @@ int main(int argc, char **argv)
     if (!strcmp(argv[1], "arms-off")) {
         arm_setting = 0;
         CHECK(!draw_arms(0, 0, 7, &effect)); CHECK(!effect.modifier_shader);
-        CHECK(shield_look_skip_shell(&hands_model, &stock.shader));
+        CHECK(shield_look_skip_shell(0, &hands_model, &stock.shader, FALSE));
         CHECK(shield_look_body(0, &stock.shader) == body);
         arm_setting = 1; CHECK(draw_arms(0, 0, 7, &effect));
         CHECK(effect.modifier_animation.values == arm_values[0]);

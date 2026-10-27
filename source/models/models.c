@@ -352,8 +352,9 @@ static void render_model_parts(
 							part->shader_index,
 							struct model_shader_reference);
 						shader = shader_definition_get(shader_reference->shader.index);
-						/* port: selected shield looks replace authored plasma shells. */
-						if (shield_look_skip_shell(model, shader))
+						/* port: selected player shield looks replace their authored plasma shells. */
+						if (shield_look_skip_shell(object_index, model, shader,
+							TEST_FLAG(flags, _render_model_first_person_bit)))
 							continue;
 
 						if (shader_type_is_valid_for_model(shader->base.type) &&

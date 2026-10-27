@@ -93,7 +93,7 @@ def test_shared_hooks():
     assert "shield_look_reset();" in function(cache, "scenario_tags_load")
     assert "shield_look_reset();" in function(cache, "scenario_tags_unload")
     models = (ROOT / "source/models/models.c").read_text()
-    assert "shield_look_skip_shell(model, shader)" in function(models, "render_model_parts")
+    assert "shield_look_skip_shell(object_index, model, shader," in function(models, "render_model_parts")
     plasma = (ROOT / "source/rasterizer/xbox/rasterizer_xbox_plasma_energy.c").read_text()
     draw = function(plasma, "rasterizer_plasma_energy_draw")
     assert draw.index("shield_look_colors(") < draw.index("overshield_effect_color(")
@@ -264,4 +264,10 @@ def test_classic_honeycomb_lifecycle(shield_tool, case, look):
 
 def test_retired_presets_do_not_activate(shield_tool):
     run = subprocess.run([str(shield_tool), "removed"], capture_output=True, text=True, timeout=15)
+    assert run.returncode == 0, run.stdout + run.stderr
+
+
+@pytest.mark.parametrize("look", ["enhanced", "classic_with_sprinkles", "classic_honeycomb2"])
+def test_only_player_instances_use_presets(shield_tool, look):
+    run = subprocess.run([str(shield_tool), "player-only", look], capture_output=True, text=True, timeout=15)
     assert run.returncode == 0, run.stdout + run.stderr

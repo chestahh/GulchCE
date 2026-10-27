@@ -144,7 +144,7 @@ failed:
 static boolean shield_arcs_active(struct object_datum const *object, boolean arms)
 {
 	return shield_look_enabled() && (!arms || config_boolean("display.viewmodel_shield")) &&
-		object && object->object.type == _object_type_biped &&
+		shield_look_player(object) &&
 		!TEST_FLAG(object->object.damage_flags, _object_dead_bit) &&
 		TEST_FLAG(object->object.damage_flags, _object_shield_depleted_bit) &&
 		object->object.shield_vitality <= 0.f && object->object.shield_stun_ticks > 0;

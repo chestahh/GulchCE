@@ -34,7 +34,7 @@ static real shield_recharge_ease(real value)
 Stun/depletion and overcharge always win, even if a charging flag is stale. */
 static boolean shield_recharge_allowed(struct object_datum const *object)
 {
-	return object && object->object.type == _object_type_biped &&
+	return shield_look_player(object) &&
 		!TEST_FLAG(object->object.damage_flags, _object_dead_bit) &&
 		!TEST_FLAG(object->object.damage_flags, _object_shield_depleted_bit) &&
 		!TEST_FLAG(object->object.damage_flags, _object_shield_over_charging_bit) &&

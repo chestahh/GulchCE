@@ -63,6 +63,26 @@ flowchart LR
     F --> G[Present image]
 ```
 
+## Player shield appearances
+
+GulchCE's non-default SHIELD LOOK presets are restricted to player bipeds.
+Read `shield_look_player`, `shield_look_for_unit` and `shield_look_skip_shell`
+in [shield_look.c](../../port/linux/game/shield_look.c). The unit's current
+player index establishes eligibility, including remote players; an asset
+name or shared model does not. For example, an AI Elite sharing a player's
+biped definition keeps its authored shield even after the player's preset
+has populated the shader cache.
+
+The shared [model submission](../../source/models/models.c) passes object
+identity and the first-person flag to shell suppression. First-person hands
+use the weapon as their draw identity, so the feature checks its parent
+unit without changing the renderer's identity. The same ownership guard
+protects depleted arcs and recharge; Arm Shields still controls the added
+first-person pass. These are drawing decisions and do not change shield
+strength or network state. See [Shield Look](../shield_look.md) for detailed
+behaviour and [its regression tests](../../tools/test_shield_look.py) for
+shared-model and ownership-transition coverage.
+
 ## The platform layer translates graphics state
 
 In the shared OpenGL path, the game still makes Xbox Direct3D 8 calls.
