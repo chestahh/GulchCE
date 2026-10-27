@@ -68,6 +68,9 @@ int main(int argc, char **argv)
 #ifndef HALO_ANDROID
   CHECK(looked_up==1 && gpu_calls==2, "enhanced initialization is lazy");
   bind_model(&entry, 2); CHECK(bound==1 && mask0==0 && mask1==1, "selected slots uploaded unchanged");
+#else
+  bind_model(&entry, 2);
+  CHECK(!gpu_calls && !looked_up && !bound && !mask0 && !mask1, "Android excludes all optional GPU setup even with a selected mask");
 #endif
   base=gpu_calls; bind_model(&entry, 0);
   CHECK(gpu_calls==base, "disable skips even a previously enhanced program's GPU setup");
