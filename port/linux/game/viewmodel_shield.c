@@ -123,6 +123,7 @@ void viewmodel_shield_apply(
 	long unit_index,
 	long hands_model_index,
 	real_matrix4x3 const *hands_node_matrices,
+	real const *shown_functions,
 	struct render_model_effect *effect)
 {
 	struct unit_datum *unit;
@@ -140,10 +141,10 @@ void viewmodel_shield_apply(
 	if (!shader_type_is_valid_for_modifier(shader->base.type))
 		return;
 
-	if (!overshield_effect_arms_values(unit_index, unit->object.outgoing_function_values,
+	if (!overshield_effect_arms_values(unit_index, shown_functions,
 		viewmodel_shields[local_player_index].values))
 	{
-		csmemcpy(viewmodel_shields[local_player_index].values, unit->object.outgoing_function_values,
+		csmemcpy(viewmodel_shields[local_player_index].values, shown_functions,
 			sizeof(viewmodel_shields[local_player_index].values));
 	}
 	viewmodel_shields[local_player_index].distance = viewmodel_shield_arms_distance(

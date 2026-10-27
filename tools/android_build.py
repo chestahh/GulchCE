@@ -67,6 +67,17 @@ SDL_ANDROID_MOUSE_PATCH = Path("port/android/patches/sdl-relative-mouse.patch")
 SDL_ANDROID_MOUSE_LISTENER = "android-project/app/src/main/java/org/libsdl/app/SDLControllerManager.java"
 ANDROID_API = 28
 
+# Android keeps stock lighting until the optional renderer is validated on
+# devices. Its existing engine hooks link to dynamic_lighting_disabled.c;
+# none of the added light pools, traces, textures or shader emitters are built.
+DYNAMIC_LIGHTING_GAME_SOURCES = {
+    "plasma_lighting.c", "plasma_falloff.c", "plasma_occlusion.c", "plasma_collision.c",
+    "rocket_lighting.c", "muzzle_lighting.c", "covenant_lighting.c",
+    "covenant_emitter_lighting.c", "ammo_counter_lighting.c", "ammo_counter_falloff.c",
+    "needler_lighting.c", "shield_glow.c",
+}
+DYNAMIC_LIGHTING_PLATFORM_SOURCES = {"plasma_model_shader.c", "plasma_occlusion_gl.c"}
+
 # The guest ABI: AArch64 code with 32-bit pointers (clang's only such target
 # is Apple's arm64_32, whose Mach-O output is converted afterwards). The
 # Darwin environment is hidden from the sources; the C library is musl.
@@ -468,11 +479,14 @@ def generate_android_build(n: Writer, sln: Any) -> None:
             cflags += f" -include {PORT_DIR}/include/halo_android_variadic_prototypes.h"
         objects.append(guest_object(source, cflags))
     for source in sorted(Path(config["game_sources"]).glob("*.c")):
+        if source.name in DYNAMIC_LIGHTING_GAME_SOURCES:
+            continue
         cflags = game_cflags
         # The main menu labels the executable with its release number.
         if source.as_posix() == "port/linux/game/menu_functions.c":
             cflags += " " + updater_defines(getattr(sln, "port_release", False))
         objects.append(guest_object(source, cflags))
+    objects.append(guest_object(PORT_DIR / "guest/dynamic_lighting_disabled.c", game_cflags))
     objects.append(guest_object(STB_VORBIS_SOURCE, game_cflags))
 
     # the platform layer shared with Linux, and the guest runtime
@@ -484,9 +498,10 @@ def generate_android_build(n: Writer, sln: Any) -> None:
         f"-I{ZLIB_DIR}", "-Isource -Isource/cseries",
         f"-I{SDL_DIR}/include", f"-I{gl_include}", *libc_includes, f"-idirafter {XDK_INCLUDE}",
     ])
-    guest_host_only = {"memory_watch.c"}  # replaced by guest_memory_watch.c
+    # memory_watch.c is replaced by guest_memory_watch.c.
+    guest_excluded = {"memory_watch.c"} | DYNAMIC_LIGHTING_PLATFORM_SOURCES
     for source in sorted((LINUX_DIR / "src").glob("*.c")):
-        if source.name.startswith("posix_") or source.name in guest_host_only:
+        if source.name.startswith("posix_") or source.name in guest_excluded:
             continue
         objects.append(guest_object(source, platform_cflags))
     # the high-res HUD's textures (port/assets/hud; port/linux/src/hud_hires.c)

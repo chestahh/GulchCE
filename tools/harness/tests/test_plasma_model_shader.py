@@ -2,18 +2,31 @@
 import re
 import sys
 from pathlib import Path
+import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
-from harness import build, read, run, structure
+from harness import build, function, read, run, structure
 
 
-def test_stock_programs():
+@pytest.mark.parametrize('platform', ['desktop', 'android', 'web'])
+def test_stock_programs(platform):
     header = read('port/linux/src/xgpu.h')
-    code = structure(header, 'xgpu_text') + '\n'
+    code = '' if platform == 'desktop' else '#define HALO_GLES 1\n'
+    if platform == 'android':
+        code += '#define HALO_ANDROID 1\n'
+    elif platform == 'web':
+        code += '#define HALO_WEB 1\n'
+    code += 'static struct { const char *shading_language; } xgpu_capabilities = {"300 es"};\n'
+    code += '#define XGPU_MODEL_LIGHT_COUNT 12\n'
+    code += structure(header, 'xgpu_text') + '\n'
     code += structure(header, 'nv2a_vertex_lighting') + '\n'
     code += read('port/linux/include/plasma_model_shader.h')
-    for path in ['port/linux/src/plasma_model_shader.c', 'port/linux/src/nv2a_vsh.c']:
+    sources = ['port/linux/src/nv2a_vsh.c']
+    if platform != 'android':
+        sources.insert(0, 'port/linux/src/plasma_model_shader.c')
+    for path in sources:
         code += re.sub(r'^#include.*$', '', read(path), flags=re.M)
+    code += function(read('port/linux/src/nv2a_psh.c'), 'model_lighting')
     words = [int(v, 16) for v in re.findall(r'0x[0-9A-Fa-f]+',
         re.sub(r'/\*.*?\*/', '', read('source/rasterizer/xbox/rasterizer_xbox_vertex_shaders_data.inc'), flags=re.S))]
     programs = []

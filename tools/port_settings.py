@@ -84,16 +84,6 @@ SCREENS = {
              "In first person, turn the view the moment the\nmouse moves, not up to two ticks later.", "desktop web"),
             ("HIGH-RES HUD:", "display.high_res_hud", ON_OFF,
              "Draw the HUD from the high-res redraws; off\ndraws the game's own pictures.", None),
-            ("AUTO BUTTON DETECTION:", "input.auto_button_detection", ON_OFF,
-             "Show styles for your controller's family.\nOff or unknown controller: choose any style.", None),
-            ("BUTTON STYLE:", "display.hud_button_style", XBOX_BUTTON_STYLES + PS_BUTTON_STYLES + SWITCH_BUTTON_STYLES,
-             "Manual gameplay button artwork, kept when auto\ndetection is on. Requires High-Res HUD.", None),
-            ("BUTTON STYLE:", "display.hud_button_style_xbox", XBOX_BUTTON_STYLES,
-             "Preferred Xbox artwork for automatic detection.\nEach local player uses their assigned controller.", None),
-            ("BUTTON STYLE:", "display.hud_button_style_ps", PS_BUTTON_STYLES,
-             "Preferred PlayStation artwork for auto detection.\nEach local player uses their assigned controller.", None),
-            ("BUTTON STYLE:", "display.hud_button_style_switch", SWITCH_BUTTON_STYLES,
-             "Preferred Switch artwork for automatic detection.\nEach local player uses their assigned controller.", None),
             ("HIGH-RES TEXT:", "display.high_res_text", ON_OFF,
              "Draw text and titles with high-res fonts; off\ndraws the game's own.", None),
             ("ANTI-ALIASING:", "display.anti_aliasing",
@@ -122,8 +112,6 @@ SCREENS = {
              "Shields light their surroundings as they flare.\nOnline: the host's choice.", None),
             ("GLOW INTENSITY:", "display.shield_glow_intensity", [("DEFAULT", "default"), ("LIGHT SHOW", "light_show")],
              "Light Show: three times as far, at full from a\nthird of the flare. Online: the host's choice.", None),
-            ("MATCH TIMER:", "display.match_timer", ON_OFF,
-             "Draw a clock at the bottom right in multiplayer,\ncounting up from the start of the game.", None),
             ("HDR:", "display.hdr", ON_OFF,
              "Keep the light of explosions, plasma and the sun\npast white, and roll it off instead of clipping.", None),
             ("HDR DISPLAY:", "display.hdr_output", ON_OFF,
@@ -205,7 +193,7 @@ SCREENS = {
     "gamepad_setup": {
         "screen": "gamepad_setup_screen",
         "header": ("header_profile_controller_setting", f"{PE}/controller_edit/header_profile_controller_setting"),
-        "spacing": 30,
+        "spacing": 27,
         "rows": [
             ("LOOK SENSITIVITY:", "profile.look_sensitivity", [(str(step), str(step)) for step in range(1, 11)],
              "How fast the right stick turns the view.", None),
@@ -225,11 +213,33 @@ SCREENS = {
             ("IN-GAME HELP:", "profile.ingame_help", ON_OFF, "Show the game's hints about its controls.", None),
         ],
         "categories": [("BUTTON REMAPPING", "controller_remapping",
-                        "Custom button layouts for P1-P4.\nUse / Reload stays combined.")],
+                        "Custom button layouts for P1-P4.\nUse / Reload stays combined."),
+                       ("BUTTON APPEARANCE", "controller_appearance",
+                        "Controller artwork and bumper style.\nRequires High-Res HUD in Graphics.")],
+    },
+    "controller_appearance": {
+        "screen": "controller_appearance_screen", "spacing": 30,
+        "header": ("header_profile_controller_setting", f"{PE}/controller_edit/header_profile_controller_setting"),
+        "same_place": ["hud_button_style_xbox", "hud_button_style_ps", "hud_button_style_switch"],
+        "rows": [
+            ("AUTO BUTTON DETECTION:", "input.auto_button_detection", ON_OFF,
+             "Show styles for your controller's family.\nRequires High-Res HUD in Graphics.", None),
+            ("BUTTON STYLE:", "display.hud_button_style", XBOX_BUTTON_STYLES + PS_BUTTON_STYLES + SWITCH_BUTTON_STYLES,
+             "Manual gameplay button artwork, kept when auto\ndetection is on. Requires High-Res HUD.", None),
+            ("BUTTON STYLE:", "display.hud_button_style_xbox", XBOX_BUTTON_STYLES,
+             "Preferred Xbox artwork for automatic detection.\nRequires High-Res HUD in Graphics.", None),
+            ("BUTTON STYLE:", "display.hud_button_style_ps", PS_BUTTON_STYLES,
+             "Preferred PlayStation artwork for auto detection.\nRequires High-Res HUD in Graphics.", None),
+            ("BUTTON STYLE:", "display.hud_button_style_switch", SWITCH_BUTTON_STYLES,
+             "Preferred Switch artwork for automatic detection.\nRequires High-Res HUD in Graphics.", None),
+            ("BUMPER STYLE:", "display.hud_bumper_style",
+             [("ORIGINAL XBOX", "original"), ("MODERN XBOX", "modern")],
+             "Original: black/white buttons. Modern: LB/RB.\nKept when automatic detection is on.", None),
+        ],
     },
     "controller_remapping": {
         "screen": "controller_remapping_screen", "spacing": 30,
-        "dynamic_help": True,
+        "dynamic_help": True, "help_top": 320, "help_height": 90,
         "header": ("header_profile_controller_setting", f"{PE}/controller_edit/header_profile_controller_setting"),
         "rows": [],
     },
@@ -238,10 +248,9 @@ SCREENS = {
 # Video Setup's categories open ordinary settings screens. Each has the same
 # pending edits, Defaults, OK and Cancel as the other settings screens.
 _video = SCREENS["video_settings"]
-_graphics = {"display.high_res_hud", "display.hud_button_style", "input.auto_button_detection",
-             "display.hud_button_style_xbox", "display.hud_button_style_ps", "display.hud_button_style_switch",
+_graphics = {"display.high_res_hud",
              "display.high_res_text", "display.anti_aliasing",
-             "display.anisotropic_filtering", "display.shadow_resolution", "display.per_pixel_lighting", "display.match_timer",
+             "display.anisotropic_filtering", "display.shadow_resolution", "display.per_pixel_lighting",
              "display.model_detail"}
 # (the visual modifiers: a screen of their own, Extra Effects)
 _shield_lighting = {"display.shield_glow", "display.shield_glow_intensity"}
@@ -249,7 +258,7 @@ _shield_rows = [row for row in _video["rows"] if row[1] in _shield_lighting]
 _extra_effects = {"display.overshield_effect", "display.hdr", "display.hdr_output"}
 SCREENS["video_settings/graphics"] = {
     "screen": "graphics_settings_screen", "header": _video["header"], "spacing": 27,
-    "same_place": ["anti_aliasing_android", "hud_button_style_xbox", "hud_button_style_ps", "hud_button_style_switch"],
+    "same_place": ["anti_aliasing_android"],
     "rows": [row for row in _video["rows"] if row[1] in _graphics],
 }
 SCREENS["video_settings/extra_effects"] = {
@@ -262,7 +271,7 @@ _video["categories"] = [
     ("FOV AND VIEWMODELS:", "video_settings/fov_viewmodels",
      "The field of view and the first-person\nweapon. Their defaults keep the stock view."),
     ("DYNAMIC LIGHTING:", "video_settings/dynamic_lighting",
-     "Added light from projectiles, weapons and\nenergy shields. Added lights default to off."),
+     "Added light from projectiles, weapons and\nenergy shields. Added lights default to off.", "desktop web"),
     ("EXTRA EFFECTS:", "video_settings/extra_effects",
      "Visual modifiers the stock game does not\nhave, such as HDR and overshields."),
 ]
@@ -288,6 +297,11 @@ SCREENS["video_settings/dynamic_lighting"] = {
          "Block projectile and emitter light behind walls.\nMuzzle flashes always use collision blocking.", None),
     ] + _shield_rows,
 }
+# Android builds omit this renderer. Keep both the entry and its controls
+# unavailable; existing configuration values cannot activate its inert hooks.
+SCREENS["video_settings/dynamic_lighting"]["rows"] = [
+    (*row[:4], "desktop web") for row in SCREENS["video_settings/dynamic_lighting"]["rows"]
+]
 SCREENS["video_settings/fov_viewmodels"] = {
     "screen": "fov_viewmodel_settings_screen", "header": _video["header"], "spacing": 30,
     "rows": [
@@ -345,7 +359,7 @@ _network["categories"] = [
      "Downloading Custom Edition maps you do not have,\nand helping send them to other players.",
      "desktop android"),
     ("MULTIPLAYER HUD:", "network_setup/multiplayer_hud",
-     "Players' names above their heads, the\nscoreboard, and the text chat."),
+     "Players' names above their heads, the\nscoreboard, the text chat and the match clock."),
     ("STREAMER MODE:", "network_setup/streamer_mode",
      "Hide offensive words in names and text from\nother players, maps and mods, as stars."),
     ("SERVER BROWSER:", "network_setup/server_browser",
@@ -405,6 +419,8 @@ SCREENS["network_setup/multiplayer_hud"] = {
          "SHOW the text chat, or HIDE it: no lines, and\nits keys and D-pad Up open nothing.", None),
         ("CHAT TEXT:", "display.chat_style", [("COLORS", "colors"), ("WHITE", "white")],
          "The text chat's colors: COLORS, names in their\nteam's color; WHITE, as Custom Edition.", None),
+        ("MATCH TIMER:", "display.match_timer", ON_OFF,
+         "Draw a clock at the bottom right in multiplayer,\ncounting up from the start of the game.", None),
     ],
 }
 
@@ -608,25 +624,28 @@ def _setting_screen(folder: str, spec: dict) -> list:
         # have: WIDE_SETTINGS)
         wide = setting in WIDE_SETTINGS
         shield_look = setting == "display.shield_look"
+        bumper_style = setting == "display.hud_bumper_style"
         controller_style = setting.startswith("display.hud_button_style")
+        # Dynamic captions retain their help index without a string list that
+        # would overwrite the player number during the engine's text update.
         extra += _widget(row, [("width", 512), ("height", 28), ("flags", "pass_unhandled_to_focused_child"),
                                ("bitmap", "bitmaps/option_bkds"), ("color", "#FF2896FF"), ("platform", platform)],
                          [f'<child{attributes([("widget", f"{base}/{key}_label")])}/>',
-                          f'<child{attributes([("widget", f"{base}/{key}_spinner"), ("x", 240 if shield_look or controller_style else 286 if wide else 320), ("y", 1)])}/>'])
+                          f'<child{attributes([("widget", f"{base}/{key}_spinner"), ("x", 240 if shield_look or controller_style or bumper_style else 286 if wide else 320), ("y", 1)])}/>'])
         extra += _widget(f"{base}/{key}_label",
                          [("type", "text"), ("controller", 1), ("width", 300), ("height", 22),
                           ("string_list", None if controller_style else f"{base}/labels"),
-                          ("string_index", None if controller_style else index), ("font", "ui\\large_ui"),
+                          ("string_index", index), ("font", "ui\\large_ui"),
                           ("color", "#FF2896FF"), ("text_x", 13), ("text_y", 4)], [])
         extra += _widget(f"{base}/{key}_spinner",
-                         [("type", "spinner"), ("left", None if wide else 3), ("top", 2), ("width", 252 if shield_look or controller_style else 206 if wide else 147),
+                         [("type", "spinner"), ("left", None if wide else 3), ("top", 2), ("width", 252 if shield_look or controller_style or bumper_style else 206 if wide else 147),
                           ("height", 20), ("flags", "pass_unhandled_to_focused_child left_right_tabs_items"),
                           ("strings", "|".join(shown for shown, _ in choices)), ("setting", setting),
                           ("values", "|".join(value for _, value in choices)), ("font", "ui\\large_ui"),
                           ("color", "#FF2896FF"), ("align", "center"), ("text_y", 4 if wide else 1),
                           ("header_bitmap", "bitmaps/arrow_sm_left"), ("footer_bitmap", "bitmaps/arrow_sm_right"),
                           ("header_bounds", "7 -13 19 -7" if wide else "7 -6 19 0"),
-                          ("footer_bounds", "7 254 19 260" if shield_look or controller_style else "7 208 19 214" if wide else "7 150 19 156")],
+                          ("footer_bounds", "7 254 19 260" if shield_look or controller_style or bumper_style else "7 208 19 214" if wide else "7 150 19 156")],
                          ['<on event="created" run="port setting load"/>'])
     # (each category's row: its label, the screen it opens, its help, and the
     # platforms it is for, as a row's: every one's when it names none)
@@ -722,7 +741,7 @@ def _controller_screen() -> list:
     base = f"{PE}/{folder}"
     rows, extra = [], []
     for key, label, choices in [("player", "PLAYER:", "P1|P2|P3|P4"),
-                                ("group", "SHOW:", "MOVEMENT / ACTIONS|COMBAT")]:
+                                ("group", "SHOW:", "MOVEMENT|COMBAT|GENERAL|COMMUNICATION|DEBUG")]:
         row = f"{base}/op_{key}"
         rows.append((row, None))
         extra += _widget(row, [("width", 512), ("height", 28), ("flags", "pass_unhandled_to_focused_child"),
@@ -743,22 +762,27 @@ def _controller_screen() -> list:
         extra += _widget(row, [("width", 512), ("height", 28), ("flags", "pass_unhandled_to_focused_child"),
                                ("bitmap", "bitmaps/option_bkds"), ("color", "#FF2896FF")],
                          ['<on event="a start" run="port controller bind"/>',
+                          '<on event="x" run="port controller clear"/>',
                           '<on event="left_mouse" run="mouse emit accept event"/>',
                           '<on event="left" run="port controller left"/>',
                           '<on event="right" run="port controller right"/>',
                           f'<child widget="{base}/pad_action"/>',
                           f'<child widget="{base}/pad_binding" x="220"/>'])
     extra += _widget(f"{base}/pad_action", [("type", "text"), ("controller", 1), ("width", 220),
-                     ("height", 22), ("font", "ui\\large_ui"), ("color", "#FF2896FF"),
+                     ("height", 22), ("font", "ui\\small_ui"), ("color", "#FF2896FF"),
                      ("text_x", 13), ("text_y", 4)], [])
     extra += _widget(f"{base}/pad_binding", [("type", "text"), ("controller", 1), ("width", 280),
                      ("height", 22), ("font", "ui\\large_ui"), ("color", "#FF2896FF"),
                      ("align", "center"), ("text_y", 4), ("text_flags", "no_focus_test")], [])
     extra += _button(f"{base}/button_defaults", 3, ['<on event="a start" run="port controller defaults"/>'])
     extra += _button(f"{base}/button_ok", 1, ['<on event="a start" run="port controller save" back="true"/>'])
-    return _screen(folder, SCREENS[folder], rows, ["port controller update"],
+    lines = _screen(folder, SCREENS[folder], rows, ["port controller update"],
                    ['<on event="created" run="port controller init"/>',
                     '<on event="deleted" run="port controller close"/>'], extra)
+
+    return [line.replace('<on event="b" back="true"/>', '<on event="b" run="port controller cancel" back="true"/>')
+            .replace('<on event="back" back="true"/>', '<on event="back" run="port controller cancel" back="true"/>')
+            for line in lines]
 
 
 def settings_files() -> dict:

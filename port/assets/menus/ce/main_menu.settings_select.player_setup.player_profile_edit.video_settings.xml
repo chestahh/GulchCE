@@ -35,10 +35,9 @@
 		<child widget="main_menu/settings_select/player_setup/player_profile_edit/video_settings/op_fov_viewmodels" x="54" y="151" platform="android"/>
 		<child widget="main_menu/settings_select/player_setup/player_profile_edit/video_settings/op_fov_viewmodels" x="54" y="229" platform="web"/>
 		<child widget="main_menu/settings_select/player_setup/player_profile_edit/video_settings/op_dynamic_lighting" x="54" y="307" platform="desktop"/>
-		<child widget="main_menu/settings_select/player_setup/player_profile_edit/video_settings/op_dynamic_lighting" x="54" y="177" platform="android"/>
 		<child widget="main_menu/settings_select/player_setup/player_profile_edit/video_settings/op_dynamic_lighting" x="54" y="255" platform="web"/>
 		<child widget="main_menu/settings_select/player_setup/player_profile_edit/video_settings/op_extra_effects" x="54" y="333" platform="desktop"/>
-		<child widget="main_menu/settings_select/player_setup/player_profile_edit/video_settings/op_extra_effects" x="54" y="203" platform="android"/>
+		<child widget="main_menu/settings_select/player_setup/player_profile_edit/video_settings/op_extra_effects" x="54" y="177" platform="android"/>
 		<child widget="main_menu/settings_select/player_setup/player_profile_edit/video_settings/op_extra_effects" x="54" y="281" platform="web"/>
 		<child widget="main_menu/settings_select/player_setup/player_profile_edit/video_settings/button_bar" y="414"/>
 	</widget>
@@ -135,7 +134,7 @@
 	</widget>
 	<widget name="main_menu/settings_select/player_setup/player_profile_edit/video_settings/fov_viewmodels_label" type="text" controller="1" width="512" height="22" string_list="main_menu/settings_select/player_setup/player_profile_edit/video_settings/labels" string_index="9" font="ui\large_ui" color="#FF2896FF" text_x="13" text_y="4">
 	</widget>
-	<widget name="main_menu/settings_select/player_setup/player_profile_edit/video_settings/op_dynamic_lighting" width="512" height="28" flags="pass_unhandled_to_focused_child" bitmap="bitmaps/option_bkds" color="#FF2896FF">
+	<widget name="main_menu/settings_select/player_setup/player_profile_edit/video_settings/op_dynamic_lighting" width="512" height="28" flags="pass_unhandled_to_focused_child" bitmap="bitmaps/option_bkds" color="#FF2896FF" platform="desktop web">
 		<on event="a" open="main_menu/settings_select/player_setup/player_profile_edit/video_settings/dynamic_lighting/dynamic_lighting_settings_screen"/>
 		<on event="start" open="main_menu/settings_select/player_setup/player_profile_edit/video_settings/dynamic_lighting/dynamic_lighting_settings_screen"/>
 		<on event="left_mouse" run="mouse emit accept event"/>

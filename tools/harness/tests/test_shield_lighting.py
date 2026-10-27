@@ -50,5 +50,5 @@ def test_menu_ownership_and_generated_layout():
                 assert help_widget.get('height') == str(spec['help_height'])
                 assert help_widget.get('string_list', '').endswith('/help_strings')
             else:
-                assert help_widget.get('height') == '60'
+                assert help_widget.get('height') == str(port_settings.SCREENS['controller_remapping']['help_height'])
                 assert 'string_list' not in help_widget.attrib

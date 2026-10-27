@@ -73,7 +73,7 @@ static void arms_at(real distance)
 static struct render_model_effect drawn(short local, long unit)
 {
 	struct render_model_effect effect = {0};
-	viewmodel_shield_apply(local, unit, 3, matrices, &effect);
+	viewmodel_shield_apply(local, unit, 3, matrices, units[unit].object.outgoing_function_values, &effect);
 	return effect;
 }
 
@@ -101,6 +101,12 @@ int main(int argc, char **argv)
 		CHECK(effect.modifier_animation.colors == units[0].object.outgoing_change_colors, "the unit's colors");
 		CHECK(effect.modifier_animation.values != units[0].object.outgoing_function_values, "a copy of its values");
 		CHECK(effect.modifier_animation.values[1] == 0.5f, "the unit's values, copied");
+		{
+			real picture_values[4] = {0.f, 0.75f, 0.f, 0.f};
+			viewmodel_shield_apply(0, 0, 3, matrices, picture_values, &effect);
+			picture_values[1] = 0.f;
+			CHECK(effect.modifier_animation.values[1] == 0.75f, "queued arms keep picture values, not tick values or temporary storage");
+		}
 		valid_modifier = 0;
 		effect = drawn(1, 0);
 		CHECK(!effect.modifier_shader, "a shader that can't modify is not used");

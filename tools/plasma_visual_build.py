@@ -128,7 +128,9 @@ try:
     main.write_text(text)
     text = backend_original.decode().replace('\r\n', '\n')
     text = 'int plasma_capture_should_capture(void);\nvoid plasma_capture_model_draw(unsigned int mask);\n' + text
-    text = text.replace('unsigned int mask = plasma_model_lighting_mask();', 'unsigned int mask = plasma_model_lighting_mask();\n\t\tplasma_capture_model_draw(mask);', 1)
+    marker = '\tentry = draw_program_get(program, immediate, &key, plasma_mask);'
+    assert text.count(marker) == 1
+    text = text.replace(marker, marker+'\n\tplasma_capture_model_draw(plasma_mask);', 1)
     text = text.replace('if (screenshot_every > 0 && device.frame % (unsigned long)screenshot_every == 0)',
                         'if (plasma_capture_should_capture())', 1)
     backend.write_text(text)

@@ -164,11 +164,21 @@ lockstep netcode was removed, set to play it): it tells the player why.
 ## GulchCE crossplay boundary
 
 Xbox and Custom Edition sessions use OpenCE network version 39, pinned to
-OpenCommunityEdition/OpenCE commit `3c7ed45e6fe2f286e8e2d175370b04d06f9e1c6e`.
+OpenCommunityEdition/OpenCE commit `22947203a52c6f4b04171eaec426b4f5059b43f4`.
 This is an explicit protocol baseline, not automatic compatibility with future
 OpenCE releases. Do not change the base version without auditing its wire format,
 simulation rules and admission behavior and testing unmodified upstream clients.
 The pinned fixture and settings-prefix check are in `tools/test_mcc_protocol.py`.
+
+The 22947203 integration was checked on Windows against official OpenCE
+build 309. Xbox Blood Gulch passed both host/client directions. Custom Edition
+Death Island passed with GulchCE hosting and with OpenCE hosting a movement
+run. An earlier CE pickup probe diverged during its forced startup teleports;
+that evidence is retained separately. MCC Mercury Falling admitted two peers
+with different package folder names and reached gameplay. Its comparator had
+only one matching gameplay second, so this is a co-op smoke check rather than
+full synchronization coverage. Public internet transport was not validated on
+this Windows host; the native/browser harness requires Unix path handling.
 
 The OpenCE 36 integration was checked on Windows against the official build
 of the pinned commit. Xbox Blood Gulch passed in both host/client directions
@@ -179,7 +189,11 @@ names and synchronized its opening sequence; the short run did not provide
 enough on-foot samples for the comparator's full drift verdict. These checks
 do not establish full campaign or public internet transport compatibility.
 
-MCC sessions use separate MCC protocol version 59. Version 59 moves the MCC
+MCC sessions use separate MCC protocol version 60. Version 60 moves MCC
+gameplay messages to 94-97 and the join envelope to 98, reserving message 93
+for OpenCE 39's optional client fire origins. The upstream protocol remains
+39 for Xbox and Custom Edition crossplay; older MCC peers are rejected.
+Version 59 moved the MCC
 capability to flag `0x08`, gameplay messages to 93-96 and the join envelope to
 97, leaving OpenCE 39's dedicated flag `0x04` and client-build message 92 intact.
 Version 58 remains reserved for the older third-person branch. Version 56 adds music gain
@@ -369,6 +383,20 @@ remote) and the mods it plays, a line each ("folder version", in the load
 order); the host keeps it printable and logs it once, and a dedicated
 server shows it in `/api/players` (`client`). A host without the message
 drops it as a kind it does not know.
+Distributed message 93 (`network_damage.c`) needs no new version either,
+as a host that does not know it drops it: a client whose players' shots
+leave from elsewhere than their units' cameras (a VR build, whose weapon
+fires from the player's hand) sends the host where from, unreliably when it
+changes and every eighth tick: an offset from the camera of no more than 0.4
+world units (a player leaning out and an arm). The host keeps it a second,
+for that machine's own players only. When none of the shooter's eyes (nor a
+vehicle's gun) had a line to a reported hit's target, the host's line of
+sight check then also looks from the hand, with the line from the eye to it
+clear (a hand through a wall does not hit) and the hand where one firing at
+the target can be: no more than 0.05 world units behind the eye along the
+line to the target, 0.2 to its side and 0.1 above it (a client cannot claim
+a hand far past a corner). Such hits are counted in the host's log, and the
+host's `network.fire_origins` (true by default) turns the hand off.
 
 `port/linux/network_format.txt` records the wire format of the current
 version (`tools/network_format.py`): `test_linux_port.py` fails when the
@@ -919,13 +947,12 @@ its name alone beside it, has its name given back as the map lists find it.
    rest is on the ground, so it lies limp again where it stops instead of
    keeping the pose of its fall in the air. A client puts its copies there, and the difference is
    drawn fading over a few ticks (`render_interpolation.c`) instead of a
-   jump. A vehicle no player drives is carried between those updates along
-   the positions the host sent, a recording's lifepod as well as a Pelican.
-   Its physics velocity swings about that path, so the carry steps from
-   one of those positions to the next, and a jump further than a step of
-   the path is left where the host put it. The host's word that it is at
-   rest stops that step, and the step is kept only for the last gap
-   between positions, so a late word does not drive it on. A client drives its own player's vehicle and sends where it is,
+   jump. A vehicle no player drives, a recording's lifepod as well as a
+   Pelican, moves toward each new position the host sends at its path's
+   speed (the last two positions' difference over the host's ticks between
+   them), and goes on along the path for a few ticks if the next is late,
+   coming back to the newest if none comes. A
+   jump further than a step of the path is left where the host put it. A client drives its own player's vehicle and sends where it is,
    which the host takes within a tolerance, as it does its own player's
    unit, and no further from an anchor (one it took, a newer once a
    second) than the vehicle moves in the client's ticks since, those no

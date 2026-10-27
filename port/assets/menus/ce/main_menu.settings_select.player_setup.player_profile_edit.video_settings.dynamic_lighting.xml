@@ -13,16 +13,16 @@
 	</widget>
 	<widget name="main_menu/settings_select/player_setup/player_profile_edit/video_settings/dynamic_lighting/options_menu" type="column_list" width="640" height="480" flags="pass_unhandled_to_focused_child up_down_tabs_children" description="main_menu/settings_select/player_setup/player_profile_edit/video_settings/dynamic_lighting/help">
 		<data input="port settings help"/>
-		<child widget="main_menu/settings_select/player_setup/player_profile_edit/video_settings/dynamic_lighting/op_plasma_lighting" x="54" y="73"/>
-		<child widget="main_menu/settings_select/player_setup/player_profile_edit/video_settings/dynamic_lighting/op_muzzle_lighting" x="54" y="101"/>
-		<child widget="main_menu/settings_select/player_setup/player_profile_edit/video_settings/dynamic_lighting/op_jackal_shield_lighting" x="54" y="129"/>
-		<child widget="main_menu/settings_select/player_setup/player_profile_edit/video_settings/dynamic_lighting/op_covenant_shield_lighting" x="54" y="157"/>
-		<child widget="main_menu/settings_select/player_setup/player_profile_edit/video_settings/dynamic_lighting/op_fuel_rod_lighting" x="54" y="185"/>
-		<child widget="main_menu/settings_select/player_setup/player_profile_edit/video_settings/dynamic_lighting/op_ammo_counter_lighting" x="54" y="213"/>
-		<child widget="main_menu/settings_select/player_setup/player_profile_edit/video_settings/dynamic_lighting/op_needler_lighting" x="54" y="241"/>
-		<child widget="main_menu/settings_select/player_setup/player_profile_edit/video_settings/dynamic_lighting/op_plasma_occlusion" x="54" y="269"/>
-		<child widget="main_menu/settings_select/player_setup/player_profile_edit/video_settings/dynamic_lighting/op_shield_glow" x="54" y="297"/>
-		<child widget="main_menu/settings_select/player_setup/player_profile_edit/video_settings/dynamic_lighting/op_shield_glow_intensity" x="54" y="325"/>
+		<child widget="main_menu/settings_select/player_setup/player_profile_edit/video_settings/dynamic_lighting/op_plasma_lighting" x="54" y="73" platform="desktop web"/>
+		<child widget="main_menu/settings_select/player_setup/player_profile_edit/video_settings/dynamic_lighting/op_muzzle_lighting" x="54" y="101" platform="desktop web"/>
+		<child widget="main_menu/settings_select/player_setup/player_profile_edit/video_settings/dynamic_lighting/op_jackal_shield_lighting" x="54" y="129" platform="desktop web"/>
+		<child widget="main_menu/settings_select/player_setup/player_profile_edit/video_settings/dynamic_lighting/op_covenant_shield_lighting" x="54" y="157" platform="desktop web"/>
+		<child widget="main_menu/settings_select/player_setup/player_profile_edit/video_settings/dynamic_lighting/op_fuel_rod_lighting" x="54" y="185" platform="desktop web"/>
+		<child widget="main_menu/settings_select/player_setup/player_profile_edit/video_settings/dynamic_lighting/op_ammo_counter_lighting" x="54" y="213" platform="desktop web"/>
+		<child widget="main_menu/settings_select/player_setup/player_profile_edit/video_settings/dynamic_lighting/op_needler_lighting" x="54" y="241" platform="desktop web"/>
+		<child widget="main_menu/settings_select/player_setup/player_profile_edit/video_settings/dynamic_lighting/op_plasma_occlusion" x="54" y="269" platform="desktop web"/>
+		<child widget="main_menu/settings_select/player_setup/player_profile_edit/video_settings/dynamic_lighting/op_shield_glow" x="54" y="297" platform="desktop web"/>
+		<child widget="main_menu/settings_select/player_setup/player_profile_edit/video_settings/dynamic_lighting/op_shield_glow_intensity" x="54" y="325" platform="desktop web"/>
 		<child widget="main_menu/settings_select/player_setup/player_profile_edit/video_settings/dynamic_lighting/button_bar" y="414"/>
 	</widget>
 	<widget name="main_menu/settings_select/player_setup/player_profile_edit/video_settings/dynamic_lighting/button_bar" type="column_list" width="640" height="28" flags="pass_unhandled_to_focused_child left_right_tabs_items">
@@ -30,7 +30,7 @@
 		<child widget="main_menu/settings_select/player_setup/player_profile_edit/video_settings/dynamic_lighting/button_ok" x="380" y="1"/>
 		<child widget="common_button_cancel" x="510" y="1"/>
 	</widget>
-	<widget name="main_menu/settings_select/player_setup/player_profile_edit/video_settings/dynamic_lighting/op_plasma_lighting" width="512" height="28" flags="pass_unhandled_to_focused_child" bitmap="bitmaps/option_bkds" color="#FF2896FF">
+	<widget name="main_menu/settings_select/player_setup/player_profile_edit/video_settings/dynamic_lighting/op_plasma_lighting" width="512" height="28" flags="pass_unhandled_to_focused_child" bitmap="bitmaps/option_bkds" color="#FF2896FF" platform="desktop web">
 		<child widget="main_menu/settings_select/player_setup/player_profile_edit/video_settings/dynamic_lighting/plasma_lighting_label"/>
 		<child widget="main_menu/settings_select/player_setup/player_profile_edit/video_settings/dynamic_lighting/plasma_lighting_spinner" x="320" y="1"/>
 	</widget>
@@ -39,7 +39,7 @@
 	<widget name="main_menu/settings_select/player_setup/player_profile_edit/video_settings/dynamic_lighting/plasma_lighting_spinner" type="spinner" left="3" top="2" width="147" height="20" flags="pass_unhandled_to_focused_child left_right_tabs_items" strings="ON|OFF" setting="display.plasma_lighting" values="true|false" font="ui\large_ui" color="#FF2896FF" align="center" text_y="1" header_bitmap="bitmaps/arrow_sm_left" footer_bitmap="bitmaps/arrow_sm_right" header_bounds="7 -6 19 0" footer_bounds="7 150 19 156">
 		<on event="created" run="port setting load"/>
 	</widget>
-	<widget name="main_menu/settings_select/player_setup/player_profile_edit/video_settings/dynamic_lighting/op_muzzle_lighting" width="512" height="28" flags="pass_unhandled_to_focused_child" bitmap="bitmaps/option_bkds" color="#FF2896FF">
+	<widget name="main_menu/settings_select/player_setup/player_profile_edit/video_settings/dynamic_lighting/op_muzzle_lighting" width="512" height="28" flags="pass_unhandled_to_focused_child" bitmap="bitmaps/option_bkds" color="#FF2896FF" platform="desktop web">
 		<child widget="main_menu/settings_select/player_setup/player_profile_edit/video_settings/dynamic_lighting/muzzle_lighting_label"/>
 		<child widget="main_menu/settings_select/player_setup/player_profile_edit/video_settings/dynamic_lighting/muzzle_lighting_spinner" x="320" y="1"/>
 	</widget>
@@ -48,7 +48,7 @@
 	<widget name="main_menu/settings_select/player_setup/player_profile_edit/video_settings/dynamic_lighting/muzzle_lighting_spinner" type="spinner" left="3" top="2" width="147" height="20" flags="pass_unhandled_to_focused_child left_right_tabs_items" strings="ON|OFF" setting="display.muzzle_lighting" values="true|false" font="ui\large_ui" color="#FF2896FF" align="center" text_y="1" header_bitmap="bitmaps/arrow_sm_left" footer_bitmap="bitmaps/arrow_sm_right" header_bounds="7 -6 19 0" footer_bounds="7 150 19 156">
 		<on event="created" run="port setting load"/>
 	</widget>
-	<widget name="main_menu/settings_select/player_setup/player_profile_edit/video_settings/dynamic_lighting/op_jackal_shield_lighting" width="512" height="28" flags="pass_unhandled_to_focused_child" bitmap="bitmaps/option_bkds" color="#FF2896FF">
+	<widget name="main_menu/settings_select/player_setup/player_profile_edit/video_settings/dynamic_lighting/op_jackal_shield_lighting" width="512" height="28" flags="pass_unhandled_to_focused_child" bitmap="bitmaps/option_bkds" color="#FF2896FF" platform="desktop web">
 		<child widget="main_menu/settings_select/player_setup/player_profile_edit/video_settings/dynamic_lighting/jackal_shield_lighting_label"/>
 		<child widget="main_menu/settings_select/player_setup/player_profile_edit/video_settings/dynamic_lighting/jackal_shield_lighting_spinner" x="320" y="1"/>
 	</widget>
@@ -57,7 +57,7 @@
 	<widget name="main_menu/settings_select/player_setup/player_profile_edit/video_settings/dynamic_lighting/jackal_shield_lighting_spinner" type="spinner" left="3" top="2" width="147" height="20" flags="pass_unhandled_to_focused_child left_right_tabs_items" strings="ON|OFF" setting="display.jackal_shield_lighting" values="true|false" font="ui\large_ui" color="#FF2896FF" align="center" text_y="1" header_bitmap="bitmaps/arrow_sm_left" footer_bitmap="bitmaps/arrow_sm_right" header_bounds="7 -6 19 0" footer_bounds="7 150 19 156">
 		<on event="created" run="port setting load"/>
 	</widget>
-	<widget name="main_menu/settings_select/player_setup/player_profile_edit/video_settings/dynamic_lighting/op_covenant_shield_lighting" width="512" height="28" flags="pass_unhandled_to_focused_child" bitmap="bitmaps/option_bkds" color="#FF2896FF">
+	<widget name="main_menu/settings_select/player_setup/player_profile_edit/video_settings/dynamic_lighting/op_covenant_shield_lighting" width="512" height="28" flags="pass_unhandled_to_focused_child" bitmap="bitmaps/option_bkds" color="#FF2896FF" platform="desktop web">
 		<child widget="main_menu/settings_select/player_setup/player_profile_edit/video_settings/dynamic_lighting/covenant_shield_lighting_label"/>
 		<child widget="main_menu/settings_select/player_setup/player_profile_edit/video_settings/dynamic_lighting/covenant_shield_lighting_spinner" x="320" y="1"/>
 	</widget>
@@ -66,7 +66,7 @@
 	<widget name="main_menu/settings_select/player_setup/player_profile_edit/video_settings/dynamic_lighting/covenant_shield_lighting_spinner" type="spinner" left="3" top="2" width="147" height="20" flags="pass_unhandled_to_focused_child left_right_tabs_items" strings="ON|OFF" setting="display.covenant_shield_lighting" values="true|false" font="ui\large_ui" color="#FF2896FF" align="center" text_y="1" header_bitmap="bitmaps/arrow_sm_left" footer_bitmap="bitmaps/arrow_sm_right" header_bounds="7 -6 19 0" footer_bounds="7 150 19 156">
 		<on event="created" run="port setting load"/>
 	</widget>
-	<widget name="main_menu/settings_select/player_setup/player_profile_edit/video_settings/dynamic_lighting/op_fuel_rod_lighting" width="512" height="28" flags="pass_unhandled_to_focused_child" bitmap="bitmaps/option_bkds" color="#FF2896FF">
+	<widget name="main_menu/settings_select/player_setup/player_profile_edit/video_settings/dynamic_lighting/op_fuel_rod_lighting" width="512" height="28" flags="pass_unhandled_to_focused_child" bitmap="bitmaps/option_bkds" color="#FF2896FF" platform="desktop web">
 		<child widget="main_menu/settings_select/player_setup/player_profile_edit/video_settings/dynamic_lighting/fuel_rod_lighting_label"/>
 		<child widget="main_menu/settings_select/player_setup/player_profile_edit/video_settings/dynamic_lighting/fuel_rod_lighting_spinner" x="320" y="1"/>
 	</widget>
@@ -75,7 +75,7 @@
 	<widget name="main_menu/settings_select/player_setup/player_profile_edit/video_settings/dynamic_lighting/fuel_rod_lighting_spinner" type="spinner" left="3" top="2" width="147" height="20" flags="pass_unhandled_to_focused_child left_right_tabs_items" strings="ON|OFF" setting="display.fuel_rod_lighting" values="true|false" font="ui\large_ui" color="#FF2896FF" align="center" text_y="1" header_bitmap="bitmaps/arrow_sm_left" footer_bitmap="bitmaps/arrow_sm_right" header_bounds="7 -6 19 0" footer_bounds="7 150 19 156">
 		<on event="created" run="port setting load"/>
 	</widget>
-	<widget name="main_menu/settings_select/player_setup/player_profile_edit/video_settings/dynamic_lighting/op_ammo_counter_lighting" width="512" height="28" flags="pass_unhandled_to_focused_child" bitmap="bitmaps/option_bkds" color="#FF2896FF">
+	<widget name="main_menu/settings_select/player_setup/player_profile_edit/video_settings/dynamic_lighting/op_ammo_counter_lighting" width="512" height="28" flags="pass_unhandled_to_focused_child" bitmap="bitmaps/option_bkds" color="#FF2896FF" platform="desktop web">
 		<child widget="main_menu/settings_select/player_setup/player_profile_edit/video_settings/dynamic_lighting/ammo_counter_lighting_label"/>
 		<child widget="main_menu/settings_select/player_setup/player_profile_edit/video_settings/dynamic_lighting/ammo_counter_lighting_spinner" x="320" y="1"/>
 	</widget>
@@ -84,7 +84,7 @@
 	<widget name="main_menu/settings_select/player_setup/player_profile_edit/video_settings/dynamic_lighting/ammo_counter_lighting_spinner" type="spinner" left="3" top="2" width="147" height="20" flags="pass_unhandled_to_focused_child left_right_tabs_items" strings="ON|OFF" setting="display.ammo_counter_lighting" values="true|false" font="ui\large_ui" color="#FF2896FF" align="center" text_y="1" header_bitmap="bitmaps/arrow_sm_left" footer_bitmap="bitmaps/arrow_sm_right" header_bounds="7 -6 19 0" footer_bounds="7 150 19 156">
 		<on event="created" run="port setting load"/>
 	</widget>
-	<widget name="main_menu/settings_select/player_setup/player_profile_edit/video_settings/dynamic_lighting/op_needler_lighting" width="512" height="28" flags="pass_unhandled_to_focused_child" bitmap="bitmaps/option_bkds" color="#FF2896FF">
+	<widget name="main_menu/settings_select/player_setup/player_profile_edit/video_settings/dynamic_lighting/op_needler_lighting" width="512" height="28" flags="pass_unhandled_to_focused_child" bitmap="bitmaps/option_bkds" color="#FF2896FF" platform="desktop web">
 		<child widget="main_menu/settings_select/player_setup/player_profile_edit/video_settings/dynamic_lighting/needler_lighting_label"/>
 		<child widget="main_menu/settings_select/player_setup/player_profile_edit/video_settings/dynamic_lighting/needler_lighting_spinner" x="320" y="1"/>
 	</widget>
@@ -93,7 +93,7 @@
 	<widget name="main_menu/settings_select/player_setup/player_profile_edit/video_settings/dynamic_lighting/needler_lighting_spinner" type="spinner" left="3" top="2" width="147" height="20" flags="pass_unhandled_to_focused_child left_right_tabs_items" strings="ON|OFF" setting="display.needler_lighting" values="true|false" font="ui\large_ui" color="#FF2896FF" align="center" text_y="1" header_bitmap="bitmaps/arrow_sm_left" footer_bitmap="bitmaps/arrow_sm_right" header_bounds="7 -6 19 0" footer_bounds="7 150 19 156">
 		<on event="created" run="port setting load"/>
 	</widget>
-	<widget name="main_menu/settings_select/player_setup/player_profile_edit/video_settings/dynamic_lighting/op_plasma_occlusion" width="512" height="28" flags="pass_unhandled_to_focused_child" bitmap="bitmaps/option_bkds" color="#FF2896FF">
+	<widget name="main_menu/settings_select/player_setup/player_profile_edit/video_settings/dynamic_lighting/op_plasma_occlusion" width="512" height="28" flags="pass_unhandled_to_focused_child" bitmap="bitmaps/option_bkds" color="#FF2896FF" platform="desktop web">
 		<child widget="main_menu/settings_select/player_setup/player_profile_edit/video_settings/dynamic_lighting/plasma_occlusion_label"/>
 		<child widget="main_menu/settings_select/player_setup/player_profile_edit/video_settings/dynamic_lighting/plasma_occlusion_spinner" x="320" y="1"/>
 	</widget>
@@ -102,7 +102,7 @@
 	<widget name="main_menu/settings_select/player_setup/player_profile_edit/video_settings/dynamic_lighting/plasma_occlusion_spinner" type="spinner" left="3" top="2" width="147" height="20" flags="pass_unhandled_to_focused_child left_right_tabs_items" strings="ON|OFF" setting="display.plasma_occlusion" values="true|false" font="ui\large_ui" color="#FF2896FF" align="center" text_y="1" header_bitmap="bitmaps/arrow_sm_left" footer_bitmap="bitmaps/arrow_sm_right" header_bounds="7 -6 19 0" footer_bounds="7 150 19 156">
 		<on event="created" run="port setting load"/>
 	</widget>
-	<widget name="main_menu/settings_select/player_setup/player_profile_edit/video_settings/dynamic_lighting/op_shield_glow" width="512" height="28" flags="pass_unhandled_to_focused_child" bitmap="bitmaps/option_bkds" color="#FF2896FF">
+	<widget name="main_menu/settings_select/player_setup/player_profile_edit/video_settings/dynamic_lighting/op_shield_glow" width="512" height="28" flags="pass_unhandled_to_focused_child" bitmap="bitmaps/option_bkds" color="#FF2896FF" platform="desktop web">
 		<child widget="main_menu/settings_select/player_setup/player_profile_edit/video_settings/dynamic_lighting/shield_glow_label"/>
 		<child widget="main_menu/settings_select/player_setup/player_profile_edit/video_settings/dynamic_lighting/shield_glow_spinner" x="320" y="1"/>
 	</widget>
@@ -111,7 +111,7 @@
 	<widget name="main_menu/settings_select/player_setup/player_profile_edit/video_settings/dynamic_lighting/shield_glow_spinner" type="spinner" left="3" top="2" width="147" height="20" flags="pass_unhandled_to_focused_child left_right_tabs_items" strings="ON|OFF" setting="display.shield_glow" values="true|false" font="ui\large_ui" color="#FF2896FF" align="center" text_y="1" header_bitmap="bitmaps/arrow_sm_left" footer_bitmap="bitmaps/arrow_sm_right" header_bounds="7 -6 19 0" footer_bounds="7 150 19 156">
 		<on event="created" run="port setting load"/>
 	</widget>
-	<widget name="main_menu/settings_select/player_setup/player_profile_edit/video_settings/dynamic_lighting/op_shield_glow_intensity" width="512" height="28" flags="pass_unhandled_to_focused_child" bitmap="bitmaps/option_bkds" color="#FF2896FF">
+	<widget name="main_menu/settings_select/player_setup/player_profile_edit/video_settings/dynamic_lighting/op_shield_glow_intensity" width="512" height="28" flags="pass_unhandled_to_focused_child" bitmap="bitmaps/option_bkds" color="#FF2896FF" platform="desktop web">
 		<child widget="main_menu/settings_select/player_setup/player_profile_edit/video_settings/dynamic_lighting/shield_glow_intensity_label"/>
 		<child widget="main_menu/settings_select/player_setup/player_profile_edit/video_settings/dynamic_lighting/shield_glow_intensity_spinner" x="320" y="1"/>
 	</widget>

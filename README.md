@@ -221,6 +221,10 @@ The game retains the original look and feel as it did on the Xbox by default. Th
 | OVERSHIELD | The overshield's own color, rising up the body as it charges | Off |
 | PASSENGER THIRD PERSON | Third-person view for Warthog and Scorpion passengers (Campaign-only) | Off |
 
+Android builds omit the optional Dynamic Lighting renderer, including Shield
+Glow, after reports of rendering failures across devices. Stock lighting and
+effects remain. See [Android lighting availability](port/android/README.md#lighting-availability).
+
 
 ## How to build the game
 

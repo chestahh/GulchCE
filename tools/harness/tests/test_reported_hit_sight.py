@@ -1,4 +1,5 @@
-"""Host line-of-sight admission and attached-hit consumption, from production code."""
+"""Host line-of-sight admission, hand fallback and attached-hit consumption, from production code."""
+import re
 import sys
 from pathlib import Path
 
@@ -7,15 +8,21 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from harness import CHECK_FAILED, build, constant, enum_with, function, mutated, read, run, structure
 
-CASES = ['clear', 'blocked', 'impact', 'mounted', 'missing', 'window', 'budget', 'attached']
+CASES = ['clear', 'blocked', 'impact', 'mounted', 'missing', 'window', 'budget', 'attached',
+         'hand', 'hand_shape', 'eye_priority']
 CONTROLS = [
     ('return !collision_test_line(flags, from, centre, NONE, &collision) ||',
      'return TRUE ||', 'blocked'),
     ('!collision_test_line(flags, impact, centre, NONE, &collision)',
      'TRUE', 'impact'),
-    ('trail_point->mounted && !collision_test_line(flags, &eye, &trail_point->muzzle, NONE, &collision)',
-     'trail_point->mounted', 'mounted'),
+    ('!collision_test_line(flags, &eye, &trail_point->muzzle, NONE, &collision)',
+     'TRUE', 'mounted'),
     ('stuck->spent = TRUE;', 'stuck->spent = FALSE;', 'attached'),
+    ('pass == 1 && !distributed_fire_origins_accepted()', 'FALSE', 'hand'),
+    ('pass == 0 || distributed_fire_origin_shape(&eye, &trail_point->muzzle, centre)',
+     'TRUE', 'hand_shape'),
+    ('damage_hand_reports++;', 'damage_hand_reports += 0;', 'hand'),
+    ('for (pass = 0; pass < 2; pass++)', 'for (pass = 1; pass >= 0; pass--)', 'eye_priority'),
 ]
 
 
@@ -23,10 +30,12 @@ def generated(fault=None):
     source = read('port/linux/game/network_damage.c')
     config = '#define TICKS_PER_SECOND %d\n' % constant(read('source/cseries/cseries.h'), 'TICKS_PER_SECOND')
     config += enum_with(source, 'REPORT_LINE_OF_SIGHT_TICKS =') + '\n'
+    config += '\n'.join(re.findall(r'^#define FIRE_ORIGIN_\w+ [^\n]+', source, re.M)) + '\n'
     for name in ['damage_reach', 'damage_trail_point', 'damage_stuck_projectile']:
         config += structure(source.replace('static struct ', 'struct '), name).rsplit('}', 1)[0] + '};\n'
     code = '\n'.join(function(source, name) for name in [
         'distributed_distance_squared', 'distributed_report_sight_clear',
+        'distributed_fire_origins_accepted', 'distributed_fire_origin_shape',
         'distributed_report_line_of_sight', 'distributed_stuck_detonation'])
     if fault:
         code = mutated(code, *fault)
