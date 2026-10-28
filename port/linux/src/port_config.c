@@ -505,6 +505,9 @@ static const struct config_setting config_settings[] =
 		"the shortest route; lanes spreads attackers across side routes." },
 	{ "bots.vehicles", _config_boolean, "false", "HALO_BOT_VEHICLES", _environment_value, _platform_all,
 		"Let enhanced bots enter, drive and use vehicles and turrets." },
+	{ "bots.thread", _config_boolean, "false", "HALO_BOT_THREAD", _environment_value, _platform_all,
+		"Run enhanced bots' path searches on a snapshot worker. Read at map\n"
+		"load; off by default. Fixed-tick benchmarks always search synchronously." },
 	{ "bots.count", _config_integer, "0", "HALO_BOTS", _environment_value, _platform_all,
 		"Computer players (bots): 0 to 63. Local Slayer by default; bots.enhanced\n"
 		"also allows CTF/King, and bots.network enables host-controlled network\n"

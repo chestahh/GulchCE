@@ -393,8 +393,12 @@ throw grenades and pick up better weapons, as well as `bots.skill` lets
 them, and walk the paths that the campaign's AI finds on the maps' walkable
 surfaces (`game/bots.c`). These remain the defaults, including Slayer-derived
 SWAT, Infection and Gun Game. Optional `bots.enhanced` adds CTF/King goals,
-team roles, vantage points and powerup choices; `bots.routes` selects direct
-paths or side lanes, and `bots.vehicles` enables ground vehicles and turrets.
+team roles, vantage points, skill-based aiming, powerup claims and Infection
+goals. Bots can plan through teleporters and climbable ladders; `bots.routes`
+selects direct paths or side lanes, and `bots.vehicles` enables ground vehicles
+and turrets, with passenger waits, flipping and vehicle-width obstacle learning.
+The optional `bots.thread` path worker uses private snapshots; it defaults off
+and fixed-tick benchmarks always use synchronous searches.
 Enhanced policy takes effect at map load. `bots.network`, set before creating
 the host, permits host-controlled bots in system link and internet games.
 The CE menus expose these settings at **Settings > Network > Bots**, with
@@ -553,6 +557,7 @@ the setting for one start of the game. It has priority over the file.
 | `bots.network` | `false` | `HALO_BOTS_NETWORK` | Host bots through ordinary player replication. Read when creating the host; reserves 63 machine IDs only when enabled. |
 | `bots.routes` | `"direct"` | `HALO_BOT_ROUTES` | Enhanced bot routes: `direct`, `lanes` or `mixed`; unreadable/unreachable routes fall back to the base pathfinder. |
 | `bots.vehicles` | `false` | `HALO_BOT_VEHICLES` | Enhanced ground-vehicle and turret use through ordinary controls; no aircraft navigation. |
+| `bots.thread` | `false` | `HALO_BOT_THREAD` | Optional snapshot path worker for enhanced bots. Read at map load; fixed-tick benchmarks remain synchronous. |
 | `android.cheat_menu` | `false` | `HALO_ANDROID_CHEAT_MENU` | Android: expose Cheats in touch Options during offline gameplay only. |
 | `bots.count` | `0` | `HALO_BOTS` | Computer players: `0` to `63` join the lobby as room permits. Local Slayer by default; `bots.enhanced` adds CTF/King and `bots.network` allows network hosts. `0`: none, as in the stock game. Refer to "Bots". |
 | `bots.skill` | `"normal"` | `HALO_BOT_SKILL` | How well the bots play: `"easy"`, `"normal"`, `"heroic"` or `"legendary"`: how soon they react, how far and how wide they see, how large their aim error is and how fast it settles, how fast they turn. |

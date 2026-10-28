@@ -140,6 +140,13 @@ items remain ordinary game objects; they are not undone by closing the UI.
 
 ## Why the shared hooks are needed
 
+- Optional background traversal needs the path module's private graph
+  routines without its live profiling/debug writes. `bots_path_find_snapshot`
+  is an additive entry point in `source/ai/path.c`; the original
+  `path_state_find` is unchanged. Only `bots_worker.inl` calls it, with private
+  walkability and a snapshot of broken surfaces. This one hook cannot live
+  solely in the feature module because traversal is private to `path.c`.
+  Xbox, CE and MCC keep their existing graph loading and ownership paths.
 - CTF flag/carrier and King hill geometry are private to their engine
   modules. The `game_engine_ctf_flag_state`, `game_engine_king_hill` and
   `game_engine_king_point_on_hill` accessors expose read-only state to
@@ -177,6 +184,8 @@ design references below; this is not a wholesale cherry-pick.
 | 63-bot capacity and live controls | **thelinkin3000**'s `bots.h`, `overlay_menu.c` and `network_server_manager.c` at the pinned reference above, built on **BirchWoodGod**'s OpenCE/Vita bots. GulchCE adapts capacity and join/quit behavior into feature-owned controls with generated CE menus, explicit ownership and delayed identity reuse. |
 | Gyro settings | **thelinkin3000**, [29638d60](https://github.com/thelinkin3000/halo-ce-universal/commit/29638d603d90283e16f95b2ac78d1ab99639912a), as the settings/zoom-mode reference. Built on **MrBruh**'s existing OpenCE Android controls (`fc610044`), preserving their legacy behavior. |
 | Android cheat menu | **thelinkin3000**, [406f793f](https://github.com/thelinkin3000/halo-ce-universal/commit/406f793f4c08751f854a3615ed244ea3b1f90b88), whose overlay credits **hardran3**'s **OpenCE-Ultrahand** and **HaloDrones** packages. GulchCE uses a new small typed Android dialog/queue and existing cheat APIs; the fork's general console and renderer overlay are not imported. |
+| Navigation, richer vehicles, aiming, powerups and Infection | Focused adaptations from **thelinkin3000**'s `bots.c` at `18a94774`, retaining its credit to **BirchWoodGod**'s Vita navigation, vehicles and powerups (GPL-3.0-only). SWAT/Infection and aiming rules are the fork's additions on that base. The snapshot worker is a separate implementation of the optional worker capability. |
+| Touch editor and edge handling | **thelinkin3000**, [d119125f](https://github.com/thelinkin3000/halo-ce-universal/commit/d119125f) (edge controls, button aim, version-4 layout and toolbar), [62824171](https://github.com/thelinkin3000/halo-ce-universal/commit/62824171) (scrolling), and the earlier three/four-finger gesture, built on **MrBruh**'s OpenCE Android controls. The gesture opens GulchCE's existing offline cheat dialog. |
 
 Code credits belong here and in player-facing commit notes, not in the
 art-only `AUTHORS.md`. Release packaging includes the retained GPL text and
@@ -189,35 +198,63 @@ This source audit compares the original `d92cc933` reference and the fork's
 (28 October 2026), with GulchCE's combined implementation. The 90 commits
 between those references leave the bot core and cheat-entry list unchanged,
 but add touch-layout/editor changes and replay features. It does not claim full
-behavioral parity with the fork. The capacity, menus and remaining cheat
-actions requested in this follow-up are implemented; other differences
-are recorded explicitly below rather than hidden behind an "enhanced" label.
+behavioral parity with the fork. The bot/touch follow-up adapts the remaining
+capabilities below while retaining GulchCE's defaults and engine interfaces.
 
 | Reference capability | GulchCE disposition |
 | --- | --- |
 | 63 bots, names and host-only network actions | Capacity restored; ordinary protocol-39 player records/actions retained. Lobby limits still apply. |
-| Live add/drop by team; difficulty, routes and vehicles in a menu | Implemented through CE settings and Manage Current Bots. The fork's renderer overlay and configurable three/four-finger gesture are not imported. |
+| Live add/drop by team; difficulty, routes and vehicles in a menu | Implemented through CE settings and Manage Current Bots. The three/four-finger gesture opens the Android cheat dialog when enabled offline; the general renderer overlay remains separate. |
 | Nine cheat switches and weapon/powerup/vehicle spawns | All exposed by the Android dialog, plus the earlier camouflage action. Offline-only permission remains intentional. |
 | Explicit gyro modes, per-axis sensitivity and inversion | Adapted; the default Touch Settings mode additionally preserves the user's earlier saved gyro settings. |
 | Roles, lanes, vantage choices, CTF/King goals and ground vehicles | Focused adaptation already present, not an import of the fork's complete bot core. Vehicles stay off by default, unlike the fork's enabled default. |
-| Teleporter routing/shortcuts, ladder routing and learned navigation obstacles | Omitted from the earlier adaptation; GulchCE still uses its existing path core. These require separate feature-owned navigation work and map coverage. |
-| Detailed vehicle weighting, passenger pickup/waits, flipping, vehicle-width obstacle learning and turret arc decisions | Only the simpler seat reservation/ground driving/turret controls were adapted. These richer behaviors remain omitted. |
-| Skill-dependent head/feet aim, SWAT aim, objective-target combat priority, Infection-specific goals | Not adapted; existing combat and Slayer-derived rules remain. Objective movement is not equivalent to these combat decisions. |
-| Detailed powerup claims, skill thresholds, avoidance and shared scan cache | GulchCE has simpler powerup scoring; the full reference behavior remains omitted. |
-| Optional helper-thread pathfinding | Not imported; existing bounded synchronous searches remain. No performance equivalence is claimed. |
-| New touch edge-zone handling and optional held-button aim suppression | Not present in GulchCE. The fork's [d119125f](https://github.com/thelinkin3000/halo-ce-universal/commit/d119125f) accepts a drawn control in Android's edge-gesture zone and adds a saved switch for whether a held button also aims. These are follow-up touch improvements, beyond the original gyro adaptation. |
-| Movable Options button and centered layout-editor Export/Import/Save | Not adapted. GulchCE preserves its existing toolbar positions and version-3 layout format; the fork adds version 4 and validates new saved fields. |
-| Scrollable Android General settings | The fork's [62824171](https://github.com/thelinkin3000/halo-ce-universal/commit/62824171) makes its expanded General panel accessible on short/portrait displays. GulchCE retains its smaller existing panel; its cheat dialog already scrolls. |
+| Teleporter routing/shortcuts, ladder routing and learned navigation obstacles | `bots_navigation.inl` adds bounded link discovery, measured shortcuts, disconnected-floor links, reservations, cooldowns and ordinary climbing controls around the existing path core. |
+| Detailed vehicle weighting, passenger pickup/waits, flipping, vehicle-width obstacle learning and turret arc decisions | `bots_vehicles.c` adds these choices, charged turret fire, injury escape and combat driving. Entry/exit/flipping use ordinary player actions; the engine still decides whether the action is legal. |
+| Skill-dependent head/feet aim, SWAT aim, objective-target combat priority, Infection-specific goals | `enhanced_bots.c` and `bots_infection.inl` add stable aim choices, carrier/hill target weighting, zombie pursuit/melee and human regrouping/retreat goals. Infection does not select sniper vantage points. |
+| Detailed powerup claims, skill thresholds, avoidance and shared scan cache | `bots_powerups.inl` shares a bounded once-per-second scan, resolves claims by distance and bot order, and uses the existing unreachable-item memory and pickup lifecycle. |
+| Optional helper-thread pathfinding | `bots_worker.inl` provides three snapshot jobs, stale-answer rejection and joined cleanup. `bots.thread` is off by default and exposed in the bot menu. No performance equivalence or measured speedup is claimed. |
+| New touch edge-zone handling and optional held-button aim suppression | Adapted. Existing held-button aiming remains the default. Empty edge space retains Android gestures. |
+| Movable Options button and centered layout-editor Export/Import/Save | Adapted with layout version 4; versions 1–3 still load, and new coordinates are validated and rescaled. |
+| Scrollable Android General settings | Adapted with the expanded settings inside a scroll view. |
 | General overlay console, custom TOML commands, HUD/debug and game-speed controls | Outside the requested bot/Android-cheat UI scope; not imported. |
 | Replay recording, Theater and playback controls added after d92cc933 | A separate feature, not part of this bot/Android-cheat completion. Not imported. |
 
-Against the original reference, the overlay gesture was the main remaining
-UI difference in `TouchControls.java`. The later reference adds the touch
-changes listed above; the retained legacy gyro mode is deliberate.
-A source comparison cannot establish touch feel or
-device-specific sensor behavior. Future navigation/vehicle adaptations
-should retain these isolation and attribution boundaries and measure their
-cost at 63 bots before adding more work to each tick.
+The retained legacy gyro mode and disabled vehicle/worker defaults are
+deliberate. Source comparison cannot establish touch feel or device-specific
+sensor behavior; runtime evidence is recorded separately below.
+
+## Following an enhanced route
+
+With Enhanced Bots enabled, `bots_choose_goal` selects the host's objective
+or an item, then `bots_search` uses the existing path graph. Read
+[`bots_navigation.inl`](../../port/linux/game/bots_navigation.inl)'s
+`bots_navigation_answer`, `bots_navigation_query` and `bots_navigation_follow`
+next. For example, a Blood Gulch bot measures a teleporter's entrance and
+exit against its ordinary walk, accepts only a route at most 80% as long
+and at least 15 units shorter, walks onto the entrance, then detects the
+ordinary engine teleport and searches from the exit. Ladder links connect
+otherwise disconnected floors and finish with facing, forward and jump
+controls. There are at most 64 links and two reservations per link.
+
+[`bots_worker.inl`](../../port/linux/game/bots_worker.inl) optionally runs
+only graph traversal on one worker. Submission snapshots walkability and
+breakage; event signals transfer job ownership. Completion rejects changed
+units, goals, link phases, teleports or answers older than one second.
+Obstacle queries and path smoothing remain on the game thread. Disposal
+joins the worker before releasing feature graphs; scenario geometry remains
+loaded until the later scenario unload. Allocation/start failures fall back
+to synchronous searches. Fixed-tick benchmarks also remain synchronous.
+
+[`bots_vehicles.c`](../../port/linux/game/bots_vehicles.c)'s
+`bots_vehicle_goal` weighs seats and `bots_vehicle_action` drives, waits,
+fires or requests exit. Obstacle learning closes a separate vehicle graph;
+it never closes biped routes merely because a vehicle is too wide.
+[`bots_infection.inl`](../../port/linux/game/bots_infection.inl) shares a
+once-per-second role snapshot; [`bots_powerups.inl`](../../port/linux/game/bots_powerups.inl)
+shares item discovery but keeps claims and timeouts per bot. Map disposal,
+death and respawn clear their respective ownership. Only the host chooses
+actions; clients consume the existing records. Protocol versions and
+Xbox/CE/MCC map namespaces are unchanged.
 
 ## Checks and limits
 

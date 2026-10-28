@@ -22,6 +22,7 @@ HALO_BOT_ROLES=0 disables roles and vantage choices for diagnostic runs. */
 #include "items/weapons.h"
 #include "items/weapon_definitions.h"
 #include "networking/network_game_globals.h"
+#include "infection.h"
 #include "tag_files/tag_groups.h"
 #include "tag_files/tag_files.h"
 
@@ -161,7 +162,7 @@ the hill; a CTF defender but with a long one, over its stand; a middle one
 a roamer's alone) */
 static short bots_tactics_weapon_wants(struct bots_tactics_bot const *state, short precision)
 {
-	if (precision == _bots_precision_none || bots_tactics.game == game_engine_king)
+	if (precision == _bots_precision_none || bots_tactics.game == game_engine_king || infection_enabled())
 	{
 		return _bots_precision_none;
 	}

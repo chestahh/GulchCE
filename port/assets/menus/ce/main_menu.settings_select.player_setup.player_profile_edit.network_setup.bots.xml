@@ -20,7 +20,8 @@
 		<child widget="main_menu/settings_select/player_setup/player_profile_edit/network_setup/bots/op_enhanced" x="54" y="193"/>
 		<child widget="main_menu/settings_select/player_setup/player_profile_edit/network_setup/bots/op_vehicles" x="54" y="223"/>
 		<child widget="main_menu/settings_select/player_setup/player_profile_edit/network_setup/bots/op_routes" x="54" y="253"/>
-		<child widget="main_menu/settings_select/player_setup/player_profile_edit/network_setup/bots/op_manage" x="54" y="283"/>
+		<child widget="main_menu/settings_select/player_setup/player_profile_edit/network_setup/bots/op_thread" x="54" y="283"/>
+		<child widget="main_menu/settings_select/player_setup/player_profile_edit/network_setup/bots/op_manage" x="54" y="313"/>
 		<child widget="main_menu/settings_select/player_setup/player_profile_edit/network_setup/bots/button_bar" y="414"/>
 	</widget>
 	<widget name="main_menu/settings_select/player_setup/player_profile_edit/network_setup/bots/button_bar" type="column_list" width="640" height="28" flags="pass_unhandled_to_focused_child left_right_tabs_items">
@@ -91,13 +92,22 @@
 	<widget name="main_menu/settings_select/player_setup/player_profile_edit/network_setup/bots/routes_spinner" type="spinner" left="3" top="2" width="147" height="20" flags="pass_unhandled_to_focused_child left_right_tabs_items" strings="DIRECT|LANES|MIXED" setting="bots.routes" values="direct|lanes|mixed" font="ui\large_ui" color="#FF2896FF" align="center" text_y="1" header_bitmap="bitmaps/arrow_sm_left" footer_bitmap="bitmaps/arrow_sm_right" header_bounds="7 -6 19 0" footer_bounds="7 150 19 156">
 		<on event="created" run="port setting load"/>
 	</widget>
+	<widget name="main_menu/settings_select/player_setup/player_profile_edit/network_setup/bots/op_thread" width="512" height="28" flags="pass_unhandled_to_focused_child" bitmap="bitmaps/option_bkds" color="#FF2896FF">
+		<child widget="main_menu/settings_select/player_setup/player_profile_edit/network_setup/bots/thread_label"/>
+		<child widget="main_menu/settings_select/player_setup/player_profile_edit/network_setup/bots/thread_spinner" x="320" y="1"/>
+	</widget>
+	<widget name="main_menu/settings_select/player_setup/player_profile_edit/network_setup/bots/thread_label" type="text" controller="1" width="300" height="22" string_list="main_menu/settings_select/player_setup/player_profile_edit/network_setup/bots/labels" string_index="7" font="ui\large_ui" color="#FF2896FF" text_x="13" text_y="4">
+	</widget>
+	<widget name="main_menu/settings_select/player_setup/player_profile_edit/network_setup/bots/thread_spinner" type="spinner" left="3" top="2" width="147" height="20" flags="pass_unhandled_to_focused_child left_right_tabs_items" strings="ON|OFF" setting="bots.thread" values="true|false" font="ui\large_ui" color="#FF2896FF" align="center" text_y="1" header_bitmap="bitmaps/arrow_sm_left" footer_bitmap="bitmaps/arrow_sm_right" header_bounds="7 -6 19 0" footer_bounds="7 150 19 156">
+		<on event="created" run="port setting load"/>
+	</widget>
 	<widget name="main_menu/settings_select/player_setup/player_profile_edit/network_setup/bots/op_manage" width="512" height="28" flags="pass_unhandled_to_focused_child" bitmap="bitmaps/option_bkds" color="#FF2896FF">
 		<on event="a" open="main_menu/settings_select/player_setup/player_profile_edit/network_setup/bots/manage/bots_manage_screen"/>
 		<on event="start" open="main_menu/settings_select/player_setup/player_profile_edit/network_setup/bots/manage/bots_manage_screen"/>
 		<on event="left_mouse" run="mouse emit accept event"/>
 		<child widget="main_menu/settings_select/player_setup/player_profile_edit/network_setup/bots/manage_label"/>
 	</widget>
-	<widget name="main_menu/settings_select/player_setup/player_profile_edit/network_setup/bots/manage_label" type="text" controller="1" width="512" height="22" string_list="main_menu/settings_select/player_setup/player_profile_edit/network_setup/bots/labels" string_index="7" font="ui\large_ui" color="#FF2896FF" text_x="13" text_y="4">
+	<widget name="main_menu/settings_select/player_setup/player_profile_edit/network_setup/bots/manage_label" type="text" controller="1" width="512" height="22" string_list="main_menu/settings_select/player_setup/player_profile_edit/network_setup/bots/labels" string_index="8" font="ui\large_ui" color="#FF2896FF" text_x="13" text_y="4">
 	</widget>
 	<widget name="main_menu/settings_select/player_setup/player_profile_edit/network_setup/bots/button_defaults" type="text" width="128" height="24" bitmap="bitmaps/text_button_background" string_list="strings/common_button_captions" string_index="3" font="ui\small_ui" color="#FFFFFFFF" align="center" text_y="2">
 		<on event="a" run="port settings defaults"/>
@@ -117,6 +127,7 @@
 		<string text="ENHANCED BOTS:"/>
 		<string text="VEHICLES:"/>
 		<string text="ROUTES:"/>
+		<string text="PATH WORKER:"/>
 		<string text="MANAGE CURRENT BOTS"/>
 	</strings>
 	<strings name="main_menu/settings_select/player_setup/player_profile_edit/network_setup/bots/help_strings">
@@ -128,6 +139,7 @@
 		<string text="Tactics and CTF/King goals. Takes effect when\nloading a map. Off preserves the original bots."/>
 		<string text="Enhanced bots may enter and drive ground vehicles\nand use turrets. Off by default."/>
 		<string text="Enhanced bots can take alternate routes.\nDirect preserves the original route choice."/>
+		<string text="Optional background path searches for enhanced bots.\nOff by default. Takes effect on the next map."/>
 		<string text="Host only: add or remove bots during a match.\nThese changes do not alter the saved Bot Count."/>
 	</strings>
 </menus>

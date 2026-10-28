@@ -419,6 +419,8 @@ SCREENS["network_setup/bots"] = {
          "Enhanced bots may enter and drive ground vehicles\nand use turrets. Off by default.", None),
         ("ROUTES:", "bots.routes", [(s.upper(), s) for s in ("direct", "lanes", "mixed")],
          "Enhanced bots can take alternate routes.\nDirect preserves the original route choice.", None),
+        ("PATH WORKER:", "bots.thread", ON_OFF,
+         "Optional background path searches for enhanced bots.\nOff by default. Takes effect on the next map.", None),
     ],
     "categories": [("MANAGE CURRENT BOTS", "network_setup/bots/manage",
                     "Host only: add or remove bots during a match.\nThese changes do not alter the saved Bot Count.")],

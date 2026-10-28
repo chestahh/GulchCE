@@ -26,7 +26,10 @@ selects destinations; it never changes engine rules or replicated state. */
 #include "bots_tactics.h"
 #include "bots_vehicles.h"
 #include "enhanced_bots.h"
+#include "infection.h"
+#include "game_modes.h"
 #include <math.h>
+#include <string.h>
 
 long config_integer(char const *name);
 
@@ -43,6 +46,8 @@ struct bots_bot
 	real_point3d hill_point;
 	long hill_id;
 	long hill_until_tick;
+	long aim_target, aim_until;
+	boolean aim_head, aim_feet;
 };
 
 static struct
@@ -68,6 +73,18 @@ static struct
 
 static boolean bots_king_guard(struct bots_bot *bot, struct player_datum *player);
 static boolean bots_king_active(void);
+
+/* BirchWoodGod/thelinkin3000 difficulty rules, kept separate from stock bots. */
+static struct
+{
+	real head, feet, heal, heal_fighting, powerup_reach;
+} const enhanced_skills[4] =
+{
+	{ 0.15f, 0.0f, 0.35f, 0.00f, 15.0f },
+	{ 0.40f, 0.4f, 0.50f, 0.25f, 25.0f },
+	{ 0.70f, 0.8f, 0.65f, 0.35f, 30.0f },
+	{ 1.00f, 1.0f, 0.80f, 0.45f, 40.0f },
+};
 
 boolean bots_trace_enabled(void)
 {
@@ -511,11 +528,14 @@ short bots_weapon_precision(long weapon_index)
 	return precision;
 }
 
+#include "bots_infection.inl"
+
 void enhanced_bots_dispose_from_old_map(void)
 {
 	bots_tactics_dispose_from_old_map();
 	bots_vehicles_reset();
 	precision_cache.count = 0;
+	csmemset(&bots_infection, 0, sizeof(bots_infection));
 	csmemset(&bots_globals, 0, sizeof(bots_globals));
 }
 
@@ -524,6 +544,7 @@ void enhanced_bots_initialize_for_new_map(void)
 	long index;
 	csmemset(&bots_globals, 0, sizeof(bots_globals));
 	precision_cache.count = 0;
+	csmemset(&bots_infection, 0, sizeof(bots_infection));
 	bots_vehicles_reset();
 	bots_tactics_initialize_for_new_map();
 	bots_globals.ctf.tick = bots_globals.king.tick = NONE;
@@ -544,6 +565,7 @@ void enhanced_bots_reset(long index, long player_index)
 	csmemset(bot, 0, sizeof(*bot));
 	bot->player_index = player_index;
 	bot->hill_id = NONE;
+	bot->aim_target = NONE;
 	bot->random = 0x2545F491UL * (unsigned long)(index + 1) ^ (unsigned long)network_game_get_random_seed();
 	bots_tactics_bot_reset(index, player_index);
 }
@@ -560,6 +582,8 @@ boolean enhanced_bots_goal(long index, long player_index, real_point3d const *po
 		found = bots_ctf_urgent_goal(bot, player, position);
 	if (bots_king_active())
 		found = bots_king_choose_goal(bot, player, position);
+	if (infection_enabled() && (!urgent_only || infection_unit_is_zombie(player->unit_index)))
+		found = bots_infection_goal(bot, player, position);
 	if (found)
 		bots_tactics_objective(index);
 	if (!found && !urgent_only)
@@ -580,7 +604,56 @@ boolean enhanced_bots_goal(long index, long player_index, real_point3d const *po
 boolean enhanced_bots_advancing(long index, long unit_index)
 {
 	return bots_ctf_carrying(&bots_globals.bots[index]) ||
-		(bots_king_active() && !bots_king_on_hill(unit_index));
+		(bots_king_active() && !bots_king_on_hill(unit_index)) ||
+		(infection_enabled() && infection_unit_is_zombie(unit_index));
+}
+
+boolean enhanced_bots_carrying(long index)
+{
+	return bots_ctf_carrying(&bots_globals.bots[index]);
+}
+
+real enhanced_bots_target_priority(struct player_datum *player, long target_index)
+{
+	struct player_datum *target = player_get(target_index);
+	if (bots_ctf_active() && (player->team_index == 0 || player->team_index == 1))
+	{
+		bots_ctf_update();
+		if (bots_globals.ctf.present[player->team_index] &&
+			bots_globals.ctf.carrier_player_index[player->team_index] == target_index) return 30.0f;
+	}
+	return bots_king_active() && bots_king_on_hill(target->unit_index) ? 20.0f : 0.0f;
+}
+
+void enhanced_bots_aim(long index, short skill, long target_index, long weapon_index,
+	real_point3d const *eye, real_point3d *point)
+{
+	struct bots_bot *bot = &bots_globals.bots[index];
+	long now = game_time_get();
+	struct player_datum *target = player_get(target_index);
+	struct object_datum *object = object_get(target->unit_index);
+	char const *name = weapon_index != NONE ? tag_get_name(weapon_get(weapon_index)->definition_index) : NULL;
+	boolean precision = name && (strstr(name, "sniper") || (strstr(name, "pistol") && !strstr(name, "plasma")));
+	boolean explosive = name && (strstr(name, "rocket") || strstr(name, "fuel rod") || strstr(name, "plasma_cannon"));
+	skill = PIN(skill, 0, 3);
+	if (bot->aim_target != target_index || now >= bot->aim_until)
+	{
+		bot->aim_target = target_index;
+		bot->aim_until = now + TICKS_PER_SECOND * 2 + bots_random(bot) % TICKS_PER_SECOND;
+		bot->aim_head = bots_random_real(bot) < enhanced_skills[skill].head;
+		bot->aim_feet = bots_random_real(bot) < enhanced_skills[skill].feet;
+	}
+	if (bot->aim_head && (game_modes_mode() == _game_mode_swat || (precision && object->object.shield_vitality <= 0.0f)))
+		unit_get_head_position(target->unit_index, point);
+	else if (bot->aim_feet && explosive && point->z <= eye->z + 0.3f)
+	{
+		real_point3d ground;
+		if (bots_surface_below(&object->object.position, &ground) != NONE && object->object.position.z - ground.z < 1.5f)
+		{
+			*point = ground;
+			point->z += 0.1f;
+		}
+	}
 }
 
 boolean enhanced_bots_holding_hill(long unit_index)
@@ -588,22 +661,33 @@ boolean enhanced_bots_holding_hill(long unit_index)
 	return bots_king_active() && bots_king_on_hill(unit_index);
 }
 
+boolean enhanced_bots_retreat(struct unit_datum *unit, short skill, long hurt_tick)
+{
+	return game_time_get() - hurt_tick < TICKS_PER_SECOND && unit->object.shield_vitality <= 0.05f &&
+		unit->object.body_vitality < enhanced_skills[PIN(skill, 0, 3)].heal_fighting + 0.1f;
+}
+
 /* BirchWoodGod's health/overshield/camouflage priorities, using the base
 bot's item scan, unreachable-item memory and pickup lifecycle. */
-real enhanced_bots_powerup_score(struct unit_datum *unit, long definition_index, real distance)
+real enhanced_bots_powerup_score(struct unit_datum *unit, long definition_index, real distance,
+	short skill, boolean fighting, boolean holding)
 {
+	real threshold, reach = fighting ? 10.0f : enhanced_skills[PIN(skill, 0, 3)].powerup_reach;
+	if (game_engine_get_variant()->game_engine_index != game_engine_slayer) reach = MIN(reach, 12.0f);
+	if (holding) reach = MIN(reach, 6.0f);
 	switch (equipment_definition_get(definition_index)->equipment.powerup_type)
 	{
 	case _equipment_powerup_health:
-		if (unit->object.body_vitality < 0.75f)
-			return distance - (1.0f - unit->object.body_vitality) * 40.0f;
+		threshold = fighting ? enhanced_skills[PIN(skill, 0, 3)].heal_fighting : enhanced_skills[PIN(skill, 0, 3)].heal;
+		if (unit->object.body_vitality < threshold && distance <= (fighting ? 15.0f : 45.0f))
+			return distance - (threshold - unit->object.body_vitality) * 40.0f;
 		break;
 	case _equipment_powerup_overshield:
-		if (unit->object.shield_vitality <= 1.0f)
+		if (unit->object.shield_vitality <= 1.0f && distance <= reach)
 			return distance - 6.0f;
 		break;
 	case _equipment_powerup_active_camouflage:
-		if (!TEST_FLAG(unit->unit.flags, _unit_active_camouflaged_bit))
+		if (!TEST_FLAG(unit->unit.flags, _unit_active_camouflaged_bit) && distance <= reach)
 			return distance - 6.0f;
 		break;
 	}
