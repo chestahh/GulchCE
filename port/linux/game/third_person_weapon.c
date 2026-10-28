@@ -1,6 +1,7 @@
 /* The host and predicting clients solve shots from the same world markers. */
 #include "cseries.h"
 #include "third_person.h"
+#include "camera/director.h"
 #include "game/game.h"
 #include "game/players.h"
 #include "units/units.h"
@@ -16,24 +17,29 @@ void platform_log(char const *format, ...);
 static boolean muzzle_player(short player, long unit_index)
 {
 	struct unit_datum *unit;
+	director_perspective perspective;
 	if (!third_person_active(player) ||
 		unit_index == NONE || player_control_get_unit_index(player) != unit_index ||
 		player_control_get_zoom_level(player) != NONE)
 		return FALSE;
 	unit = unit_try_and_get(unit_index);
 	return unit && unit->object.parent_object_index == NONE &&
-		!TEST_FLAG(unit->object.damage_flags, _object_dead_bit);
+		!TEST_FLAG(unit->object.damage_flags, _object_dead_bit) &&
+		!director_desired_perspective(unit_index, &perspective);
 }
 
 static boolean muzzle_network_player(long unit_index)
 {
 	struct unit_datum *unit = unit_index != NONE ? unit_try_and_get(unit_index) : NULL;
+	director_perspective perspective;
 	return unit && unit->unit.player_index != NONE &&
 		unit->object.parent_object_index == NONE &&
 		!TEST_FLAG(unit->object.damage_flags, _object_dead_bit) &&
 		unit->unit.current_zoom_level == NONE &&
 		third_person_policy() != _third_person_forced_off &&
-		TEST_FLAG(unit->unit.control_flags, THIRD_PERSON_INPUT_BIT);
+		TEST_FLAG(unit->unit.control_flags, THIRD_PERSON_INPUT_BIT) &&
+		/* A stale or forged input bit cannot override an authored camera. */
+		!director_desired_perspective(unit_index, &perspective);
 }
 
 static short muzzle_preview_trigger(struct weapon_datum *weapon, struct weapon_definition *definition)

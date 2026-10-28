@@ -1204,8 +1204,10 @@ so a legitimate shot from beside cover is not judged only from the head.
 Both the eye-to-muzzle and muzzle-to-impact routes must be clear; weapon
 ownership, rate, target history and damage limits still apply. Scoped, dead,
 seated, Forced Off and ordinary first-person paths do not add this history.
-This simulation agreement raises the experimental versions to 32702/32703;
+This simulation agreement raises the experimental versions to 32704/32705;
 it adds no packet fields or client authority.
+The host independently excludes weapon-authored following cameras from the
+shoulder solver; stale or forged input bits cannot override that priority.
 The relay rejects non-boolean shoulder values and truncated messages.
 
 Add `--combat` to the session runner below to exercise real bot firing on
@@ -1277,15 +1279,15 @@ action button where the host has nothing for them to pick up, with where it
 has them and the nearest item: a client that sees a pickup the host does
 not.
 
-The `online-third-person` branch uses version 32702 for Xbox/Custom Edition
-and MCC protocol version 32703. These separate experimental revisions retain
+The `online-third-person` branch uses version 32704 for Xbox/Custom Edition
+and MCC protocol version 32705. These separate experimental revisions retain
 the shoulder-policy bits and extra input-relay byte. They incorporate main's
 OpenCE fire-origin message 93 and keep MCC messages at 94-97 and MCC admission
 at 98. Camera admission reserves data-message kind 99.
 
 Every join, including a first-person-only game, must carry an eight-byte camera
 envelope: the normal two-byte data header, kind 99, revision 1, little-endian
-base camera version 32702, and two zero reserved bytes. The inner message is
+base camera version 32704, and two zero reserved bytes. The inner message is
 either the original join packet or the existing MCC envelope. The maximum is
 264 bytes. The host validates this before normal admission; an advertised
 version alone would leave direct joins unprotected. MCC validates its own

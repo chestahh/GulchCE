@@ -67,9 +67,9 @@ in its game's advertisement's reserved bytes (network_server_message_handler.c),
 which hosts built before there was a version send as zeros: version 0.
 Raise it with any change to what the machines send each other. */
 /* Experimental shoulder relay and mandatory camera admission; no OpenCE crossplay.
-32702 adds host-owned shoulder muzzle history to hit visibility validation.
+32704 validates host-owned shoulder muzzle history and preserves authored cameras.
 Keep this branch outside the ordinary OpenCE/GulchCE version sequence. */
-#define HALO_PORT_NETWORK_VERSION 32702
+#define HALO_PORT_NETWORK_VERSION 32704
 /* ... the advertisement's reserved bytes: the version (a little-endian word),
 then flags, then the game's kind (an OpenCE gametype's mode, and Hardcore:
 port/linux/game/game_modes.h's game_modes_kind), for the server browser */

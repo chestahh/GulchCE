@@ -43,6 +43,12 @@ No stencil shadows or cosmetic head tracking are part of this consolidation.
    existing behavior. Spread, projectile gravity and aim assistance remain
    the weapon's own.
 
+The firing and preview eligibility checks also ask
+`director_desired_perspective` before using a shoulder muzzle. A weapon's
+authored following camera therefore wins immediately after a switch, even
+if the prior rendered frame or a received input still says shoulder view.
+The host applies this check independently of the client's input bit.
+
 ## A shot beside cover
 
 The camera can see around a corner while the weapon remains blocked. The
@@ -60,8 +66,8 @@ existing visibility check requires clear eye-to-muzzle and muzzle-to-target
 segments. Ownership, rate limits, target history and damage rules still run.
 The upstream optional client-hand origins remain separately controlled.
 
-The changed host acceptance rule uses experimental network versions 32702
-(Xbox/CE) and 32703 (MCC). Matching builds are required even with the camera
+The changed host acceptance rule uses experimental network versions 32704
+(Xbox/CE) and 32705 (MCC). Matching builds are required even with the camera
 off. See [networking](networking.md) for the mandatory join envelope and
 the intentional OpenCE/main crossplay boundary.
 

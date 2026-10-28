@@ -498,6 +498,9 @@ typedef struct {real i,j,k;} real_vector3d;
 #define TEST_FLAG(v,b) ((v)&(1u<<(b)))
 enum {_game_connection_local=0,_object_dead_bit=0,_collision_test_for_projectiles_flags=1};
 enum {_game_connection_network_server=1};
+typedef short director_perspective;
+static int authored_following;
+static short director_desired_perspective(long u,director_perspective *p){(void)u;*p=0;return authored_following;}
 enum {_weapon_trigger_uses_weapon_origin_bit=5,_weapon_trigger_projectiles_cannot_be_aimed_bit=11,
 _unit_fires_from_camera_bit=0,_trigger_charging=2,_trigger_charged=3,_trigger_spewing=6};
 struct unit_datum {struct {long parent_object_index;unsigned damage_flags;} object;struct {short current_weapon_index;real_vector3d aiming_vector;long player_index;short current_zoom_level;unsigned control_flags;} unit;long definition_index;};
@@ -630,6 +633,11 @@ int main(void){
  /* Host-owned history follows the same eligibility, barrels and cover clamp. */
  unit.unit.control_flags=1u<<THIRD_PERSON_INPUT_BIT;unit.unit.current_zoom_level=NONE;
  CHECK(third_person_muzzle_history(1,&target));CHECK(target.x==1&&target.z==-.2f);
+ authored_following=1;CHECK(!third_person_muzzle_history(1,&target));
+ CHECK(!third_person_muzzle_shot(2,1,0,&origin,&forward));
+ connection=0;CHECK(!third_person_muzzle_shot(2,1,0,&origin,&forward));
+ target=(real_point3d){7,8,9};third_person_muzzle_target(0,&target);CHECK(target.x==7&&target.y==8&&target.z==9);
+ connection=1;authored_following=0;
  connection=2;CHECK(!third_person_muzzle_history(1,&target));connection=1;
  policy=2;CHECK(!third_person_muzzle_history(1,&target));policy=0;
  unit.unit.control_flags=0;CHECK(!third_person_muzzle_history(1,&target));
