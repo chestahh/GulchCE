@@ -11,6 +11,12 @@
 short network_chat_controller(void);
 static unsigned char camera_context[4];
 
+static int remap_game_active(void)
+{
+    /* Devices are polled before game time exists and between maps. */
+    return game_time_initialized() && game_in_progress();
+}
+
 void controller_remap_reset(void)
 {
     csmemset(camera_context, 0, sizeof(camera_context));
@@ -41,7 +47,7 @@ void controller_remap_profile(short port, unsigned char *buttons)
 short controller_remap_local_player(short port)
 {
     short local;
-    if (port < 0 || port >= 4 || !game_in_progress()) return NONE;
+    if (port < 0 || port >= 4 || !remap_game_active()) return NONE;
     for (local = local_player_get_next(NONE); local != NONE; local = local_player_get_next(local))
     {
         long player = local_player_get_player_index(local);
@@ -53,7 +59,7 @@ short controller_remap_local_player(short port)
 int controller_remap_playing(short port)
 {
     short local = controller_remap_local_player(port);
-    return game_in_progress() && local != NONE && !ui_widgets_active_for_local_player(local) &&
+    return local != NONE && !ui_widgets_active_for_local_player(local) &&
         !console_is_active() && network_chat_controller() != port;
 }
 
@@ -61,7 +67,7 @@ int controller_remap_context(short port)
 {
     if (!controller_remap_playing(port))
     {
-        if (!game_in_progress() && port >= 0 && port < 4) camera_context[port] = 0;
+        if (!remap_game_active() && port >= 0 && port < 4) camera_context[port] = 0;
         return 0;
     }
     return 1 + camera_context[port];
