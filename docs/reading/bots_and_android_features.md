@@ -183,13 +183,15 @@ Validation of the reviewed implementation on Windows:
   skips after correcting a Windows test-compiler macro. All 312 remaining
   failures reproduced on an unchanged export of the branch's `origin/main`
   base (`e94810f1`); they are not a green full-suite result.
-- MCC DigsiteMP/1 initially timed out in the host's connection handshake,
-  before bots joined. With the existing debug
-  `global_connection_dont_timeout` override, local gameplay with six bots
-  ran for 46 logged seconds; a two-instance GulchCE network game then
-  agreed for 72 paired seconds with six bots and two human players and
-  clean exits. Default-timeout MCC startup remains unverified; no timeout
-  or MCC compatibility behavior was changed to make it load.
+- MCC DigsiteMP/1 originally needed the debug timeout override to reach
+  gameplay. The subsequent [MCC startup fix](maps_and_resources.md) prepares
+  the host identity before admission and avoids hashing its unchanged
+  package twice. With normal timeouts and no override, two GulchCE instances
+  then agreed for 76 paired seconds with six bots and two human players,
+  90 logged samples each and clean exits. A repeated run with the client's
+  package in a differently named folder also passed 76 paired seconds.
+  Local play produced 61 logged samples. Comparator tolerances were unchanged;
+  this is not evidence for every MCC package or arbitrary storage stalls.
 
 Compilation and automated checks do not establish Android touch/gyro feel,
 all vehicle/map combinations, full campaign compatibility or Internet

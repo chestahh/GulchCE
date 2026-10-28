@@ -131,6 +131,27 @@ must account for the map and required resources, not just a convenient
 folder name. Peers can bind equivalent MCC content under different local
 package names.
 
+When MCC is selected at host creation, `mcc_cache_checksum` in
+[mcc_cache.c](../../port/linux/game/mcc_cache.c) also calls
+`mcc_identity_prepare_host` in [mcc_identity.c](../../port/linux/game/mcc_identity.c)
+before the lobby opens. Fast network setup can
+instead open a temporary lobby and request MCC while its local client is
+still joining. `mcc_ui_network_defer_map` in
+[mcc_ui_network.inl](../../port/linux/game/mcc_ui_network.inl) retains that selection until local
+admission completes; `mcc_ui_network_update_map` then applies it through the
+ordinary map-change function. A pending selection prevents starting the
+temporary map, and legacy selections or teardown cancel it. These paths keep
+package work outside the local client's five-second joining state.
+`mcc_identity_host_settings` reuses that digest only while the map and all
+resource-candidate file stamps match, including absent overrides. Changed
+files require fresh validation; disconnect clears the cache. Local admission
+also reuses the prepared hash when its canonical path, complete snapshot and
+all digest bytes match, avoiding another scan of the host's unchanged package
+while remote clients wait. Other machines compute their own fingerprints;
+actual loading always rehashes the opened content. This timing change is
+MCC-owned and changes neither Xbox/CE paths nor network timeouts or packet
+formats. It does not eliminate arbitrary storage or main-thread stalls.
+
 ## Loading and unloading must agree about ownership
 
 The MCC runtime owns its source stream, tag window, converted geometry,
