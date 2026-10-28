@@ -7,6 +7,41 @@ from test_hud_button_style import run_c
 ROOT = Path(__file__).resolve().parents[1]
 
 
+def test_host_checkpoint_sends_loaded_peers_fresh_objects(tmp_path):
+    actual = function((ROOT / "port/linux/game/network_objects.c").read_text(),
+                      "network_objects_host_reverted")
+    run_c(tmp_path, r'''
+#include <assert.h>
+typedef int boolean;
+#define TRUE 1
+#define NONE -1
+#define HALO_PORT_MAXIMUM_NETWORK_MACHINES 4
+#define NUMBEROF(a) (sizeof(a)/sizeof((a)[0]))
+#define _game_connection_network_server 2
+static int connection=2,coop=1,calls;
+static struct {long time;} objects_host_machines[4]={{55},{55},{NONE},{55}};
+static int game_connection(void){return connection;}
+static int network_coop_active(void){return coop;}
+static short distributed_client_machines(long *ids,short size){
+ assert(size==4);ids[0]=1;ids[1]=2;ids[2]=-1;ids[3]=4;return 4;
+}
+static void network_objects_client_asked(long machine,boolean again){
+ assert(machine==1 && again && objects_host_machines[machine].time==NONE);
+ objects_host_machines[machine].time=60;calls++;
+}
+''' + actual + r'''
+int main(void){
+ connection=1;network_objects_host_reverted();assert(!calls);
+ connection=2;coop=0;network_objects_host_reverted();assert(!calls);
+ coop=1;network_objects_host_reverted();assert(calls==1);
+ assert(objects_host_machines[0].time==55 && objects_host_machines[3].time==55);
+ assert(objects_host_machines[2].time==NONE); /* Still loading: normal ready handshake. */
+ network_objects_host_reverted();assert(calls==2); /* Another host restore, even recently. */
+ return 0;
+}
+''')
+
+
 def test_restore_current_roster_and_machine_ownership(tmp_path):
     actual = function((ROOT / "port/linux/game/network_coop.c").read_text(),
                       "network_coop_restore_players")

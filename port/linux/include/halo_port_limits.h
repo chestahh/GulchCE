@@ -67,9 +67,9 @@ in its game's advertisement's reserved bytes (network_server_message_handler.c),
 which hosts built before there was a version send as zeros: version 0.
 Raise it with any change to what the machines send each other. */
 /* Experimental shoulder relay and mandatory camera admission; no OpenCE crossplay.
-32706 keeps the host's current co-op roster across checkpoint restores.
+32708 preserves the live co-op roster and immediately resends restored objects.
 Keep this branch outside the ordinary OpenCE/GulchCE version sequence. */
-#define HALO_PORT_NETWORK_VERSION 32706
+#define HALO_PORT_NETWORK_VERSION 32708
 /* ... the advertisement's reserved bytes: the version (a little-endian word),
 then flags, then the game's kind (an OpenCE gametype's mode, and Hardcore:
 port/linux/game/game_modes.h's game_modes_kind), for the server browser */

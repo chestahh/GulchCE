@@ -1334,6 +1334,31 @@ void network_objects_client_asked(
 		(word)sizeof(message.header));
 }
 
+/* A checkpoint can restore a deleted object, or revive one under the same
+handle. Neither is a new object to the host's change tracker. Send fresh
+descriptions immediately: waiting for a client's rate-limited recovery can
+leave its player dead for eleven seconds. Only the host's own revert bypasses
+that limit; ordinary client requests retain it. */
+void network_objects_host_reverted(void)
+{
+	long machines[HALO_PORT_MAXIMUM_NETWORK_MACHINES];
+	short count, index;
+
+	if (game_connection() != _game_connection_network_server || !network_coop_active())
+		return;
+	count = distributed_client_machines(machines, NUMBEROF(machines));
+	for (index = 0; index < count; index++)
+	{
+		long machine = machines[index];
+
+		if (machine < 0 || machine >= HALO_PORT_MAXIMUM_NETWORK_MACHINES ||
+			objects_host_machines[machine].time == NONE)
+			continue;
+		objects_host_machines[machine].time = NONE;
+		network_objects_client_asked(machine, TRUE);
+	}
+}
+
 /* the host's object at an absolute index whose state goes to its clients
 (not players' living units, which have their own messages, nor what is
 attached or carried), NONE for none */

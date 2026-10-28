@@ -1217,8 +1217,9 @@ so a legitimate shot from beside cover is not judged only from the head.
 Both the eye-to-muzzle and muzzle-to-impact routes must be clear; weapon
 ownership, rate, target history and damage limits still apply. Scoped, dead,
 seated, Forced Off and ordinary first-person paths do not add this history.
-These rules and the current-roster checkpoint restoration use experimental
-versions 32706/32707. The latter changes simulation agreement, so older
+These rules, current-roster checkpoint restoration and immediate host object
+refresh after a restore use experimental
+versions 32708/32709. The latter changes simulation agreement, so older
 camera builds are excluded too; it adds no packet fields or client authority.
 The host independently excludes weapon-authored following cameras from the
 shoulder solver; stale or forged input bits cannot override that priority.
@@ -1293,15 +1294,15 @@ action button where the host has nothing for them to pick up, with where it
 has them and the nearest item: a client that sees a pickup the host does
 not.
 
-The `online-third-person` branch uses version 32706 for Xbox/Custom Edition
-and MCC protocol version 32707. These separate experimental revisions retain
+The `online-third-person` branch uses version 32708 for Xbox/Custom Edition
+and MCC protocol version 32709. These separate experimental revisions retain
 the shoulder-policy bits and extra input-relay byte. They incorporate main's
 OpenCE fire-origin message 93 and keep MCC messages at 94-97 and MCC admission
 at 98. Camera admission reserves data-message kind 99.
 
 Every join, including a first-person-only game, must carry an eight-byte camera
 envelope: the normal two-byte data header, kind 99, revision 1, little-endian
-base camera version 32706, and two zero reserved bytes. The inner message is
+base camera version 32708, and two zero reserved bytes. The inner message is
 either the original join packet or the existing MCC envelope. The maximum is
 264 bytes. The host validates this before normal admission; an advertised
 version alone would leave direct joins unprotected. MCC validates its own

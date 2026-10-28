@@ -124,8 +124,9 @@ index and tag, since the map placed them at the same index everywhere.
 #include "network_coop.h"
 #include "network_distributed.h"
 
-/* players.c's unit ownership helper. */
+/* players.c's ownership helpers, absent from its original header. */
 void network_player_detach_unit(long player_index);
+void local_player_set_player_index(short local_player_index, long player_index);
 
 /* ---------- constants */
 
@@ -2797,6 +2798,7 @@ void network_coop_reverted(
 	}
 	/* (the dropships' riders kept are of the game state reverted from) */
 	coop_enemies_reset();
+	network_objects_host_reverted();
 	error(_error_silent, "co-op: reverted %ld ticks, clock kept at %ld", ticks, now);
 	event_new(_coop_event_reverted);
 }

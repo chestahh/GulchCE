@@ -451,6 +451,7 @@ void network_objects_client_tick(void);
 /* (the host) a client has loaded the game and asks for the host's objects:
 again, having failed to make one of them */
 void network_objects_client_asked(long machine_index, boolean again);
+void network_objects_host_reverted(void);
 void network_objects_handle_changes(void const *entries, short count);
 void network_objects_handle_synchronized(void);
 /* (host_time: the message's, the host's tick its states are of) */
