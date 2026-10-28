@@ -9,20 +9,42 @@ The opt-in machine reservation is fixed when the host is created. */
 #include "game/player_queues_new.h"
 #include "networking/network_game_globals.h"
 #include "bots.h"
+#include "main/console.h"
+#include <stdio.h>
 
 int config_boolean(const char *name);
 
 static int network_bots;
 static byte owned[BOTS_MAXIMUM];
 
+int bots_console_command(char const *expression)
+{
+	static char const *const commands[] = { "add_bot", "add_bot_red", "add_bot_blue",
+		"drop_bot", "drop_bot_red", "drop_bot_blue" };
+	char command[32], extra, status[180];
+	long index;
+	int result;
+	if (sscanf(expression, " %31s %c", command, &extra) != 1) return -1;
+	for (index = 0; index < (long)NUMBEROF(commands); index++)
+		if (!strcmp(command, commands[index]))
+		{
+			result = bots_manage(index < 3, index % 3 - 1, status, sizeof(status));
+			console_printf(TRUE, "%s", status);
+			return result;
+		}
+	return -1;
+}
+
 void bots_network_session_begin(void)
 {
+	bots_management_reset();
 	network_bots = config_boolean("bots.network");
 	csmemset(owned, 0, sizeof(owned));
 }
 
 void bots_network_session_end(void)
 {
+	bots_management_reset();
 	network_bots = FALSE;
 	csmemset(owned, 0, sizeof(owned));
 }

@@ -1653,6 +1653,9 @@ static void network_game_server_port_bots(
 		network_event("network_game_server_port_bots() failed to send updated game settings to clients");
 }
 
+/* port: host bot controls need this module's private player dispatch. */
+#include "bots_management.inl"
+
 boolean network_game_server_idle(
 	struct network_game_server *server)
 {

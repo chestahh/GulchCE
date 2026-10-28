@@ -7,7 +7,7 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from harness import build, read, run
 
-@pytest.mark.parametrize("case", ["disabled", "offline", "network", "reset", "queue", "cinematic"])
+@pytest.mark.parametrize("case", ["disabled", "offline", "network", "reset", "queue", "cinematic", "all-cheats"])
 def test_cheat_menu(case):
     source = read("port/android/host/host_android_cheats.c") + read("port/linux/game/android_cheats.c")
     source = re.sub(r'^#include.*\n', '', source, flags=re.M)

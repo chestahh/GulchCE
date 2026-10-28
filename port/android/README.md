@@ -263,7 +263,9 @@ still stops gyro input.
 The **Cheat Menu** setting in **Android Controls** is off by default
 (`android.cheat_menu = false`, `HALO_ANDROID_CHEAT_MENU`). When enabled,
 touch **Options > Cheats** exposes invincibility, unlimited ammunition,
-bottomless clip, super jump, weapon/powerup spawning and camouflage. It
+bottomless clip, super jump, omnipotence, no fall damage, Medusa, bump
+possession, Easy Rider (no rider ejection), weapon/powerup/vehicle spawning
+and camouflage. It
 works only during offline gameplay, never on a network host or client.
 Menu-owned switches restore their prior values when disabled or leaving a
 map; closing the dialog alone keeps them enabled. Spawns are ordinary game

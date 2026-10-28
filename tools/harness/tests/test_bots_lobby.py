@@ -12,7 +12,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from harness import CHECK_FAILED, build, constant, enum_with, function, mutated, read, run, structure  # noqa: E402
 
 CASES = ["fills", "room", "fewer", "even", "against", "follows-players", "never-network", "slayer-only",
-         "not-once-started", "no-player-no-bots", "names-and-machines", "enhanced-objectives", "network-opt-in", "human-high-id"]
+         "not-once-started", "no-player-no-bots", "names-and-machines", "enhanced-objectives", "network-opt-in", "human-high-id",
+         "live", "live-permissions", "live-encode-failure"]
 GAME_MANAGER_FUNCTIONS = ("network_game_invalidate_player", "network_player_is_valid", "network_game_player_is_valid",
                           "network_game_add_player", "network_game_remove_player")
 
@@ -43,6 +44,7 @@ def generated(fault=None):
     config += f"#define MAXIMUM_LOCAL_PLAYERS {constant(read('source/game/players.h'), 'MAXIMUM_LOCAL_PLAYERS')}\n"
     config += f"#define NUMBER_OF_MULTIPLAYER_TEAMS {constant(server, 'NUMBER_OF_MULTIPLAYER_TEAMS')}\n"
     config += f"#define BOTS_MAXIMUM {constant(bots_header, 'BOTS_MAXIMUM')}\n"
+    config += f"#define NETWORK_GAME_PLAYER_QUIT_DELAY {constant(server, 'NETWORK_GAME_PLAYER_QUIT_DELAY')}\n"
     match = re.search(r"^#define BOTS_FIRST_MACHINE .*$", bots_header, re.M)
     assert match, "BOTS_FIRST_MACHINE not found in bots.h"
     config += match.group(0) + "\n"
@@ -58,12 +60,13 @@ def generated(fault=None):
         code += function(network, name) + "\n"
     for name in GAME_MANAGER_FUNCTIONS:
         code += function(manager, name) + "\n"
-    for name in ("bots_machine_is_bot", "bots_network_player", "bots_gametype_allowed"):
+    for name in ("bots_machine_is_bot", "bots_network_player", "bots_gametype_allowed", "bots_gametype_active"):
         code += function(bots, name) + "\n"
     lobby = function(server, "network_game_server_port_bots")
     if fault:
         lobby = mutated(lobby, *fault)
     code += lobby + "\n"
+    code += read("port/linux/game/bots_management.inl")
     return (("config.inc", config), ("under_test.inc", code))
 
 

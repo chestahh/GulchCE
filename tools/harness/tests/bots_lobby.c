@@ -55,10 +55,45 @@ static long wanted;
 static short teams_setting;
 static long sends;
 static short next_color;
+static struct network_game_server server;
+static boolean is_host = TRUE, has_teams = TRUE, encode_ok = TRUE;
+static long tick = 100, messages, joined, removed;
+static int last_message_type;
+enum { _message_server_add_player_ingame, _message_server_remove_player_ingame };
+struct message_server_remove_player_ingame { struct network_player player; long reason; };
+static long game_time_get(void) { return tick; }
+static boolean game_engine_has_teams(void) { return has_teams; }
+static int bots_enhanced_running;
+void bots_management_reset(void);
+static void *create_network_game_message(int type, const void *record, short size)
+{
+	(void)size;
+	last_message_type = type;
+	if (type == _message_server_add_player_ingame) {
+		const struct network_player *joining = record;
+		long player_slot = joining->player_list_index;
+		CHECK(VALID_INDEX(player_slot, NETWORK_GAME_PLAYER_SLOTS), "missing authoritative join slot");
+		CHECK(server.game.players[(unsigned char)joining->player_list_index].machine_index == joining->machine_index,
+			"join slot differs from host");
+	}
+	if (type == _message_server_remove_player_ingame) {
+		const struct message_server_remove_player_ingame *leaving = record;
+		CHECK(leaving->reason == tick + NETWORK_GAME_PLAYER_QUIT_DELAY, "quit tick");
+	}
+	return encode_ok ? (void *)1 : NULL;
+}
+static boolean network_game_server_send_message_to_all_machines(struct network_game_server *game, void *message)
+{
+	(void)game; (void)message;
+	messages++;
+	if (last_message_type == _message_server_add_player_ingame) joined++;
+	else removed++;
+	return TRUE;
+}
 
 static boolean network_game_is_splitscreen_local(void) { return local_game; }
 static int config_boolean(const char *name) { return !strcmp(name, "bots.network") ? network_option : enhanced; }
-static struct network_game_server *global_network_game_server_get(void) { return (void *)1; }
+static struct network_game_server *global_network_game_server_get(void) { return is_host ? &server : NULL; }
 static long bots_wanted_count(void) { return wanted; }
 static short bots_teams(void) { return teams_setting; }
 static boolean network_game_player_slot_held(long player_index) { (void)player_index; return FALSE; }
@@ -80,7 +115,6 @@ machine index against the session's 128) */
 #pragma clang diagnostic ignored "-Wtautological-constant-out-of-range-compare"
 #include "under_test.inc"
 
-static struct network_game_server server;
 
 /* a pregame lobby of the game engine, room for `maximum`, and its players */
 static void lobby(short game_engine_index, long maximum)
@@ -159,9 +193,66 @@ int main(int argc, char **argv)
 {
 	char const *case_name = argc > 1 ? argv[1] : "";
 	long team0, team1, count;
+	char status[180];
+
+	CASE("live")
+	{
+		long i;
+		lobby(game_engine_slayer, 128);
+		player(0, 0);
+		server.state = _network_game_server_state_ingame;
+		for (i = 0; i < 63; i++) CHECK(bots_manage(TRUE, NONE, status, sizeof(status)), "join %ld: %s", i, status);
+		CHECK(!bots_manage(TRUE, NONE, status, sizeof(status)) && joined == 63, "over capacity");
+		CHECK(bots_in(&team0, &team1) == 63 && team0 == 31 && team1 == 32, "unbalanced live bots");
+		CHECK(bots_manage(FALSE, 1, status, sizeof(status)), "team removal");
+		CHECK(removed == 1 && !bots_manage(TRUE, NONE, status, sizeof(status)), "premature identity reuse");
+		tick += NETWORK_GAME_PLAYER_QUIT_DELAY + 1;
+		CHECK(bots_manage(TRUE, 0, status, sizeof(status)) && joined == 64, "identity never reusable");
+		CHECK(bots_in(&team0, &team1) == 63 && team0 == 32 && team1 == 31, "explicit team ignored");
+		return 0;
+	}
+	CASE("live-permissions")
+	{
+		lobby(game_engine_slayer, 128);
+		player(0, 0);
+		CHECK(!bots_manage(TRUE, NONE, status, sizeof(status)), "lobby used live joins");
+		server.state = _network_game_server_state_ingame;
+		is_host = FALSE;
+		CHECK(!bots_manage(TRUE, NONE, status, sizeof(status)), "client changed host");
+		is_host = TRUE; local_game = FALSE;
+		CHECK(!bots_manage(TRUE, NONE, status, sizeof(status)), "network default ignored");
+		network_option = TRUE; bots_network_session_begin();
+		has_teams = FALSE;
+		CHECK(!bots_manage(TRUE, 0, status, sizeof(status)) && !bots_manage(TRUE, 2, status, sizeof(status)), "invalid team");
+		CHECK(bots_manage(TRUE, NONE, status, sizeof(status)), "FFA bot refused");
+		CHECK(bots_manage(FALSE, NONE, status, sizeof(status)), "FFA removal refused");
+		CHECK(!bots_manage(FALSE, NONE, status, sizeof(status)), "removed a human");
+		CHECK(server.game.player_count == 1, "lost human");
+		server.game.variant.game_engine_index = game_engine_ctf;
+		enhanced = TRUE;
+		CHECK(!bots_manage(TRUE, NONE, status, sizeof(status)), "unloaded tactics enabled by live setting");
+		bots_enhanced_running = TRUE;
+		CHECK(bots_manage(TRUE, NONE, status, sizeof(status)), "loaded CTF tactics refused");
+		bots_network_session_end();
+		CHECK(!bots_manage(TRUE, NONE, status, sizeof(status)), "host policy survived session end");
+		return 0;
+	}
+	CASE("live-encode-failure")
+	{
+		lobby(game_engine_slayer, 128); player(0, 0);
+		server.state = _network_game_server_state_ingame;
+		encode_ok = FALSE;
+		CHECK(!bots_manage(TRUE, NONE, status, sizeof(status)) && server.game.player_count == 1, "failed join changed host");
+		encode_ok = TRUE;
+		CHECK(bots_manage(TRUE, NONE, status, sizeof(status)), "join refused");
+		encode_ok = FALSE;
+		CHECK(!bots_manage(FALSE, NONE, status, sizeof(status)) && server.game.player_count == 2, "failed quit changed host");
+		CHECK(messages == 1, "failed encode sent a message");
+		return 0;
+	}
 
 	/* as many as asked for, once: the lobby unchanged after (nothing sent
-	again); more than 15 asked for is 15 */
+	again); a 16-player lobby still has room for only 15 bots */
 	CASE("fills")
 	{
 		lobby(game_engine_slayer, 16);
@@ -356,11 +447,11 @@ int main(int argc, char **argv)
 	colour of its own */
 	CASE("names-and-machines")
 	{
-		long index, named = 0;
+		long index, other, named = 0;
 
-		lobby(game_engine_slayer, 16);
+		lobby(game_engine_slayer, 128);
 		player(0, 0);
-		wanted = 15;
+		wanted = 99;
 		network_game_server_port_bots(&server);
 		for (index = 0; index < HALO_PORT_MAXIMUM_NETWORK_PLAYERS; index++)
 		{
@@ -375,8 +466,13 @@ int main(int argc, char **argv)
 			CHECK(slot->primary_color_index != NONE, "bot of machine %d has no colour", slot->machine_index);
 			if (slot->name[0])
 				named++;
+			CHECK(slot->name[NUMBEROF(slot->name) - 1] == 0, "unterminated bot name");
+			for (other = 0; other < index; other++)
+				if (bots_player_owned(server.game.players[other].machine_index))
+					CHECK(wcscmp(slot->name, server.game.players[other].name), "duplicate bot name");
 		}
-		CHECK(named == 15, "%ld of 15 bots named", named);
+		CHECK(named == 63, "%ld of 63 bots named", named);
+		CHECK(server.game.player_count == 64, "capacity was not capped at 63 bots");
 		CHECK(!bots_machine_is_bot(0) && !bots_machine_is_bot(BOTS_FIRST_MACHINE - 1), "a real machine is a bot");
 		return 0;
 	}

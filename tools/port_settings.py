@@ -391,6 +391,7 @@ _hud_settings = ("display.player_names", "display.player_name_scale", "display.s
 _hud_rows = [row for row in _network["rows"] if row[1] in _hud_settings]
 _network["rows"] = [row for row in _network["rows"] if row[1] not in _hud_settings]
 _network["categories"] = [
+    ("BOTS:", "network_setup/bots", "Configure optional bots and manage the host's bots\nduring a multiplayer match."),
     ("MAP SHARING:", "network_setup/map_sharing",
      "Downloading Custom Edition maps you do not have,\nand helping send them to other players.",
      "desktop android"),
@@ -401,6 +402,27 @@ _network["categories"] = [
     ("SERVER BROWSER:", "network_setup/server_browser",
      "What the Server Browser lists and its order: the\nsame settings as its Filters screen."),
 ]
+SCREENS["network_setup/bots"] = {
+    "screen": "bots_screen", "header": _network["header"], "title": "BOTS", "spacing": 30,
+    "rows": [
+        ("BOT COUNT:", "bots.count", [(str(n), str(n)) for n in range(64)],
+         "Bots to add in the lobby, when there is room.\n0 keeps bots off. Up to 63 bots per host.", None),
+        ("NETWORK BOTS:", "bots.network", ON_OFF,
+         "Allow bots online. Set before creating the host;\nreserves 63 machine slots until that host closes.", None),
+        ("DIFFICULTY:", "bots.skill", [(s.upper(), s) for s in ("easy", "normal", "heroic", "legendary")],
+         "The host's bot aim, reactions and awareness.", None),
+        ("TEAMS:", "bots.teams", [("EVEN", "even"), ("OPPOSE", "against")],
+         "In the lobby, balance bots between teams or\nplace them opposite the first human player's team.", None),
+        ("ENHANCED BOTS:", "bots.enhanced", ON_OFF,
+         "Tactics and CTF/King goals. Takes effect when\nloading a map. Off preserves the original bots.", None),
+        ("VEHICLES:", "bots.vehicles", ON_OFF,
+         "Enhanced bots may enter and drive ground vehicles\nand use turrets. Off by default.", None),
+        ("ROUTES:", "bots.routes", [(s.upper(), s) for s in ("direct", "lanes", "mixed")],
+         "Enhanced bots can take alternate routes.\nDirect preserves the original route choice.", None),
+    ],
+    "categories": [("MANAGE CURRENT BOTS", "network_setup/bots/manage",
+                    "Host only: add or remove bots during a match.\nThese changes do not alter the saved Bot Count.")],
+}
 SCREENS["network_setup/map_sharing"] = {
     "screen": "map_sharing_settings_screen", "header": _network["header"], "spacing": 30,
     "rows": [
@@ -595,12 +617,15 @@ def _screen(folder: str, spec: dict, rows: list, list_inputs: list, list_handler
                      ['<on event="b" back="true"/>', '<on event="back" back="true"/>',
                       f'<child{attributes([("widget", f"{base}/{header}")])}/>',
                       f'<child{attributes([("widget", f"{base}/options_menu")])}/>'])
+    header_style = [("bitmap", header_bitmap)] if not spec.get("title") else [
+        ("type", "text"), ("text", spec["title"]), ("font", "ui\\large_ui"), ("color", "#FFFFFFFF"), ("text_y", 18)]
     lines += _widget(f"{base}/{header}", [("controller", 1), ("left", 35), ("top", 11), ("width", 605), ("height", 59),
-                                          ("bitmap", header_bitmap)], [])
+                                          *header_style], [])
     lines += _widget(f"{base}/help", [("type", "text"), ("controller", 1), ("left", 68),
                                       ("top", spec.get("help_top", 350)), ("width", 482),
                                       ("height", spec.get("help_height", 60)), ("string_list", None if spec.get("dynamic_help") else f"{base}/help_strings"),
-                                      ("font", "ui\\large_ui"), ("color", "#FFFFFFFF")], [])
+                                      ("font", "ui\\large_ui"), ("color", "#FFFFFFFF"),
+                                      ("text", spec.get("help_text"))], [])
     children = [f'<data input="{name}"/>' for name in list_inputs] + list_handlers
     # (each row: its widget, platform, and the place it is in, else the next)
     for index, (row, platform, *place) in enumerate(rows):
@@ -845,12 +870,37 @@ def _controller_screen() -> list:
             for line in lines]
 
 
+SCREENS["network_setup/bots/manage"] = {
+    "screen": "bots_manage_screen", "header": _network["header"], "title": "MANAGE BOTS",
+    "spacing": 36, "dynamic_help": True, "rows": [],
+    "help_text": "Host only. Add/remove during a match;\\nuse Bot Count in the lobby.",
+}
+
+
+def _bots_manage_screen(folder, spec):
+    base = f"{PE}/{folder}"
+    rows, extra = [], []
+    for operation, verb in (("add", "ADD"), ("drop", "REMOVE")):
+        for team, label in (("any", "ANY TEAM"), ("red", "RED TEAM"), ("blue", "BLUE TEAM")):
+            row = f"{base}/op_{operation}_{team}"
+            rows.append((row, None))
+            extra += _widget(row, [("type", "text"), ("width", 512), ("height", 28),
+                ("bitmap", "bitmaps/option_bkds"), ("text", f"{verb} BOT - {label}"),
+                ("font", "ui\\large_ui"), ("color", "#FF2896FF"), ("text_x", 13), ("text_y", 4)],
+                ['<on event="a" run="port bots command"/>', '<on event="start" run="port bots command"/>',
+                 '<on event="left_mouse" run="mouse emit accept event"/>'])
+    extra += _button(f"{base}/button_ok", 1, ['<on event="a" back="true"/>', '<on event="start" back="true"/>'])
+    lines = _screen(folder, spec, rows, [], [], extra)
+    return [line for line in lines if f'<child widget="{base}/button_defaults"' not in line]
+
+
 def settings_files() -> dict:
     """the files of the port's screens, by their names in ce/"""
     files = {}
     for folder, spec in SCREENS.items():
         files[f"{PE}/{folder}".replace("/", ".") + ".xml"] = (
-            _controller_screen() if folder == "controller_remapping" else _setting_screen(folder, spec))
+            _controller_screen() if folder == "controller_remapping" else
+            _bots_manage_screen(folder, spec) if folder == "network_setup/bots/manage" else _setting_screen(folder, spec))
     files[f"{PE}/controls_setup".replace("/", ".") + ".xml"] = _controls_screen()
     return {name: ['<?xml version="1.0" encoding="UTF-8"?>',
                    "<!-- The port's settings screen, in the PC version's style (tools/port_settings.py) -->",
@@ -1461,6 +1511,16 @@ def _password_screen() -> list:
     return lines
 
 
+def _bots_link(base, name, host_only=False):
+    target = f"{PE}/network_setup/bots/bots_screen"
+    return _widget(f"{base}/{name}", [("type", "text"), ("width", 118), ("height", 24),
+        ("bitmap", "bitmaps/text_button_background"), ("text", "BOTS"), ("font", "ui\\small_ui"),
+        ("color", "#FFFFFFFF"), ("align", "center"), ("text_y", 2)],
+        ([ '<on event="created" run="port bots host entry"/>' ] if host_only else []) +
+        [f'<on event="a" open="{target}"/>', f'<on event="start" open="{target}"/>',
+         '<on event="left_mouse" run="mouse emit accept event"/>'])
+
+
 def _server_settings() -> list:
     """Create Game's server settings (in the PC version's place): the game's
     name, the most players (up to the port's 128), its invite link, and
@@ -1606,6 +1666,10 @@ def _server_settings() -> list:
     ])
     lines = _screen(base, spec, rows, ["server settings update"],
                     ['<on event="created" run="server settings init"/>'], extra)
+    # The footer has an unused middle slot; keep the existing rows in place.
+    lines = [line.replace(f'<child widget="{base}/button_ok"',
+             f'<child widget="{base}/button_bots" x="250" y="1"/><child widget="{base}/button_ok"') for line in lines]
+    lines += _bots_link(base, "button_bots")
     # (co-op's options' screens, and map sharing's)
     for key, title, _, screen_rows in [*COOP_SETUP_SCREENS, MAP_SHARE_SETUP]:
         lines += _setup_option_screen(f"{base}/{key}", key, screen_rows)
@@ -1838,7 +1902,9 @@ def _lobby() -> list:
                      [f'<child widget="{base}/lobby_button_team" x="120" y="1"/>',
                       f'<child widget="{base}/lobby_button_start" x="250" y="1"/>',
                       f'<child widget="{base}/lobby_button_add" x="380" y="1"/>',
-                      f'<child widget="{base}/lobby_button_leave" x="510" y="1"/>'])
+                      f'<child widget="{base}/lobby_button_leave" x="510" y="1"/>',
+                      f'<child widget="{base}/lobby_button_bots" y="1"/>'])
+    lines += _bots_link(base, "lobby_button_bots", host_only=True)
     for key, caption, handlers in (
         ("add", "ADD PLAYER", ['<on event="a" run="port lobby add player"/>',
                                '<on event="start" run="port lobby add player"/>']),

@@ -13,8 +13,8 @@ drawn for them. */
 struct player_action;
 struct network_player;
 
-/* the most bots in one game (with one player, the Xbox's 16) */
-#define BOTS_MAXIMUM 15
+/* Optional host bots: 63 plus one human, within the existing 128 slots. */
+#define BOTS_MAXIMUM 63
 /* the first bot's machine index (the last machine indices of the session) */
 #define BOTS_FIRST_MACHINE (HALO_PORT_MAXIMUM_NETWORK_MACHINES - BOTS_MAXIMUM)
 
@@ -32,6 +32,12 @@ short bots_skill(void);
 short bots_teams(void);
 /* The inherited Slayer bots, plus CTF/King when enhanced bots are enabled. */
 int bots_gametype_allowed(long engine);
+int bots_gametype_active(long engine);
+/* Host controls use existing player joins/quits; team is NONE, red 0 or blue 1. */
+int bots_manage(int add, int team, char *status, long size);
+void bots_management_reset(void);
+/* -1 for an unrelated command, otherwise the host action's success. */
+int bots_console_command(char const *expression);
 /* Host session policy; the network option takes effect when a host is created. */
 void bots_network_session_begin(void);
 void bots_network_session_end(void);

@@ -37,7 +37,8 @@ final class AndroidCheatMenu {
         panel.setOrientation(LinearLayout.VERTICAL);
         int padding = (int)(16 * context.getResources().getDisplayMetrics().density);
         panel.setPadding(padding, padding, padding, padding);
-        String[] switches = {"Invincibility", "Unlimited ammunition", "Bottomless clip", "Super jump"};
+        String[] switches = {"Invincibility", "Unlimited ammunition", "Bottomless clip", "Super jump",
+            "Omnipotent", "No fall damage", "Medusa mode", "Bump possession", "Easy Rider"};
         for (int i = 0; i < switches.length; i++) {
             final int command = i;
             Switch toggle = new Switch(context);
@@ -49,9 +50,9 @@ final class AndroidCheatMenu {
             });
             panel.addView(toggle);
         }
-        String[] actions = {"Spawn weapons", "Spawn powerups", "Active camouflage"};
+        String[] actions = {"Spawn weapons", "Spawn powerups", "Active camouflage", "Spawn vehicles"};
         for (int i = 0; i < actions.length; i++) {
-            final int command = 4 + i;
+            final int command = switches.length + i;
             Button button = new Button(context);
             button.setText(actions[i]);
             button.setOnClickListener(view -> request(context, command));

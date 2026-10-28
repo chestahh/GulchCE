@@ -17,10 +17,10 @@ import pytest
 RETAIL_MAPS = Path(os.environ.get("HALO_TEST_MAPS", "assets/maps"))
 GAME = Path(os.environ.get("HALO_TEST_GAME", "build/linux/halo"))
 # a player's line of the network test's each second (network_test.c): alive or dead, its kills, deaths, team and
-# machine (a bot's is BOTS_FIRST_MACHINE, 113, and up)
+# machine (a bot's is BOTS_FIRST_MACHINE, 65, and up)
 PLAYER = re.compile(r"player (\d+): (?:\((-?[\d.]+) (-?[\d.]+) -?[\d.]+\)|dead).*? s-?\d+ k(-?\d+) d(-?\d+) f-?\d+ "
                     r"t-?\d+ m(\d+)")
-BOTS_FIRST_MACHINE = 113
+BOTS_FIRST_MACHINE = 65
 
 
 def _game(map_name):

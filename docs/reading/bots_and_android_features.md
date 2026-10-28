@@ -19,7 +19,15 @@ their existing map loaders, limits, rules and resource ownership.
   seated bots to leave; disabling enhanced bots takes effect on the next map.
 - `bots.network = true` permits bots on a network host. Set it before
   creating the host; `bots.count`, `bots.skill` and `bots.teams` still apply.
-  Admission/removal occurs in the lobby. This does not add live bot commands.
+  Up to 63 bots join, subject to the lobby's player limit (63 bots plus one
+  human need at least 64 player slots). The default count remains zero.
+- In the CE menus, **Settings > Network > Bots** configures count, network
+  admission, difficulty, teams, enhanced tactics, vehicles and routes.
+  **Create Game** and the host's lobby also have a **Bots** button. During
+  a match, open **Settings > Network > Bots > Manage Current Bots** to add
+  or remove one bot on either team, or let Any Team balance a team game.
+  Live changes do not change the saved lobby count. Clients cannot manage
+  the host's bots. Xbox menu artwork and navigation remain unchanged.
 - Android's **Settings > Gamepad > Android Controls > Gyro Aim** offers
   **Touch Settings**, **Off**, **On** and **Zoom Only**. Touch Settings is
   the default and preserves the layout's saved gyro switch and sensitivity.
@@ -27,8 +35,10 @@ their existing map loaders, limits, rules and resource ownership.
   settings. Zoom Only discards motion while unzoomed.
 - Android's **Cheat Menu** option adds **Cheats** to touch **Options**.
   It defaults off and is available during offline gameplay only. It exposes
-  invincibility, ammunition, bottomless clip, super jump, weapon/powerup
-  spawning and camouflage through existing engine cheat APIs.
+  invincibility, ammunition, bottomless clip, super jump, omnipotence,
+  no fall damage, Medusa, bump possession, Easy Rider, weapon/powerup/vehicle
+  spawning and camouflage through existing engine cheat APIs. Easy Rider
+  disables rider ejection; it does not change the saved game's defaults.
 
 For example, set `bots.count = 6`, `bots.enhanced = true`,
 `bots.network = true` and `bots.routes = "mixed"`, then create a CTF host.
@@ -49,8 +59,13 @@ The complete settings and environment variables are in
    this host. A high machine number alone never grants bot ownership.
 2. [network_server_manager.c](../../source/networking/network_server_manager.c):
    `network_game_server_port_bots` retains the existing lobby, team and
-   capacity rules. An opted-in host reserves the final 15 machine IDs;
+   capacity rules. An opted-in host reserves the final 63 machine IDs;
    ordinary hosts retain all human machine slots.
+   [bots_management.inl](../../port/linux/game/bots_management.inl)'s
+   `bots_manage` uses that server's existing join/quit dispatch for live
+   changes. Admission assigns the authoritative slot before encoding;
+   failed encoding rolls back the unannounced record. A departing bot's
+   machine identity stays unavailable until after the scheduled quit tick.
 3. [bots.c](../../port/linux/game/bots.c): `bots_update_actions` runs only
    on the host. `bots_choose_goal` asks the enhanced module for urgent
    objectives before the inherited combat/item/roaming decisions.
@@ -92,6 +107,14 @@ Respawn releases seat reservations and vantage claims. Session disposal
 clears bot ownership and the network reservation. Map-loading and MCC
 cleanup paths remain unchanged.
 
+[bots_menu.inl](../../port/linux/game/bots_menu.inl)'s `bots_menu_event`
+connects generated CE widgets to those host operations and displays their
+result. Settings retain the existing save, cancel and defaults behavior.
+The console offers `add_bot`, `add_bot_red`, `add_bot_blue`, `drop_bot`,
+`drop_bot_red` and `drop_bot_blue` through the same permission checks.
+The console hook follows the dedicated server's role check. Neither path
+executes arbitrary console strings from a widget or another machine.
+
 ## Read the Android flow
 
 [TouchControls.java](../../port/android/app/src/main/java/com/halo/decomp/TouchControls.java)
@@ -124,6 +147,10 @@ items remain ordinary game objects; they are not undone by closing the UI.
 - The lobby owns player admission and machine IDs, and the tick queue owns
   authoritative input publication. Feature code cannot safely replace
   either ownership boundary. Their small hooks call the feature modules.
+- Live bot management needs the server's private record and message types;
+  its feature-owned include runs there without exposing those internals as
+  a new public engine API. The script-console hook only recognizes the six
+  typed bot commands; menus call the same feature function directly.
 - `player_control` knows the actual zoom state when it consumes input;
   the gyro hook needs that state to discard unzoomed motion.
 - `cheats_dispose_from_old_map` is the map boundary at which menu-owned
@@ -147,12 +174,42 @@ design references below; this is not a wholesale cherry-pick.
 | Routes, roles, vantage points and vehicle reference | **BirchWoodGod**'s [halo-ce-vita](https://github.com/BirchWoodGod/halo-ce-vita), adapted by **thelinkin3000** in [88df94fd](https://github.com/thelinkin3000/halo-ce-universal/commit/88df94fd9fb7dc76b3762ef28bfd5d624fe4bba5). The retained tactical code and derived portions keep GPL-3.0-only; its full text ships in [LICENSES/GPL-3.0-only.txt](../../LICENSES/GPL-3.0-only.txt). Vehicle controls are a focused adaptation using this engine's public seat/action interfaces. |
 | CTF and hill decisions | **thelinkin3000**, [ef77e2b4](https://github.com/thelinkin3000/halo-ce-universal/commit/ef77e2b4d73fbd81622279ae7cd1f5e5d40771c2) and [91871681](https://github.com/thelinkin3000/halo-ce-universal/commit/918716812b155eb889f73c125b11bd53bb475564). Those commits credit **id Software** and **ioquake3 contributors**: Quake III CTF/team rules and key-area defense inspired the decisions. Quake III did not supply a Halo hill implementation; no additional Quake source was imported here. |
 | Network bots | **thelinkin3000**, [ed6cdaed](https://github.com/thelinkin3000/halo-ce-universal/commit/ed6cdaeda8871b7bee781c76bff3a4da2836c1bf), for publishing bot actions through the existing tick queue. GulchCE adds explicit host ownership and opt-in machine reservation. |
+| 63-bot capacity and live controls | **thelinkin3000**'s `bots.h`, `overlay_menu.c` and `network_server_manager.c` at the pinned reference above, built on **BirchWoodGod**'s OpenCE/Vita bots. GulchCE adapts capacity and join/quit behavior into feature-owned controls with generated CE menus, explicit ownership and delayed identity reuse. |
 | Gyro settings | **thelinkin3000**, [29638d60](https://github.com/thelinkin3000/halo-ce-universal/commit/29638d603d90283e16f95b2ac78d1ab99639912a), as the settings/zoom-mode reference. Built on **MrBruh**'s existing OpenCE Android controls (`fc610044`), preserving their legacy behavior. |
 | Android cheat menu | **thelinkin3000**, [406f793f](https://github.com/thelinkin3000/halo-ce-universal/commit/406f793f4c08751f854a3615ed244ea3b1f90b88), whose overlay credits **hardran3**'s **OpenCE-Ultrahand** and **HaloDrones** packages. GulchCE uses a new small typed Android dialog/queue and existing cheat APIs; the fork's general console and renderer overlay are not imported. |
 
 Code credits belong here and in player-facing commit notes, not in the
 art-only `AUTHORS.md`. Release packaging includes the retained GPL text and
 this provenance; web distributions include both in `licenses.txt`.
+
+## Reference audit
+
+This source audit compares the pinned `d92cc933` fork with GulchCE's combined
+implementation, including the earlier adaptation. It does not claim full
+behavioral parity with the fork. The capacity, menus and remaining cheat
+actions requested in this follow-up are implemented; other differences
+are recorded explicitly below rather than hidden behind an "enhanced" label.
+
+| Reference capability | GulchCE disposition |
+| --- | --- |
+| 63 bots, names and host-only network actions | Capacity restored; ordinary protocol-39 player records/actions retained. Lobby limits still apply. |
+| Live add/drop by team; difficulty, routes and vehicles in a menu | Implemented through CE settings and Manage Current Bots. The fork's renderer overlay and three-finger gesture are not imported. |
+| Nine cheat switches and weapon/powerup/vehicle spawns | All exposed by the Android dialog, plus the earlier camouflage action. Offline-only permission remains intentional. |
+| Explicit gyro modes, per-axis sensitivity and inversion | Adapted; the default Touch Settings mode additionally preserves the user's earlier saved gyro settings. |
+| Roles, lanes, vantage choices, CTF/King goals and ground vehicles | Focused adaptation already present, not an import of the fork's complete bot core. Vehicles stay off by default, unlike the fork's enabled default. |
+| Teleporter routing/shortcuts, ladder routing and learned navigation obstacles | Omitted from the earlier adaptation; GulchCE still uses its existing path core. These require separate feature-owned navigation work and map coverage. |
+| Detailed vehicle weighting, passenger pickup/waits, flipping, vehicle-width obstacle learning and turret arc decisions | Only the simpler seat reservation/ground driving/turret controls were adapted. These richer behaviors remain omitted. |
+| Skill-dependent head/feet aim, SWAT aim, objective-target combat priority, Infection-specific goals | Not adapted; existing combat and Slayer-derived rules remain. Objective movement is not equivalent to these combat decisions. |
+| Detailed powerup claims, skill thresholds, avoidance and shared scan cache | GulchCE has simpler powerup scoring; the full reference behavior remains omitted. |
+| Optional helper-thread pathfinding | Not imported; existing bounded synchronous searches remain. No performance equivalence is claimed. |
+| General overlay console, custom TOML commands, HUD/debug and game-speed controls | Outside the requested bot/Android-cheat UI scope; not imported. |
+
+The Android touch-control comparison found the overlay gesture as the main
+remaining UI difference in `TouchControls.java`; the retained legacy gyro
+mode is deliberate. A source comparison cannot establish touch feel or
+device-specific sensor behavior. Future navigation/vehicle adaptations
+should retain these isolation and attribution boundaries and measure their
+cost at 63 bots before adding more work to each tick.
 
 ## Checks and limits
 
@@ -163,7 +220,7 @@ capacity and lifecycle. [test_touch_layout.py](../../tools/test_touch_layout.py)
 covers Java layout, gyro integration and sensor-state transitions.
 [test_bots.py](../../tools/test_bots.py) exercises real local games.
 
-Validation of the reviewed implementation on Windows:
+Earlier implementation validation on Windows (six bots):
 
 - All six real-game bot regressions passed: stock Blood Gulch and Chill
   Out Slayer, enhanced Blood Gulch Slayer/CTF/King, and bots absent from a

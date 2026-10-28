@@ -383,7 +383,7 @@ problem.
 ## Bots
 
 Computer players (bots) can play a local multiplayer game with you:
-`bots.count` (1 to 15) of them join the lobby of a Slayer game played on
+`bots.count` (1 to 63) of them join the lobby of a Slayer game played on
 this computer, which is Multiplayer > Split Screen in the Xbox's menus
 (`display.menus = "xbox"`; the PC version's menus have no game of this
 computer alone). They are players as you are: in the scores, the respawns
@@ -397,6 +397,11 @@ team roles, vantage points and powerup choices; `bots.routes` selects direct
 paths or side lanes, and `bots.vehicles` enables ground vehicles and turrets.
 Enhanced policy takes effect at map load. `bots.network`, set before creating
 the host, permits host-controlled bots in system link and internet games.
+The CE menus expose these settings at **Settings > Network > Bots**, with
+shortcuts in Create Game and the host's lobby. During a match, **Manage
+Current Bots** adds/removes bots by team without changing the saved count.
+The lobby's player limit still applies: allow at least 64 slots for 63 bots
+and one human. Xbox menu defaults and navigation are unchanged.
 Clients receive ordinary player records and actions. All additions default
 off (routes default to direct). See the
 [implementation and credits](../../docs/reading/bots_and_android_features.md).
@@ -545,11 +550,11 @@ the setting for one start of the game. It has priority over the file.
 | `game.enhanced_animations` | `true` | `HALO_ENHANCED_ANIMATIONS` | `true`: the player bipeds' grenade throws keep their legs moving, blended by speed and direction (crouched throws stay crouched, throws in the air use the jump's legs), Warthog and Scorpion riders stay seated to throw and let go of the grips to throw and reload, and a player turns with the aim while throwing, as while meleeing. `false`: the original animations, which freeze the legs during a throw and stand a rider up. Only in config.toml, not in the menus. |
 | `game.unlock_all_levels` | `false` | `HALO_UNLOCK_ALL_LEVELS` | `true`: a profile created afterward starts with all the campaign levels finished on all the difficulties. `false`: a new profile starts at The Pillar of Autumn, and each level opens when you finish the level before it, as on the Xbox. Existing profiles keep their progress. To start a profile over, type `profile_reset_campaign` in the console. |
 | `bots.enhanced` | `false` | `HALO_BOTS_ENHANCED` | Optional goals, roles, vantage points and powerup choices. Read at map load. |
-| `bots.network` | `false` | `HALO_BOTS_NETWORK` | Host bots through ordinary player replication. Read when creating the host; reserves 15 machine IDs only when enabled. |
+| `bots.network` | `false` | `HALO_BOTS_NETWORK` | Host bots through ordinary player replication. Read when creating the host; reserves 63 machine IDs only when enabled. |
 | `bots.routes` | `"direct"` | `HALO_BOT_ROUTES` | Enhanced bot routes: `direct`, `lanes` or `mixed`; unreadable/unreachable routes fall back to the base pathfinder. |
 | `bots.vehicles` | `false` | `HALO_BOT_VEHICLES` | Enhanced ground-vehicle and turret use through ordinary controls; no aircraft navigation. |
 | `android.cheat_menu` | `false` | `HALO_ANDROID_CHEAT_MENU` | Android: expose Cheats in touch Options during offline gameplay only. |
-| `bots.count` | `0` | `HALO_BOTS` | Computer players: `0` to `15` join the lobby as room permits. Local Slayer by default; `bots.enhanced` adds CTF/King and `bots.network` allows network hosts. `0`: none, as in the stock game. Refer to "Bots". |
+| `bots.count` | `0` | `HALO_BOTS` | Computer players: `0` to `63` join the lobby as room permits. Local Slayer by default; `bots.enhanced` adds CTF/King and `bots.network` allows network hosts. `0`: none, as in the stock game. Refer to "Bots". |
 | `bots.skill` | `"normal"` | `HALO_BOT_SKILL` | How well the bots play: `"easy"`, `"normal"`, `"heroic"` or `"legendary"`: how soon they react, how far and how wide they see, how large their aim error is and how fast it settles, how fast they turn. |
 | `bots.teams` | `"even"` | `HALO_BOT_TEAMS` | In a team game: `"even"` puts the bots on both teams, evening them with the players; `"against"` puts them all on the team the players are not on. |
 | `paths.data` | `""` | `HALO_DATA_ROOT` | The data root. Refer to "Start the game". |
@@ -1789,7 +1794,7 @@ Other changes:
 | `cache/cache_files.c`, `networking/network_client_manager.c`, `networking/network_server_manager.c`, `networking/network_server_message_handler.c`, `main/main.c`, `interface/interface.c` | Map sharing (`game/map_share.c`): a client that does not have the game's Custom Edition map asks the host for it instead of leaving, is not given time to precache it until it has it, and adds its players to a game in progress only then; the host gives the game's map its own name and its version (its hash's start), takes the requests from any machine in the game, lobby too, and does not drop a machine that downloads; the transfers run each frame, and their progress is drawn over the screen. |
 | `cutscene/cinematics.c` | A scenario's titles (some Custom Edition maps show their name for the whole game) are not drawn over a menu, as the letterbox is not: the screen's overlays are drawn after the players' menus. |
 | `tag_files/tag_groups.h` | `TAG_BLOCK_GET_ELEMENT` returns an element in the block without a call, and calls `tag_block_get_element_with_size` for anything else. |
-| `game/players.c`, `networking/network_server_manager.c` | Bots (`game/bots.c`, `bots.count`): the lobby of a local Slayer game takes the bot players, each the one player of a machine of its own that no real machine is, and every tick their actions come from `game/bots.c` instead of their empty queues. Nothing changes in a system link or internet game. |
+| `game/players.c`, `networking/network_server_manager.c` | Bots (`game/bots.c`, `bots.count`): the lobby of a local Slayer game takes the bot players, each the one player of a machine of its own that no real machine is, and every tick their actions come from `game/bots.c` instead of their empty queues. System link and internet bots remain off unless explicitly enabled before host creation; live controls use the same ordinary player messages. |
 | `input/input_xbox.c`, `physics/collision_usage.c` | The clock is read only for a button held, and for collision tests only when their times are shown: a read of the clock is slow in a browser. |
 | `main/main.c`, `interface/hud.c`, `interface/hud_unit.c`, `interface/hud_draw.c`, `game/game_engine.c` | The text chat of network games (`game/network_chat.c`): its keys are read each frame, and the debug keys are not while a line is typed; each view's HUD draws its lines, above the motion sensor, whose place the HUD notes (the left of the last picture drawn); the scoreboard's menu has Mute voice and chat, and the host's Mute for everyone. |
 

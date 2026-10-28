@@ -46,7 +46,8 @@ JNIEXPORT jboolean JNICALL Java_com_halo_decomp_AndroidCheatMenu_nativeRequest(J
 	(void)env;
 	(void)cls;
 	pthread_mutex_lock(&lock);
-	if ((state & 2) && count < CHEAT_QUEUE_CAPACITY && (request & ~0x107) == 0 && (request & 0xFF) <= 6)
+	if ((state & 2) && count < CHEAT_QUEUE_CAPACITY && (request & ~0x10F) == 0 &&
+		(request & 0xFF) <= 12 && ((request & 0xFF) < 9 || !(request & 0x100)))
 	{
 		requests[(first + count) % CHEAT_QUEUE_CAPACITY] = request;
 		count++;

@@ -16,13 +16,15 @@ int touch_game_cinematic_playing(void);
 void host_android_cheats_state(int state);
 int host_android_cheats_read(void);
 
-/* IDs 0..3 are switches; 4..6 are one-shot actions. The Android UI and
+/* IDs 0..8 are switches; 9..12 are one-shot actions. The Android UI and
 host queue use the same IDs. Bit 8 carries the requested switch value. */
+extern boolean rider_ejection;
 static boolean *const switches[] =
 {
-	&cheat.deathless_player, &cheat.infinite_ammo, &cheat.bottomless_clip, &cheat.super_jump
+	&cheat.deathless_player, &cheat.infinite_ammo, &cheat.bottomless_clip, &cheat.super_jump,
+	&cheat.omnipotent, &cheat.jetpack, &cheat.medusa, &cheat.bump_possession, &rider_ejection
 };
-static boolean previous[4], applied[4];
+static boolean previous[NUMBEROF(switches)], applied[NUMBEROF(switches)];
 static unsigned long owned;
 
 void android_cheats_reset(void)
@@ -55,21 +57,23 @@ void android_cheats_update(void)
 	for (count = 0; !touch_game_cinematic_playing() && count < 4 && (request = host_android_cheats_read()) >= 0; count++)
 	{
 		index = request & 0xFF;
-		if ((request & ~0x107) != 0 || index > 6) continue;
+		if ((request & ~0x10F) != 0 || index > 12 || (index >= 9 && (request & 0x100))) continue;
 		if (index < (long)NUMBEROF(switches))
 		{
 			if (!TEST_FLAG(owned, index)) previous[index] = *switches[index];
 			SET_FLAG(owned, index, TRUE);
-			applied[index] = (request & 0x100) != 0;
+			/* Easy Rider is on when the engine's rider ejection is off. */
+			applied[index] = ((request & 0x100) != 0) != (index == 8);
 			*switches[index] = applied[index];
 		}
-		else if (index == 4) cheat_all_weapons();
-		else if (index == 5) cheat_all_powerups();
-		else if (index == 6) cheat_active_camouflage_local_player(0);
+		else if (index == 9) cheat_all_weapons();
+		else if (index == 10) cheat_all_powerups();
+		else if (index == 11) cheat_active_camouflage_local_player(0);
+		else if (index == 12) cheat_all_vehicles();
 	}
 	if (!touch_game_cinematic_playing()) state |= 2;
 	for (index = 0; index < (long)NUMBEROF(switches); index++)
-		if (*switches[index]) state |= 1 << (8 + index);
+		if ((*switches[index] != FALSE) != (index == 8)) state |= 1 << (8 + index);
 	host_android_cheats_state(state);
 }
 #endif

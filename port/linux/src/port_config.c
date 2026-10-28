@@ -497,7 +497,7 @@ static const struct config_setting config_settings[] =
 		"Read at map load. False keeps the inherited Slayer bot behavior." },
 	{ "bots.network", _config_boolean, "false", "HALO_BOTS_NETWORK", _environment_value, _platform_all,
 		"Allow host-controlled bots in multiplayer network games. Read when\n"
-		"creating a host. Reserves the last 15 machine IDs for bots only when\n"
+		"creating a host. Reserves the last 63 machine IDs for bots only when\n"
 		"enabled; clients use ordinary player replication. False keeps local\n"
 		"bots only and the full human machine capacity." },
 	{ "bots.routes", _config_string, "\"direct\"", "HALO_BOT_ROUTES", _environment_value, _platform_all,
@@ -506,7 +506,7 @@ static const struct config_setting config_settings[] =
 	{ "bots.vehicles", _config_boolean, "false", "HALO_BOT_VEHICLES", _environment_value, _platform_all,
 		"Let enhanced bots enter, drive and use vehicles and turrets." },
 	{ "bots.count", _config_integer, "0", "HALO_BOTS", _environment_value, _platform_all,
-		"Computer players (bots): 0 to 15. Local Slayer by default; bots.enhanced\n"
+		"Computer players (bots): 0 to 63. Local Slayer by default; bots.enhanced\n"
 		"also allows CTF/King, and bots.network enables host-controlled network\n"
 		"bots. They join the lobby as room permits. 0: none, as in the stock game." },
 	{ "bots.skill", _config_string, "\"normal\"", "HALO_BOT_SKILL", _environment_value, _platform_all,
