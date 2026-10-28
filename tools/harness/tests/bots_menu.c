@@ -33,6 +33,7 @@ int main(void)
 	struct widget_instance widget = { "button_bots", TRUE, { { NULL } } };
 	int index;
 	options.parameters.list.extended_description = &description;
+	CHECK(bots_menu_event(&description, "port bots init") && displayed[0], "initial help missing");
 	CHECK(bots_menu_event(&widget, "port bots host entry") && !widget.visible, "client host button visible");
 	host = TRUE;
 	CHECK(bots_menu_event(&widget, "port bots host entry") && widget.visible, "host button hidden");

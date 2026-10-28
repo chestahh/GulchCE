@@ -11,6 +11,13 @@ static boolean bots_menu_event(struct widget_instance *widget, char const *event
 	long index, character;
 	struct widget_instance *list;
 
+	if (!strcmp(event, "port bots init"))
+	{
+		/* This description has no string list: rendering must retain its
+		owned text buffer rather than replacing it with a static caption. */
+		text_set(widget, L"Host only. Add/remove during a match;\nuse Bot Count in the lobby.");
+		return TRUE;
+	}
 	if (!strcmp(event, "port bots host entry"))
 	{
 		widget->visible = global_network_game_server_get() != NULL;

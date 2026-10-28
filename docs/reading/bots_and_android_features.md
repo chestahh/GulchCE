@@ -184,8 +184,11 @@ this provenance; web distributions include both in `licenses.txt`.
 
 ## Reference audit
 
-This source audit compares the pinned `d92cc933` fork with GulchCE's combined
-implementation, including the earlier adaptation. It does not claim full
+This source audit compares the original `d92cc933` reference and the fork's
+[current main, 18a94774](https://github.com/thelinkin3000/halo-ce-universal/tree/18a94774a73ca275e9c0ab4f281e492ad8bb656e)
+(28 October 2026), with GulchCE's combined implementation. The 90 commits
+between those references leave the bot core and cheat-entry list unchanged,
+but add touch-layout/editor changes and replay features. It does not claim full
 behavioral parity with the fork. The capacity, menus and remaining cheat
 actions requested in this follow-up are implemented; other differences
 are recorded explicitly below rather than hidden behind an "enhanced" label.
@@ -193,7 +196,7 @@ are recorded explicitly below rather than hidden behind an "enhanced" label.
 | Reference capability | GulchCE disposition |
 | --- | --- |
 | 63 bots, names and host-only network actions | Capacity restored; ordinary protocol-39 player records/actions retained. Lobby limits still apply. |
-| Live add/drop by team; difficulty, routes and vehicles in a menu | Implemented through CE settings and Manage Current Bots. The fork's renderer overlay and three-finger gesture are not imported. |
+| Live add/drop by team; difficulty, routes and vehicles in a menu | Implemented through CE settings and Manage Current Bots. The fork's renderer overlay and configurable three/four-finger gesture are not imported. |
 | Nine cheat switches and weapon/powerup/vehicle spawns | All exposed by the Android dialog, plus the earlier camouflage action. Offline-only permission remains intentional. |
 | Explicit gyro modes, per-axis sensitivity and inversion | Adapted; the default Touch Settings mode additionally preserves the user's earlier saved gyro settings. |
 | Roles, lanes, vantage choices, CTF/King goals and ground vehicles | Focused adaptation already present, not an import of the fork's complete bot core. Vehicles stay off by default, unlike the fork's enabled default. |
@@ -202,16 +205,62 @@ are recorded explicitly below rather than hidden behind an "enhanced" label.
 | Skill-dependent head/feet aim, SWAT aim, objective-target combat priority, Infection-specific goals | Not adapted; existing combat and Slayer-derived rules remain. Objective movement is not equivalent to these combat decisions. |
 | Detailed powerup claims, skill thresholds, avoidance and shared scan cache | GulchCE has simpler powerup scoring; the full reference behavior remains omitted. |
 | Optional helper-thread pathfinding | Not imported; existing bounded synchronous searches remain. No performance equivalence is claimed. |
+| New touch edge-zone handling and optional held-button aim suppression | Not present in GulchCE. The fork's [d119125f](https://github.com/thelinkin3000/halo-ce-universal/commit/d119125f) accepts a drawn control in Android's edge-gesture zone and adds a saved switch for whether a held button also aims. These are follow-up touch improvements, beyond the original gyro adaptation. |
+| Movable Options button and centered layout-editor Export/Import/Save | Not adapted. GulchCE preserves its existing toolbar positions and version-3 layout format; the fork adds version 4 and validates new saved fields. |
+| Scrollable Android General settings | The fork's [62824171](https://github.com/thelinkin3000/halo-ce-universal/commit/62824171) makes its expanded General panel accessible on short/portrait displays. GulchCE retains its smaller existing panel; its cheat dialog already scrolls. |
 | General overlay console, custom TOML commands, HUD/debug and game-speed controls | Outside the requested bot/Android-cheat UI scope; not imported. |
+| Replay recording, Theater and playback controls added after d92cc933 | A separate feature, not part of this bot/Android-cheat completion. Not imported. |
 
-The Android touch-control comparison found the overlay gesture as the main
-remaining UI difference in `TouchControls.java`; the retained legacy gyro
-mode is deliberate. A source comparison cannot establish touch feel or
+Against the original reference, the overlay gesture was the main remaining
+UI difference in `TouchControls.java`. The later reference adds the touch
+changes listed above; the retained legacy gyro mode is deliberate.
+A source comparison cannot establish touch feel or
 device-specific sensor behavior. Future navigation/vehicle adaptations
 should retain these isolation and attribution boundaries and measure their
 cost at 63 bots before adding more work to each tick.
 
 ## Checks and limits
+
+The 63-bot/menu/cheat completion was reviewed as a combined implementation,
+including generated screens, shared hooks, failure rollback, ownership and
+cleanup. Runtime rendering exposed and fixed a description-ownership bug:
+management feedback must have an owned text buffer with no string list,
+otherwise rendering replaces it every frame. The host's assigned player
+slot is encoded before publishing a join, and existing lobby focus is kept.
+
+Completion validation on Windows:
+
+- Windows, Android guest/host and web release builds passed with the original
+  PGO options restored. Android Java compiled against SDK 35; Java layout and
+  gyro checks and all 36 web page tests passed.
+- The focused suite passed 123 checks with five platform skips. All six
+  real-game bot regressions passed, including stock Slayer, enhanced
+  Slayer/CTF/King, movement/combat and network bots disabled.
+- Unmodified OpenCE build 317 (protocol 39, release archive SHA-256
+  `9950628b540cd5245440ae5db7ddad97cc76c9aed1ec20ca1419156acc4fb931`)
+  admitted 63 bots plus two humans on Xbox Blood Gulch and CE Death Island.
+  Both peers logged all 65 names and exited cleanly. The existing 4096-byte
+  player-state line truncates large matches: intact players 0..31 compared
+  for 67 and 66 paired seconds, respectively, with no sustained divergence
+  under unchanged comparator tolerances. This does not compare all 65 positions.
+- Three live additions and three removals agreed with OpenCE for 67 paired
+  seconds. Both peers retained the same dead, unreused quit-player datum;
+  that ninth logged record is not a ninth active participant. Bot identity
+  reuse after the quit deadline and failed encoding are also harness-tested.
+- Two GulchCE instances on MCC DigsiteMP/1 admitted all 65 participants and
+  exited cleanly without a timeout override. The same intact-record comparison
+  covered 76 paired seconds with no sustained divergence; the large-log
+  limitation applies here too.
+- Hidden rendered checks covered Bot settings, Manage Bots, Server Setup
+  and Network Setup. Scripted controller presses verified that the real
+  management screen displays host-only rejection feedback.
+
+The Windows web-build test module has six POSIX path/header failures despite
+the web build succeeding; Linux CI supplies the native fixture environment.
+Android physical-device interaction, an Internet game through a broker, and
+live cross-family map changes are not established by these checks. Saves
+from completed isolated runs are archived losslessly with original paths
+and verified hashes; copied maps and disposable binaries are removed.
 
 The focused [harness tests](../../tools/harness/tests/) exercise real source
 for lobby defaults/opt-in/ownership, partial and repeated cleanup, gyro

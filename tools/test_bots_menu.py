@@ -34,6 +34,10 @@ def test_capacity_choices_and_live_actions():
     assert count is not None
     assert count.get("values").split("|") == [str(n) for n in range(64)]
     root = document(BASE + "/manage")
+    help_widget = root.find("widget[@name='" + BASE + "/manage/help']")
+    assert help_widget.find("on[@event='created'][@run='port bots init']") is not None
+    # A string list (including inline text) overwrites runtime feedback on render.
+    assert "text" not in help_widget.attrib and "string_list" not in help_widget.attrib
     rows = [w for w in root.findall("widget") if w.find("on[@run='port bots command']") is not None]
     assert {w.get("name").rsplit("/", 1)[1] for w in rows} == {
         "op_add_any", "op_add_red", "op_add_blue", "op_drop_any", "op_drop_red", "op_drop_blue"}

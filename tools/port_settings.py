@@ -624,8 +624,8 @@ def _screen(folder: str, spec: dict, rows: list, list_inputs: list, list_handler
     lines += _widget(f"{base}/help", [("type", "text"), ("controller", 1), ("left", 68),
                                       ("top", spec.get("help_top", 350)), ("width", 482),
                                       ("height", spec.get("help_height", 60)), ("string_list", None if spec.get("dynamic_help") else f"{base}/help_strings"),
-                                      ("font", "ui\\large_ui"), ("color", "#FFFFFFFF"),
-                                      ("text", spec.get("help_text"))], [])
+                                      ("font", "ui\\large_ui"), ("color", "#FFFFFFFF")],
+                     [f'<on event="created" run="{spec["help_init"]}"/>'] if spec.get("help_init") else [])
     children = [f'<data input="{name}"/>' for name in list_inputs] + list_handlers
     # (each row: its widget, platform, and the place it is in, else the next)
     for index, (row, platform, *place) in enumerate(rows):
@@ -873,7 +873,7 @@ def _controller_screen() -> list:
 SCREENS["network_setup/bots/manage"] = {
     "screen": "bots_manage_screen", "header": _network["header"], "title": "MANAGE BOTS",
     "spacing": 36, "dynamic_help": True, "rows": [],
-    "help_text": "Host only. Add/remove during a match;\\nuse Bot Count in the lobby.",
+    "help_init": "port bots init",
 }
 
 
