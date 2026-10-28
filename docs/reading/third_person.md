@@ -116,3 +116,7 @@ behavior; loopback sessions exercise real simulation and replication but do
 not establish public internet connectivity or full campaign compatibility.
 Rendered map-family transitions, weapon effects and physical controller or
 split-screen interaction need their own runtime evidence.
+
+The [28 October qualification record](third_person_qualification.md) records
+the completed Windows/browser, checkpoint and rendered split-screen checks,
+the fixes they exposed, and their remaining coverage limits.
