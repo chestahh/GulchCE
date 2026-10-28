@@ -117,7 +117,7 @@ int main(int argc, char **argv)
         route->phase = _bots_nav_going; route->goal = bot->goal_point; route->deadline = 1000;
         bots_navigation_update(bot, &start, TRUE);
         CHECK(!route->phase && !link->failures, "boarding counted as a broken link");
-        bots_navigation.vehicle_walkable = malloc(16);
+        bots_navigation.vehicle_walkable = (byte *)malloc(17) + 1;
         bots_navigation_reset(); bots_navigation_reset();
         CHECK(!bots_navigation.count && !bots_navigation.vehicle_walkable, "map state retained");
     }

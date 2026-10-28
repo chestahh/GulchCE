@@ -4,6 +4,7 @@
 #define TICKS_PER_SECOND 30
 #define BOTS_SEARCHES_A_TICK 3
 #define BOTS_PATHFINDING_WALKABLE_BIT 0
+#define MAXIMUM_PATH_EDGES_PER_COLLISION_SURFACE 64
 #define INFINITE 0xffffffffUL
 #define WAIT_OBJECT_0 0
 #define csmemset memset
@@ -11,8 +12,10 @@
 #define SET_FLAG(f,b,v) ((v)?((f)|=FLAG(b)):((f)&=~FLAG(b)))
 #define BIT_VECTOR_TEST_FLAG(p,b) TEST_FLAG((p)[(b)/32],(b)%32)
 #define platform_log(...) ((void)0)
-struct collision_surface { byte flags, breakable_surface_index; };
-struct collision_bsp { struct { long count; struct collision_surface *address; } surfaces; };
+struct collision_surface { byte flags, breakable_surface_index; long first_edge_index; };
+struct collision_edge { long vertex_indices[2], surface_indices[2], edge_indices[2]; };
+struct collision_bsp { struct { long count; struct collision_surface *address; } surfaces;
+    struct { long count; struct collision_edge *address; } edges; struct { long count; } vertices; };
 struct structure_bsp {
     struct { long count; byte *address; } pathfinding_surfaces;
     struct { long count; struct collision_bsp *address; } collision_bsp;
@@ -49,7 +52,8 @@ int main(int argc, char **argv)
     struct bots_bot *bot=&bots_globals.bots[0];
     struct structure_bsp structure;
     struct collision_bsp bsp;
-    struct collision_surface surfaces[2]={{0,0},{8,0}};
+    struct collision_surface surfaces[2]={{0,0,0},{8,0,0}};
+    struct collision_edge edges[1]={{{0,1},{0,1},{0,0}}};
     byte walkable[2]={1,129};
     struct path_state state;
     real_point3d start={0,0,0},goal={20,0,0};
@@ -59,10 +63,12 @@ int main(int argc, char **argv)
     structure.pathfinding_surfaces.address=walkable;structure.pathfinding_surfaces.count=2;
     structure.collision_bsp.address=&bsp;structure.collision_bsp.count=1;
     structure.breakable_surfaces.count=1;bsp.surfaces.address=surfaces;bsp.surfaces.count=2;
+    bsp.edges.address=edges;bsp.edges.count=1;bsp.vertices.count=2;
     state.structure=&structure;bot->unit_index=10;bot->goal_point=goal;
-    if (!strcmp(argv[1],"disabled"))
+    if (!strcmp(argv[1],"disabled") || !strcmp(argv[1],"malformed"))
     {
-        bots_worker_enabled=0;
+        if (!strcmp(argv[1],"disabled")) bots_worker_enabled=0;
+        else edges[0].edge_indices[0]=9;
         CHECK(!bots_worker_submit(bot,&state,&start,&goal,1,FALSE,FALSE,.25f),"worker changed default");
         CHECK(!handles && !bots_worker.jobs,"disabled worker allocated");
         return 0;
@@ -72,6 +78,7 @@ int main(int argc, char **argv)
     if (!strcmp(argv[1],"snapshot"))
     {
         CHECK(job->state.input.ignore_broken_surfaces,"worker still reads live breakage");
+        CHECK(job->walkable[-1]==0,"open-edge sentinel missing");
         CHECK(!(job->walkable[1]&1) && walkable[1]==129,"breakage snapshot changed live graph");
         walkable[0]=0;broken=1;
         CHECK(job->walkable[0]==1 && !(job->walkable[1]&1),"snapshot reads mutable state");

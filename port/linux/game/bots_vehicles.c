@@ -82,7 +82,6 @@ void bots_vehicles_reset_player(long index)
 	vehicles[index].seat = NONE;
 	vehicles[index].unit_index = NONE;
 	vehicles[index].target_unit = NONE;
-	vehicles[index].spawn_tick = game_time_get();
 }
 
 void bots_vehicles_reset(void)
@@ -217,6 +216,7 @@ boolean bots_vehicle_goal(long index, long unit_index, real_point3d const *desti
 	long now = game_time_get();
 	if (!config_boolean("bots.vehicles") || bots_vehicle_parent(unit_index) != NONE) return FALSE;
 	if (infection_enabled() && infection_unit_is_zombie(unit_index)) return FALSE;
+	if (state->unit_index != unit_index) state->spawn_tick = now;
 	state->unit_index = unit_index;
 	if (state->sought != NONE && state->flipping &&
 		object_try_and_get_and_verify_type(state->sought, _object_mask_vehicle) && object_get(state->sought)->object.up.k >= 0.5f)
@@ -398,6 +398,7 @@ void bots_vehicle_action(long index, long unit_index, real_point3d const *goal,
 	long parent = bots_vehicle_parent(unit_index), now = game_time_get();
 	struct unit_datum *vehicle;
 	boolean leave = FALSE;
+	if (state->unit_index != unit_index) state->spawn_tick = now;
 	state->unit_index = unit_index;
 	if (target_unit != NONE) { state->target_unit = target_unit; state->last_enemy_tick = now; }
 	if (parent == NONE)

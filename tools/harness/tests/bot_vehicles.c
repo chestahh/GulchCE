@@ -43,7 +43,7 @@ static struct unit_seat seat;
 static struct unit_definition tag;
 static byte vehicle_tag[1024];
 static long now = 100;
-static int enabled = 1, available = 1;
+static int enabled = 1, available = 1, clock_ready;
 struct player_datum { short team_index; };
 static struct player_datum player;
 static int game_engine_has_teams(void) { return 1; }
@@ -60,7 +60,7 @@ static void vector_from_points3d(real_point3d const *a, real_point3d const *b, r
 static real dot_product3d(real_vector3d const *a, real_vector3d const *b) { return a->i*b->i+a->j*b->j+a->k*b->k; }
 static real magnitude3d(real_vector3d const *v) { return (real)sqrt(dot_product3d(v,v)); }
 static int config_boolean(char const *name) { (void)name; return enabled; }
-static long game_time_get(void) { return now; }
+static long game_time_get(void) { CHECK(clock_ready, "clock read outside a running map"); return now; }
 static struct object_datum *object_get(long index) { CHECK(index >= 0 && index < 3, "index"); return (void *)&units[index]; }
 static struct object_datum *object_try_and_get(long index) { return index >= 0 && index < 3 ? object_get(index) : NULL; }
 static struct object_datum *object_try_and_get_and_verify_type(long index, int type)
@@ -84,6 +84,7 @@ int main(int argc, char **argv)
 	int i;
 	CHECK(argc == 2, "case");
 	bots_vehicles_reset();
+	clock_ready = 1;
 	memset(&action, 0, sizeof(action));
 	units[0].object.parent_object_index = 1;
 	units[1].unit.driver_object_index = 0;

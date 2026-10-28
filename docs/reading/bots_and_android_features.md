@@ -240,7 +240,9 @@ controls. There are at most 64 links and two reservations per link.
 only graph traversal on one worker. Submission snapshots walkability and
 breakage; event signals transfer job ownership. Completion rejects changed
 units, goals, link phases, teleports or answers older than one second.
-Obstacle queries and path smoothing remain on the game thread. Disposal
+The copied graphs provide a closed sentinel for open edges. Malformed
+collision rings keep searches synchronous so shared engine diagnostics
+cannot race. Obstacle queries and path smoothing remain on the game thread. Disposal
 joins the worker before releasing feature graphs; scenario geometry remains
 loaded until the later scenario unload. Allocation/start failures fall back
 to synchronous searches. Fixed-tick benchmarks also remain synchronous.

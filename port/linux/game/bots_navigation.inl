@@ -33,7 +33,7 @@ static struct
 
 static void bots_navigation_reset(void)
 {
-	if (bots_navigation.vehicle_walkable) free(bots_navigation.vehicle_walkable);
+	if (bots_navigation.vehicle_walkable) free(bots_navigation.vehicle_walkable - 1);
 	csmemset(&bots_navigation, 0, sizeof(bots_navigation));
 }
 
@@ -51,8 +51,10 @@ static struct structure_bsp *bots_navigation_vehicle_structure(void)
 	if (!bots_navigation.vehicle_walkable)
 	{
 		count = bots_paths.structure.pathfinding_surfaces.count;
-		bots_navigation.vehicle_walkable = (byte *)malloc((size_t)count);
+		bots_navigation.vehicle_walkable = (byte *)malloc((size_t)count + 1);
 		if (!bots_navigation.vehicle_walkable) return NULL;
+		/* path.c reads surface NONE at open edges. Supply a closed sentinel. */
+		*bots_navigation.vehicle_walkable++ = 0;
 		csmemcpy(bots_navigation.vehicle_walkable, bots_paths.walkable, (size_t)count);
 		bots_navigation.vehicle_structure = bots_paths.structure;
 		bots_navigation.vehicle_structure.pathfinding_surfaces.address = bots_navigation.vehicle_walkable;
@@ -523,4 +525,3 @@ static void bots_navigation_ladders(struct collision_bsp const *bsp)
 		bots_navigation.count++;
 	}
 }
-

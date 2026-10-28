@@ -64,7 +64,7 @@ static void bots_worker_stop(void)
 			struct bots_path_job *job = &bots_worker.jobs[index];
 			if (job->request) CloseHandle(job->request);
 			if (job->done) CloseHandle(job->done);
-			if (job->walkable) free(job->walkable);
+			if (job->walkable) free(job->walkable - 1);
 		}
 		free(bots_worker.jobs);
 	}
@@ -73,13 +73,48 @@ static void bots_worker_stop(void)
 	csmemset(&bots_worker, 0, sizeof(bots_worker));
 }
 
-static boolean bots_worker_start(void)
+/* Malformed rings use shared engine diagnostics. Keep those searches on
+the game thread instead of racing the diagnostics' once-only flags. */
+static boolean bots_worker_graph_valid(struct structure_bsp const *structure)
+{
+	struct collision_bsp const *bsp;
+	long surface;
+	if (structure->collision_bsp.count <= 0) return FALSE;
+	bsp = TAG_BLOCK_GET_ELEMENT(&structure->collision_bsp, 0, struct collision_bsp);
+	for (surface = 0; surface < bsp->surfaces.count; surface++)
+	{
+		long first = TAG_BLOCK_GET_ELEMENT(&bsp->surfaces, surface, struct collision_surface)->first_edge_index;
+		long edge = first, count = 0;
+		do
+		{
+			struct collision_edge *entry;
+			long side, neighbor;
+			if (edge < 0 || edge >= bsp->edges.count || count++ >= MAXIMUM_PATH_EDGES_PER_COLLISION_SURFACE) return FALSE;
+			entry = TAG_BLOCK_GET_ELEMENT(&bsp->edges, edge, struct collision_edge);
+			for (side = 0; side < 2; side++)
+				if (entry->vertex_indices[side] < 0 || entry->vertex_indices[side] >= bsp->vertices.count) return FALSE;
+			side = entry->surface_indices[1] == surface;
+			if (entry->surface_indices[side] != surface) return FALSE;
+			neighbor = entry->surface_indices[!side];
+			if (neighbor != NONE && (neighbor < 0 || neighbor >= bsp->surfaces.count)) return FALSE;
+			edge = entry->edge_indices[side];
+		} while (edge != first);
+	}
+	return TRUE;
+}
+
+static boolean bots_worker_start(struct structure_bsp const *structure)
 {
 	long index;
 	char const *fixed = getenv("HALO_FIXED_TICK");
 	if (bots_worker.attempted) return bots_worker.thread != NULL;
 	bots_worker.attempted = TRUE;
 	if (!bots_worker_enabled || (fixed && atoi(fixed))) return FALSE;
+	if (!bots_worker_graph_valid(structure))
+	{
+		platform_log("bots: path worker disabled for invalid collision rings; using synchronous searches");
+		return FALSE;
+	}
 	bots_worker.jobs = (struct bots_path_job *)calloc(BOTS_SEARCHES_A_TICK, sizeof(struct bots_path_job));
 	bots_worker.wake = CreateEventA(NULL, FALSE, FALSE, NULL);
 	bots_worker.quit = CreateEventA(NULL, TRUE, FALSE, NULL);
@@ -137,15 +172,17 @@ static boolean bots_worker_submit(struct bots_bot *bot, struct path_state *state
 	struct collision_bsp const *bsp;
 	long index, count = state->structure->pathfinding_surfaces.count;
 	long const *broken;
-	if (!bots_worker_start() || count <= 0) return FALSE;
+	if (count <= 0 || !bots_worker_start(state->structure)) return FALSE;
 	for (index = 0; index < BOTS_SEARCHES_A_TICK; index++)
 		if (!bots_worker.jobs[index].pending) { job = &bots_worker.jobs[index]; break; }
 	if (!job) return FALSE;
 	if (job->capacity < count)
 	{
-		byte *memory = (byte *)realloc(job->walkable, count);
+		byte *memory = (byte *)realloc(job->walkable ? job->walkable - 1 : NULL, (size_t)count + 1);
 		if (!memory) return FALSE;
-		job->walkable = memory;
+		/* An open edge's neighbor is NONE; path.c reads this sentinel. */
+		memory[0] = 0;
+		job->walkable = memory + 1;
 		job->capacity = count;
 	}
 	job->structure = *state->structure;

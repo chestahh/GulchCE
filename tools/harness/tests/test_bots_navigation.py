@@ -30,6 +30,7 @@ def test_measured_cost_is_required():
 
 
 def test_empty_cleanup_respects_engine_allocator():
-    code = mutated(implementation(), "if (bots_navigation.vehicle_walkable) free", "free")
+    code = mutated(implementation(), "if (bots_navigation.vehicle_walkable) free(bots_navigation.vehicle_walkable - 1)",
+                   "free(bots_navigation.vehicle_walkable ? bots_navigation.vehicle_walkable - 1 : NULL)")
     status, output = run(build("bots_navigation", (("under_test.inc", code),)), "lifecycle")
     assert status == 1 and "engine free received NULL" in output, output
