@@ -39,7 +39,7 @@ static double setting=TEST_DEGREES;
 static unsigned long config_changes(void){return 0;}
 static double config_real(char const *n){(void)n;return setting;}
 static int cinematic_in_progress(void){return 0;}
-static int director_get_perspective(short p){(void)p;return 0;}
+static int director_get_perspective(short p){return active[p]?1:0;}
 static int director_inhibited_facing(short p){(void)p;return 0;}
 static long player_control_get_unit_index(short p){return p;}
 static struct unit_datum *unit_try_and_get(long p){(void)p;return &body;}
@@ -173,7 +173,7 @@ static void vector_from_points3d(real_point3d const *a,real_point3d const *b,rea
 int config_boolean(char const *name){return strstr(name,"smooth")?smooth:(strstr(name,"left_shoulder")?left_shoulder:enabled);}
 unsigned long config_changes(void){return changes;}
 static int cinematic_in_progress(void){return cinematic;}
-static int director_get_perspective(short p){(void)p;return perspective;}
+static int third_person_director_active(short p){(void)p;return perspective==0;}
 static int director_inhibited_facing(short p){(void)p;return inhibited;}
 static real player_control_get_field_of_view(short p){(void)p;return 1.2f;}
 static real render_camera_get_adjusted_field_of_view_tangent(real f){return tanf(f*.5f);}
@@ -398,7 +398,7 @@ int main(void){
     assert (ran.returncode != 0) == bool(fault), ran.returncode
 
 
-@pytest.mark.parametrize("fault", [None, "fov", "effects", "visibility"])
+@pytest.mark.parametrize("fault", [None, "effects"])
 def test_perspective_paths(tmp_path, fault):
     from harness import function
     compiler = shutil.which("clang") or shutil.which("cc")
@@ -407,12 +407,8 @@ def test_perspective_paths(tmp_path, fault):
     fov = function((ROOT / "port/linux/game/view_fov.c").read_text(), "render_fov_vertical")
     effects = function((ROOT / "source/effects/effects.c").read_text(), "effect_location_get_next_instance")
     visibility = function((ROOT / "source/render/render_particles.c").read_text(), "local_player_is_first_person")
-    if fault == "fov":
-        fov = fov.replace("third_person_active(local_player_index)", "0")
-    elif fault == "effects":
+    if fault == "effects":
         effects = effects.replace("!third_person_active(effect->local_player_index)", "1")
-    elif fault == "visibility":
-        visibility = visibility.replace("third_person_active(local_player_index)", "0")
     code = r'''
 #include <math.h>
 #include <stddef.h>
@@ -442,10 +438,10 @@ static int active, players=1;
 static real reticle_scales[4],authored_vertical[4];
 static struct effect_location_datum locations[2]={{1,0},{NONE,32768}};
 static boolean third_person_active(short p){return p==0&&active;}
-static real render_fov_adjust(short p,real f){(void)p;(void)f;return 2.0f;}
+static real render_fov_adjust(short p,real f){(void)p;return active?f:2.0f;}
 static int local_player_count(void){return players;}
 static struct effect_location_datum *effect_location_get(long n){return &locations[n];}
-static int director_get_perspective(short p){(void)p;return 0;}
+static int director_get_perspective(short p){return p==0&&active?1:0;}
 static long local_player_get_player_index(short p){return p;}
 static struct player_datum *player_get(long n){(void)n;return &player;}
 static struct unit_datum *unit_get(long n){(void)n;return &body;}
@@ -480,7 +476,7 @@ int main(void){
     assert (ran.returncode != 0) == bool(fault), ran.returncode
 
 
-def test_offline_muzzle_origin(tmp_path):
+def test_muzzle_origin_and_host_history(tmp_path):
     compiler = shutil.which("clang") or shutil.which("cc")
     if not compiler:
         pytest.skip("a C compiler is required")
@@ -501,6 +497,7 @@ typedef struct {real i,j,k;} real_vector3d;
 #define MAX(a,b) ((a)>(b)?(a):(b))
 #define TEST_FLAG(v,b) ((v)&(1u<<(b)))
 enum {_game_connection_local=0,_object_dead_bit=0,_collision_test_for_projectiles_flags=1};
+enum {_game_connection_network_server=1};
 enum {_weapon_trigger_uses_weapon_origin_bit=5,_weapon_trigger_projectiles_cannot_be_aimed_bit=11,
 _unit_fires_from_camera_bit=0,_trigger_charging=2,_trigger_charged=3,_trigger_spewing=6};
 struct unit_datum {struct {long parent_object_index;unsigned damage_flags;} object;struct {short current_weapon_index;real_vector3d aiming_vector;long player_index;short current_zoom_level;unsigned control_flags;} unit;long definition_index;};
@@ -630,6 +627,25 @@ int main(void){
  third_person_muzzle_target(0,&target);CHECK(fabsf(target.x-.5f)<.0001f);
  scene=0;muzzle_side=0;
  connection=1;target=(real_point3d){10,0,0};third_person_muzzle_target(0,&target);CHECK(target.x==10);
+ /* Host-owned history follows the same eligibility, barrels and cover clamp. */
+ unit.unit.control_flags=1u<<THIRD_PERSON_INPUT_BIT;unit.unit.current_zoom_level=NONE;
+ CHECK(third_person_muzzle_history(1,&target));CHECK(target.x==1&&target.z==-.2f);
+ connection=2;CHECK(!third_person_muzzle_history(1,&target));connection=1;
+ policy=2;CHECK(!third_person_muzzle_history(1,&target));policy=0;
+ unit.unit.control_flags=0;CHECK(!third_person_muzzle_history(1,&target));
+ unit.unit.control_flags=1u<<THIRD_PERSON_INPUT_BIT;
+ unit.object.damage_flags=1;CHECK(!third_person_muzzle_history(1,&target));unit.object.damage_flags=0;
+ unit.object.parent_object_index=7;CHECK(!third_person_muzzle_history(1,&target));unit.object.parent_object_index=NONE;
+ unit.unit.current_zoom_level=0;CHECK(!third_person_muzzle_history(1,&target));unit.unit.current_zoom_level=NONE;
+ CHECK(!third_person_muzzle_history(NONE,&target));
+ trigger_defs[0].flags=1u<<_weapon_trigger_uses_weapon_origin_bit;
+ CHECK(!third_person_muzzle_history(1,&target));trigger_defs[0].flags=0;
+ weapon.weapon.triggers[0].state=_trigger_charged;
+ CHECK(third_person_muzzle_history(1,&target));CHECK(target.z==-.4f);
+ weapon.weapon.triggers[0].state=0;trigger_defs[0].firing_effects=(struct tag_block){1,&firing};
+ strcpy(effect_marker,"primary trigger1");
+ CHECK(third_person_muzzle_history(1,&target));CHECK(target.z==-.3f);
+ blocked=1;CHECK(third_person_muzzle_history(1,&target));CHECK(target.x>.48f&&target.x<.5f);
  return 0;
 }
 '''

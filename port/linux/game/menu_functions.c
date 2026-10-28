@@ -2355,6 +2355,7 @@ static struct
 	{ "controls.push_to_talk", L"PUSH TO TALK", 3 },
 	{ "controls.chat", L"CHAT", 3 },
 	{ "controls.team_chat", L"TEAM CHAT", 3 },
+	{ "controls.camera_distance", L"CAMERA DISTANCE", 4 },
 };
 
 static struct

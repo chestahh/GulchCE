@@ -25,6 +25,28 @@ static boolean muzzle_player(short player, long unit_index)
 		!TEST_FLAG(unit->object.damage_flags, _object_dead_bit);
 }
 
+static boolean muzzle_network_player(long unit_index)
+{
+	struct unit_datum *unit = unit_index != NONE ? unit_try_and_get(unit_index) : NULL;
+	return unit && unit->unit.player_index != NONE &&
+		unit->object.parent_object_index == NONE &&
+		!TEST_FLAG(unit->object.damage_flags, _object_dead_bit) &&
+		unit->unit.current_zoom_level == NONE &&
+		third_person_policy() != _third_person_forced_off &&
+		TEST_FLAG(unit->unit.control_flags, THIRD_PERSON_INPUT_BIT);
+}
+
+static short muzzle_preview_trigger(struct weapon_datum *weapon, struct weapon_definition *definition)
+{
+	/* A charged secondary shot leaves a different muzzle on the pistol. */
+	return definition->weapon.triggers.count > 1 &&
+		((weapon->weapon.triggers[0].state == _trigger_charged &&
+		  TAG_BLOCK_GET_ELEMENT(&definition->weapon.triggers, 0, struct weapon_trigger_definition)->spew_time <= 0.0f) ||
+		 weapon->weapon.triggers[1].state == _trigger_charging ||
+		 weapon->weapon.triggers[1].state == _trigger_charged ||
+		 weapon->weapon.triggers[1].state == _trigger_spewing) ? 1 : 0;
+}
+
 /* Authored alternating firing effects can name a different barrel, as
    the Plasma Rifle does. Only accept trigger markers, never smoke/ejection
    locations; missing or custom names retain the ordinary trigger marker. */
@@ -131,22 +153,15 @@ boolean third_person_muzzle_shot(long weapon_index, long unit_index, short trigg
 {
 	short player;
 	real_point3d target;
-	struct unit_datum *unit;
 	if (game_connection() != _game_connection_local)
 	{
-		unit = unit_index != NONE ? unit_try_and_get(unit_index) : NULL;
-		if (!unit || unit->unit.player_index == NONE ||
-			unit->object.parent_object_index != NONE ||
-			TEST_FLAG(unit->object.damage_flags, _object_dead_bit) ||
-			unit->unit.current_zoom_level != NONE ||
-			third_person_policy() == _third_person_forced_off ||
-			!TEST_FLAG(unit->unit.control_flags, THIRD_PERSON_INPUT_BIT))
+		if (!muzzle_network_player(unit_index))
 			return FALSE;
 		if (!muzzle_aim(weapon_index, unit_index, trigger_index, origin, forward, &target))
 			return FALSE;
 		if (config_string("debug.network_test")[0])
 			platform_log("network muzzle: player %ld trigger %d origin %.4f %.4f %.4f",
-				(long)DATUM_INDEX_TO_ABSOLUTE_INDEX(unit->unit.player_index), (int)trigger_index,
+				(long)DATUM_INDEX_TO_ABSOLUTE_INDEX(unit_get(unit_index)->unit.player_index), (int)trigger_index,
 				origin->x, origin->y, origin->z);
 		return TRUE;
 	}
@@ -154,6 +169,36 @@ boolean third_person_muzzle_shot(long weapon_index, long unit_index, short trigg
 		if (muzzle_player(player, unit_index))
 			return muzzle_aim(weapon_index, unit_index, trigger_index, origin, forward, &target);
 	return FALSE;
+}
+
+/* The host's visibility history needs the same cover-clamped muzzle as
+   shoulder shots. No client position is accepted or retained here. */
+boolean third_person_muzzle_history(long unit_index, real_point3d *position)
+{
+	struct unit_datum *unit;
+	struct weapon_datum *weapon;
+	struct weapon_definition *definition;
+	struct weapon_trigger_definition *trigger;
+	long weapon_index;
+	short trigger_index;
+	real_point3d obstruction;
+	boolean blocked;
+	if (game_connection() != _game_connection_network_server || !muzzle_network_player(unit_index))
+		return FALSE;
+	unit = unit_get(unit_index);
+	weapon_index = unit_inventory_get_weapon(unit_index, unit->unit.current_weapon_index);
+	if (weapon_index == NONE)
+		return FALSE;
+	weapon = weapon_get(weapon_index);
+	definition = weapon_definition_get(weapon->definition_index);
+	trigger_index = muzzle_preview_trigger(weapon, definition);
+	if (definition->weapon.triggers.count <= trigger_index)
+		return FALSE;
+	trigger = TAG_BLOCK_GET_ELEMENT(&definition->weapon.triggers, trigger_index, struct weapon_trigger_definition);
+	if (TEST_FLAG(trigger->flags, _weapon_trigger_uses_weapon_origin_bit) ||
+		TEST_FLAG(trigger->flags, _weapon_trigger_projectiles_cannot_be_aimed_bit))
+		return FALSE;
+	return muzzle_position(weapon_index, unit_index, trigger_index, position, &obstruction, &blocked);
 }
 
 void third_person_muzzle_target(short player, real_point3d *target)
@@ -177,14 +222,7 @@ void third_person_muzzle_target(short player, real_point3d *target)
 		return;
 	weapon = weapon_get(weapon_index);
 	definition = weapon_definition_get(weapon->definition_index);
-	/* A charged secondary shot leaves a different muzzle on the pistol. */
-	if (definition->weapon.triggers.count > 1 &&
-		((weapon->weapon.triggers[0].state == _trigger_charged &&
-		  TAG_BLOCK_GET_ELEMENT(&definition->weapon.triggers, 0, struct weapon_trigger_definition)->spew_time <= 0.0f) ||
-		 weapon->weapon.triggers[1].state == _trigger_charging ||
-		 weapon->weapon.triggers[1].state == _trigger_charged ||
-		 weapon->weapon.triggers[1].state == _trigger_spewing))
-		trigger_index = 1;
+	trigger_index = muzzle_preview_trigger(weapon, definition);
 	if (definition->weapon.triggers.count <= trigger_index)
 		return;
 	trigger = TAG_BLOCK_GET_ELEMENT(&definition->weapon.triggers, trigger_index, struct weapon_trigger_definition);

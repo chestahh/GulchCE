@@ -1189,14 +1189,23 @@ record (bits 2-3 of `network_game.cooperative_flags`), for every transport
 and game type. Zero allows player choice, one forces third person, and two
 disables it. Receivers reject the reserved value and unknown flag bits.
 Pregame edits are host-only; late joiners receive the same record. Camera
-preferences are never written by receipt of a policy. This branch's network
-version 40 prevents stock OpenCE clients, which cannot enforce this rule,
+preferences are never written by receipt of a policy. The experimental camera
+protocol prevents stock OpenCE clients, which cannot enforce this rule,
 from joining. It also carries the current shoulder state in each
 player input and host relay. It is a state, never accumulated with earlier
 button presses. The host masks unknown input bits and Forced Off clears it.
 Scoped, dead and seated units retain stock firing. Each simulation computes
-the muzzle and cover correction from world markers; no client-supplied muzzle
-position is accepted. Damage still uses the existing validated hit reports.
+the muzzle and cover correction from world markers. The camera feature does
+not send muzzle positions. The separate upstream `network.fire_origins`
+option retains its existing host controls and validation.
+Damage still uses the existing validated hit reports. The host records its
+own shoulder muzzle in visibility history, alongside the existing eye route,
+so a legitimate shot from beside cover is not judged only from the head.
+Both the eye-to-muzzle and muzzle-to-impact routes must be clear; weapon
+ownership, rate, target history and damage limits still apply. Scoped, dead,
+seated, Forced Off and ordinary first-person paths do not add this history.
+This simulation agreement raises the experimental versions to 32702/32703;
+it adds no packet fields or client authority.
 The relay rejects non-boolean shoulder values and truncated messages.
 
 Add `--combat` to the session runner below to exercise real bot firing on
@@ -1268,15 +1277,15 @@ action button where the host has nothing for them to pick up, with where it
 has them and the nearest item: a client that sees a pickup the host does
 not.
 
-The `online-third-person` branch uses version 32700 for Xbox/Custom Edition
-and MCC protocol version 32701. These separate experimental revisions retain
+The `online-third-person` branch uses version 32702 for Xbox/Custom Edition
+and MCC protocol version 32703. These separate experimental revisions retain
 the shoulder-policy bits and extra input-relay byte. They incorporate main's
 OpenCE fire-origin message 93 and keep MCC messages at 94-97 and MCC admission
 at 98. Camera admission reserves data-message kind 99.
 
 Every join, including a first-person-only game, must carry an eight-byte camera
 envelope: the normal two-byte data header, kind 99, revision 1, little-endian
-base camera version 32700, and two zero reserved bytes. The inner message is
+base camera version 32702, and two zero reserved bytes. The inner message is
 either the original join packet or the existing MCC envelope. The maximum is
 264 bytes. The host validates this before normal admission; an advertised
 version alone would leave direct joins unprotected. MCC validates its own

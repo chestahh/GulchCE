@@ -184,7 +184,7 @@ then read `server_director.c` for rotation and session ownership and
 do not make an MCC capability claim sufficient to pass normal admission.
 
 `online-third-person` deliberately disables crossplay with OpenCE and main.
-Xbox/Custom Edition use version 32700; MCC uses 32701. Even first-person-only
+Xbox/Custom Edition use version 32702; MCC uses 32703. Even first-person-only
 games retain the camera branch's extra shoulder byte in relayed inputs.
 
 Read [third_person_protocol.c](../../port/linux/game/third_person_protocol.c):

@@ -461,13 +461,13 @@ the setting for one start of the game. It has priority over the file.
 | `display.direct_camera` | `true` | `HALO_DIRECT_CAMERA` | `true`: in first person, on foot, the view points where the player aims in each frame, not where the last tick left it. Refer to "Frame rate". |
 | `display.third_person` | `false` | `HALO_THIRD_PERSON` | Right-shoulder view on foot. Toggle in Settings > Video Setup > FOV And Viewmodels, then select OK; no restart needed. Zoom, vehicles, death and cinematics use their stock cameras. Unscoping restores the shoulder view immediately at its unscoped FOV, subject to camera collision. Free look must be released and pressed again after scoping or another forced camera change. The reticle shows the nominal aim point; it traces the weapon offset and muzzle-to-target path, including nearby cover and the fully charged secondary muzzle. It does not predict spread, gravity, homing or target movement. Camera collision pulls the view in near walls, with gradual recovery. In offline and network games, aimed shoulder shots originate at the world weapon muzzle and converge on the aim point, with checks for cover between eye, firing origin and muzzle. Alternating firing effects select their authored trigger muzzle. Targets behind the barrel never turn shots backwards. This changes close-range shot geometry. Network peers replicate the firing perspective and solve the same muzzle and cover checks. Third person uses the stock FOV; returning to first person restores `display.fov`. |
 | `display.third_person_smooth` | `true` | `HALO_THIRD_PERSON_SMOOTH` | Smooth recovery and shoulder changes, with frame-rate-independent settling and bounded damping for small vertical steps; false selects Sharp. Free-look return finishes in 0.25 seconds in Smooth and immediately in Sharp. Collision-forced first person requires 0.10 seconds of continuous clearance before recovery in either mode. Set Camera Motion in FOV And Viewmodels > Shoulder Camera. Collision remains enabled in either mode. |
-| `display.third_person_left_shoulder` | `false` | `HALO_THIRD_PERSON_LEFT_SHOULDER` | Use the left shoulder. Press V to swap during play, or choose the shoulder in FOV And Viewmodels > Shoulder Camera. |
+| `display.third_person_left_shoulder` | `false` | `HALO_THIRD_PERSON_LEFT_SHOULDER` | Use the left shoulder. Press B to swap during play, or choose the shoulder in FOV And Viewmodels > Shoulder Camera. |
 | `display.third_person_distance` | `0.85` | `HALO_THIRD_PERSON_DISTANCE` | Distance behind the eye, 0.3–2.0 world units. |
 | `display.third_person_height` | `0.12` | `HALO_THIRD_PERSON_HEIGHT` | Height along camera up, -0.2–0.6 world units. |
 | `display.third_person_offset` | `0.24` | `HALO_THIRD_PERSON_OFFSET` | Lateral distance toward the selected shoulder, 0–0.6 world units. |
-| `controls.swap_shoulder` | `"V"` | `HALO_KEY_SWAP_SHOULDER` | Swap shoulders in third person; remappable in Controls Setup > Camera. |
+| `controls.swap_shoulder` | `"B"` | `HALO_KEY_SWAP_SHOULDER` | Swap shoulders in third person; remappable in Controls Setup > Camera. |
 | `controls.free_look` | `"Left Alt"` | `HALO_KEY_FREE_LOOK` | Hold to orbit the shoulder camera with mouse or right stick while aim stays fixed. Release to return; follows Camera Motion Smooth/Sharp. Remappable in Controls Setup > Camera. |
-| `controls.toggle_perspective` | `"B"` | `HALO_KEY_TOGGLE_PERSPECTIVE` | Press once to toggle first/third person. Remappable in Controls Setup > Camera. Scoping and collision still force first person. |
+| `controls.toggle_perspective` | `"N"` | `HALO_KEY_TOGGLE_PERSPECTIVE` | Press once to toggle first/third person. Remappable in Controls Setup > Camera. Scoping and collision still force first person. |
 | `display.fov` | `0.0` | `HALO_FOV` | The first-person view's field of view on foot, in degrees across at 16:9, from 20 to 150. `0`: the stock view. Refer to "Field of view". |
 | `display.viewmodel_fov` | `0.0` | `HALO_VIEWMODEL_FOV` | The first-person weapon's and hands' field of view, in degrees across at 16:9, from 20 to 150. `0`: the weapon's stock view, also when `display.fov` widens the world. Refer to "Field of view". |
 | `display.viewmodel_visible` | `true` | `HALO_VIEWMODEL_VISIBLE` | `true`: the first-person weapon, hands and what is attached to them are drawn. `false`: they are not; firing, animation, sound and lights go on, and other players' models are drawn. |
@@ -1811,3 +1811,15 @@ each of the browser's frames, the cache thread starts at a function of
 `CreateThread`'s type, `debug.txt`'s lines go to the page's log) and the
 declarations given their definitions' types, which WebAssembly needs, are
 listed in "Game source changes" in [../web/README.md](../web/README.md).
+
+### Shoulder camera controls
+
+N toggles perspective; B swaps shoulders. Left Alt holds free look.
+Hold Left Alt and scroll to adjust camera distance (0.3 to 2.0 world units);
+scroll up brings it closer. Ordinary scrolling still switches weapons.
+These defaults are rebindable under Controls Setup > Camera. Existing saved
+bindings are preserved; choose Reset or rebind them to use the new defaults.
+
+| Setting | Default | Environment | Meaning |
+| --- | --- | --- | --- |
+| `controls.camera_distance` | `"Left Alt"` | `HALO_KEY_CAMERA_DISTANCE` | Hold with the wheel to change `display.third_person_distance` during shoulder view. In first person, scopes, menus, text chat and the console the wheel keeps its existing behavior. |

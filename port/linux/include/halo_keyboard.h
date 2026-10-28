@@ -45,6 +45,7 @@ enum halo_keyboard_action
 	everyone, or to the team: port/linux/game/network_chat.c) */
 	HALO_KEYBOARD_CHAT,
 	HALO_KEYBOARD_TEAM_CHAT,
+	HALO_KEYBOARD_CAMERA_DISTANCE,
 	NUMBER_OF_HALO_KEYBOARD_ACTIONS
 };
 
