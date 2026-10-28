@@ -391,9 +391,15 @@ and the game's rules, on the teams that `bots.teams` asks for, and they
 follow the teams' changes in the lobby. They look for enemies, aim, fire,
 throw grenades and pick up better weapons, as well as `bots.skill` lets
 them, and walk the paths that the campaign's AI finds on the maps' walkable
-surfaces (`game/bots.c`). They are never in system link or internet games,
-nor in other gametypes (but SWAT, Infection and Gun Game, which are
-Slayer's: below), and nothing that the machines send each other changes.
+surfaces (`game/bots.c`). These remain the defaults, including Slayer-derived
+SWAT, Infection and Gun Game. Optional `bots.enhanced` adds CTF/King goals,
+team roles, vantage points and powerup choices; `bots.routes` selects direct
+paths or side lanes, and `bots.vehicles` enables ground vehicles and turrets.
+Enhanced policy takes effect at map load. `bots.network`, set before creating
+the host, permits host-controlled bots in system link and internet games.
+Clients receive ordinary player records and actions. All additions default
+off (routes default to direct). See the
+[implementation and credits](../../docs/reading/bots_and_android_features.md).
 
 ## OpenCE gametypes
 
@@ -523,6 +529,11 @@ the setting for one start of the game. It has priority over the file.
 | `audio.voice_volume` | `1.0` | `HALO_VOICE_VOLUME` | The volume of the voices of the other players, `0` to `2`. |
 | `audio.output_device`, `audio.input_device` | `"default"` | `HALO_AUDIO_OUTPUT_DEVICE`, `HALO_AUDIO_INPUT_DEVICE` | The speakers and the microphone, by the name that Settings > Audio shows, or `"default"` for the device of the system. If the device is not found, the game uses the device of the system. Not on Android. |
 | `input.mouse_sensitivity` | `1.0` | `HALO_MOUSE_SENSITIVITY` | The multiplier for the mouse aim. |
+| `input.gyro_aim` | `"legacy"` | `HALO_GYRO_AIM` | Android: keep saved touch gyro behavior; `"false"` off, `"true"` on, `"zoom"` while zoomed only. |
+| `input.gyro_sensitivity_horizontal` | `1.0` | `HALO_GYRO_SENSITIVITY_HORIZONTAL` | Android: gyro yaw multiplier, 0.25–10, in on/zoom mode; independent of swipe. |
+| `input.gyro_sensitivity_vertical` | `1.0` | `HALO_GYRO_SENSITIVITY_VERTICAL` | Android: gyro pitch multiplier, 0.25–10, in on/zoom mode. |
+| `input.gyro_invert_horizontal` | `false` | `HALO_GYRO_INVERT_HORIZONTAL` | Android: invert gyro yaw in on/zoom mode. |
+| `input.gyro_invert_vertical` | `false` | `HALO_GYRO_INVERT_VERTICAL` | Android: invert gyro pitch in on/zoom mode. |
 | `input.mouse_vertical_sensitivity` | `0.0` | `HALO_MOUSE_VERTICAL_SENSITIVITY` | The multiplier for the vertical mouse aim. `0`: the same as `input.mouse_sensitivity`. |
 | `input.playstation_kernel_driver` | `false` | `HALO_PLAYSTATION_KERNEL_DRIVER` | Linux: `true` drives a PlayStation controller (DualSense, DualShock 4) through the kernel's driver of it (`hid-playstation` since Linux 5.12, `hid-sony`): its buttons, sticks, triggers and rumble, with no setup, but not its lightbar. `false`: SDL's own driver, which needs access to the controller's `/dev/hidraw` device, as Steam's udev rules give it (`steam-devices`, or Steam installed). Read at start-up. |
 | `input.invert_mouse` | `false` | `HALO_MOUSE_INVERT=1` sets `true` | `true`: the vertical mouse aim is inverted. |
@@ -533,7 +544,12 @@ the setting for one start of the game. It has priority over the file.
 | `game.language` | `""` | `HALO_LANGUAGE` | The language of the menus: `ja`, `de`, `fr`, `es` or `it`. Empty: English. |
 | `game.enhanced_animations` | `true` | `HALO_ENHANCED_ANIMATIONS` | `true`: the player bipeds' grenade throws keep their legs moving, blended by speed and direction (crouched throws stay crouched, throws in the air use the jump's legs), Warthog and Scorpion riders stay seated to throw and let go of the grips to throw and reload, and a player turns with the aim while throwing, as while meleeing. `false`: the original animations, which freeze the legs during a throw and stand a rider up. Only in config.toml, not in the menus. |
 | `game.unlock_all_levels` | `false` | `HALO_UNLOCK_ALL_LEVELS` | `true`: a profile created afterward starts with all the campaign levels finished on all the difficulties. `false`: a new profile starts at The Pillar of Autumn, and each level opens when you finish the level before it, as on the Xbox. Existing profiles keep their progress. To start a profile over, type `profile_reset_campaign` in the console. |
-| `bots.count` | `0` | `HALO_BOTS` | Computer players (bots) in a local (split screen) Slayer game: `0` to `15` join its lobby with the players, as far as the game has room. Not in system link or internet games. `0`: none, as in the stock game. Refer to "Bots". |
+| `bots.enhanced` | `false` | `HALO_BOTS_ENHANCED` | Optional goals, roles, vantage points and powerup choices. Read at map load. |
+| `bots.network` | `false` | `HALO_BOTS_NETWORK` | Host bots through ordinary player replication. Read when creating the host; reserves 15 machine IDs only when enabled. |
+| `bots.routes` | `"direct"` | `HALO_BOT_ROUTES` | Enhanced bot routes: `direct`, `lanes` or `mixed`; unreadable/unreachable routes fall back to the base pathfinder. |
+| `bots.vehicles` | `false` | `HALO_BOT_VEHICLES` | Enhanced ground-vehicle and turret use through ordinary controls; no aircraft navigation. |
+| `android.cheat_menu` | `false` | `HALO_ANDROID_CHEAT_MENU` | Android: expose Cheats in touch Options during offline gameplay only. |
+| `bots.count` | `0` | `HALO_BOTS` | Computer players: `0` to `15` join the lobby as room permits. Local Slayer by default; `bots.enhanced` adds CTF/King and `bots.network` allows network hosts. `0`: none, as in the stock game. Refer to "Bots". |
 | `bots.skill` | `"normal"` | `HALO_BOT_SKILL` | How well the bots play: `"easy"`, `"normal"`, `"heroic"` or `"legendary"`: how soon they react, how far and how wide they see, how large their aim error is and how fast it settles, how fast they turn. |
 | `bots.teams` | `"even"` | `HALO_BOT_TEAMS` | In a team game: `"even"` puts the bots on both teams, evening them with the players; `"against"` puts them all on the team the players are not on. |
 | `paths.data` | `""` | `HALO_DATA_ROOT` | The data root. Refer to "Start the game". |

@@ -10,6 +10,7 @@ finger down (host_gesture_insets).
 */
 
 #include "touch_input.h"
+#include "touch_gyro.h"
 #include "touch_menu.h"
 #include "port_config.h"
 
@@ -25,6 +26,7 @@ void host_touch_read(int *state);
 void host_touch_look_read(float *delta);
 void host_touch_rumble(unsigned int low, unsigned int high);
 void host_touch_scene(int scene);
+void host_touch_gyro_mode(int mode);
 void host_touch_bindings(const int *controls);
 #endif
 
@@ -33,6 +35,8 @@ int touch_game_cinematic_skippable(void);
 int touch_game_cinematic_playing(void);
 int touch_game_playing(void);
 void touch_game_button_controls(int *controls);
+/* port/linux/game/android_cheats.c, called on the game thread. */
+void android_cheats_update(void);
 
 /* the gamepad's buttons (input.h), which the touch controls are named by */
 #define TOUCH_BUTTONS 16
@@ -288,6 +292,10 @@ void touch_input_controls(XINPUT_GAMEPAD *pad, int menus)
 	/* (the controls show only in a game: not while it starts, at the main
 	menu, in a menu or during a cinematic; nor while the text chat's
 	on-screen keyboard is up, whose keys the fingers then tap) */
+#ifdef HALO_ANDROID
+	host_touch_gyro_mode(touch_gyro_mode());
+	android_cheats_update();
+#endif
 	host_touch_scene(_touch_scene_known | touch_controls_setting() |
 		(menus || !touch_game_playing() || touch_game_cinematic_playing() || (network_chat_controller() == 0) ?
 			_touch_scene_menus : 0));

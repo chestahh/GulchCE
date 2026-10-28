@@ -194,6 +194,7 @@ SCREENS = {
         "screen": "gamepad_setup_screen",
         "header": ("header_profile_controller_setting", f"{PE}/controller_edit/header_profile_controller_setting"),
         "spacing": 27,
+        "platform_spacing": {"android": 24},
         "rows": [
             ("LOOK SENSITIVITY:", "profile.look_sensitivity", [(str(step), str(step)) for step in range(1, 11)],
              "How fast the right stick turns the view.", None),
@@ -215,7 +216,42 @@ SCREENS = {
         "categories": [("BUTTON REMAPPING", "controller_remapping",
                         "Custom button layouts for P1-P4.\nUse / Reload stays combined."),
                        ("BUTTON APPEARANCE", "controller_appearance",
-                        "Controller artwork and bumper style.\nRequires High-Res HUD in Graphics.")],
+                        "Controller artwork and bumper style.\nRequires High-Res HUD in Graphics."),
+                       ("ANDROID CONTROLS", "gamepad_setup/android",
+                        "Touch controls, gyro aiming and the\noptional offline cheat menu.", "android")],
+    },
+    "gamepad_setup/android": {
+        "screen": "android_controls_screen", "spacing": 30,
+        "header": ("header_profile_controller_setting", f"{PE}/controller_edit/header_profile_controller_setting"),
+        "rows": [
+            ("TOUCH CONTROLS:", "input.touch_controls", [("AUTO", "auto"), ("ON", "on"), ("OFF", "off")],
+             "Auto shows touch controls without a gamepad.\nOn also shows them with a connected gamepad.", "android"),
+            ("TOUCH AIM ASSIST:", "input.touch_aim_assist", ON_OFF,
+             "Apply controller aim assistance to touch aiming.", "android"),
+            ("CHEAT MENU:", "android.cheat_menu", ON_OFF,
+             "Show Cheats in the touch overlay's Options.\nOffline games only. Off by default.", "android"),
+        ],
+        "categories": [("GYRO AIM", "gamepad_setup/gyro",
+                        "Phone gyro mode, sensitivity and inversion.\nTouch settings keeps your saved layout.", "android")],
+    },
+    "gamepad_setup/gyro": {
+        "screen": "gyro_settings_screen", "spacing": 30,
+        "header": ("header_profile_controller_setting", f"{PE}/controller_edit/header_profile_controller_setting"),
+        "rows": [
+            ("GYRO AIM:", "input.gyro_aim",
+             [("TOUCH SETTINGS", "legacy"), ("OFF", "false"), ("ON", "true"), ("ZOOM ONLY", "zoom")],
+             "Touch settings keeps the saved gyro switch and\nsensitivity. On/Zoom use the settings below.", "android"),
+            ("HORIZONTAL SENSITIVITY:", "input.gyro_sensitivity_horizontal",
+             [(f"{step / 4:g}", f"{step / 4:g}") for step in range(1, 41)],
+             "How far the gyro turns the view left and right.\nSeparate from swipe sensitivity.", "android"),
+            ("VERTICAL SENSITIVITY:", "input.gyro_sensitivity_vertical",
+             [(f"{step / 4:g}", f"{step / 4:g}") for step in range(1, 41)],
+             "How far the gyro turns the view up and down.\nSeparate from swipe sensitivity.", "android"),
+            ("INVERT HORIZONTAL:", "input.gyro_invert_horizontal", ON_OFF,
+             "Reverse the gyro's horizontal turn.", "android"),
+            ("INVERT VERTICAL:", "input.gyro_invert_vertical", ON_OFF,
+             "Reverse the gyro's vertical turn.\nIndependent of the profile's Invert Look.", "android"),
+        ],
     },
     "controller_appearance": {
         "screen": "controller_appearance_screen", "spacing": 30,
@@ -554,8 +590,18 @@ def _screen(folder: str, spec: dict, rows: list, list_inputs: list, list_handler
     children = [f'<data input="{name}"/>' for name in list_inputs] + list_handlers
     # (each row: its widget, platform, and the place it is in, else the next)
     for index, (row, platform, *place) in enumerate(rows):
-        y = 73 + (place[0] if place else index) * spec["spacing"]
-        children.append(f'<child{attributes([("widget", row), ("x", 54), ("y", y), ("platform", platform)])}/>')
+        position = place[0] if place else index
+        if spec.get("platform_spacing"):
+            # Extra Android controls must not move desktop/web settings.
+            groups = {}
+            for name in platform.split() if platform else ("desktop", "android", "web"):
+                spacing = spec["platform_spacing"].get(name, spec["spacing"])
+                groups.setdefault(73 + position * spacing, []).append(name)
+            for y, names in groups.items():
+                children.append(f'<child{attributes([("widget", row), ("x", 54), ("y", y), ("platform", " ".join(names))])}/>')
+        else:
+            y = 73 + position * spec["spacing"]
+            children.append(f'<child{attributes([("widget", row), ("x", 54), ("y", y), ("platform", platform)])}/>')
     children.append(f'<child{attributes([("widget", f"{base}/button_bar"), ("y", 414)])}/>')
     lines += _widget(f"{base}/options_menu",
                      [("type", "column_list"), ("width", 640), ("height", 480),

@@ -35,6 +35,8 @@ static int slept, messages, broadcasts, handled, closed, terminated, errors;
 static int new_servers, clients_closed, joins_cleared, variants_cleared;
 static short expected_message;
 static boolean message_fails, send_fails, machines_fail;
+static int network_bots = TRUE;
+static byte owned[15] = { 1 };
 
 /* These legacy teardown cases have no pending MCC restart. Its independent
    snapshot lifetime is exercised by test_mcc_ui_network.py. */
@@ -137,6 +139,7 @@ int main(int argc, char **argv)
 	if (back) CHECK(clear_multiplayer_player_joins(NULL, NULL, &deleted), "back callback failed");
 	else if (reopen) CHECK(ui_widget_port_host(NULL, NULL, &deleted), "reopen callback failed");
 	else network_game_server_dispose(&host);
+	CHECK(!network_bots && !owned[0], "bot reservation/ownership survived host disposal");
 	CHECK(slept == EXPECTED_SLEEP && closed == 1 && handled == 1 && terminated == 1, "wrong sleep or incomplete teardown: %s", order);
 	CHECK(errors == (machines_fail ? 1 : 0), "error handling changed");
 	int expected_messages = strcmp(case_name, "ingame") ? 1 : 0;

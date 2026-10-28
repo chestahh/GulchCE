@@ -1,6 +1,6 @@
 """The real lobby of network_server_manager.c's bots (bots.count): as many as the setting asks for join a local Slayer
 game's lobby, as far as it has room, on the teams bots.teams asks for, follow the players' team changes and leave when
-fewer are asked for; none in a game other machines may join, in another gametype, or once the game has started."""
+fewer are asked for; stock exclusions, optional objective/network admission, ownership and no admission after game start."""
 
 import re
 import sys
@@ -12,14 +12,14 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from harness import CHECK_FAILED, build, constant, enum_with, function, mutated, read, run, structure  # noqa: E402
 
 CASES = ["fills", "room", "fewer", "even", "against", "follows-players", "never-network", "slayer-only",
-         "not-once-started", "no-player-no-bots", "names-and-machines"]
+         "not-once-started", "no-player-no-bots", "names-and-machines", "enhanced-objectives", "network-opt-in", "human-high-id"]
 GAME_MANAGER_FUNCTIONS = ("network_game_invalidate_player", "network_player_is_valid", "network_game_player_is_valid",
                           "network_game_add_player", "network_game_remove_player")
 
 # a fault in network_game_server_port_bots, and the case that must catch it
 NEGATIVE_CONTROLS = {
-    "bots-in-network-games": (("network_game_is_splitscreen_local() && ", ""), "never-network"),
-    "bots-in-any-gametype": ((" && server->game.variant.game_engine_index == game_engine_slayer", ""), "slayer-only"),
+    "bots-in-network-games": (("bots_session_allowed() && ", ""), "never-network"),
+    "bots-in-any-gametype": (("bots_gametype_allowed(server->game.variant.game_engine_index)", "TRUE"), "slayer-only"),
     "bots-once-started": (("server->state != _network_game_server_state_pregame || server->sent_start_game_message",
                            "server->state != _network_game_server_state_pregame"), "not-once-started"),
     "teams-not-evened": (("team_counts[1] < team_counts[0] ? 1 : 0", "1"), "even"),
@@ -51,9 +51,14 @@ def generated(fault=None):
     config += enum_with(read("source/game/game_engine.h"), "game_engine_slayer") + "\n"
     config += structure(read("source/game/players.h"), "network_player") + "\n"
     code = ""
+    network = read("port/linux/game/bots_network.c")
+    code += "static int network_bots;\nstatic byte owned[BOTS_MAXIMUM];\nint bots_machine_is_bot(long machine_index);\n"
+    for name in ("bots_network_session_begin", "bots_network_session_end", "bots_network_reserved", "bots_session_allowed",
+                 "bots_player_ownership", "bots_player_owned"):
+        code += function(network, name) + "\n"
     for name in GAME_MANAGER_FUNCTIONS:
         code += function(manager, name) + "\n"
-    for name in ("bots_machine_is_bot", "bots_network_player"):
+    for name in ("bots_machine_is_bot", "bots_network_player", "bots_gametype_allowed"):
         code += function(bots, name) + "\n"
     lobby = function(server, "network_game_server_port_bots")
     if fault:

@@ -1183,7 +1183,9 @@ Unity's Netcode for Entities, lightyear, netfox and the Ares source):
 
 ## Testing
 
-`debug.network_test` (`port/linux/game/network_test.c`) hosts or joins a
+`debug.network_test` (`port/linux/game/network_test.c`) waits for the menu's
+filesystem/profile initialization before launching, as normal menu input does.
+It then hosts or joins a
 game without the menus (in a team game the joining player takes the other
 team; `local:<map>` plays a local split screen game instead, which the
 bots of `bots.count` join), and `debug.test_input` plays controller 1 with a scripted bot (or,
