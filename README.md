@@ -42,6 +42,12 @@ The decompilation is of the Xbox build 2342. (`cachebeta.exe`, SHA-256
 Release & debug builds are available in the Releases section of the repository.
 The release builds are for playing; the debug builds stop at the first failed assertion and log it.
 
+Releases include `SHA256SUMS`, the SHA-256 of each packaged build.
+`sha256sum -c --ignore-missing SHA256SUMS` checks downloaded files. When
+release signing is configured, `SHA256SUMS.sig` carries the Ed25519 signature;
+`tools/release_sign.sh verify SHA256SUMS` (OpenSSL 3) checks it against
+[deploy/release-key.pub](deploy/release-key.pub).
+
 ### Arch-based Linux Distributions
 
 The Linux binary release is available on the [AUR](https://aur.archlinux.org/packages/gulchce-bin).

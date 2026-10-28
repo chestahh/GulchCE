@@ -178,7 +178,7 @@ optional GPU calls for stock draws. The
 checks the real vertex programs and point-light formulas on desktop, web and
 Android. These CPU tests do not establish driver performance or visual parity.
 
-These optional features are available on `testing`. The
+These optional features are available on `main` and `testing`. The
 [plasma lighting source](../../port/linux/game/plasma_lighting.c)
 is a useful second example after FOV. `plasma_lighting_prepare` selects
 eligible authored projectile-light attachments and records temporary state;
