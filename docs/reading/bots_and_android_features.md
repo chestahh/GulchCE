@@ -58,7 +58,9 @@ The complete settings and environment variables are in
    `enhanced_bots_update` caches objective state once per tick;
    `enhanced_bots_goal` selects flag, carrier, hill or vantage destinations.
    A flag carrier keeps advancing while fighting. A bot on the hill holds
-   its position; an off-hill bot advances toward it.
+   its position; an off-hill bot advances toward it. With OpenCE's Multi-Hill
+   enabled, these existing bot queries target the first active hill, whose
+   state `king_hills_to_globals` exposes through the original accessors.
 5. [bots_roles.c](../../port/linux/game/bots_roles.c),
    [bots_routes.c](../../port/linux/game/bots_routes.c) and
    [bots_vantage.c](../../port/linux/game/bots_vantage.c):

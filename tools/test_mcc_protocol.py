@@ -1,7 +1,7 @@
 """Admission, framing and the pinned OpenCE 39 wire contract.
 
 The AGPL-3.0-or-later baseline fixture comes unchanged from OpenCommunityEdition/OpenCE
-22947203a52c6f4b04171eaec426b4f5059b43f4, port/linux/network_format.txt.
+f2597b704d59e66257dba7629f22a0f78f5f3d09, port/linux/network_format.txt.
 Update it only after auditing and testing a new upstream protocol.
 """
 from pathlib import Path

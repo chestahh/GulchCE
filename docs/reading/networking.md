@@ -74,6 +74,16 @@ reach. The hit-report path checks freshness, hand position and line of sight;
 MCC's separate message numbers and admission revision are recorded in
 [NETCODE.md](../../port/linux/NETCODE.md), preserving OpenCE's message 93.
 
+Co-op presentation has its own authority path. In
+[network_coop.c](../../port/linux/game/network_coop.c),
+`client_presentation_apply` gives the host's scripted cutscene camera
+precedence over dead-player spectating, including vehicle insertion scenes.
+`camera_object_offset` follows the client's local copy of the filmed object.
+When scripts release the camera, the normal spectating path applies again;
+`coop_spectate_nothing_to_watch` retains the host view when nobody is alive
+to watch. This is source behavior, not evidence of every campaign cutscene
+having been played through.
+
 ## Compare states from the same time
 
 Suppose the host replies about tick T, but the client has already moved on.
