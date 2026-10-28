@@ -233,7 +233,9 @@ Completion validation on Windows:
 - Windows, Android guest/host and web release builds passed with the original
   PGO options restored. Android Java compiled against SDK 35; Java layout and
   gyro checks and all 36 web page tests passed.
-- The focused suite passed 123 checks with five platform skips. All six
+- The focused suite passed 123 checks with five platform skips; 25 additional
+  server-teardown checks (including negative controls) passed after updating
+  their extracted-source fixture for bot cooldown cleanup. All six
   real-game bot regressions passed, including stock Slayer, enhanced
   Slayer/CTF/King, movement/combat and network bots disabled.
 - Unmodified OpenCE build 317 (protocol 39, release archive SHA-256
@@ -251,6 +253,9 @@ Completion validation on Windows:
   exited cleanly without a timeout override. The same intact-record comparison
   covered 76 paired seconds with no sustained divergence; the large-log
   limitation applies here too.
+- OpenCE also joined an already-running Xbox match with 63 bots: both peers
+  logged all 65 names and exited cleanly. Their once-per-second samples did
+  not align, so this establishes admission/lifecycle, not a position comparison.
 - Hidden rendered checks covered Bot settings, Manage Bots, Server Setup
   and Network Setup. Scripted controller presses verified that the real
   management screen displays host-only rejection feedback.
