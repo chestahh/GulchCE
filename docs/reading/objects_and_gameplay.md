@@ -112,7 +112,19 @@ Do not infer ownership from a local object being present. Read the checks
 in `network_objects.c` and the [network walkthrough](networking.md).
 
 The engine supplies the core object, unit and weapon systems. Port gametypes
-and networking add guarded integration. GulchCE's MCC inventory, movement,
+and networking add guarded integration. OpenCE's optional CTF kill scoring
+starts at `ctf_kills_score` and `ctf_capture_points` in
+[game_engine_ctf.c](../../source/game/game_engine_ctf.c). Multi-Hill keeps
+each active hill in `king_hills`; read `king_pick_extra_hills`,
+`king_hills_to_globals` and the network-state readers and writers in
+[game_engine_king.c](../../source/game/game_engine_king.c). Its first hill
+still supplies the legacy `king_globals` view. Force Team Spawns is checked
+by `game_engine_force_team_spawns` in
+[game_engine.c](../../source/game/game_engine.c), with a fallback when a map
+lacks either team's CTF spawn locations. These options default to stock
+behavior and the host controls their scoring and spawn decisions.
+
+GulchCE's MCC inventory, movement,
 damage and object-name adaptations live in the MCC modules listed in
 [CODINGSTANDARDS.md](../../CODINGSTANDARDS.md). Similar-looking structures
 do not make those compatibility paths interchangeable with Xbox or CE paths.

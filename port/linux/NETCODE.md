@@ -164,11 +164,21 @@ lockstep netcode was removed, set to play it): it tells the player why.
 ## GulchCE crossplay boundary
 
 Xbox and Custom Edition sessions use OpenCE network version 39, pinned to
-OpenCommunityEdition/OpenCE commit `22947203a52c6f4b04171eaec426b4f5059b43f4`.
+OpenCommunityEdition/OpenCE commit `f2597b704d59e66257dba7629f22a0f78f5f3d09`.
 This is an explicit protocol baseline, not automatic compatibility with future
 OpenCE releases. Do not change the base version without auditing its wire format,
 simulation rules and admission behavior and testing unmodified upstream clients.
 The pinned fixture and settings-prefix check are in `tools/test_mcc_protocol.py`.
+
+The f2597b70 merge retains upstream's protocol 39: Force Team Spawns uses
+one reserved options byte without moving the settings prefix. CTF kill
+scoring and Multi-Hill use existing variant storage; the host decides scores
+and spawns. Multi-Hill appends extra hill IDs to its engine-state payload
+only when several hills are active. Both peers need this implementation for
+the new multi-hill presentation; an unchanged version number alone does not
+establish support for that optional mode. MCC admission and its separate
+protocol remain unchanged. The pinned fixture is upstream's complete
+manifest; the combined manifest retains the MCC entries.
 
 The 22947203 integration was checked on Windows against official OpenCE
 build 309. Xbox Blood Gulch passed both host/client directions. Custom Edition
