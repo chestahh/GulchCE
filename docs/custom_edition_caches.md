@@ -243,7 +243,7 @@ changed:
   size of the one its Xbox counterpart draws (256×64 for 128×32, 512×512 for
   256×256), with the same scale, and every unflagged one a bitmap of the same
   size ([Evidence](#observed-not-stated-by-the-sources-established-on-the-sample-maps)).
-  This build ignores the flag, so it drew them twice too large; the
+  The Xbox renderer ignores the flag, so it drew them twice too large; the
   placements of the unit, weapon and grenade HUD interfaces and the HUD
   globals' messages that have it get half their scale, and lose the flag (32
   in `bloodgulch.map`). Halo PC reads the flag only on statics, meters and
@@ -252,11 +252,14 @@ changed:
   digits', so a flagged number keeps the flag and `hud_draw_numbers` draws
   its digits at half their size, spaced as the digits tag says. A bitmap may ask the
   same of every element that draws it, with Halo PC's bitmap flags *half hud
-  scale* and *force hud use highres scale* (Invader's `bitmap.json`): an
-  element drawing such a bitmap (a static or meter, its bitmap after its
-  placement; a crosshair's or overlay's items, their crosshair's or
-  overlay's) gets half its scale too. None of the 18 Custom Edition maps on
-  hand, nor `bitmaps.map`, sets either.
+  scale* (bit 4) and *force hud use highres scale* (bit 7), documented in
+  Invader's `bitmap.json`. Placement high resolution OR bitmap force-highres
+  supplies one halving; bitmap half-scale supplies a separate halving.
+  Both bitmap flags therefore give quarter scale. Crosshair and overlay
+  items continue to ignore the placement flag. These bitmap flags were
+  absent from the original sample of 18 maps and its `bitmaps.map`.
+  [CE HUD scaling](reading/hud_corrections.md#custom-edition-authored-hd-scaling)
+  describes conversion, drawing and the preserved known-map exceptions.
 - **Maps made around Halo PC's own behaviour.** Chimera fixes Halo PC to draw
   as the Xbox does, and keeps a list of the maps made around Halo PC's way
   instead, by map name (in lower case) and tag data checksum, with the

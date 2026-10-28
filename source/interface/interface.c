@@ -85,6 +85,7 @@ symbols in this file:
 #include "game/players.h"
 #include "interface/first_person_weapons.h"
 #include "interface/hud.h"
+#include "custom_edition_hud_draw.h" /* port: port/linux/game/custom_edition_hud_draw.c */
 #include "interface/hud_definitions.h"
 #include "interface/interface.h"
 #include "interface/hud_messaging.h"
@@ -713,7 +714,10 @@ void interface_draw_screen(
 				}
 			}
 
+			/* port: CE zoom-mask scaling lasts only for this view's HUD effect. */
+			custom_edition_hud_mask_begin(parameters.convolution_mask);
 			rasterizer_screen_effect(&parameters);
+			custom_edition_hud_mask_end();
 		}
 		else
 		{
