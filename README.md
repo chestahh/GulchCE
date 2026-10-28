@@ -182,4 +182,6 @@ The decompilation comes from [bnunu/halo-1](https://github.com/bnunu/halo-1), a 
 
 Current revisions are licensed under [AGPL-3.0-or-later](LICENSE), with no warranty. Earlier revisions and releases published under [CC0 1.0](LICENSES/CC0-1.0.txt) retain that licence. Contributions use AGPL-3.0-or-later; adapted GPL code retains its notices, including the [GPL-3.0-only](LICENSES/GPL-3.0-only.txt) bot tactics. Third-party code, fonts and artwork retain their own licences and accompanying notices.
 
+The talking timer’s voice was recorded by [Rose on Toast](https://www.instagram.com/NyxFinSharkCat/) and is distributed under [CC BY 4.0](port/assets/sound/talking_timer/LICENSE).
+
 GulchCE is an unofficial fan project, not affiliated with or endorsed by Microsoft, Bungie or Halo Studios. Halo is a trademark of Microsoft Corporation. The project's licence does not grant rights to Halo or its game data.
