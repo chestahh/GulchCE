@@ -114,4 +114,7 @@ char const *server_director_first_level(void);
 /* the mouse in the menus (source/interface/ui_widget.c) */
 #include "halo_ui_pointer.h"
 
+/* port/linux/src/touch_gyro.c: consume zoom-only gyro input outside zoom. */
+void halo_linux_gyro_filter(int zoomed, float *yaw, float *pitch);
+
 #endif

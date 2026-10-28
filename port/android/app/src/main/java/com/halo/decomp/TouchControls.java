@@ -149,6 +149,7 @@ public final class TouchControls extends View implements SensorEventListener, In
     private static native void nativeState(int lx, int ly, int rx, int ry, int lt, int rt, int buttons);
     private static native void nativeLook(float dx, float dy);
     private static native void nativeGyro(float dx, float dy);
+    private static native int nativeGyroMode();
     private static native void nativeLookReset();
     private static native int nativeRumble();
     private static native int nativeScene();
@@ -210,6 +211,7 @@ public final class TouchControls extends View implements SensorEventListener, In
     private boolean showing;
     private long shownSince = -1;
     private boolean gyroRegistered;
+    private int gyroMode = -1;
     private int lastAmplitude;
     private long lastVibration;
     private final int[] bindings = DEFAULT_BINDINGS.clone();
@@ -223,6 +225,13 @@ public final class TouchControls extends View implements SensorEventListener, In
             if (!deviceInputActive)
                 return;
             scene = nativeScene();
+            int mode = nativeGyroMode();
+            if (mode != gyroMode) {
+                gyroMode = mode;
+                gyroAim.reset();
+                nativeLookReset();
+                updateSensors();
+            }
             updateShowing();
             readBindings();
             updateRumble();
@@ -810,7 +819,9 @@ public final class TouchControls extends View implements SensorEventListener, In
     }
 
     private void showOptions() {
-        String[] items = {"General", "Edit buttons layout", "Look sensitivity"};
+        String[] items = AndroidCheatMenu.enabled()
+            ? new String[] {"General", "Edit buttons layout", "Look sensitivity", "Cheats"}
+            : new String[] {"General", "Edit buttons layout", "Look sensitivity"};
         AlertDialog dialog = new AlertDialog.Builder(getContext())
             .setTitle("Options")
             .setItems(items, (d, which) -> {
@@ -819,8 +830,10 @@ public final class TouchControls extends View implements SensorEventListener, In
                 } else if (which == 1) {
                     editing = true;
                     setHidden(false);
-                } else {
+                } else if (which == 2) {
                     post(this::showSensitivity);
+                } else {
+                    post(() -> AndroidCheatMenu.show(getContext(), this::openDialog));
                 }
             })
             .setNegativeButton("Close", null)
@@ -863,6 +876,11 @@ public final class TouchControls extends View implements SensorEventListener, In
         gyro.setText(gyroscope != null ? "Gyroscope aiming (experimental)" : "Gyroscope aiming (not on this phone)");
         gyro.setChecked(layout.gyroscopeEnabled);
         gyro.setEnabled(gyroscope != null);
+        if (gyroMode != -1) {
+            gyro.setText("Gyroscope: controlled by Settings > Gamepad > Android Controls > Gyro Aim");
+            gyro.setChecked(gyroMode != 0);
+            gyro.setEnabled(false);
+        }
         gyro.setOnCheckedChangeListener((view, enabled) -> {
             layout.gyroscopeEnabled = enabled;
             gyroAim.reset();
@@ -1107,8 +1125,12 @@ public final class TouchControls extends View implements SensorEventListener, In
 
     // ---------- the gyroscope and the vibration
 
+    private boolean gyroEnabled() {
+        return gyroMode == -1 ? layout.gyroscopeEnabled : gyroMode != 0;
+    }
+
     private void updateSensors() {
-        boolean needed = deviceInputActive && showing && !hidden && layout.gyroscopeEnabled && gyroscope != null;
+        boolean needed = deviceInputActive && showing && !hidden && gyroEnabled() && gyroscope != null;
         if (needed && !gyroRegistered) {
             gyroAim.reset();
             gyroRegistered = sensors.registerListener(this, gyroscope, SensorManager.SENSOR_DELAY_GAME);
@@ -1121,7 +1143,7 @@ public final class TouchControls extends View implements SensorEventListener, In
 
     @Override
     public void onSensorChanged(SensorEvent event) {
-        if (!deviceInputActive || !showing || hidden || !layout.gyroscopeEnabled || editing || openDialogs > 0) {
+        if (!deviceInputActive || !showing || hidden || !gyroEnabled() || editing || openDialogs > 0) {
             gyroAim.reset();
             return;
         }
@@ -1129,8 +1151,9 @@ public final class TouchControls extends View implements SensorEventListener, In
             .getDefaultDisplay().getRotation();
         if (gyroAim.sample(event.timestamp, event.values[0], event.values[1], rotation, gyroDelta)) {
             // as a swipe of this many logical units (which the profile's invert leaves alone)
-            nativeGyro(-gyroDelta[0] / LOOK_RADIANS_PER_UNIT * sensitivity,
-                -gyroDelta[1] / LOOK_RADIANS_PER_UNIT * sensitivity);
+            float gyroSensitivity = gyroMode == -1 ? sensitivity : 1f;
+            nativeGyro(-gyroDelta[0] / LOOK_RADIANS_PER_UNIT * gyroSensitivity,
+                -gyroDelta[1] / LOOK_RADIANS_PER_UNIT * gyroSensitivity);
         }
     }
 

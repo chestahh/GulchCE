@@ -67,6 +67,9 @@ symbols in this file:
 #include "scenario/scenario.h"
 #include "tag_files/tag_groups.h"
 #include "units/units.h"
+#ifdef HALO_ANDROID
+#include "android_cheats.h" /* port: port/linux/game/android_cheats.c */
+#endif
 
 /* ---------- constants */
 
@@ -113,6 +116,9 @@ void cheats_dispose(
 void cheats_dispose_from_old_map(
 	void)
 {
+#ifdef HALO_ANDROID
+	android_cheats_reset(); /* port: release menu-owned switches and queued requests at map unload */
+#endif
 	return;
 }
 

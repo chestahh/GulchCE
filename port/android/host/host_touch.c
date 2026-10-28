@@ -42,6 +42,7 @@ static int64_t gyro_ns;
 static int rumble_amplitude;
 static int64_t rumble_ns;
 static volatile int touch_scene;
+static int gyro_mode = -1;
 /* the game control on each controller button (-1: none), and a count of
 its changes, which the overlay polls */
 #define TOUCH_BUTTONS 16
@@ -128,6 +129,26 @@ JNIEXPORT void JNICALL Java_com_halo_decomp_TouchControls_nativeGyro(
 	gyro_delta[1] += dy;
 	gyro_ns = now_ns();
 	pthread_mutex_unlock(&touch_lock);
+}
+
+void host_touch_gyro_mode(int mode)
+{
+	pthread_mutex_lock(&touch_lock);
+	if (gyro_mode != mode)
+		gyro_delta[0] = gyro_delta[1] = 0.0f;
+	gyro_mode = mode;
+	pthread_mutex_unlock(&touch_lock);
+}
+
+JNIEXPORT jint JNICALL Java_com_halo_decomp_TouchControls_nativeGyroMode(JNIEnv *env, jclass cls)
+{
+	int mode;
+	(void)env;
+	(void)cls;
+	pthread_mutex_lock(&touch_lock);
+	mode = gyro_mode;
+	pthread_mutex_unlock(&touch_lock);
+	return mode;
 }
 
 JNIEXPORT void JNICALL Java_com_halo_decomp_TouchControls_nativeLookReset(JNIEnv *env, jclass cls)

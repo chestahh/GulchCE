@@ -21,6 +21,7 @@ CASES += [('windows', case) for case in ('postgame', 'ingame', 'message-failure'
 CASES += [('xbox', case) for case in ('postgame', 'ingame')]
 GUARD = '#if !defined(HALO_WINDOWS) && !defined(HALO_ANDROID) && !defined(HALO_WEB) && !defined(__linux__)'
 CONTROLS = {
+    'bot-policy-not-cleared': ('bots_network_session_end();', ';', 'windows', 'back'),
     'native-sleeps': (GUARD, '#if 1', 'windows', 'back'),
     'xbox-loses-grace': ('SleepEx(MILLISECONDS_PER_SECOND, FALSE);', ';', 'xbox', 'back'),
     'transport-not-terminated': ('transport_server_terminate();', ';', 'windows', 'back'),
@@ -31,7 +32,8 @@ CONTROLS = {
 
 def generated(platform, control=None):
     server = read('source/networking/network_server_manager.c')
-    code = function(server, 'network_game_server_dispose')
+    code = function(read('port/linux/game/bots_network.c'), 'bots_network_session_end')
+    code += '\n' + function(server, 'network_game_server_dispose')
     if control:
         before, after, _, _ = CONTROLS[control]
         code = mutated(code, before, after)

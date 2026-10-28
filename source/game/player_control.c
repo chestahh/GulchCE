@@ -1232,6 +1232,9 @@ static void get_local_player_input_blob(
 							{
 								touch_pitch = -touch_pitch;
 							}
+							/* port: discard unzoomed gyro samples instead of saving a turn
+							for the next zoom (port/linux/src/touch_gyro.c). */
+							halo_linux_gyro_filter(control->zoom_level != NONE, &gyro_yaw, &gyro_pitch);
 							look_delta.yaw += (touch_yaw + gyro_yaw) / touch_scale;
 							look_delta.pitch += (touch_pitch + gyro_pitch) / touch_scale;
 						}

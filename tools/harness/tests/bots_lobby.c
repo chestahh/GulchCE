@@ -49,12 +49,16 @@ struct network_game_server
 
 /* the world the lobby asks */
 static boolean local_game;
+static boolean enhanced;
+static boolean network_option;
 static long wanted;
 static short teams_setting;
 static long sends;
 static short next_color;
 
 static boolean network_game_is_splitscreen_local(void) { return local_game; }
+static int config_boolean(const char *name) { return !strcmp(name, "bots.network") ? network_option : enhanced; }
+static struct network_game_server *global_network_game_server_get(void) { return (void *)1; }
 static long bots_wanted_count(void) { return wanted; }
 static short bots_teams(void) { return teams_setting; }
 static boolean network_game_player_slot_held(long player_index) { (void)player_index; return FALSE; }
@@ -280,6 +284,51 @@ int main(int argc, char **argv)
 		return 0;
 	}
 	/* nothing changes once the game is started, nor in the game */
+	CASE("enhanced-objectives")
+	{
+		lobby(game_engine_ctf, 16);
+		player(0, 0);
+		wanted = 4;
+		enhanced = TRUE;
+		network_game_server_port_bots(&server);
+		CHECK(bots_in(&team0, &team1) == 4, "enhanced CTF bots absent");
+		server.game.variant.game_engine_index = game_engine_king;
+		network_game_server_port_bots(&server);
+		CHECK(bots_in(&team0, &team1) == 4, "enhanced King bots absent");
+		enhanced = FALSE;
+		network_game_server_port_bots(&server);
+		CHECK(bots_in(&team0, &team1) == 0, "disabled objectives retained bots");
+		return 0;
+	}
+	CASE("network-opt-in")
+	{
+		lobby(game_engine_slayer, 128);
+		player(0, 0);
+		local_game = FALSE;
+		wanted = 6;
+		network_option = TRUE;
+		bots_network_session_begin();
+		network_game_server_port_bots(&server);
+		CHECK(bots_in(&team0, &team1) == 6, "opted-in host has no bots");
+		network_option = FALSE;
+		CHECK(bots_network_reserved(), "IDs changed in a live session");
+		bots_network_session_end();
+		bots_network_session_begin();
+		CHECK(!bots_network_reserved() && !bots_session_allowed(), "policy leaked into next session");
+		return 0;
+	}
+	CASE("human-high-id")
+	{
+		lobby(game_engine_slayer, 128);
+		player(0, 0)->machine_index = BOTS_FIRST_MACHINE;
+		local_game = FALSE;
+		wanted = 6;
+		bots_network_session_begin();
+		CHECK(!bots_player_owned(BOTS_FIRST_MACHINE), "human high ID acquired bot ownership");
+		network_game_server_port_bots(&server);
+		CHECK(server.game.player_count == 1, "ordinary host removed a high-ID human");
+		return 0;
+	}
 	CASE("not-once-started")
 	{
 		lobby(game_engine_slayer, 16);

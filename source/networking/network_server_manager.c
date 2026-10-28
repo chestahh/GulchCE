@@ -1314,6 +1314,7 @@ struct network_game_server *network_game_server_create(
 
 			server->game.difficulty = main_get_difficulty();
 			mcc_protocol_reset(); /* port: a fresh server has no negotiated MCC peers */
+			bots_network_session_begin(); /* port: reserve bot IDs only for an opted-in host */
 			server->game.number_of_games_played = -1;
 
 			for (i = 0; i < MAXIMUM_NETWORK_MACHINE_COUNT; i++)
@@ -1361,6 +1362,7 @@ void network_game_server_dispose(
 	struct network_game_server *server)
 {
 	mcc_protocol_reset(); /* port: no stale MCC peer pointers */
+	bots_network_session_end(); /* port: bot policy belongs to this host alone */
 	mcc_ui_network_server_dispose(server);
 	match_assert(NETWORK_SERVER_MANAGER_FILE, 0x120, server);
 
@@ -1551,15 +1553,14 @@ static void network_game_server_list(
 }
 
 /* port: the bots (port/linux/game/bots.c, the settings' bots.count and
-bots.teams): in the lobby of a local (split screen) Slayer game, as many bot
+bots.teams): in an allowed lobby (bots_session_allowed), as many bot
 players as the settings ask for, as far as the game has room, each the one
 player of a machine of its own (BOTS_FIRST_MACHINE up, which no real machine
 is). In a team game they even the teams with the players or, for bots.teams
 "against", all take the team the players are not on; the players may change
 teams in the lobby, and the bots follow. They leave when the setting asks
-for fewer, or the game is another gametype. Not once the game has been
-started, nor in a game other machines may join (system link and internet
-games: no bots there, which would need the clients told) */
+for fewer or the gametype is unsupported. Admission ends when the game
+starts. Optional network bots use existing player records and tick actions */
 static void network_game_server_port_bots(
 	struct network_game_server *server)
 {
@@ -1573,7 +1574,8 @@ static void network_game_server_port_bots(
 
 	if (server->state != _network_game_server_state_pregame || server->sent_start_game_message)
 		return;
-	if (network_game_is_splitscreen_local() && server->game.variant.game_engine_index == game_engine_slayer)
+	/* port: optional bot objectives are selected by the feature module. */
+	if (bots_session_allowed() && bots_gametype_allowed(server->game.variant.game_engine_index))
 		wanted = PIN(bots_wanted_count(), 0, BOTS_MAXIMUM);
 	for (bot_index = 0; bot_index < BOTS_MAXIMUM; bot_index++)
 		slot_of_bot[bot_index] = NONE;
@@ -1583,7 +1585,8 @@ static void network_game_server_port_bots(
 
 		if (!network_player_is_valid(player))
 			continue;
-		if (bots_machine_is_bot(player->machine_index))
+		/* port: only players this host actually added as bots, never high-ID clients. */
+		if (bots_player_owned(player->machine_index))
 			slot_of_bot[player->machine_index - BOTS_FIRST_MACHINE] = slot;
 		else if (VALID_INDEX(player->team_index, NUMBER_OF_MULTIPLAYER_TEAMS))
 		{
@@ -1605,6 +1608,7 @@ static void network_game_server_port_bots(
 
 			if (network_game_remove_player(&server->game, &leaving))
 			{
+				bots_player_ownership(leaving.machine_index, FALSE); /* port: release this bot's identity */
 				network_event("bots: bot %ld left the lobby", bot_index + 1);
 				changed = TRUE;
 			}
@@ -1634,6 +1638,7 @@ static void network_game_server_port_bots(
 			joining.player_list_index = NONE;
 			if (!network_game_add_player(&server->game, &joining))
 				break;
+			bots_player_ownership(joining.machine_index, TRUE); /* port: host-owned synthetic player */
 			network_event("bots: bot %ld joined the lobby (team %ld)", bot_index + 1, team_index);
 			changed = TRUE;
 		}
@@ -4777,6 +4782,8 @@ static boolean network_game_server_add_new_client(
 {
 	boolean success = FALSE;
 	int i;
+	/* port: optional bot identities are host-owned, never assigned to a client. */
+	long machine_slots = bots_network_reserved() ? BOTS_FIRST_MACHINE : MAXIMUM_NETWORK_MACHINE_COUNT;
 
 	match_assert(NETWORK_SERVER_MANAGER_FILE, 0x7D4, server && new_connection);
 
@@ -4784,7 +4791,7 @@ static boolean network_game_server_add_new_client(
 	load the game is told so, network_game_server_handle_message_client_join_game_request) */
 	if (TEST_FLAG(server->flags, _network_game_server_game_open_bit))
 	{
-		for (i = 0; i < MAXIMUM_NETWORK_MACHINE_COUNT; i++)
+		for (i = 0; i < machine_slots; i++)
 		{
 			if (server->client_machines[i].machine_index == NONE)
 			{
@@ -4868,7 +4875,7 @@ static boolean network_game_server_add_new_client(
 			}
 		}
 
-		if (i == MAXIMUM_NETWORK_MACHINE_COUNT)
+		if (i == machine_slots)
 		{
 			network_event(
 				"failed to find an available machine slot in network_game_server_add_new_client()");

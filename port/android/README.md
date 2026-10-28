@@ -242,6 +242,33 @@ starts on them turns the view instead.
 The app keeps the layout in its own preferences, not in `config.toml`.
 Removing the app's data or the app removes the layout.
 
+Settings > Gamepad > Android Controls > Gyro Aim adds independent gyro settings. The
+default, **TOUCH SETTINGS** (`input.gyro_aim = "legacy"`), keeps the layout's
+saved gyro switch and look sensitivity, including imported layouts. A new
+layout still has gyro off. **OFF**, **ON** and **ZOOM ONLY** override that
+switch; ON and ZOOM ONLY use their own horizontal/vertical sensitivity and
+inversion, leaving swipe sensitivity and the profile's Invert Look alone.
+Unzoomed samples in ZOOM ONLY are discarded, so entering zoom does not
+apply a turn accumulated earlier. Hiding controls or backgrounding the app
+still stops gyro input.
+
+| Setting | Default | Environment variable |
+| --- | --- | --- |
+| `input.gyro_aim` | `"legacy"` | `HALO_GYRO_AIM` |
+| `input.gyro_sensitivity_horizontal` | `1.0` (0.25–10) | `HALO_GYRO_SENSITIVITY_HORIZONTAL` |
+| `input.gyro_sensitivity_vertical` | `1.0` (0.25–10) | `HALO_GYRO_SENSITIVITY_VERTICAL` |
+| `input.gyro_invert_horizontal` | `false` | `HALO_GYRO_INVERT_HORIZONTAL` |
+| `input.gyro_invert_vertical` | `false` | `HALO_GYRO_INVERT_VERTICAL` |
+
+The **Cheat Menu** setting in **Android Controls** is off by default
+(`android.cheat_menu = false`, `HALO_ANDROID_CHEAT_MENU`). When enabled,
+touch **Options > Cheats** exposes invincibility, unlimited ammunition,
+bottomless clip, super jump, weapon/powerup spawning and camouflage. It
+works only during offline gameplay, never on a network host or client.
+Menu-owned switches restore their prior values when disabled or leaving a
+map; closing the dialog alone keeps them enabled. Spawns are ordinary game
+objects. See [implementation, credits and limits](../../docs/reading/bots_and_android_features.md).
+
 ## Settings
 
 The settings are in `config.toml` in the data folder of the app. To change

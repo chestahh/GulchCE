@@ -46,6 +46,7 @@ extern unsigned char network_aim_assist_block_mouse(void);
 #include "halo_keyboard.h"
 #include "controller_buttons.h"
 #include "controller_remap.h"
+#include "touch_gyro.h"
 
 #include <SDL3/SDL.h>
 #include <math.h>
@@ -316,6 +317,7 @@ int halo_linux_touch_look(short gamepad_index, float *yaw, float *pitch, float *
 		return FALSE;
 #if defined(HALO_ANDROID) || defined(HALO_WEB)
 	touch_input_look(0.0022f, yaw, pitch, gyro_yaw, gyro_pitch);
+	touch_gyro_apply(gyro_yaw, gyro_pitch);
 	/* (none while the chat's on-screen keyboard is up: what was swiped is
 	dropped, not saved for after) */
 	if (network_chat_keyboard_open() && network_chat_controller() == 0)

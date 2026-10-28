@@ -1226,3 +1226,51 @@ boolean game_engine_king_read_network_state(
 	}
 	return TRUE;
 }
+
+/* port: read-only queries for port/linux/game/enhanced_bots.c, adapted from
+thelinkin3000/halo-ce-universal d92cc93385edf03d0a4a21cfe4c58dd578a3e786. */
+#include "bots_objectives.h" /* port: port/linux/game/bots_objectives.h */
+
+/* port: the hill as the bots see it (port/linux/game/enhanced_bots.c, the host's
+alone): FALSE while there is none or the buffer is too small; else all points,
+its height (from its bottom to its top), its middle and its number, which
+changes as the moving hill moves */
+boolean game_engine_king_hill(
+	real_point3d *points,
+	long maximum,
+	long *point_count,
+	real *bottom,
+	real *top,
+	real_point3d *center,
+	long *hill_id)
+{
+	long index;
+
+	if (king_globals.hill_point_count <= 0 || maximum < king_globals.hill_point_count)
+		return FALSE;
+	*point_count = MIN(king_globals.hill_point_count, maximum);
+	for (index = 0; index < *point_count; index++)
+		points[index] = king_globals.hill_points[index];
+	*bottom = king_globals.hill_bottom;
+	*top = king_globals.hill_top;
+	*center = king_globals.hill_center;
+	*hill_id = king_globals.hill_id;
+	return TRUE;
+}
+
+/* port: (the bots') whether a point is on the hill, as a player's middle is
+counted (player_inside_hill) */
+boolean game_engine_king_point_on_hill(
+	real_point3d const *position)
+{
+	real_point2d point;
+
+	if (king_globals.hill_point_count <= 0 || position->z < king_globals.hill_bottom ||
+		position->z > king_globals.hill_top)
+	{
+		return FALSE;
+	}
+	point.x = position->x;
+	point.y = position->y;
+	return convex_hull2d_test_point(king_globals.hill_point_count, king_globals.convex_hull, &point, 0.0f);
+}
