@@ -2233,10 +2233,9 @@ static void distributed_client_delete(
 them again from the host, a while after (asked again, flagged: the host
 tells them all only then, not on each asking while they are on their way),
 longer each time it fails again */
-static void distributed_client_create_failed(
+static void distributed_client_request_objects(
 	void)
 {
-	objects_statistics.create_failures++;
 	/* (not asked since the last: that asking covers this one) */
 	if (objects_client_failed_time != NONE && objects_client_ready_time <= objects_client_failed_time)
 		return;
@@ -2246,6 +2245,27 @@ static void distributed_client_create_failed(
 	objects_client_ready_time = game_time_get();
 	objects_client_ready_interval = objects_client_retry_ticks;
 	objects_client_retry_ticks = MIN(2 * objects_client_retry_ticks, CLIENT_RETRY_MAXIMUM_TICKS);
+}
+
+static void distributed_client_create_failed(void)
+{
+	objects_statistics.create_failures++;
+	distributed_client_request_objects();
+}
+
+/* A co-op checkpoint may restore a unit under the same object handle after
+this client's copy died. Request a full, validated host description; merely
+clearing its dead bit would leave death animations and inventory state behind. */
+void network_objects_expect_live_unit(long object_index)
+{
+	struct object_datum *object;
+
+	if (!network_game_distributed_client() || !network_coop_active() ||
+		!network_objects_client_has(object_index))
+		return;
+	object = object_try_and_get_and_verify_type(object_index, _object_mask_unit);
+	if (object && TEST_FLAG(object->object.damage_flags, _object_dead_bit))
+		distributed_client_request_objects();
 }
 
 /* whether the object is this machine's own player's unit or the vehicle it
@@ -2383,6 +2403,16 @@ as it is) */
 	}
 }
 
+static boolean distributed_client_reuses_object(long existing_index,
+	struct object_datum const *existing, struct distributed_object_change const *change)
+{
+	return existing_index == change->object_index && existing &&
+		existing->definition_index == change->definition_index &&
+		!(network_coop_active() && TEST_FLAG(_object_mask_unit, existing->object.type) &&
+			TEST_FLAG(existing->object.damage_flags, _object_dead_bit) &&
+			!TEST_FLAG(change->flags, _distributed_object_dead_bit));
+}
+
 static void distributed_client_create(
 	struct distributed_object_change const *change)
 {
@@ -2409,8 +2439,7 @@ static void distributed_client_create(
 		/* placed here when the map loaded, as on the host, or told of
 		before: the same object, where the host has it (unless carried, or
 		this machine's own) */
-		if (existing_index == change->object_index && existing &&
-			existing->definition_index == change->definition_index)
+		if (distributed_client_reuses_object(existing_index, existing, change))
 		{
 			objects_client_has[absolute_index] = existing_index;
 			if (!TEST_FLAG(change->flags, _distributed_object_carried_bit) &&
@@ -2792,6 +2821,8 @@ void network_objects_handle_states(
 			if (!object_try_and_get_and_verify_type(state->object_index, _object_mask_all))
 				continue;
 		}
+		else
+			network_objects_expect_live_unit(state->object_index);
 		/* (an item made carried whose unit never had it here, placed on the
 		host: in the world, seen) */
 		if (TEST_FLAG(_object_mask_item, object->object.type) && object->object.parent_object_index == NONE &&

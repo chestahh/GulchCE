@@ -32,7 +32,7 @@ def test_opence_39_contract_with_camera_extensions():
     actual["bound DISTRIBUTED_RELAYED_ACTION_MAXIMUM_SIZE"] = "14 + 2 * (DISTRIBUTED_INPUT_HISTORY - 1)"
     assert {key: actual.get(key) for key in expected} == expected
     limits = (ROOT / "port/linux/include/halo_port_limits.h").read_text()
-    assert re.search(r"#define HALO_PORT_NETWORK_VERSION 32704\b", limits)
+    assert re.search(r"#define HALO_PORT_NETWORK_VERSION 32706\b", limits)
     # All fields of the transmitted prefix match upstream, including names,
     # types and order. The Windows build also asserts the actual ABI offsets.
     header = (ROOT / "source/networking/network_game_manager.h").read_text()
@@ -59,7 +59,7 @@ typedef int boolean;
 #define TRUE 1
 #define FALSE 0
 #define HALO_PORT_NETWORK_GAME_PLAYERS_END 6
-#define HALO_PORT_NETWORK_VERSION 32704
+#define HALO_PORT_NETWORK_VERSION 32706
 #define HALO_PORT_MAXIMUM_NETWORK_MACHINES 4
 #define NUMBEROF(a) (sizeof(a)/sizeof((a)[0]))
 #define csmemcpy memcpy
@@ -97,7 +97,7 @@ int main(void) {
     byte saved;
     int i;
     memset(&game,0,sizeof(game));strcpy(game.map.name,"levels\\test\\bloodgulch\\bloodgulch");
-    CHECK(mcc_protocol_version(game.map.name)==32704);
+    CHECK(mcc_protocol_version(game.map.name)==32706);
     CHECK(mcc_protocol_settings_size(&game)==64);
     CHECK(mcc_protocol_settings_valid(&game,64));CHECK(!mcc_protocol_settings_valid(&game,96));
     build_message_header(original,sizeof(original),3,0);

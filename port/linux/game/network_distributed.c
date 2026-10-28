@@ -2656,6 +2656,7 @@ static void distributed_handle_unit_state(
 	}
 	if (state->player_index < MAXIMUM_TRACKED_PLAYERS)
 		distributed_deaths[state->player_index].dead_since = NONE;
+	network_objects_expect_live_unit(state->unit_index);
 	/* spawned on the host: the host's unit is the player's here too, once
 	this machine has it (network_objects.c) */
 	if (state->unit_index == NONE || !network_objects_client_has(state->unit_index) ||

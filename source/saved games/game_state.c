@@ -101,6 +101,7 @@ symbols in this file:
 #include "console.h"
 #include "game_state.h"
 #include "coop_vehicles.h" /* port: preserve replacement-vehicle homes across reverts */
+#include "network_coop.h" /* port: restore current co-op membership before view/input caches */
 #include "game.h"
 #include "tag_files.h"
 #include "cache_files.h"
@@ -202,6 +203,8 @@ static game_state_before_load_proc before_load_procs[] =
 static game_state_after_load_proc after_load_procs[] =
 {
 	scenario_reload_structure_bsp_if_necessary,
+	/* port: the session roster is not part of a gameplay checkpoint. */
+	network_coop_restore_players,
 	sound_stop_all,
 	game_sound_restore,
 	observer_initialize_for_new_map,

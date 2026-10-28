@@ -464,6 +464,8 @@ void network_objects_apply_vehicle_predictions(void);
 word network_objects_entry_size(byte type);
 /* whether this client has the host's object at this index */
 boolean network_objects_client_has(long object_index);
+/* Host says alive: recover a dead client copy after a co-op restore. */
+void network_objects_expect_live_unit(long object_index);
 /* moves the object where the host has it, drawn gliding from where it was */
 void network_objects_correct(long object_index, real_point3d const *position, real_vector3d const *forward,
 	real_vector3d const *up, real_vector3d const *velocity, real_vector3d const *angular_velocity);

@@ -78,6 +78,19 @@ with ideas from VALORANT's netcode articles, keeping the 30 Hz tick:
   threads' wake times along with it. The object, device and name syncs
   bring the clients up to date.
 
+  On this branch, checkpoint loading retains the host's current session
+  roster (`network_coop_restore_players`), before rebuilding view and input
+  caches. Saved players who left lose their restored units and remain quit;
+  current players missing from the save are created in their authoritative
+  slots and use the normal co-op spawn rules. The machine-to-player table
+  is rebuilt too: it lives outside the checkpoint, whose datum identifiers
+  may differ. This fixes restores after reconnects, with either camera mode.
+  If an authoritative sample says a unit is alive but the client's copy is
+  dead, the client requests the existing full object description, with the
+  existing retry backoff and host rate limit. A validated create replaces
+  that dead co-op copy instead of reusing it. This also handles a restored
+  object keeping its checkpoint handle; no client decides to resurrect it.
+
   The host's EXTRA ENEMIES (`coop_enemies.c`, `network.coop_enemies_mode`)
   give each squad of enemies a level places more of itself: PER PLAYER, a
   percentage of itself for each player past the first, to 8 times its size
@@ -1204,8 +1217,9 @@ so a legitimate shot from beside cover is not judged only from the head.
 Both the eye-to-muzzle and muzzle-to-impact routes must be clear; weapon
 ownership, rate, target history and damage limits still apply. Scoped, dead,
 seated, Forced Off and ordinary first-person paths do not add this history.
-This simulation agreement raises the experimental versions to 32704/32705;
-it adds no packet fields or client authority.
+These rules and the current-roster checkpoint restoration use experimental
+versions 32706/32707. The latter changes simulation agreement, so older
+camera builds are excluded too; it adds no packet fields or client authority.
 The host independently excludes weapon-authored following cameras from the
 shoulder solver; stale or forged input bits cannot override that priority.
 The relay rejects non-boolean shoulder values and truncated messages.
@@ -1279,15 +1293,15 @@ action button where the host has nothing for them to pick up, with where it
 has them and the nearest item: a client that sees a pickup the host does
 not.
 
-The `online-third-person` branch uses version 32704 for Xbox/Custom Edition
-and MCC protocol version 32705. These separate experimental revisions retain
+The `online-third-person` branch uses version 32706 for Xbox/Custom Edition
+and MCC protocol version 32707. These separate experimental revisions retain
 the shoulder-policy bits and extra input-relay byte. They incorporate main's
 OpenCE fire-origin message 93 and keep MCC messages at 94-97 and MCC admission
 at 98. Camera admission reserves data-message kind 99.
 
 Every join, including a first-person-only game, must carry an eight-byte camera
 envelope: the normal two-byte data header, kind 99, revision 1, little-endian
-base camera version 32704, and two zero reserved bytes. The inner message is
+base camera version 32706, and two zero reserved bytes. The inner message is
 either the original join packet or the existing MCC envelope. The maximum is
 264 bytes. The host validates this before normal admission; an advertised
 version alone would leave direct joins unprotected. MCC validates its own

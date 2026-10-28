@@ -66,8 +66,8 @@ existing visibility check requires clear eye-to-muzzle and muzzle-to-target
 segments. Ownership, rate limits, target history and damage rules still run.
 The upstream optional client-hand origins remain separately controlled.
 
-The changed host acceptance rule uses experimental network versions 32704
-(Xbox/CE) and 32705 (MCC). Matching builds are required even with the camera
+The host acceptance and checkpoint membership rules use experimental network versions 32706
+(Xbox/CE) and 32707 (MCC). Matching builds are required even with the camera
 off. See [networking](networking.md) for the mandatory join envelope and
 the intentional OpenCE/main crossplay boundary.
 
@@ -79,6 +79,25 @@ scope and scripted cameras clear orbit state. A held orbit key must be
 released before reacquiring after these transitions. Settings and keyboard
 ownership remain shared as documented; two separate processes do not prove
 same-process split-screen input independence.
+
+`network_coop_restore_players` in
+[network_coop.c](../../port/linux/game/network_coop.c) preserves the current
+host roster when a checkpoint predates a join or departure. The small
+[game_state.c](../../source/saved%20games/game_state.c) after-load hook must
+run before observer, director and input restoration: those caches need the
+live players, rather than the saved membership. This is an existing co-op
+lifecycle fix, reproduced with the camera forced off, not an MCC adapter.
+It uses the established player, unit and session interfaces; Xbox, Custom
+Edition and MCC discovery/loading remain separate. Clients do not choose
+membership or restore a checkpoint themselves. `tools/test_coop_checkpoint.py`
+checks departed players, added/reused slots, local viewports, stale machine
+handles, invalid roster entries, repeat restores and the inactive guard.
+The host's live-unit samples also trigger bounded object resynchronization
+when a co-op client's copy remains dead. `network_objects_expect_live_unit`
+and `distributed_client_reuses_object` in
+[network_objects.c](../../port/linux/game/network_objects.c) request and
+apply a fresh validated host description instead of clearing death flags
+locally. The checkpoint tests cover this recovery and its retry limits.
 
 `tools/test_third_person.py` exercises the production camera and muzzle
 solver with controlled collision worlds, including near cover, FOV, scope,
