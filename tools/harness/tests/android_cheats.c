@@ -2,7 +2,11 @@
 #define HALO_ANDROID 1
 #define NUMBEROF(a) (sizeof(a) / sizeof((a)[0]))
 #define SET_FLAG(value, bit, enabled) ((value) = ((value) & ~(1UL << (bit))) | ((enabled) ? 1UL << (bit) : 0))
-typedef int pthread_mutex_t;
+/* Keep the single-threaded stand-ins separate from system pthread types. */
+#define pthread_mutex_t harness_mutex_t
+#define pthread_mutex_lock harness_mutex_lock
+#define pthread_mutex_unlock harness_mutex_unlock
+typedef int harness_mutex_t;
 #define PTHREAD_MUTEX_INITIALIZER 0
 static void pthread_mutex_lock(pthread_mutex_t *mutex) { (void)mutex; }
 static void pthread_mutex_unlock(pthread_mutex_t *mutex) { (void)mutex; }

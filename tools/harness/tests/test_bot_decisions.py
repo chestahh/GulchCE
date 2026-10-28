@@ -20,8 +20,8 @@ def test_objectives(case):
 def test_vehicles(case):
     source = read("port/linux/game/bots_vehicles.c")
     code = structure(source, "bots_vehicle_definition") + "\n"
-    code += structure(source.replace("static struct bots_vehicle_state", "struct bots_vehicle_state"), "bots_vehicle_state") + "\n"
-    code += "static struct bots_vehicle_state vehicles[BOTS_MAXIMUM];\n"
+    # The declaration includes the vehicles array after the structure body.
+    code += "static " + structure(source.replace("static struct bots_vehicle_state", "struct bots_vehicle_state"), "bots_vehicle_state") + "\n"
     code += "\n".join(function(source, name) for name in (
         "distance", "angle", "definition", "drivable", "bots_vehicles_reset_player", "bots_vehicles_reset",
         "bots_vehicle_parent", "bots_vehicle_navigation", "bots_vehicle_weapon", "seat_available", "bots_vehicle_action"))
