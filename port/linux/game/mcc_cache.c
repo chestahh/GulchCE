@@ -419,6 +419,7 @@ struct cache_file_tag_header *mcc_cache_tags_load(char const *name, void *header
     if (!mcc_script_threads_prepare()) goto failed;
     mcc_loaded = TRUE;
     mcc_loading_stage(MCC_LOADING_SCENARIO);
+    mcc_bitmaps_prepare_gpu(runtime);
     mcc_campaign_begin();
     error(_error_silent, "mcc: loaded %s (%lu tags, %lu bytes of runtime tags)", name,
         (unsigned long)runtime->report.tag_count, (unsigned long)runtime->used);
