@@ -274,13 +274,15 @@ still stops gyro input.
 The **Cheat Menu** setting in **Android Controls** is off by default
 (`android.cheat_menu = false`, `HALO_ANDROID_CHEAT_MENU`). When enabled,
 the **CHEATS** touch button beside **Hide/Touch** opens the menu directly
-during offline gameplay. It remains visible when the gameplay controls are
-hidden, and disappears in the layout editor, cinematics and online games.
+during offline gameplay or while hosting co-op or multiplayer. It remains
+visible when the gameplay controls are hidden, and disappears in the layout
+editor, cinematics and when joining another host.
 Touch **Options > Cheats** also exposes invincibility, unlimited ammunition,
 bottomless clip, super jump, omnipotence, no fall damage, Medusa, bump
 possession, Easy Rider (no rider ejection), weapon/powerup/vehicle spawning
 and camouflage. It
-works only during offline gameplay, never on a network host or client.
+uses the same cheat actions as a desktop host. Only the host controls them
+in a network game; joining clients cannot submit requests.
 While it is enabled, tapping three fingers together (or four, as selected
 in General) within a quarter-second also opens it. The gesture releases
 held controls before opening the dialog; it does nothing when Cheats is off.

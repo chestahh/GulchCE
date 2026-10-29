@@ -511,8 +511,8 @@ static const struct config_setting config_settings[] =
 		"as the game's own maps' are before they run; false refuses them\n"
 		"(docs/custom_edition_caches.md)." },
 	{ "android.cheat_menu", _config_boolean, "false", "HALO_ANDROID_CHEAT_MENU", _environment_value, _platform_android,
-		"Show Cheats in the touch overlay's Options during offline games.\n"
-		"Off by default; never available to network hosts or clients.\n"
+		"Show a CHEATS touch button and Options entry during offline or hosted games.\n"
+		"Off by default; joining clients cannot use it.\n"
 		"Menu-owned switches reset on disabling the menu or leaving a map." },
 	{ "bots.enhanced", _config_boolean, "false", "HALO_BOTS_ENHANCED", _environment_value, _platform_all,
 		"Optional enhanced bots: tactical roles, navigation and CTF/King goals.\n"

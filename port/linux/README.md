@@ -561,7 +561,7 @@ the setting for one start of the game. It has priority over the file.
 | `bots.routes` | `"direct"` | `HALO_BOT_ROUTES` | Enhanced bot routes: `direct`, `lanes` or `mixed`; unreadable/unreachable routes fall back to the base pathfinder. |
 | `bots.vehicles` | `false` | `HALO_BOT_VEHICLES` | Enhanced ground-vehicle and turret use through ordinary controls; no aircraft navigation. |
 | `bots.thread` | `false` | `HALO_BOT_THREAD` | Optional snapshot path worker for enhanced bots. Read at map load; fixed-tick benchmarks remain synchronous. |
-| `android.cheat_menu` | `false` | `HALO_ANDROID_CHEAT_MENU` | Android: expose Cheats in touch Options during offline gameplay only. |
+| `android.cheat_menu` | `false` | `HALO_ANDROID_CHEAT_MENU` | Android: show a CHEATS touch button and Options entry during offline gameplay or while hosting co-op/multiplayer. Joining clients cannot use cheats. |
 | `bots.count` | `0` | `HALO_BOTS` | Computer players: `0` to `63` join the lobby as room permits. Local Slayer by default; `bots.enhanced` adds CTF/King and `bots.network` allows network hosts. `0`: none, as in the stock game. Refer to "Bots". |
 | `bots.skill` | `"normal"` | `HALO_BOT_SKILL` | How well the bots play: `"easy"`, `"normal"`, `"heroic"` or `"legendary"`: how soon they react, how far and how wide they see, how large their aim error is and how fast it settles, how fast they turn. |
 | `bots.teams` | `"even"` | `HALO_BOT_TEAMS` | In a team game: `"even"` puts the bots on both teams, evening them with the players; `"against"` puts them all on the team the players are not on. |

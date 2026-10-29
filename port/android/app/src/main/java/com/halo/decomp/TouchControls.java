@@ -982,7 +982,7 @@ public final class TouchControls extends View implements SensorEventListener, In
         });
         panel.addView(buttonsStill);
 
-        panel.addView(text("Fingers that tap together to open Cheats (when enabled offline):"));
+        panel.addView(text("Fingers that tap together to open Cheats (when enabled):"));
         RadioGroup fingers = new RadioGroup(getContext());
         fingers.setOrientation(RadioGroup.HORIZONTAL);
         for (int count = TouchLayout.MIN_MENU_FINGERS; count <= TouchLayout.MAX_MENU_FINGERS; count++) {

@@ -39,16 +39,17 @@ their existing map loaders, limits, rules and resource ownership.
   settings. Zoom Only discards motion while unzoomed.
 - Touch Options can be moved in the layout editor; Export, Import and Save
   sit in its center. General settings can disable aiming with held buttons
-  and choose a three- or four-finger tap for enabled offline cheats. Older
+  and choose a three- or four-finger tap for enabled cheats. Older
   layouts retain their saved controls and gyro behavior when loaded.
   OpenCE version-4 layouts omit GulchCE's `menu-fingers` field; importing
   those files uses the existing three-finger cheat gesture default.
 - Android's **Cheat Menu** option adds a **CHEATS** touch button beside
   **Hide/Touch**, as well as **Cheats** in touch **Options**. The button is
-  available during offline gameplay, including when the gameplay controls
+  available during offline or hosted gameplay, including when the gameplay controls
   are hidden; the layout editor and cinematics hide it. Tapping opens the
   existing dialog through `openDialog`, which releases held controls.
-  It defaults off and is available during offline gameplay only. It exposes
+  It defaults off and is unavailable to joining clients, including while joining
+  a lobby. Android hosts use the same cheat APIs as desktop hosts. It exposes
   invincibility, ammunition, bottomless clip, super jump, omnipotence,
   no fall damage, Medusa, bump possession, Easy Rider, weapon/powerup/vehicle
   spawning and camouflage through existing engine cheat APIs. Easy Rider
@@ -162,8 +163,14 @@ uses the touch overlay's existing dialog/input-reset path. It sends typed
 IDs through [host_android_cheats.c](../../port/android/host/host_android_cheats.c),
 an eight-entry mutex-protected queue. No console text or guest pointers cross
 this boundary. [android_cheats.c](../../port/linux/game/android_cheats.c)
-rechecks offline permission on the game thread and consumes at most four
-requests per poll. Cinematics suspend requests without losing owned toggle
+rechecks offline/host permission on the game thread and consumes at most four
+requests per poll. It follows the desktop console's
+`hs_playing_in_anothers_game` rule: both distributed clients and clients
+joining a lobby without a local server are denied. Changing from host to
+client clears queued requests and releases menu-owned switches. Existing
+host cheat semantics and object replication are reused; this menu adds no
+network messages or client-side cheat settings.
+Cinematics suspend requests without losing owned toggle
 values. Disabling the menu or leaving the map restores values it changed,
 unless a later console/script edit changed them again. One-shot spawned
 items remain ordinary game objects; they are not undone by closing the UI.
@@ -226,7 +233,7 @@ design references below; this is not a wholesale cherry-pick.
 | Gyro settings | **thelinkin3000**, [29638d60](https://github.com/thelinkin3000/halo-ce-universal/commit/29638d603d90283e16f95b2ac78d1ab99639912a), as the settings/zoom-mode reference. Built on **MrBruh**'s existing OpenCE Android controls (`fc610044`), preserving their legacy behavior. |
 | Android cheat menu | **thelinkin3000**, [406f793f](https://github.com/thelinkin3000/halo-ce-universal/commit/406f793f4c08751f854a3615ed244ea3b1f90b88), whose overlay credits **hardran3**'s **OpenCE-Ultrahand** and **HaloDrones** packages. GulchCE uses a new small typed Android dialog/queue and existing cheat APIs; the fork's general console and renderer overlay are not imported. |
 | Navigation, richer vehicles, aiming, powerups and Infection | Focused adaptations from **thelinkin3000**'s `bots.c` at `18a94774`, retaining its credit to **BirchWoodGod**'s Vita navigation, vehicles and powerups (GPL-3.0-only). SWAT/Infection and aiming rules are the fork's additions on that base. The snapshot worker is a separate implementation of the optional worker capability. |
-| Touch editor and edge handling | **thelinkin3000**, [d119125f](https://github.com/thelinkin3000/halo-ce-universal/commit/d119125f) (edge controls, button aim, version-4 layout and toolbar), [62824171](https://github.com/thelinkin3000/halo-ce-universal/commit/62824171) (scrolling), and the earlier three/four-finger gesture, built on **MrBruh**'s OpenCE Android controls. The gesture opens GulchCE's existing offline cheat dialog. |
+| Touch editor and edge handling | **thelinkin3000**, [d119125f](https://github.com/thelinkin3000/halo-ce-universal/commit/d119125f) (edge controls, button aim, version-4 layout and toolbar), [62824171](https://github.com/thelinkin3000/halo-ce-universal/commit/62824171) (scrolling), and the earlier three/four-finger gesture, built on **MrBruh**'s OpenCE Android controls. The gesture opens GulchCE's existing cheat dialog. |
 
 Code credits belong here and in player-facing commit notes, not in the
 art-only `AUTHORS.md`. Release packaging includes the retained GPL text and
@@ -245,7 +252,7 @@ capabilities below while retaining GulchCE's defaults and engine interfaces.
 | Reference capability | GulchCE disposition |
 | --- | --- |
 | 63 bots, names and host-only network actions | Capacity restored; ordinary protocol-39 player records/actions retained. Lobby limits still apply. |
-| Live add/drop by team; difficulty, routes and vehicles in a menu | Implemented through CE settings and Manage Current Bots. The three/four-finger gesture opens the Android cheat dialog when enabled offline; the general renderer overlay remains separate. |
+| Live add/drop by team; difficulty, routes and vehicles in a menu | Implemented through CE settings and Manage Current Bots. The three/four-finger gesture opens the Android cheat dialog when enabled offline or as host; the general renderer overlay remains separate. |
 | Nine cheat switches and weapon/powerup/vehicle spawns | All exposed by the Android dialog, plus the earlier camouflage action. Offline-only permission remains intentional. |
 | Explicit gyro modes, per-axis sensitivity and inversion | Adapted; the default Touch Settings mode additionally preserves the user's earlier saved gyro settings. |
 | Roles, lanes, vantage choices, CTF/King goals and ground vehicles | Focused adaptation already present, not an import of the fork's complete bot core. Vehicles stay off by default, unlike the fork's enabled default. |

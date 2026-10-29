@@ -230,7 +230,7 @@ SCREENS = {
             ("TOUCH AIM ASSIST:", "input.touch_aim_assist", ON_OFF,
              "Apply controller aim assistance to touch aiming.", "android"),
             ("CHEAT MENU:", "android.cheat_menu", ON_OFF,
-             "Show a CHEATS touch button and Options entry.\nOffline games only. Off by default.", "android"),
+             "Show a CHEATS touch button and Options entry.\nOffline or game host only. Off by default.", "android"),
         ],
         "categories": [("GYRO AIM", "gamepad_setup/gyro",
                         "Phone gyro mode, sensitivity and inversion.\nTouch settings keeps your saved layout.", "android")],
