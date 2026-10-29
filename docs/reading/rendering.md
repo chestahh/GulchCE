@@ -49,6 +49,21 @@ transparent draws can read them later. GulchCE's
 interpolated unit values into its existing per-player arms storage; the shield
 and overshield modules still own their feature state and activation checks.
 
+The render functions use the incoming values saved by
+`object_compute_function_values`, rather than reading the object's current
+inputs. An invisible vehicle weapon can overwrite its parent's inputs after
+the parent ticks; rereading those inputs made Warthog headlights follow the
+gun's illumination with Smooth Motion enabled. The saved inputs live outside
+game state and are checked against the full object handle. Map starts and
+saved-game loads call `object_function_inputs_forget` in the lifecycle of
+[game_state.c](../../source/saved%20games/game_state.c). Until fresh inputs
+exist, or with Smooth Motion disabled, rendering uses the stored tick outputs.
+This shared rendering correction preserves the simulation and the separate
+Xbox, Custom Edition and MCC loading paths. The asset-free
+[picture-function tests](../../tools/harness/tests/test_picture_function_inputs.py)
+cover overwritten inputs, additive functions, reused handles and invalidation;
+they do not establish GPU visibility or lens-flare occlusion correctness.
+
 ## Draw passes have an order and temporary state
 
 Read `render_window` for the actual order of world/object drawing, lighting,
