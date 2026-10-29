@@ -3097,6 +3097,7 @@ void network_game_server_port_set_cooperative_player_collisions(boolean player_c
 void network_game_server_port_set_cooperative_ally_friendly_fire(boolean ally_friendly_fire);
 void *global_network_game_client_get(void);
 void *global_network_game_server_get(void);
+#include "bots_menu.inl"
 boolean network_game_is_splitscreen_local(void);
 struct advertised_game *network_game_client_get_available_games(void *client);
 boolean network_game_client_advertised_game_is_valid(struct advertised_game *game);
@@ -7466,6 +7467,8 @@ boolean pc_menu_event_function_invoke(
 
 		if (!name)
 			return FALSE;
+		if (!strncmp(name, "port bots ", 10))
+			return bots_menu_event(widget, name);
 		if (!strncmp(name, "port controller ", 16))
 			return pad_editor_event(widget, name);
 		if (!strncmp(name, "port changelog ", 15))

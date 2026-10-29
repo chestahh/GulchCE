@@ -32,7 +32,7 @@
 	</widget>
 	<widget name="main_menu/multiplayer_type_select/server_settings/button_bar" type="column_list" width="640" height="28" flags="pass_unhandled_to_focused_child left_right_tabs_items">
 		
-		<child widget="main_menu/multiplayer_type_select/server_settings/button_ok" x="380" y="1"/>
+		<child widget="main_menu/multiplayer_type_select/server_settings/button_bots" x="250" y="1"/><child widget="main_menu/multiplayer_type_select/server_settings/button_ok" x="380" y="1"/>
 		<child widget="common_button_cancel" x="510" y="1"/>
 	</widget>
 	<widget name="main_menu/multiplayer_type_select/server_settings/op_server_name" width="512" height="28" flags="pass_unhandled_to_focused_child" bitmap="bitmaps/option_bkds" color="#FF2896FF">
@@ -224,6 +224,11 @@
 		<string text="Sending players who join without the game's\nCustom Edition map the map, and how fast."/>
 		<string text="Listed for everyone through the brokers, and on\nthe master servers with your publisher key."/>
 	</strings>
+	<widget name="main_menu/multiplayer_type_select/server_settings/button_bots" type="text" width="118" height="24" bitmap="bitmaps/text_button_background" text="BOTS" font="ui\small_ui" color="#FFFFFFFF" align="center" text_y="2">
+		<on event="a" open="main_menu/settings_select/player_setup/player_profile_edit/network_setup/bots/bots_screen"/>
+		<on event="start" open="main_menu/settings_select/player_setup/player_profile_edit/network_setup/bots/bots_screen"/>
+		<on event="left_mouse" run="mouse emit accept event"/>
+	</widget>
 	<widget name="main_menu/multiplayer_type_select/server_settings/coop_options/coop_options_screen" width="640" height="480" flags="pass_unhandled_to_focused_child" bitmap="bitmaps/gradient">
 		<child widget="main_menu/multiplayer_type_select/server_settings/coop_options/header_coop_options"/>
 		<child widget="main_menu/multiplayer_type_select/server_settings/coop_options/coop_options_menu"/>

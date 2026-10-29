@@ -62,7 +62,7 @@ public final class TouchLayoutTest {
         check(wide.add(4) == 4 && wide.shown(4), "Add must restore a hidden button first");
         wide.setShown(TouchLayout.LEFT, false);
         check(wide.add(TouchLayout.LEFT) == TouchLayout.LEFT, "Hidden move stick must be restorable");
-        reject(exported.replace("version=3", "version=9"));
+        reject(exported.replace("version=4", "version=9"));
         reject(exported.replace("control.18.type=4", "control.18.type=16"));
         reject(exported.replace("control.18.x=240.0", "control.18.x=NaN"));
         reject(exported.replace("count=19", "count=10000"));
@@ -86,7 +86,7 @@ public final class TouchLayoutTest {
         reject(sizedText.replace("control.18.size=1.6", "control.18.size=3.0"));
         reject(sizedText.replace("rumble=false", "rumble=invalid"));
         reject(sizedText.replace("gyroscope=true", "gyroscope=invalid"));
-        String legacy = sizedText.replace("version=3", "version=1").replaceAll("(?m)^.*\\.size=.*\\R", "")
+        String legacy = sizedText.replace("version=4", "version=1").replaceAll("(?m)^.*\\.size=.*\\R", "")
             .replaceAll("(?m)^(rumble|gyroscope|opacity|floating-stick)=.*\\R", "");
         TouchLayout.Configuration old = TouchLayout.importConfiguration(legacy);
         check(old.layout.sizeScale(copy) == 1 && old.layout.rumbleEnabled && !old.layout.gyroscopeEnabled,
@@ -102,7 +102,7 @@ public final class TouchLayoutTest {
               "The floating stick must survive export/import");
         sized.layout.floatingStick = false;
         reject(translucent.replace("floating-stick=false", "floating-stick=maybe"));
-        String version2 = translucent.replace("version=3", "version=2").replaceAll("(?m)^(opacity|floating-stick)=.*\\R", "");
+        String version2 = translucent.replace("version=4", "version=2").replaceAll("(?m)^(opacity|floating-stick)=.*\\R", "");
         check(TouchLayout.importConfiguration(version2).layout.opacity == 1f
               && !TouchLayout.importConfiguration(version2).layout.floatingStick,
               "Version 2 layouts load fully opaque, with the stick in its place");
@@ -133,7 +133,34 @@ public final class TouchLayoutTest {
         }
         fingers.setMinimumRadius(Float.NaN);
         check(fingers.radius(12) == 25, "An invalid minimum radius is none");
+        check(!wide.optionsMoved() && wide.buttonsAim && wide.menuFingers == 3,
+              "New layouts preserve the toolbar position and held-button aiming");
+        wide.moveOptions(600, 270);
+        wide.buttonsAim = false;
+        wide.menuFingers = 4;
+        String editorText = wide.exportConfiguration(2.25f);
+        TouchLayout editor = TouchLayout.importConfiguration(editorText).layout;
+        editor.bounds(1200, 540);
+        check(editor.optionsX() == 600 && editor.optionsY() == 270 && !editor.buttonsAim && editor.menuFingers == 4,
+              "Options placement and gesture settings must survive export/import across aspect ratios");
+        editor.moveOptions(Float.NaN, 0);
+        check(editor.optionsX() == 600, "Invalid Options drag must leave the last position intact");
+        editor.moveOptions(9999, -10);
+        check(editor.optionsX() == 1200 - editor.optionsRadius() && editor.optionsY() == editor.optionsRadius(),
+              "The full Options button must stay reachable at screen edges");
+        reject(editorText.replace("menu-fingers=4", "menu-fingers=5"));
+        reject(editorText.replace("buttons-aim=false", "buttons-aim=maybe"));
+        reject(editorText.replace("options.x=480.0", "options.x=NaN"));
+        reject(editorText.replaceAll("(?m)^options.y=.*\\R", ""));
+        String version3 = editorText.replace("version=4", "version=3")
+            .replaceAll("(?m)^(options\\.[xy]|menu-fingers|buttons-aim)=.*\\R", "");
+        TouchLayout migrated = TouchLayout.importConfiguration(version3).layout;
+        check(!migrated.optionsMoved() && migrated.buttonsAim && migrated.menuFingers == 3
+              && migrated.gyroscopeEnabled && !migrated.rumbleEnabled,
+              "Version 3 migration must preserve gyro/rumble and use the original toolbar/aim defaults");
         wide.resetDefaults();
+        check(!wide.optionsMoved() && !wide.buttonsAim && wide.menuFingers == 4,
+              "Reset restores the Options position without discarding General preferences");
         check(wide.size() == 18 && wide.shown(4) && wide.x(4) == 915*1200f/960,
               "Reset restores defaults on the current display and removes all copies");
         check(wide.sizeScale(4) == 1f && !wide.rumbleEnabled && wide.gyroscopeEnabled,

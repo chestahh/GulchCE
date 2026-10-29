@@ -13,7 +13,11 @@ progress follows resource checks, conversion and validation, then initial
 scenario setup. It represents completed work, not a time estimate. Long audio
 and texture operations refresh the display between bounded pieces of work;
 a single blocking read or allocation can still pause it briefly. A refused
-map closes the effect and uses the existing error message.
+map closes the effect and shows its package/level and the failed check. Missing
+or incompatible resources name the resource file and where to install the
+matching MCC copy. Unsupported script names and conversion stages are reported
+when known; `debug.txt` retains the detailed checks. The existing menu return
+and network-session abort behaviour is unchanged.
 
 The screen uses the Xbox installation's `maps/loading.tga` imported from the
 disc image. If that file is missing, the original renderer has no loading
@@ -145,24 +149,63 @@ Map changes and disconnects discard the binding. No client gains host authority,
 and content matching does not prove that an untrusted client executes honest code.
 
 The issue #51 metadata cache still avoids full resource reads on each lobby
-readiness poll. Host fingerprints are also cached while map/resource metadata
-stays unchanged. Initial admission and actual loading do read the full content,
-so large packages can take longer at these points. The previous 32-bit checksum
+readiness poll. `mcc_cache_checksum` prepares the host's SHA-256 identity
+during map-version calculation, before opening an initially MCC lobby.
+Fast setup's early MCC selections wait in `mcc_ui_network` until the host's
+local client has joined its temporary lobby; they then use the normal map
+change path. Starting the temporary map is blocked while a selection waits;
+legacy selections and session teardown cancel the pending request.
+Deferring hashing until the first settings send blocked the host's local client beyond
+its five-second join deadline on large packages. `mcc_identity_prepare_host`
+retains the existing host cache while map/resource metadata stays unchanged;
+settings sends recheck those stamps and changed files require a fresh hash.
+The local admission can reuse that prepared fingerprint only for an identical
+canonical path, complete file snapshot and all 32 digest bytes. This avoids
+hashing the host's unchanged package again while a remote client waits to join.
+Other machines still fingerprint their own installation, and actual loading
+always fingerprints the opened content independently. The timeout values,
+wire format and fingerprint bytes are unchanged. Large packages still take
+time to validate; this does not make synchronous I/O immune to stalls.
+The previous 32-bit checksum
 remains for checkpoint identity and engine bookkeeping; it is no longer the
 MCC network content proof. Existing save identities are unchanged by SHA-256.
-MCC peers need matching GulchCE MCC protocol 46. Xbox and Custom Edition use
-the verified OpenCE protocol 29 and retain their original matching/loading
-behavior. See the crossplay boundary in `port/linux/NETCODE.md`. Network
+MCC peers need matching GulchCE MCC protocols. Xbox and Custom Edition retain
+their original matching/loading behavior and the OpenCE protocol baseline
+specified in [the crossplay boundary](../port/linux/NETCODE.md#gulchce-crossplay-boundary). Network
 support uses OpenCE's host-authoritative engine, not official MCC clients.
 
-The shared integration is limited to the settings record's appended digest,
+The shared identity integration uses the settings record's appended digest,
 the two host settings senders, client settings admission, and client teardown.
 These hooks are necessary because MCC modules alone cannot attach data to the
 existing host record or resolve a local path before its generic presence check.
+Startup coordination also needs small server map-selection, idle and start
+hooks: the server owns when a requested map is applied and when its round can
+start. The pending request and its cleanup remain in `mcc_ui_network.inl`,
+using the existing MCC server-disposal hook. Xbox/CE requests proceed through
+their existing map-selection code immediately.
 All hashing, package selection and binding lifetime policy lives in MCC modules;
 legacy settings omit the digest trailer and keep their original checks. The
 protocol recorder includes the full MCC settings record and its size/offset
 bounds; the crossplay tests separately pin the unchanged OpenCE prefix.
+
+Startup validation on Windows portable release used DigsiteMP/1 with normal
+timeouts and six enhanced network bots. Local play produced 61 logged samples;
+two-machine runs with identical and differently named package folders each
+produced 90 samples per machine and 76 paired seconds without sustained
+divergence. Xbox Blood Gulch and CE Death Island CTF, with bot defaults and a
+pre-fix client, passed 67 and 66 paired seconds respectively. These are bounded
+runtime checks, not full map-family or campaign qualification.
+
+A separate intermittent test-launch stall was sampled in the save-profile
+mutex while background enumeration still owned it. The automated launcher now
+waits for `filesystem_check_thread_is_active()` to clear, as normal menu input
+already does. [Its regression test](../tools/test_network_test_startup.py)
+also verifies that removing this prerequisite fails. This does not change
+the UI, save enumeration or networking timeouts. The focused suite passed
+267 checks with five platform skips; Windows, Android and web compiled and
+linked. Native/browser WebRTC testing remains blocked on this Windows host's
+POSIX path assumptions, and the Internet test lacks its MQTT broker. Physical
+Android and live cross-family transitions remain unverified.
 
 MCC's `halo1/maps/bitmaps.map` stores individual texture entries. Its
 `halo1/maps/custom_edition` resources store grouped `__pixels` and
@@ -473,6 +516,27 @@ modes and unflagged shaders retain their original behaviour. The adapter
 runs after native Chicago state setup because tag conversion alone cannot
 express this blend and its matching fade. Each subsequent shader installs
 its normal blend state; the adapter retains no per-map state.
+
+MCC `player_add_equipment` calls use the MCC script registry and
+`mcc_player_add_equipment`. A reset deletes the held weapon through the
+normal object-deletion service before applying the native starting profile.
+The inherited Xbox inventory clear keeps the held weapon;
+Meincrap 2's campaign selector readies a dummy weapon, so keeping it caused
+repeated profile changes with a blank viewmodel and a stale hotbar selection.
+The local version-13 `meincrap2.map` contains `weaps` and `set_weap_and_hp`:
+the former detects the dummy or flashlight state, and the latter applies a
+reset profile twice across a one-tick sleep, restoring vitality each time.
+Each profile supplies a real weapon and another dummy. This inspected script
+flow, and a reproduced ordinary switch-button failure, motivate the MCC-only
+reset semantics; the Xbox/CE clear routine is unchanged.
+
+The adapter validates the player unit and profile before deleting anything,
+leaves add-only calls intact, and runs only on the authoritative machine.
+It targets exactly the unit supplied by the script; MCC's per-player selectors
+must not inherit the legacy co-op follower expansion. It retains no sidecar
+state and uses existing object/inventory replication and deletion cleanup.
+MCC admission version 61 separates the changed equipment behavior from older
+MCC peers; the OpenCE wire format and Xbox/CE admission version stay unchanged.
 
 MCC equipment scripts may delete the currently displayed weapon before
 creating its replacement. A deletion notification clears matching local
@@ -1856,15 +1920,16 @@ validation is never cached, unreadable metadata prevents reuse, and a change
 during validation cannot establish a cached ready result. Rescanning the MCC
 catalog and unloading MCC tags clear the result.
 
-This is a polling optimization, not a trusted content fingerprint. Network
-admission, map-version calculation and actual loading still perform their
-existing independent resource validation. Protocol 41 and host-authority
-rules are unchanged. Initial validation can still pause the menu; this change
-removes the recurring validation after an unchanged map has been checked.
+This is a polling optimization, not a trusted content fingerprint. The original
+issue #51 fix left network admission, map-version calculation and actual loading
+on independent resource validation paths. The issue #74 extension below reuses
+unchanged checksum validation between the first two paths; actual loading still
+validates independently. Neither change alters host-authority rules or wire values.
 
 The existing MCC branch in `cache_files_give_time_to_precache` must select the
 new polling function because its old callee also serves admission callers,
-which must stay fresh. This is the only shared-engine change. Xbox and Custom
+which retain their admission checks. This was the only shared-engine change
+for issue #51. Xbox and Custom
 Edition readiness branches retain their existing code and behavior.
 
 Windows x86 portable-release testing against base `d1669f19` reproduced the
@@ -1883,6 +1948,48 @@ CE Death Island and back to Mercury, then exited normally without assertions.
 These are focused runtime checks, not full campaign or multiplayer playthroughs.
 Android and Web builds were attempted but those targets are absent from this
 Windows configuration. Native Linux validation remains for CI.
+
+## MCC map-selection validation (issue #74)
+
+Selecting a resource-backed MCC map computed its resource checksum, then
+computed it again for local admission and the first readiness poll. The
+separate readiness cache did not cover those calls, and opening the map browser
+invalidated readiness even when no files changed. These synchronous reads can
+stall the menu while it is open or returning to the lobby.
+
+`mcc_cache_probe` now retains one successful checksum with the complete
+`mcc_precache_snapshot`. Every reuse checks the name and all nine file stamps;
+failed validation or unavailable metadata cannot populate the cache. A change
+while validating refuses the result. The requested network checksum and admitted
+SHA-256 identity are still checked on every admission. Unload and disconnect
+clear the result, while catalog rescans can safely reuse unchanged inputs.
+The loader still validates the opened resources independently. All changes are
+in MCC-owned modules; no Xbox/CE implementation or network wire value changes.
+
+Uncached checksum and fingerprint probes use the existing MCC loading feedback.
+`mcc_loading_begin` returns ownership so an inner probe cannot close an outer
+loading screen. A first check can still take several seconds on large packages;
+this does not make validation asynchronous. The native missing-loading-art
+fallback remains unchanged. See the [reader's guide](reading/maps_and_resources.md#mcc-loading-feedback)
+for the call path and lifecycle.
+
+Validation on Windows x86 portable release, based on `bed24ca3`, reproduced
+multiple resource probes with DigsiteMP/1 (about 1.07 GB of resources) and removed
+the duplicate probes after the fix. The cache regression failed before the fix;
+399 focused checks passed, with five optional local-asset checks skipped.
+Two hidden Windows peers entered DigsiteMP/1 and produced 62 matching one-second
+state samples with no divergences or parse errors. Lobby captures were inspected
+at 1280x720 and 640x480. Separate Xbox Blood Gulch and CE Death Island
+smoke runs each exited normally with 22 one-second gameplay samples. These
+checks do not establish every map's compatibility or map-family transitions.
+
+Android and web builds were attempted but blocked by Unix launcher/staging
+commands in this Windows environment. The web graph/socket tests had six
+Windows path/POSIX-header failures. The browser/native WebRTC runner also failed
+on its Windows URL-to-path conversion; full browser internet play requires the
+unavailable built site, mosquitto and Xvfb. Linux and cross-platform runtime
+validation remain outstanding. No simulation, transport or protocol value was
+changed, so no network-version increment is needed.
 
 ### Missing-unit script calls (issues #50 and #63)
 
@@ -2064,3 +2171,145 @@ Linux was not executed. Browser/native transport testing could not start
 because Playwright is absent. Those platform checks remain for CI. Temporary
 map copies and generated caches were removed; logs and verified compressed
 private test saves were retained.
+
+## Cutscene title layout
+
+Issue [#76](https://github.com/chestahh/GulchCE/issues/76) reports truncated
+Warthog Rally titles. Inspection of the local `warthog_rally.map` found 17
+scenario titles, all centered, with horizontal bounds 240..400 and text flags
+zero (no wrapping). The `gold` title references the complete trophy message;
+its string is not truncated in the map. A hidden Windows run of `bed24ca3`
+displayed only "You won the gold", confirming clipping at the authored box.
+
+The MCC compatibility policy lets non-wrapping titles use the available
+screen width around their authored alignment anchor. This is based on the
+intact authored messages and observed clipping, not a claim that the original
+MCC renderer has been executed or precisely reproduced. Wrapped, inverted and
+already offscreen rectangles retain their bounds. Vertical layout, font,
+colors, fades, title timing and script/network state are unchanged.
+
+`mcc_hud_title_bounds` in `port/linux/game/mcc_hud_draw.c` owns the adjustment.
+The one additive call in `source/cutscene/cinematics.c` is needed after native
+widescreen positioning: changing the tag rectangle at load time would also
+change that positioning, particularly for left/right-aligned titles. The
+helper returns immediately outside MCC and changes only the temporary draw
+rectangle; no allocation, retained state or unload cleanup is needed. The
+native text layout and Xbox/Custom Edition title implementations remain intact.
+
+The asset-free title tests execute the real renderer dispatch and MCC helper,
+covering legacy bounds, wide screens, wrapping, alignment, tag immutability,
+and MCC-to-legacy transitions. A negative control removes the integration
+call and must reproduce the failure. These checks cover title layout, not
+full map compatibility or campaign completion.
+
+Validation on the issue-76 branch based on `bed24ca3`: the portable release
+Windows build passed, as did 350 focused cinematic-title, Unicode-parser and
+MCC HUD tests. Hidden native runs reproduced the clipped trophy message at
+1280x960, then showed its complete ending at 640x480 and 854x480. A bounded
+854x480 session entered Warthog Rally, Xbox `a10`, Custom Edition
+`deathisland`, then Warthog Rally again; the trophy title still rendered
+correctly after reload. These are loading/rendering observations, not full
+playthroughs. The locked-vehicle announcement also rendered completely.
+
+Both changed translation units compiled with the generated Android guest and
+wasm32 compiler commands. Full `ninja android` and `ninja web` attempts were
+blocked on this Windows host by non-executable host wrappers and Unix shell
+rules; those full builds and Linux runtime validation remain outstanding.
+The change affects local presentation only, so no network protocol/version
+change or multiplayer transport test is required.
+
+## Issue 79 map compatibility
+
+The 2026-10-29 investigation used the supplied version-13 maps against testing
+base `bed24ca319abae84f1de99351642a8ba27710f09`. The implementation stays in
+MCC-owned modules, using existing engine interfaces. No Xbox/CE implementation,
+map directory, native function table, network packet or checkpoint layout changes.
+
+- **Bot Bootcamp A10:** its syntax node 8865 assigns literal true to
+  `breadcrumbs_navpoints_enabled_override`. MCC already exposes breadcrumb
+  availability as true. This assignment and boolean reads now agree with that
+  policy; computed assignments and disables remain explicit errors.
+- **Bot Bootcamp D40:** `characters\ai_bbcmp\aicyborg` omits the neck-to-head
+  child edge. Its associated cyborg model supplies that edge with matching
+  ordered names and parents.
+- **Arbiter's Demise DE1:** `np\objects\vehicles\ghost\hr\ghost` omits
+  sibling edges and stores zero in every parent slot. Its associated model has
+  the matching ten nodes and a complete hierarchy. Recovery fills omissions
+  only when retained edges agree; the complete tree still undergoes cycle,
+  parent and reachability checks.
+- **Super Wacky Funtime Ultimate MCC Edition C20:** the Flood collision model's
+  node 3, BSP 0, surfaces 3 and 5 name starts belonging to the other surface.
+  Their own four-edge rings are intact. MCC selects a start from each complete
+  owned ring, preserving all vertices, planes and edge links, then invokes the
+  existing collision check. Related models expose the same defect. The map also
+  uses `cheat_all_weapons`; an MCC handler invokes the existing service only on
+  the local game or host. Existing host object replication carries the spawns.
+- **Halo CE Extended A30_2:** sound tag 3267,
+  `sound\dialog\infinite\perez\startle`, has sample rate NONE and one empty
+  pitch range. Its unused header is normalized without inventing audio. Nonempty
+  unknown-rate sounds still fail. The next blocker was the old aggregate audio
+  allocation reaching the engine's strict 256 MiB allocation bound. Conversion
+  now retains separate tag-owned streams: this fixture converts 17,992
+  permutations into 401,105,808 ADPCM bytes. Cache reads already carry the full
+  sound tag, and MCC validation now checks the same ownership. Individual
+  streams stay below 256 MiB and aggregate allocated capacity is bounded to
+  1 GiB. All streams are freed on failed load and unload.
+
+The new script entry is appended, preserving existing MCC function indices.
+The weapon operation uses an existing host-only service and replication format;
+audio offsets are local cache data, and newly recovered graphs retain their node
+indices. No new peer agreement or message format is introduced, so the native
+and MCC network versions remain unchanged.
+
+Focused asset-free coverage exercises partial animation links, conflicting
+models and cycles, misplaced collision starts, incomplete rings, sound ownership
+and stale handles, truncated reads, unknown-rate payload rejection, allocation
+failures and teardown. The native sound harness compiles the real converter;
+codec-vector tests continue to verify its output. Campaign tests check weapon
+spawning on the host/local game, refusal on clients and after teardown, and
+restart. The reader's route is in [Maps and resources](reading/maps_and_resources.md).
+
+Final verification used 631 passing automated tests (5 skipped), covering the
+MCC scripting, campaign, media/Vorbis, validation, resources, lifecycle,
+checkpoints, identity, protocol, saved games, syntax and parameters suites,
+plus cache formats and the smoke launcher. The Windows target built successfully.
+On the final executable, Extended A30_2 and Super Wacky Funtime C20 each passed
+120-second hidden startup/simulation runs; Bot Bootcamp D40 and Arbiter DE1 each
+passed 45 seconds. A single hidden process with dummy-device audio enabled
+advanced simulation through Extended A30_2 -> Xbox A10 -> Custom Edition Death
+Island -> Bot Bootcamp A10, then exited normally. Asset-free tests separately
+exercise allocation-failure teardown. Documentation links and named symbols
+were checked. Final review retained the focused MCC ownership boundaries and
+found no further necessary refactoring.
+
+A 90-second hidden, two-instance Bot Bootcamp A10 co-op run joined both players
+and exited normally. `net_compare` compared 51 seconds with no divergences or
+problems under its standard tolerances (135 of 1,459 drift samples apart).
+This is a bounded native loopback check, not a campaign completion or a browser
+transport test. An earlier fixture omitted the lobby's Xbox Carousel map and
+could not start; the corrected fixture supplied it on both peers.
+
+Disposable map fixtures, generated caches and duplicate test binaries were
+removed. Useful logs were retained, and test saves were archived with their
+original relative paths and SHA-256 hashes; every archived entry was verified
+before removing its loose copy. The final Windows executable and debug symbols
+remain available for the coordinating chat. Original supplied maps and saves
+were not modified.
+
+Remaining limitations established during this investigation:
+
+- **CE Third Person Armory** enables I Would Have Been Your Daddy and Grunt
+  Birthday Party. These skull effects are not implemented. The refusal now names
+  the offending global and syntax node; accepting an enable as a no-op would
+  change authored gameplay and is intentionally not done.
+- **PFD** loads and advances simulation during a three-minute idle run, without
+  reproducing the reported post-transition crash. Its assault rifle and M4A1
+  reference the model shader `deathstar\project_subterfuge\shader model\tag_334`
+  as an object modifier. That shader kind remains unsupported in the modifier
+  renderer, and the warning is retained. The original crash still needs a
+  reproducible route or checkpoint; startup success does not resolve it.
+- Windows debug portable builds were used, with PGO and LTO disabled. These are
+  bounded startup/simulation checks, not completed campaigns or visual parity
+  verification. Android and web builds were attempted but their generated shell
+  commands cannot run on this Windows host; WSL is absent. Platform integration
+  must repeat those builds in a supported environment.

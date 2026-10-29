@@ -1732,3 +1732,35 @@ boolean game_engine_ctf_read_network_state(
 	}
 	return TRUE;
 }
+
+/* port: read-only queries for port/linux/game/enhanced_bots.c, adapted from
+thelinkin3000/halo-ce-universal d92cc93385edf03d0a4a21cfe4c58dd578a3e786. */
+#include "bots_objectives.h" /* port: port/linux/game/bots_objectives.h */
+
+/* port: a team's flag as the bots see it (port/linux/game/bots.c, the
+host's alone): FALSE if the team has none this game (one flag's assault:
+the attackers'); else where it is (in a unit's hands, where the unit is),
+who carries it (NONE), whether it stands at home untouched, and where home
+is (its netgame flag) */
+boolean game_engine_ctf_flag_state(
+	long team_index,
+	real_point3d *position,
+	long *carrier_player_index,
+	boolean *at_home,
+	real_point3d *home)
+{
+	long weapon_index;
+	struct weapon_datum *weapon;
+
+	if (!VALID_INDEX(team_index, NUMBER_OF_CTF_TEAMS) || !ctf_globals.flags[team_index])
+		return FALSE;
+	weapon_index = ctf_globals.weapon_indices[team_index];
+	weapon = weapon_index != NONE ? weapon_try_and_get(weapon_index) : NULL;
+	if (!weapon || weapon->object.owner_team_index != team_index)
+		return FALSE;
+	item_get_position_even_if_in_inventory(weapon_index, position);
+	*carrier_player_index = ctf_find_flag_carrier(weapon_index);
+	*at_home = !TEST_FLAG(weapon->weapon.flags, _ctf_weapon_handled_bit) && *carrier_player_index == NONE;
+	*home = ctf_globals.flags[team_index]->position;
+	return TRUE;
+}

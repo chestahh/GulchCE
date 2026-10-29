@@ -352,6 +352,22 @@ static const struct config_setting config_settings[] =
 		"The touch controls' swipe aiming gets a controller's aim assist: the\n"
 		"aim slows over a target and follows a moving one. false: none, as a\n"
 		"mouse (the bullets' own autoaim stays)." },
+	{ "input.gyro_aim", _config_string, "\"legacy\"", "HALO_GYRO_AIM", _environment_value, _platform_android,
+		"Android gyro: \"legacy\" keeps the touch layout's saved gyro switch\n"
+		"and look sensitivity (off in a new layout). \"false\" disables it,\n"
+		"\"true\" enables it, \"zoom\" enables it only while zoomed. The last\n"
+		"two use the independent gyro sensitivity and inversion below." },
+	{ "input.gyro_sensitivity_horizontal", _config_real, "1.0", "HALO_GYRO_SENSITIVITY_HORIZONTAL",
+		_environment_value, _platform_android,
+		"Android gyro horizontal sensitivity in true/zoom mode: 0.25 to 10.\n"
+		"1 follows the sensor's turn; independent of swipe sensitivity." },
+	{ "input.gyro_sensitivity_vertical", _config_real, "1.0", "HALO_GYRO_SENSITIVITY_VERTICAL",
+		_environment_value, _platform_android,
+		"Android gyro vertical sensitivity in true/zoom mode: 0.25 to 10." },
+	{ "input.gyro_invert_horizontal", _config_boolean, "false", "HALO_GYRO_INVERT_HORIZONTAL",
+		_environment_value, _platform_android, "Invert Android gyro yaw in true/zoom mode." },
+	{ "input.gyro_invert_vertical", _config_boolean, "false", "HALO_GYRO_INVERT_VERTICAL",
+		_environment_value, _platform_android, "Invert Android gyro pitch in true/zoom mode." },
 	{ "input.mouse_sensitivity", _config_real, "1.0", "HALO_MOUSE_SENSITIVITY", _environment_value, _platform_desktop,
 		"How far the view turns for the mouse's movement." },
 	{ "input.playstation_kernel_driver", _config_boolean, "false", "HALO_PLAYSTATION_KERNEL_DRIVER",
@@ -472,10 +488,30 @@ static const struct config_setting config_settings[] =
 		"as CUSTOM SINGLEPLAYER and CUSTOM MULTIPLAYER. Their tags are checked\n"
 		"as the game's own maps' are before they run; false refuses them\n"
 		"(docs/custom_edition_caches.md)." },
+	{ "android.cheat_menu", _config_boolean, "false", "HALO_ANDROID_CHEAT_MENU", _environment_value, _platform_android,
+		"Show Cheats in the touch overlay's Options during offline games.\n"
+		"Off by default; never available to network hosts or clients.\n"
+		"Menu-owned switches reset on disabling the menu or leaving a map." },
+	{ "bots.enhanced", _config_boolean, "false", "HALO_BOTS_ENHANCED", _environment_value, _platform_all,
+		"Optional enhanced bots: tactical roles, navigation and CTF/King goals.\n"
+		"Read at map load. False keeps the inherited Slayer bot behavior." },
+	{ "bots.network", _config_boolean, "false", "HALO_BOTS_NETWORK", _environment_value, _platform_all,
+		"Allow host-controlled bots in multiplayer network games. Read when\n"
+		"creating a host. Reserves the last 63 machine IDs for bots only when\n"
+		"enabled; clients use ordinary player replication. False keeps local\n"
+		"bots only and the full human machine capacity." },
+	{ "bots.routes", _config_string, "\"direct\"", "HALO_BOT_ROUTES", _environment_value, _platform_all,
+		"Enhanced bots' routes: \"direct\", \"lanes\" or \"mixed\". Direct takes\n"
+		"the shortest route; lanes spreads attackers across side routes." },
+	{ "bots.vehicles", _config_boolean, "false", "HALO_BOT_VEHICLES", _environment_value, _platform_all,
+		"Let enhanced bots enter, drive and use vehicles and turrets." },
+	{ "bots.thread", _config_boolean, "false", "HALO_BOT_THREAD", _environment_value, _platform_all,
+		"Run enhanced bots' path searches on a snapshot worker. Read at map\n"
+		"load; off by default. Fixed-tick benchmarks always search synchronously." },
 	{ "bots.count", _config_integer, "0", "HALO_BOTS", _environment_value, _platform_all,
-		"Computer players (bots) in a local (split screen) Slayer game: 0 to 15\n"
-		"join its lobby with the players, as far as the game has room. Not in\n"
-		"system link or internet games. 0: none, as in the stock game." },
+		"Computer players (bots): 0 to 63. Local Slayer by default; bots.enhanced\n"
+		"also allows CTF/King, and bots.network enables host-controlled network\n"
+		"bots. They join the lobby as room permits. 0: none, as in the stock game." },
 	{ "bots.skill", _config_string, "\"normal\"", "HALO_BOT_SKILL", _environment_value, _platform_all,
 		"How well the bots play: \"easy\", \"normal\", \"heroic\" or \"legendary\"\n"
 		"(how soon they react, how well they aim, how far they see)." },
@@ -1900,6 +1936,8 @@ static const struct
 	{ "audio.resampler", { "sinc", "linear", NULL }, NULL },
 	{ "audio.voice_chat", { "push_to_talk", "open_mic", "off", NULL }, NULL },
 	{ "input.touch_controls", { "auto", "on", "off", NULL }, NULL },
+	{ "input.gyro_aim", { "legacy", "false", "true", "zoom", NULL }, NULL },
+	{ "bots.routes", { "direct", "lanes", "mixed", NULL }, NULL },
 	{ "game.console_log", { "important", "all", "none", NULL }, NULL },
 	{ "game.language", { "", "ja", "de", "fr", "es", "it", NULL }, NULL },
 	{ "network.text_chat", { "on", "links", "off", NULL }, NULL },

@@ -139,6 +139,11 @@ void host_touch_look_read(float *delta);
 void host_touch_rumble(unsigned int low, unsigned int high);
 /* tells the overlay when to show: touch_input.c's _touch_scene_* */
 void host_touch_scene(int scene);
+/* -1 preserves the touch layout; 0 off, 1 on, 2 zoom only. */
+void host_touch_gyro_mode(int mode);
+/* Typed offline cheat requests; no pointers cross this bridge. */
+void host_android_cheats_state(int state);
+int host_android_cheats_read(void);
 /* the game control on each of the 16 controller buttons (touch_game.c),
 for the overlay's labels */
 void host_touch_bindings(const int *controls);

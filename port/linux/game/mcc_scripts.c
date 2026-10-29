@@ -16,7 +16,9 @@
 #include "mcc_script_parameters.h"
 #include "mcc_syntax.h"
 #include "mcc_campaign.h"
+#include "mcc_player.h"
 #include <string.h>
+#include <stdio.h>
 
 boolean hs_macro_function_parse(short index, long expression);
 
@@ -127,18 +129,37 @@ static struct hs_function_definition mcc_core_segment_definition = {
     NULL, 1, { _hs_type_string }
 };
 
+static void mcc_equipment_evaluate(short function, long thread, boolean initialize)
+{
+    long *arguments = hs_macro_function_evaluate(function, thread, initialize);
+    if (!arguments) return;
+    mcc_player_add_equipment(arguments[0], (short)arguments[1], (boolean)arguments[2]);
+    hs_return(thread, 0);
+}
+
+static struct {
+    struct hs_function_definition definition;
+    short other_parameters[2];
+} mcc_equipment_definition = {
+    { _hs_type_void, 0, "player_add_equipment", hs_macro_function_parse,
+        mcc_equipment_evaluate, "Adds a profile, or replaces all player equipment on reset.",
+        NULL, 3, { _hs_type_unit } }, { _hs_type_starting_profile, _hs_type_boolean }
+};
+
 struct hs_function_definition *mcc_script_function(short index)
 {
     if (!mcc_cache_tags_loaded()) return NULL;
     if (index == MCC_HS_DISTANCE_TO_OBJECT) return &mcc_distance_definition.definition;
     if (index == MCC_HS_MISSION_SEGMENT) return &mcc_mission_segment_definition;
     if (index == MCC_HS_CORE_SEGMENT) return &mcc_core_segment_definition;
+    if (index == MCC_HS_PLAYER_EQUIPMENT) return &mcc_equipment_definition.definition;
     return mcc_campaign_function(index);
 }
 
 short mcc_script_find(char const *name)
 {
     if (!mcc_cache_tags_loaded() || !name) return NONE;
+    if (!csstrcasecmp(name, "player_add_equipment")) return MCC_HS_PLAYER_EQUIPMENT;
     if (!csstrcasecmp(name, "objects_distance_to_object")) return MCC_HS_DISTANCE_TO_OBJECT;
     if (!csstrcasecmp(name, "mcc_mission_segment")) return MCC_HS_MISSION_SEGMENT;
     if (!csstrcasecmp(name, "core_save_name")) return MCC_HS_CORE_SEGMENT;
@@ -285,17 +306,18 @@ int mcc_scripts_prepare(struct mcc_runtime *runtime)
             if (!csstrcasecmp(name,"set")) {
                 struct hs_syntax_node *target = datum_try_and_get(syntax,nodes[child].next_node_index);
                 char const *target_name=target ? mcc_script_string(strings,scenario->hs_string_constants.size,target->string_offset) : NULL;
-                if (target && (target->flags&5)==5 && target_name && !csstrcasecmp(target_name,"object_prediction")) {
+                if (target && (target->flags&5)==5 && target_name && (!csstrcasecmp(target_name,"object_prediction") ||
+                    !csstrcasecmp(target_name,"breadcrumbs_navpoints_enabled_override"))) {
                     struct hs_syntax_node *value=datum_try_and_get(syntax,target->next_node_index);
-                    /* OpenCE prediction remains enabled and host-controlled.
-                     * A literal enable agrees with that policy. Do not claim
-                     * to support disabling it or discard a computed value. */
+                    /* Prediction and MCC breadcrumb availability are always
+                     * enabled. A literal enable agrees with those policies;
+                     * never discard a disable request or computed value. */
                     if (value && (value->flags&7)==1 && value->type==_hs_type_boolean &&
                         value->constant_type==_hs_type_boolean && value->boolean_value && value->next_node_index==NONE) {
                         if (!mcc_boolean_result(node,TRUE)) return FALSE;
                         continue;
                     }
-                    error(_error_silent,"mcc: object_prediction supports only a literal enable");
+                    error(_error_silent,"mcc: %s supports only a literal enable (syntax node %ld)",target_name,i);
                     return FALSE;
                 }
                 if (target && (target->flags & 1) && mcc_disabled_skull(
@@ -310,13 +332,14 @@ int mcc_scripts_prepare(struct mcc_runtime *runtime)
                         if (!mcc_boolean_result(node,FALSE)) return FALSE;
                         continue;
                     }
-                    error(_error_silent,"mcc: scripts cannot enable unsupported skull gameplay");
+                    error(_error_silent,"mcc: unsupported skull assignment to %s (syntax node %ld); only a literal disable is supported",target_name,i);
                     return FALSE;
                 }
             }
             if (!csstrcasecmp(name, "objects_distance_to_object")) index = MCC_HS_DISTANCE_TO_OBJECT;
             else if (!csstrcasecmp(name, "mcc_mission_segment")) index = MCC_HS_MISSION_SEGMENT;
             else if (!csstrcasecmp(name, "core_save_name")) index = MCC_HS_CORE_SEGMENT;
+            else if (!csstrcasecmp(name, "player_add_equipment")) index = MCC_HS_PLAYER_EQUIPMENT;
             else if (!csstrcasecmp(name, "player_effect_set_max_vibrate"))
                 index = hs_find_function_by_name("player_effect_set_max_rumble");
             else {
@@ -327,7 +350,7 @@ int mcc_scripts_prepare(struct mcc_runtime *runtime)
         } else if ((node->flags & 5) == 5 && ((uint16_t)node->data & 0x8000)) {
             name = mcc_script_string(strings, scenario->hs_string_constants.size, node->string_offset);
             if (!name) return FALSE;
-            if (!csstrcasecmp(name,"object_prediction")) {
+            if (!csstrcasecmp(name,"object_prediction") || !csstrcasecmp(name,"breadcrumbs_navpoints_enabled_override")) {
                 if (node->type!=_hs_type_boolean) return FALSE;
                 node->flags&=~4;node->constant_type=_hs_type_boolean;node->data=TRUE;continue;
             }
@@ -396,6 +419,8 @@ int mcc_scripts_prepare(struct mcc_runtime *runtime)
             else index = NONE;
         }
         if (name && index == NONE) {
+            if (!runtime->failure[0]) snprintf(runtime->failure,sizeof(runtime->failure),
+                "Unsupported script name: %.24s. See debug.txt.",name);
             if (missing < 16) error(_error_silent, "mcc: unsupported script function or global '%s'", name);
             ++missing;
         }

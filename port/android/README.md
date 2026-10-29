@@ -229,11 +229,14 @@ The buttons at the top of the screen:
     vibration setting of the game's profile), aiming with the gyroscope
     (off by default), a floating move stick (off by default: the stick goes
     where your thumb lands in the lower left of the screen), the opacity of
-    the controls, "Hide or add buttons" (hide a button, add a copy of a
-    button) and "Edit buttons size".
+    the controls, whether held-button swipes also aim (on by default), and
+    a three- or four-finger cheat-menu gesture (three by default). The panel
+    scrolls on short displays. It also contains "Hide or add buttons" (hide
+    a button, add a copy of a button) and "Edit buttons size".
   - "Edit buttons layout": drag the controls to new positions, then push
     "Save". "Export" and "Import" write and read a layout file with the
-    file picker of the system.
+    file picker of the system. Export, Import and Save stay centered;
+    Options can be dragged with the controls.
   - "Look sensitivity".
 
 "Hide" and "Options" act when the finger lifts on them: a swipe that
@@ -241,6 +244,42 @@ starts on them turns the view instead.
 
 The app keeps the layout in its own preferences, not in `config.toml`.
 Removing the app's data or the app removes the layout.
+Layout files now use version 4 and still accept versions 1–3. Imported
+Options positions are bounded and rescaled to the display. Drawn controls
+accept touches in Android's edge-gesture area; empty-space edge swipes
+remain available to Android.
+
+Settings > Gamepad > Android Controls > Gyro Aim adds independent gyro settings. The
+default, **TOUCH SETTINGS** (`input.gyro_aim = "legacy"`), keeps the layout's
+saved gyro switch and look sensitivity, including imported layouts. A new
+layout still has gyro off. **OFF**, **ON** and **ZOOM ONLY** override that
+switch; ON and ZOOM ONLY use their own horizontal/vertical sensitivity and
+inversion, leaving swipe sensitivity and the profile's Invert Look alone.
+Unzoomed samples in ZOOM ONLY are discarded, so entering zoom does not
+apply a turn accumulated earlier. Hiding controls or backgrounding the app
+still stops gyro input.
+
+| Setting | Default | Environment variable |
+| --- | --- | --- |
+| `input.gyro_aim` | `"legacy"` | `HALO_GYRO_AIM` |
+| `input.gyro_sensitivity_horizontal` | `1.0` (0.25–10) | `HALO_GYRO_SENSITIVITY_HORIZONTAL` |
+| `input.gyro_sensitivity_vertical` | `1.0` (0.25–10) | `HALO_GYRO_SENSITIVITY_VERTICAL` |
+| `input.gyro_invert_horizontal` | `false` | `HALO_GYRO_INVERT_HORIZONTAL` |
+| `input.gyro_invert_vertical` | `false` | `HALO_GYRO_INVERT_VERTICAL` |
+
+The **Cheat Menu** setting in **Android Controls** is off by default
+(`android.cheat_menu = false`, `HALO_ANDROID_CHEAT_MENU`). When enabled,
+touch **Options > Cheats** exposes invincibility, unlimited ammunition,
+bottomless clip, super jump, omnipotence, no fall damage, Medusa, bump
+possession, Easy Rider (no rider ejection), weapon/powerup/vehicle spawning
+and camouflage. It
+works only during offline gameplay, never on a network host or client.
+While it is enabled, tapping three fingers together (or four, as selected
+in General) within a quarter-second also opens it. The gesture releases
+held controls before opening the dialog; it does nothing when Cheats is off.
+Menu-owned switches restore their prior values when disabled or leaving a
+map; closing the dialog alone keeps them enabled. Spawns are ordinary game
+objects. See [implementation, credits and limits](../../docs/reading/bots_and_android_features.md).
 
 ## Settings
 

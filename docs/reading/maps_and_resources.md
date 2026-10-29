@@ -99,10 +99,31 @@ pause the animation. The normal renderer installs its viewport on return.
 
 The effect uses the installation's `maps/loading.tga`, imported by OpenCE from
 the Xbox disc image; MCC packages do not supply or replace it. Missing art has
-the existing loading renderer's black-texture behavior. Early catalog,
-admission and background lobby probes do not start a loading screen. No new
-network message or readiness decision is introduced: peers still finish their
-own conversions and use the existing host-controlled loading protocol.
+the existing loading renderer's black-texture behavior. Catalog browsing reads
+only headers and descriptions. Uncached menu admission and content-fingerprint
+probes also use this feedback while checking resources: `mcc_resources_inspect`
+ends only a progress session it started, preserving an enclosing map load.
+No new network message or readiness decision is introduced: peers still finish
+their own conversions and use the existing host-controlled loading protocol.
+
+`mcc_cache_probe` in [mcc_cache.c](../../port/linux/game/mcc_cache.c) retains
+one successful package checksum so selection, local admission and lobby
+readiness do not repeatedly read gigabytes of unchanged resources. Its
+[mcc_precache_snapshot](../../port/linux/game/mcc_precache.c) includes the map,
+package and root overrides, and both shared resource sets, even absent files.
+A different name or changed metadata requires validation again; failed metadata
+queries prevent reuse, and changes during validation refuse the result. Catalog
+rescans can retain this checksum because every use checks those inputs again.
+Unload and disconnect clear it. The SHA-256 admission check remains separate,
+and actual loading still checksums and fingerprints the opened content.
+This bounds retained state to one name, nine file stamps and a checksum; it is
+not a persistent cache or proof against edits that preserve all recorded metadata.
+The first check still takes time, with loading feedback instead of a frozen menu.
+Admission explanations pass through this same cache: a successful reuse clears
+stale caller text, while a failed fresh check returns its resource explanation.
+An install changing during validation gets its own refusal message.
+[test_mcc_validation.py](../../tools/test_mcc_validation.py) exercises reuse,
+changed inputs, failed validation, identity checks and checksum disagreement.
 
 [test_mcc_loading.py](../../tools/test_mcc_loading.py) exercises the controller's
 ownership, stage ordering, rate limit, timer wrap, re-entry, failed device
@@ -130,6 +151,27 @@ nothing by itself about its format or suitability. Network content identity
 must account for the map and required resources, not just a convenient
 folder name. Peers can bind equivalent MCC content under different local
 package names.
+
+When MCC is selected at host creation, `mcc_cache_checksum` in
+[mcc_cache.c](../../port/linux/game/mcc_cache.c) also calls
+`mcc_identity_prepare_host` in [mcc_identity.c](../../port/linux/game/mcc_identity.c)
+before the lobby opens. Fast network setup can
+instead open a temporary lobby and request MCC while its local client is
+still joining. `mcc_ui_network_defer_map` in
+[mcc_ui_network.inl](../../port/linux/game/mcc_ui_network.inl) retains that selection until local
+admission completes; `mcc_ui_network_update_map` then applies it through the
+ordinary map-change function. A pending selection prevents starting the
+temporary map, and legacy selections or teardown cancel it. These paths keep
+package work outside the local client's five-second joining state.
+`mcc_identity_host_settings` reuses that digest only while the map and all
+resource-candidate file stamps match, including absent overrides. Changed
+files require fresh validation; disconnect clears the cache. Local admission
+also reuses the prepared hash when its canonical path, complete snapshot and
+all digest bytes match, avoiding another scan of the host's unchanged package
+while remote clients wait. Other machines compute their own fingerprints;
+actual loading always rehashes the opened content. This timing change is
+MCC-owned and changes neither Xbox/CE paths nor network timeouts or packet
+formats. It does not eliminate arbitrary storage or main-thread stalls.
 
 ## Loading and unloading must agree about ownership
 
@@ -166,6 +208,20 @@ to a complete weapon/parent draw, preventing inherited components from using
 different margins. Stock gameplay message offsets also use native margins;
 High-Res controller glyph dimensions and text spacing match the native HUD.
 
+MCC cutscene titles have a separate drawing adjustment:
+[`cinematic_render`](../../source/cutscene/cinematics.c) first resolves the
+authored/default rectangle and its widescreen position, then
+`mcc_hud_title_bounds` in
+[`mcc_hud_draw.c`](../../port/linux/game/mcc_hud_draw.c) expands non-wrapping
+lines toward the screen edges while preserving their left, right or center
+anchor and vertical bounds. Warthog Rally authors centered titles in a
+160-unit box even for longer trophy messages; the native clipping rectangle
+would hide their endings. Wrapping titles retain their authored rectangle.
+Only the temporary draw rectangle changes, so unloading MCC leaves no title
+layout state behind and Xbox/Custom Edition keep the native path. See the
+[title regression tests](../../tools/harness/tests/test_cinematic_titles.py)
+and [MCC evidence](../mcc_maps.md#cutscene-title-layout).
+
 For example, Descent's curved meters use RGB as shape coverage and alpha as
 fill order. `mcc_meter_usage` and `mcc_channels` in
 [`mcc_bitmaps.c`](../../port/linux/game/mcc_bitmaps.c) create the appropriate
@@ -195,6 +251,53 @@ BSP boundary and finishing a campaign are separate claims. A new loader
 change needs malformed inputs, failed-load cleanup and Xbox/CE/MCC transitions
 checked as well as a successful load of its target map.
 
+## Load refusal messages
+
+The two loaders own their explanations separately:
+[`custom_edition_errors.c`](../../port/linux/game/custom_edition_errors.c) and
+[`mcc_errors.c`](../../port/linux/game/mcc_errors.c) translate parser statuses
+and bound the displayed map names and reasons. They do not relax validation.
+For example, an MCC level without a matching external sound resource names
+`sounds.map` and directs the player to install its resources beside the level.
+It never recommends installing CE resources for an MCC level.
+The small MCC dialog abbreviates long package/level names at the middle and
+summarizes long reasons with an explicit `See debug.txt` pointer. Full resource
+paths, script names and terminal conversion reasons remain in the log.
+
+Read `mcc_resources_probe_explain` in
+[`mcc_resources.c`](../../port/linux/game/mcc_resources.c), then
+`mcc_cache_present` and `mcc_cache_tags_load` in
+[`mcc_cache.c`](../../port/linux/game/mcc_cache.c). Admission probes return
+caller-owned text. Actual loading keeps the first detailed terminal failure
+in `mcc_runtime.failure`, and copies it into the existing menu queue before
+unloading clears the runtime. An unsuccessful shared-resource candidate does
+not become a failure when a later candidate succeeds. The menu queue retains
+the first error, so generic recovery text cannot replace a specific refusal.
+MCC's existing menu return and network abort ordering remain intact.
+
+For CE, follow `custom_edition_cache_present`, `custom_edition_cache_tags_load`,
+`custom_edition_cache_load_error` and `custom_edition_cache_display_error` in
+[`custom_edition_cache.c`](../../port/linux/game/custom_edition_cache.c).
+The last load's bounded reason survives resource cleanup until the fatal
+caller consumes it; another load resets it and successful loading clears it.
+Catalog probes cannot overwrite it. Precache failures still enter the fatal
+media screen, and later load failures retain their existing error priority.
+
+The small hooks in the cache, main and network callers are necessary because
+those callers own the original failure presentation. The CE module cannot
+replace that text through a return value alone. `display_error_damaged_media_text`
+in [`ui_widget.c`](../../source/interface/ui_widget.c) copies the supplied text
+and delegates to the existing fatal screen and loop. Xbox callers retain their
+fixed message; MCC keeps its separate deferred-message path. No wire format,
+map-family limits or recovery decisions change.
+
+[`test_map_load_errors.py`](../../tools/test_map_load_errors.py) exercises actual
+extracted loader and widget functions with injected failures, including cleanup,
+message ownership, first-error retention, successful retries and the unchanged
+fatal-loop calls. Resource selection and family lifecycle tests supplement it.
+These tests establish control flow, not visual fit or full map compatibility;
+those require a real game run with local assets.
+
 ## MCC script and animation compatibility
 
 [`mcc_scripts_prepare`](../../port/linux/game/mcc_scripts.c) links MCC
@@ -215,6 +318,17 @@ host snapshots and checkpoints and resets when the map ends. Snapshot version 5
 adds the gain; older supported snapshots restore it to 1. This required MCC
 protocol 56; the later thread-storage extension uses 57. The verified OpenCE
 protocol is unchanged.
+
+For scripted inventory replacement, follow the MCC-only `player_add_equipment`
+registration in [`mcc_scripts.c`](../../port/linux/game/mcc_scripts.c) to
+[`mcc_player_add_equipment`](../../port/linux/game/mcc_player.c). A reset removes
+the held weapon before calling the existing profile-assignment service. For
+example, Meincrap 2 switches by readying a dummy weapon, then replacing it
+with a profile's real weapon and fresh dummy. Keeping the old held dummy
+prevents the switch from settling. Add-only calls retain existing equipment;
+clients wait for the host's object and inventory replication. The adapter has
+no persistent state, and Xbox/CE retain their original script registration.
+See [equipment compatibility](../mcc_maps.md) for evidence and boundaries.
 
 Halo Kart's NPC steering and pickups run through the same deeply nested `main`
 script. Exceeding the native 512-byte stack stopped that script.
@@ -254,6 +368,31 @@ that hierarchy without changing animation or vertex node indices. Associated
 models must agree, retained links must be consistent, and the resulting complete
 tree still passes the usual cycle and reachability checks. Recovery is logged;
 unrelated broken graphs are not automatically accepted.
+
+Issue #79 adds two narrower recoveries in the same MCC validator. Bot Bootcamp's
+cyborg and Arbiter's Demise's Ghost omit child or sibling links; recovery requires
+the associated models to agree on ordered names and every retained edge.
+`mcc_collision_surface_edges` repairs a misplaced first edge only when the
+surface's owned edges form one complete, bounded ring. The original collision
+callback then checks the result; the repair never changes geometry or ownership.
+
+For Extended's dialogue, follow `mcc_audio_prepare`, `mcc_audio_reserve`,
+`mcc_audio_read` and `mcc_audio_dispose` in
+[`mcc_audio.c`](../../port/linux/game/mcc_audio.c). Empty sounds may have an
+unspecified sample rate; a nonempty payload still needs a supported rate.
+Converted audio belongs to each full sound-tag handle, so two sounds may use the
+same virtual offset without sharing bytes. Each allocation stays below 256 MiB,
+with a 1 GiB aggregate budget. The MCC cache passes the existing read's tag handle,
+and the MCC validator checks the current tag's range. Failed loads and unloads
+free every sound's allocation. This does not change Xbox/CE caches or wire data.
+
+`breadcrumbs_navpoints_enabled_override` accepts a literal enable because the
+MCC breadcrumb service is already available. Reads return true; disabling it or
+assigning a computed value is refused. `mcc_spawn_weapons_evaluate` wraps the
+existing weapon-spawn service for MCC scripts, only while an MCC campaign owns
+state and only on the local game or host. It adds no native function-table entry
+or new network message. See [issue #79 evidence and limits](../mcc_maps.md#issue-79-map-compatibility)
+for the maps checked and remaining unsupported behavior.
 
 The public [H1 script reference](https://c20.reclaimers.net/h1/scripting/)
 documents the music-gain and team-query interfaces and identifies `debug_score`

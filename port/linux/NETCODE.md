@@ -199,7 +199,12 @@ names and synchronized its opening sequence; the short run did not provide
 enough on-foot samples for the comparator's full drift verdict. These checks
 do not establish full campaign or public internet transport compatibility.
 
-MCC sessions use separate MCC protocol version 60. Version 60 moves MCC
+MCC sessions use separate MCC protocol version 61. Version 61 requires the
+MCC-only equipment reset that removes the held weapon before assigning a
+scripted starting profile, fixing Meincrap's dummy-weapon selector. The host
+still owns equipment changes and replicates them through existing messages;
+packet layouts and Xbox/Custom Edition protocol 39 are unchanged.
+Version 60 moves MCC
 gameplay messages to 94-97 and the join envelope to 98, reserving message 93
 for OpenCE 39's optional client fire origins. The upstream protocol remains
 39 for Xbox and Custom Edition crossplay; older MCC peers are rejected.
@@ -1193,7 +1198,9 @@ Unity's Netcode for Entities, lightyear, netfox and the Ares source):
 
 ## Testing
 
-`debug.network_test` (`port/linux/game/network_test.c`) hosts or joins a
+`debug.network_test` (`port/linux/game/network_test.c`) waits for the menu's
+filesystem/profile initialization before launching, as normal menu input does.
+It then hosts or joins a
 game without the menus (in a team game the joining player takes the other
 team; `local:<map>` plays a local split screen game instead, which the
 bots of `bots.count` join), and `debug.test_input` plays controller 1 with a scripted bot (or,
