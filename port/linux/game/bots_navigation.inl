@@ -112,6 +112,12 @@ static void bots_navigation_reset_bot(long index)
 	csmemset(&bots_navigation.routes[index], 0, sizeof(bots_navigation.routes[index]));
 }
 
+static boolean bots_navigation_climbing(struct bots_bot *bot)
+{
+	struct bots_nav_route *route = &bots_navigation.routes[bot - bots_globals.bots];
+	return route->phase == _bots_nav_going && route->climb_tick != 0;
+}
+
 static boolean bots_navigation_pays(real walk, real through)
 {
 	return through <= walk * 0.8f && walk - through >= 15.0f;

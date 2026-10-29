@@ -6,6 +6,7 @@
 #define TICKS_PER_SECOND 30
 #define BOTS_PATH_RADIUS 0.25f
 #define PATH_NODE_LIST_SIZE 16
+#define BOTS_PI 3.14159265f
 #define MAX(a,b) ((a) > (b) ? (a) : (b))
 #define csmemset memset
 #define platform_log(...) ((void)0)
@@ -15,8 +16,17 @@ enum { _unit_control_weapon_primary_trigger_bit, _unit_control_jump_bit };
 struct structure_bsp { int unused; };
 struct bots_bot { short goal_kind; long goal_surface_index, path_tick, climb_until_tick;
 	long target_player_index, target_seen_tick;
+    long stuck_tick, stuck_count, unstick_until_tick; real unstick_direction;
+    real_point3d stuck_position;
     real_point3d goal_point, last_position; struct { boolean valid; } path; };
-static struct { struct bots_bot bots[BOTS_MAXIMUM]; } bots_globals;
+static struct { struct bots_bot bots[BOTS_MAXIMUM]; long stuck_events, stuck_giveups; } bots_globals;
+static boolean bots_enhanced_running = TRUE;
+struct object_datum { struct { long parent_object_index; } object; };
+struct bots_tick { long now; boolean moving; real_point3d position; real move_direction;
+    struct object_datum *object; unsigned long flags; };
+static real bots_random_real(struct bots_bot *bot) { (void)bot; return 0.0f; }
+static void bots_pick_roam_goal(struct bots_bot *bot, real_point3d const *position)
+{ (void)bot; (void)position; }
 struct bots_tactics_bot { short role, lane; boolean lane_given_up; };
 static struct bots_tactics_bot bots_tactics_bots[BOTS_MAXIMUM];
 struct path_node { real path_distance_from_origin; real_point3d entry_point; };
@@ -111,6 +121,26 @@ int main(int argc, char **argv)
         now += 151;
         bots_navigation_answer(bot, &search, &start, TRUE, FALSE, 0.25f);
         CHECK(route->phase == _bots_nav_none, "failed link retried during cooldown");
+    }
+    else if (!strcmp(argv[1], "climb_recovery"))
+    {
+        struct object_datum unit;
+        struct bots_tick tick;
+        memset(&tick, 0, sizeof(tick));
+        unit.object.parent_object_index = NONE;
+        tick.object = &unit; tick.moving = TRUE; tick.now = now;
+        tick.position.z = 3;
+        route->phase = _bots_nav_going; route->climb_tick = now - 60;
+        bot->stuck_count = 2; bot->unstick_until_tick = now + 10;
+        bots_bot_unstick(bot, &tick);
+        CHECK(!bots_globals.stuck_events && !bot->stuck_count && !bot->unstick_until_tick &&
+            bot->stuck_position.z == 3, "climb mistaken for stuck movement");
+        route->phase = _bots_nav_none; tick.now += 30;
+        bots_bot_unstick(bot, &tick);
+        CHECK(bots_globals.stuck_events == 1, "ordinary stuck recovery suppressed");
+        bots_enhanced_running = FALSE; route->phase = _bots_nav_going; tick.now += 30;
+        bots_bot_unstick(bot, &tick);
+        CHECK(bots_globals.stuck_events == 2, "disabled behavior changed");
     }
     else if (!strcmp(argv[1], "lifecycle"))
     {

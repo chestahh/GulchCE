@@ -2327,6 +2327,15 @@ static void bots_bot_unstick(struct bots_bot *bot, struct bots_tick *tick)
 {
 	long now = tick->now;
 
+	/* A committed ladder climb moves vertically; its own timeout handles failure. */
+	if (bots_enhanced_running && bots_navigation_climbing(bot))
+	{
+		bot->stuck_position = tick->position;
+		bot->stuck_tick = now;
+		bot->stuck_count = 0;
+		bot->unstick_until_tick = 0;
+		return;
+	}
 	if (now - bot->stuck_tick >= TICKS_PER_SECOND)
 	{
 		if (tick->moving && bots_distance2d(&tick->position, &bot->stuck_position) < 0.4f &&
@@ -2394,6 +2403,7 @@ static void bots_bot_update(struct bots_bot *bot, long bot_index, struct player_
 {
 	struct bots_tick tick;
 	real vitality;
+	boolean climbing;
 
 	csmemset(&tick, 0, sizeof(tick));
 	tick.skill = &bots_skills[bots_globals.skill];
@@ -2480,11 +2490,12 @@ static void bots_bot_update(struct bots_bot *bot, long bot_index, struct player_
 		tick.weapon_index = bots_vehicle_weapon(tick.player->unit_index, tick.weapon_index);
 	if (bot->target_player_index != NONE && tick.now - bot->target_seen_tick <= TICKS_PER_SECOND / 2)
 		bots_bot_fight(bot, &tick);
+	climbing = bots_enhanced_running && bots_navigation_climbing(bot);
 	/* the goal, and the path to it (while fighting, only a weapon close by:
 	towards it, still facing the enemy) */
-	if (!tick.fighting || bot->goal_kind == _bots_goal_item || bots_enhanced_running)
+	if (!climbing && (!tick.fighting || bot->goal_kind == _bots_goal_item || bots_enhanced_running))
 		bots_choose_goal(bot, bot->player_index, &tick.position, tick.fighting);
-	if (bots_enhanced_running && !enhanced_bots_carrying(bot_index) && bot->goal_kind != _bots_goal_item &&
+	if (bots_enhanced_running && !climbing && !enhanced_bots_carrying(bot_index) && bot->goal_kind != _bots_goal_item &&
 		bot->goal_kind != _bots_goal_none && (!tick.fighting || tick.target_distance >= 15.0f))
 	{
 		real_point3d seat_goal;
@@ -2517,6 +2528,12 @@ static void bots_bot_update(struct bots_bot *bot, long bot_index, struct player_
 		else
 			bots_tactics_fight(bot_index, &tick.position, tick.target_distance, &tick.moving,
 				&tick.move_direction, &tick.throttle_scale);
+	}
+	/* Finish a committed climb and its landing even when an enemy is visible. */
+	if (climbing)
+	{
+		tick.moving = bots_navigation_follow(bot, &tick.position, &tick.move_direction);
+		tick.throttle_scale = 1.0f;
 	}
 	bots_bot_weapons(bot, &tick);
 	bots_bot_unstick(bot, &tick);

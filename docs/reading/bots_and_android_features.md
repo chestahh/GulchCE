@@ -13,6 +13,10 @@ their existing map loaders, limits, rules and resource ownership.
 - `bots.routes` selects `direct` (default), `lanes` or `mixed`. A lane is an
   alternate route through two intermediate destinations. Unreachable lanes
   are abandoned for that bot's current life.
+- `bots.thread = true` moves enhanced bots' graph searches to a bounded
+  background worker. **Path Worker** in Bot settings controls it; it is off
+  by default and takes effect on the next map. Collision queries and action
+  decisions still run on the game thread.
 - `bots.vehicles = true` lets enhanced bots seek ground-vehicle seats and
   turrets. They use ordinary player controls to enter, steer and leave.
   Aircraft navigation is not implemented. Switching this option off asks
@@ -33,6 +37,10 @@ their existing map loaders, limits, rules and resource ownership.
   the default and preserves the layout's saved gyro switch and sensitivity.
   Explicit modes use independent horizontal/vertical sensitivity and invert
   settings. Zoom Only discards motion while unzoomed.
+- Touch Options can be moved in the layout editor; Export, Import and Save
+  sit in its center. General settings can disable aiming with held buttons
+  and choose a three- or four-finger tap for enabled offline cheats. Older
+  layouts retain their saved controls and gyro behavior when loaded.
 - Android's **Cheat Menu** option adds **Cheats** to touch **Options**.
   It defaults off and is available during offline gameplay only. It exposes
   invincibility, ammunition, bottomless clip, super jump, omnipotence,
@@ -235,6 +243,9 @@ and at least 15 units shorter, walks onto the entrance, then detects the
 ordinary engine teleport and searches from the exit. Ladder links connect
 otherwise disconnected floors and finish with facing, forward and jump
 controls. There are at most 64 links and two reservations per link.
+Once climbing starts, the bot keeps that destination through the landing,
+even during combat. Its climb timeout replaces ordinary horizontal stuck
+recovery until it lands or abandons the link.
 
 [`bots_worker.inl`](../../port/linux/game/bots_worker.inl) optionally runs
 only graph traversal on one worker. Submission snapshots walkability and

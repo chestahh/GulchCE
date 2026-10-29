@@ -10,14 +10,15 @@ def implementation():
     source = read("port/linux/game/bots_navigation.inl")
     code = source[source.index("#define BOTS_NAV_LINKS"):source.index("static void bots_navigation_reset")]
     code += "\n".join(function(source, name) for name in (
-        "bots_navigation_reset", "bots_navigation_reset_bot", "bots_navigation_pays",
+        "bots_navigation_reset", "bots_navigation_reset_bot", "bots_navigation_climbing", "bots_navigation_pays",
         "bots_navigation_cost", "bots_navigation_remaining", "bots_navigation_drop", "bots_navigation_claimers",
         "bots_navigation_query", "bots_navigation_answer", "bots_navigation_update", "bots_navigation_follow",
         "bots_navigation_action"))
+    code += function(read("port/linux/game/bots.c"), "bots_bot_unstick")
     return code
 
 
-@pytest.mark.parametrize("case", ["measure", "reject", "reservation", "ladder", "timeout", "lifecycle"])
+@pytest.mark.parametrize("case", ["measure", "reject", "reservation", "ladder", "climb_recovery", "timeout", "lifecycle"])
 def test_navigation(case):
     status, output = run(build("bots_navigation", (("under_test.inc", implementation()),)), case)
     assert status == 0, output
@@ -34,3 +35,10 @@ def test_empty_cleanup_respects_engine_allocator():
                    "free(bots_navigation.vehicle_walkable ? bots_navigation.vehicle_walkable - 1 : NULL)")
     status, output = run(build("bots_navigation", (("under_test.inc", code),)), "lifecycle")
     assert status == 1 and "engine free received NULL" in output, output
+
+
+def test_vertical_climb_is_not_stuck():
+    code = mutated(implementation(), "if (bots_enhanced_running && bots_navigation_climbing(bot))",
+                   "if (FALSE)")
+    status, output = run(build("bots_navigation", (("under_test.inc", code),)), "climb_recovery")
+    assert status == 1 and "climb mistaken for stuck movement" in output, output
