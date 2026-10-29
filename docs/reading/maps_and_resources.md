@@ -100,25 +100,42 @@ pause the animation. The normal renderer installs its viewport on return.
 The effect uses the installation's `maps/loading.tga`, imported by OpenCE from
 the Xbox disc image; MCC packages do not supply or replace it. Missing art has
 the existing loading renderer's black-texture behavior. Catalog browsing reads
-only headers and descriptions. Uncached menu admission and content-fingerprint
-probes also use this feedback while checking resources: `mcc_resources_inspect`
-ends only a progress session it started, preserving an enclosing map load.
+only headers and descriptions. Menu probes do not begin a loading screen.
+`mcc_resources_inspect` can still pulse an enclosing actual map load.
 No new network message or readiness decision is introduced: peers still finish
 their own conversions and use the existing host-controlled loading protocol.
 
-`mcc_cache_probe` in [mcc_cache.c](../../port/linux/game/mcc_cache.c) retains
-one successful package checksum so selection, local admission and lobby
-readiness do not repeatedly read gigabytes of unchanged resources. Its
+Host selection uses [mcc_validation.inl](../../port/linux/game/mcc_validation.inl),
+included by `mcc_cache.c`, and the existing pregame update in
+[mcc_ui_network.inl](../../port/linux/game/mcc_ui_network.inl). A click schedules
+validation; pregame updates open and check the package, then a worker hashes its
+complete map and required resources through
+[mcc_resource_check.inl](../../port/linux/game/mcc_resource_check.inl). Only private readers and hash state run on
+the worker; engine diagnostics and result publication stay on the main thread.
+The worker checks cancellation between slices of at most 4 MiB, with elapsed
+time checked after each 16 KiB to end a slice at 2 ms. If worker creation fails,
+pregame advances one slice per update. Opening and dependency parsing are a
+separate step, so this is not a hard time bound on all I/O. Cancellation joins
+the worker before closing readers. No validation runs during gameplay.
+Host readiness polls only completed results, and settings cannot be
+sent until the checksum and content identity are ready.
+
+The four-entry successful-result cache retains checksums and SHA-256 digests so
+selection, local admission and readiness do not repeatedly read unchanged files. Its
 [mcc_precache_snapshot](../../port/linux/game/mcc_precache.c) includes the map,
 package and root overrides, and both shared resource sets, even absent files.
-A different name or changed metadata requires validation again; failed metadata
+A cache miss or changed metadata requires validation again; failed metadata
 queries prevent reuse, and changes during validation refuse the result. Catalog
 rescans can retain this checksum because every use checks those inputs again.
-Unload and disconnect clear it. The SHA-256 admission check remains separate,
-and actual loading still checksums and fingerprints the opened content.
-This bounds retained state to one name, nine file stamps and a checksum; it is
+Reselection, unload and disconnect cancel unfinished work and close its readers.
+Disconnect still clears session identities; successful file facts survive it,
+with their metadata rechecked on every use. Remote admission and actual loading
+still check the content identity; actual loading fingerprints the opened content.
+The older single-checksum cache remains for synchronous remote admission. This is
 not a persistent cache or proof against edits that preserve all recorded metadata.
-The first check still takes time, with loading feedback instead of a frozen menu.
+The first host check takes time while the menu remains responsive. Starting a
+game remains gated on validation and the existing peer-readiness checks. An
+early start request waits in pregame; pending validation is not a connection error.
 Admission explanations pass through this same cache: a successful reuse clears
 stale caller text, while a failed fresh check returns its resource explanation.
 An install changing during validation gets its own refusal message.
