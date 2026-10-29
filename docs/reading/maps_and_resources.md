@@ -99,10 +99,28 @@ pause the animation. The normal renderer installs its viewport on return.
 
 The effect uses the installation's `maps/loading.tga`, imported by OpenCE from
 the Xbox disc image; MCC packages do not supply or replace it. Missing art has
-the existing loading renderer's black-texture behavior. Early catalog,
-admission and background lobby probes do not start a loading screen. No new
-network message or readiness decision is introduced: peers still finish their
-own conversions and use the existing host-controlled loading protocol.
+the existing loading renderer's black-texture behavior. Catalog browsing reads
+only headers and descriptions. Uncached menu admission and content-fingerprint
+probes also use this feedback while checking resources: `mcc_resources_inspect`
+ends only a progress session it started, preserving an enclosing map load.
+No new network message or readiness decision is introduced: peers still finish
+their own conversions and use the existing host-controlled loading protocol.
+
+`mcc_cache_probe` in [mcc_cache.c](../../port/linux/game/mcc_cache.c) retains
+one successful package checksum so selection, local admission and lobby
+readiness do not repeatedly read gigabytes of unchanged resources. Its
+[mcc_precache_snapshot](../../port/linux/game/mcc_precache.c) includes the map,
+package and root overrides, and both shared resource sets, even absent files.
+A different name or changed metadata requires validation again; failed metadata
+queries prevent reuse, and changes during validation refuse the result. Catalog
+rescans can retain this checksum because every use checks those inputs again.
+Unload and disconnect clear it. The SHA-256 admission check remains separate,
+and actual loading still checksums and fingerprints the opened content.
+This bounds retained state to one name, nine file stamps and a checksum; it is
+not a persistent cache or proof against edits that preserve all recorded metadata.
+The first check still takes time, with loading feedback instead of a frozen menu.
+[test_mcc_validation.py](../../tools/test_mcc_validation.py) exercises reuse,
+changed inputs, failed validation, identity checks and checksum disagreement.
 
 [test_mcc_loading.py](../../tools/test_mcc_loading.py) exercises the controller's
 ownership, stage ordering, rate limit, timer wrap, re-entry, failed device
