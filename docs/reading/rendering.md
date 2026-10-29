@@ -20,6 +20,21 @@ and the [FOV walkthrough](field_of_view.md) for the timing and camera inputs.
 
 ## Prepare a view before drawing objects
 
+OpenCE's `convex_polygon2d_clip_to_plane` in
+[geometry.c](../../source/math/geometry.c) keeps a corner on the clip line
+when a rounding error would otherwise produce a NaN crossing. This prevents
+that invalid coordinate from hiding later portals for a frame. The fog-screen
+pass keeps each split-screen view's previous camera in its own slot through
+`previous_camera_matrix_for_window` in
+[rasterizer_xbox_environment_fog.c](../../source/rasterizer/xbox/rasterizer_xbox_environment_fog.c).
+Both corrections apply through the existing renderer for every map family.
+
+`screen_mode_choose` in [d3d8_gl.c](../../port/linux/src/d3d8_gl.c) selects
+the render-target scale separately from the game's logical 480-line view.
+Resolution scaling can use native pixels, 75%, 50%, 25%, or the original
+resolution. Android defaults to original and bounds larger targets by the
+GPU limit; the desktop default remains native. Settings apply between frames.
+
 The engine can render several local players. `render_frame` manages the
 frame and windows; `render_player_frame` prepares a player's frustums and
 handles additional views such as mirrors. `render_window` performs drawing
