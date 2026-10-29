@@ -216,6 +216,53 @@ BSP boundary and finishing a campaign are separate claims. A new loader
 change needs malformed inputs, failed-load cleanup and Xbox/CE/MCC transitions
 checked as well as a successful load of its target map.
 
+## Load refusal messages
+
+The two loaders own their explanations separately:
+[`custom_edition_errors.c`](../../port/linux/game/custom_edition_errors.c) and
+[`mcc_errors.c`](../../port/linux/game/mcc_errors.c) translate parser statuses
+and bound the displayed map names and reasons. They do not relax validation.
+For example, an MCC level without a matching external sound resource names
+`sounds.map` and directs the player to install its resources beside the level.
+It never recommends installing CE resources for an MCC level.
+The small MCC dialog abbreviates long package/level names at the middle and
+summarizes long reasons with an explicit `See debug.txt` pointer. Full resource
+paths, script names and terminal conversion reasons remain in the log.
+
+Read `mcc_resources_probe_explain` in
+[`mcc_resources.c`](../../port/linux/game/mcc_resources.c), then
+`mcc_cache_present` and `mcc_cache_tags_load` in
+[`mcc_cache.c`](../../port/linux/game/mcc_cache.c). Admission probes return
+caller-owned text. Actual loading keeps the first detailed terminal failure
+in `mcc_runtime.failure`, and copies it into the existing menu queue before
+unloading clears the runtime. An unsuccessful shared-resource candidate does
+not become a failure when a later candidate succeeds. The menu queue retains
+the first error, so generic recovery text cannot replace a specific refusal.
+MCC's existing menu return and network abort ordering remain intact.
+
+For CE, follow `custom_edition_cache_present`, `custom_edition_cache_tags_load`,
+`custom_edition_cache_load_error` and `custom_edition_cache_display_error` in
+[`custom_edition_cache.c`](../../port/linux/game/custom_edition_cache.c).
+The last load's bounded reason survives resource cleanup until the fatal
+caller consumes it; another load resets it and successful loading clears it.
+Catalog probes cannot overwrite it. Precache failures still enter the fatal
+media screen, and later load failures retain their existing error priority.
+
+The small hooks in the cache, main and network callers are necessary because
+those callers own the original failure presentation. The CE module cannot
+replace that text through a return value alone. `display_error_damaged_media_text`
+in [`ui_widget.c`](../../source/interface/ui_widget.c) copies the supplied text
+and delegates to the existing fatal screen and loop. Xbox callers retain their
+fixed message; MCC keeps its separate deferred-message path. No wire format,
+map-family limits or recovery decisions change.
+
+[`test_map_load_errors.py`](../../tools/test_map_load_errors.py) exercises actual
+extracted loader and widget functions with injected failures, including cleanup,
+message ownership, first-error retention, successful retries and the unchanged
+fatal-loop calls. Resource selection and family lifecycle tests supplement it.
+These tests establish control flow, not visual fit or full map compatibility;
+those require a real game run with local assets.
+
 ## MCC script and animation compatibility
 
 [`mcc_scripts_prepare`](../../port/linux/game/mcc_scripts.c) links MCC

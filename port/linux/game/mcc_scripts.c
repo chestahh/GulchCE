@@ -17,6 +17,7 @@
 #include "mcc_syntax.h"
 #include "mcc_campaign.h"
 #include <string.h>
+#include <stdio.h>
 
 boolean hs_macro_function_parse(short index, long expression);
 
@@ -396,6 +397,8 @@ int mcc_scripts_prepare(struct mcc_runtime *runtime)
             else index = NONE;
         }
         if (name && index == NONE) {
+            if (!runtime->failure[0]) snprintf(runtime->failure,sizeof(runtime->failure),
+                "Unsupported script name: %.24s. See debug.txt.",name);
             if (missing < 16) error(_error_silent, "mcc: unsupported script function or global '%s'", name);
             ++missing;
         }

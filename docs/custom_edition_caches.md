@@ -15,6 +15,15 @@ the Xbox maps' are, before anything reads them
 
 ## Running a map
 
+Load refusals name the map and explain known causes such as required OpenSauce
+features, unreadable files, missing resources or the tag-cache limit. Later
+conversion failures identify the failing stage, with detailed checks in
+`debug.txt`. Precache failures retain the fatal media screen and later load
+failures retain the existing fatal error path; clearer text does not add retry
+or return-to-menu recovery.
+If a startup command fails before the UI map has loaded, the existing fatal
+path has no error widget to draw; the explanation is still written to the log.
+
 Custom Edition maps run when the `game.custom_edition` setting is on, as it
 is by default (`custom_edition = true` under `[game]` in `config.toml`, or
 `HALO_CUSTOM_EDITION`). Put the maps and Custom Edition's `bitmaps.map`,
