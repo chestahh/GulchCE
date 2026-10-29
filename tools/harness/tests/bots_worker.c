@@ -44,7 +44,26 @@ static int CloseHandle(void *p) { CHECK(p!=NULL,"null handle");free(p);handles--
 static void *CreateThread(void *a,long stack,unsigned long (*entry)(void*),void *arg,long flags,void *id)
 { (void)a;(void)stack;(void)entry;(void)arg;(void)flags;(void)id;return CreateEventA(NULL,1,1,NULL); }
 static void bots_path_find_snapshot(struct path_state *state) { (void)state; }
-static void checked_free(void *pointer) { CHECK(pointer!=NULL,"engine free received NULL");free(pointer); }
+static void *allocations[16];
+static int fail_after = -1;
+static void *checked_malloc(size_t size)
+{
+    int index;
+    if (fail_after == 0) return NULL;
+    if (fail_after > 0) fail_after--;
+    for (index=0; index<16; index++) if (!allocations[index])
+        return allocations[index]=malloc(size);
+    CHECK(0,"fixture allocation limit"); return NULL;
+}
+static void checked_free(void *pointer)
+{
+    int index;
+    CHECK(pointer!=NULL,"engine free received NULL");
+    for (index=0; index<16; index++) if (allocations[index]==pointer)
+    { free(pointer); allocations[index]=NULL; return; }
+    CHECK(0,"worker allocation does not belong to engine allocator");
+}
+#define malloc checked_malloc
 #define free checked_free
 #include "under_test.inc"
 int main(int argc, char **argv)
@@ -65,6 +84,14 @@ int main(int argc, char **argv)
     structure.breakable_surfaces.count=1;bsp.surfaces.address=surfaces;bsp.surfaces.count=2;
     bsp.edges.address=edges;bsp.edges.count=1;bsp.vertices.count=2;
     state.structure=&structure;bot->unit_index=10;bot->goal_point=goal;
+    if (!strcmp(argv[1],"allocation") || !strcmp(argv[1],"graph_allocation"))
+    {
+        fail_after = !strcmp(argv[1],"allocation") ? 0 : 1;
+        CHECK(!bots_worker_submit(bot,&state,&start,&goal,1,FALSE,FALSE,.25f),"allocation failure submitted");
+        bots_worker_stop();bots_worker_stop();
+        CHECK(!handles && !allocations[0],"failed allocation retained ownership");
+        return 0;
+    }
     if (!strcmp(argv[1],"disabled") || !strcmp(argv[1],"malformed"))
     {
         if (!strcmp(argv[1],"disabled")) bots_worker_enabled=0;
@@ -93,5 +120,6 @@ int main(int argc, char **argv)
     else CHECK(!strcmp(argv[1],"cleanup"),"case");
     bots_worker_stop();bots_worker_stop();
     CHECK(!handles && !bots_worker.jobs && !bots_worker.thread,"worker cleanup leaked ownership");
+    CHECK(!allocations[0] && !allocations[1],"worker allocations leaked");
     return 0;
 }

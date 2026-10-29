@@ -115,7 +115,9 @@ static boolean bots_worker_start(struct structure_bsp const *structure)
 		platform_log("bots: path worker disabled for invalid collision rings; using synchronous searches");
 		return FALSE;
 	}
-	bots_worker.jobs = (struct bots_path_job *)calloc(BOTS_SEARCHES_A_TICK, sizeof(struct bots_path_job));
+	/* cseries pairs tracked malloc/free; libc calloc has no engine header. */
+	bots_worker.jobs = (struct bots_path_job *)malloc(BOTS_SEARCHES_A_TICK * sizeof(struct bots_path_job));
+	if (bots_worker.jobs) csmemset(bots_worker.jobs, 0, BOTS_SEARCHES_A_TICK * sizeof(struct bots_path_job));
 	bots_worker.wake = CreateEventA(NULL, FALSE, FALSE, NULL);
 	bots_worker.quit = CreateEventA(NULL, TRUE, FALSE, NULL);
 	if (!bots_worker.jobs || !bots_worker.wake || !bots_worker.quit) goto failed;
@@ -178,8 +180,10 @@ static boolean bots_worker_submit(struct bots_bot *bot, struct path_state *state
 	if (!job) return FALSE;
 	if (job->capacity < count)
 	{
-		byte *memory = (byte *)realloc(job->walkable ? job->walkable - 1 : NULL, (size_t)count + 1);
+		byte *memory = (byte *)malloc((size_t)count + 1);
 		if (!memory) return FALSE;
+		/* Preserve the old tracked allocation if growth fails. */
+		if (job->walkable) free(job->walkable - 1);
 		/* An open edge's neighbor is NONE; path.c reads this sentinel. */
 		memory[0] = 0;
 		job->walkable = memory + 1;
