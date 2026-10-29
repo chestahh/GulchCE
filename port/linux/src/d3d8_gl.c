@@ -22,6 +22,7 @@ Conventions carried over from the Xbox:
 */
 
 #include "xgpu.h"
+#include "shader_prepare.h"
 #include "plasma_model_shader.h"
 #include "plasma_occlusion.h"
 #include "mcc_environment_shader.h"
@@ -1102,6 +1103,57 @@ struct gl_device
 };
 
 static struct gl_device device;
+static BOOL material_preparing;
+
+int render_prepare_texture(void const *header)
+{
+#ifndef HALO_GLES
+	struct xgpu_texture_description description;
+	GLenum target;
+	if (device.gl_ready) return xgpu_texture_get(header, NULL, &target, &description) != 0;
+#else
+	(void)header;
+#endif
+	return 0;
+}
+
+int render_material_prepare_mode(int enabled)
+{
+#ifndef HALO_GLES
+	if (!device.gl_ready) return 0;
+	material_preparing = enabled != 0;
+	if (!enabled) memset(device.textures, 0, sizeof(device.textures));
+	return 1;
+#else
+	(void)enabled;
+	return 0;
+#endif
+}
+
+/* The game owns map boundaries; only this backend knows whether GL exists. */
+void render_prepare_map(char const *name)
+{
+#ifndef HALO_GLES
+	if (device.gl_ready)
+	{
+		shader_prepare_begin(name, program_cache_load, program_cache_store);
+		if (config_boolean("display.shader_prepare")) xgpu_texture_names_prepare();
+	}
+#else
+	(void)name;
+#endif
+}
+
+void render_prepare_end(void)
+{
+#ifndef HALO_GLES
+	if (device.gl_ready)
+	{
+		shader_prepare_end();
+		xgpu_texture_names_dispose();
+	}
+#endif
+}
 
 /* debug.gpu_stats prints these once a second */
 static struct
@@ -3707,6 +3759,10 @@ static struct program_entry *program_get(GLuint vertex_shader, GLuint fragment_s
 	struct program_entry *entry;
 	int stage;
 
+#ifndef HALO_GLES
+	if (!material_preparing)
+		shader_prepare_record(vertex_shader, fragment_shader, shader_hash(vertex_shader), shader_hash(fragment_shader));
+#endif
 	if (last && last->vertex_shader == vertex_shader && last->fragment_shader == fragment_shader)
 		return last;
 	for (entry = *bucket; entry; entry = entry->next)
@@ -3729,7 +3785,9 @@ static struct program_entry *program_get(GLuint vertex_shader, GLuint fragment_s
 		return NULL;
 
 #ifndef HALO_GLES
-	entry->program = program_cache_load(shader_hash(vertex_shader), shader_hash(fragment_shader));
+	entry->program = shader_prepare_take(shader_hash(vertex_shader), shader_hash(fragment_shader));
+	if (!entry->program)
+		entry->program = program_cache_load(shader_hash(vertex_shader), shader_hash(fragment_shader));
 	if (!entry->program)
 	{
 		/* (linked as xgpu_link_program does, keeping its binary) */
@@ -4359,7 +4417,20 @@ static void bind_textures(struct nv2a_pixel_shader_key *key, float texture_scale
 			GLenum gl_target;
 			GLuint gl_texture;
 
-			if (target)
+			if (material_preparing)
+			{
+				if (!xgpu_mcc_texture_describe((DWORD const *)texture, &description))
+					xgpu_texture_describe(texture->Format, texture->Size, &description);
+				gl_target = description.cube_map ? GL_TEXTURE_CUBE_MAP :
+					description.depth > 1 ? GL_TEXTURE_3D : GL_TEXTURE_2D;
+				gl_texture = 0;
+				if (description.linear)
+				{
+					texture_scale[stage][0] = 1.0f / (float)description.width;
+					texture_scale[stage][1] = 1.0f / (float)description.height;
+				}
+			}
+			else if (target)
 			{
 				/* (multisampled: its pixels drawn since, resolved) */
 				render_target_resolve(target);
@@ -4818,6 +4889,7 @@ static struct program_entry *prepare_draw(BOOL immediate)
 	key.combiner_state[D3DRS_PSFINALCOMBINERCONSTANT1] = 0;
 	key.texture_modes = D3D__RenderState[D3DRS_PSTEXTUREMODES];
 	key.mcc_bump_attenuation = mcc_environment_shader_active();
+	key.shield_honeycomb = shield_honeycomb_value[0][3] != 0.f;
 	/* the textures before the targets: a render target the draw samples
 	has its multisampled pixels resolved by a blit (render_target_resolve),
 	which binds framebuffers of its own, and the back buffer can be both
@@ -4857,6 +4929,8 @@ static struct program_entry *prepare_draw(BOOL immediate)
 		plasma_mask = plasma_model_lighting_mask();
 #endif
 	entry = draw_program_get(program, immediate, &key, plasma_mask);
+	/* The loading pass needs the identical shader key, but no draw uniforms. */
+	if (material_preparing) return entry;
 	if (!entry)
 	{
 		stats.skipped_link++;
@@ -5077,6 +5151,11 @@ static struct program_entry *prepare_draw(BOOL immediate)
 	uniform_vec4(entry->height_fade, entry->uniforms.height_fade, draw_uniforms.height_fade, 1);
 	uniform_vec4(entry->shield_honeycomb, entry->uniforms.shield_honeycomb[0], draw_uniforms.shield_honeycomb[0], 3);
 	return entry;
+}
+
+void render_material_prepare_draw(void)
+{
+	if (material_preparing) prepare_draw(FALSE);
 }
 
 /* ---------- tracing (debug.gpu_trace_frame) */

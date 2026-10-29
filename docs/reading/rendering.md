@@ -330,6 +330,15 @@ allocation/readback and keeps every measured frame in pacing results.
 separates observed shader warm-up hitches from unresolved memory ownership
 and the unreproduced long stalls. These tools restore production sources;
 their diagnostic timings are not clean performance acceptance measurements.
+The [Windows hitch investigation](../windows_stutter_investigation.md) records
+the correction for direct desktop program links and the limits of the CE
+and Digsite MCC runtime measurements; shader-link stalls alone do not establish
+the reported GulchCE/OpenCE difference.
+The [renderer preparation walkthrough](../render_preparation.md) follows the
+optional shader recipes and material selection, separate bounded Xbox/CE and
+MCC texture preparation, dead alpha-combiner normalization and the draw-local
+honeycomb variant. It distinguishes repeat-visit coverage from first-use work
+that remains during gameplay, and identifies the GLES no-op boundaries.
 
 The [shield-lighting walkthrough](shield_lighting.md) describes Shield Glow's
 integration with the same falloff, specular and visibility services. Its

@@ -1551,7 +1551,7 @@ GLuint xgpu_texture_get(const DWORD *resource, const D3DCOLOR *palette, GLenum *
 		}
 		entry->generation = 0;
 		entry->override = -1;
-		glGenTextures(1, &entry->texture);
+		entry->texture = xgpu_texture_name_new();
 		entry->next = *bucket;
 		*bucket = entry;
 	}

@@ -56,6 +56,7 @@ static BOOL texture_size_supported(const struct xgpu_texture_description *d) { r
 static unsigned long xgpu_texture_face_size(const struct xgpu_texture_description *d) { return 1024; }
 static unsigned long xgpu_texture_level_offset(const struct xgpu_texture_description *d,int l) { return 1024; }
 static void glGenTextures(int n,GLuint *t) { *t=++next_texture; }
+static GLuint xgpu_texture_name_new(void) { GLuint texture;glGenTextures(1,&texture);return texture; }
 static void glDeleteTextures(int n,GLuint *t) {}
 static void xgpu_gl_state_invalidate(void) {}
 static long hud_hires_override_find(unsigned long a,unsigned long w,unsigned long h,unsigned long b) { return -1; }
