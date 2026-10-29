@@ -732,7 +732,7 @@ static boolean custom_edition_cache_tags_convert(
 	{
 		error(
 			_error_silent,
-			"custom edition: %ld HUD elements drawn from Halo PC's double resolution bitmaps were given half their scale",
+			"custom edition: %ld HUD elements rescaled using Halo PC's placement and bitmap flags",
 			(long)conversion.hud_placements_rescaled);
 	}
 	if (conversion.score_hint_converted)

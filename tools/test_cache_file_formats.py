@@ -1068,6 +1068,25 @@ def test_hud_elements_drawing_a_halo_pc_half_scale_bitmap_are_halved(report_tool
     assert (f32_at(tags, items + 4), f32_at(tags, items + 8)) == (1.0, 1.0)
 
 
+@pytest.mark.parametrize("placement_flag,bitmap_flags,static_scale,item_scale", [
+    (0, 0, 1.0, 1.0), (4, 0, 0.5, 1.0),
+    (0, 0x10, 0.5, 0.5), (0, 0x80, 0.5, 0.5),
+    (4, 0x80, 0.5, 0.5), (4, 0x10, 0.25, 0.5),
+    (0, 0x90, 0.25, 0.25), (4, 0x90, 0.25, 0.25),
+])
+def test_hud_scale_flags_compose_without_scaling_crosshair_placement_flags(
+        report_tool, tmp_path, placement_flag, bitmap_flags, static_scale, item_scale):
+    cache = Map(weapon_hud=[((1.0, 1.0), placement_flag), ((1.0, 1.0), 0),
+                            ((1.0, 1.0), placement_flag)], hud_bitmap_flags=bitmap_flags)
+    returncode, _, tags = converted(report_tool, cache, tmp_path)
+    assert returncode == 0
+    hud = cache.addresses["test\\weapon hud"]
+    statics = u32_at(tags, hud + 0x64)
+    items = u32_at(tags, u32_at(tags, hud + 0x88) + 0x38)
+    assert f32_at(tags, statics + 0x28) == static_scale
+    assert f32_at(tags, items + 4) == item_scale
+
+
 @pytest.mark.parametrize("name, tags_checksum, listed", [
     (b"rev_snowcast_cavebeta", 1683840640, True),
     (b"Rev_Snowcast_CaveBeta", 1683840640, True),

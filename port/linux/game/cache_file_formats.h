@@ -312,7 +312,7 @@ struct custom_edition_conversion_report
 	unplayable */
 	int32_t sounds_undecodable;
 	/* HUD element placements with Halo PC's high resolution scale, whose
-	scale was halved */
+	scale was reduced by the CE placement and bitmap flags */
 	int32_t hud_placements_rescaled;
 	/* HUD meters whose minimum alpha (Halo PC's, where the Xbox's meters
 	have an overlays block) was taken out */

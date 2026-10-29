@@ -67,6 +67,7 @@ symbols in this file:
 /* ---------- headers */
 
 #include "mcc_hud_draw.h"
+#include "custom_edition_hud_draw.h" /* port: port/linux/game/custom_edition_hud_draw.c */
 #include "cseries/cseries.h"
 #include "cseries/errors.h"
 #include "cutscene/cinematics.h"
@@ -655,6 +656,7 @@ void hud_render_damage_indicators(
 		short direction;
 
 		scale *= mcc_hud_bitmap_scale(definition->indicator_bitmap.index);
+		scale *= custom_edition_hud_bitmap_scale(definition->indicator_bitmap.index); /* port: CE damage arrows. */
 
 		player_effect_get_damage_indicators(
 			local_player_index,
