@@ -180,6 +180,18 @@ joining a lobby without a local server are denied. Changing from host to
 client clears queued requests and releases menu-owned switches. Existing
 host cheat semantics and object replication are reused; this menu adds no
 network messages or client-side cheat settings.
+
+Host access does not establish that every existing cheat synchronizes correctly.
+Two-instance Windows checks of the Android game-side module accepted host requests,
+rejected client requests and restored menu-owned invincibility after reset on Xbox,
+Custom Edition and MCC multiplayer maps and Xbox campaign co-op. The MCC and co-op
+comparisons passed; Xbox and Custom Edition multiplayer comparisons reported
+persistent weapon-inventory differences after spawning weapons. A production
+desktop-console run reproduced this on Xbox Blood Gulch using `cheat_all_weapons`;
+the cheat implementation and object replication were unchanged by Android access.
+Treat weapon-spawn synchronization as separate existing work. These checks do not
+replace physical Android touch or Android-to-desktop network testing.
+
 Cinematics suspend requests without losing owned toggle
 values. Disabling the menu or leaving the map restores values it changed,
 unless a later console/script edit changed them again. One-shot spawned
@@ -263,7 +275,7 @@ capabilities below while retaining GulchCE's defaults and engine interfaces.
 | --- | --- |
 | 63 bots, names and host-only network actions | Capacity restored; ordinary protocol-39 player records/actions retained. Lobby limits still apply. |
 | Live add/drop by team; difficulty, routes and vehicles in a menu | Implemented through CE settings and Manage Current Bots. The three/four-finger gesture opens the Android cheat dialog when enabled offline or as host; the general renderer overlay remains separate. |
-| Nine cheat switches and weapon/powerup/vehicle spawns | All exposed by the Android dialog, plus the earlier camouflage action. Offline-only permission remains intentional. |
+| Nine cheat switches and weapon/powerup/vehicle spawns | All exposed by the Android dialog, plus the earlier camouflage action. Available offline or to the session host; joined clients cannot use them. |
 | Explicit gyro modes, per-axis sensitivity and inversion | Adapted; the default Touch Settings mode additionally preserves the user's earlier saved gyro settings. |
 | Roles, lanes, vantage choices, CTF/King goals and ground vehicles | Focused adaptation already present, not an import of the fork's complete bot core. Vehicles stay off by default, unlike the fork's enabled default. |
 | Teleporter routing/shortcuts, ladder routing and learned navigation obstacles | `bots_navigation.inl` adds bounded link discovery, measured shortcuts, disconnected-floor links, reservations, cooldowns and ordinary climbing controls around the existing path core. |
