@@ -104,9 +104,10 @@ The ~7,000-line fork bot core is not imported. The focused objective module
 extends the existing core; it does not duplicate combat, respawning,
 path search or collision handling. Route/vantage preparation retains
 bounded working memory (32,768 walkable nodes and a 262,144-entry surface
-lookup at most) and releases it when finished. No separate bot
-thread, network packet, deterministic simulation rule or protocol version
-is added. Network version remains 39. See
+lookup at most) and releases it when finished. The optional worker only
+traverses private graph snapshots; bot decisions stay on the host's game
+thread. No network packet, deterministic simulation rule or protocol version
+is added. Xbox/CE network version remains 39. See
 [NETCODE.md](../../port/linux/NETCODE.md) for authority and transport rules.
 
 Map initialization resets objective, precision-cache and vehicle state.
@@ -170,6 +171,17 @@ items remain ordinary game objects; they are not undone by closing the UI.
   the gyro hook needs that state to discard unzoomed motion.
 - `cheats_dispose_from_old_map` is the map boundary at which menu-owned
   switches and pending Android requests must be cleared.
+
+The stress tests also exposed a glow marker assertion. In
+[glow.c](../../source/objects/widgets/glow.c), `glow_particle_update` and
+`glow_time_wrap_down` accept `t == total_time`, but the original first lookup
+in `get_particle_world_position` excluded that endpoint. Its narrow fix
+includes the last endpoint while retaining half-open interior intervals and
+out-of-range assertions. This corrects an existing engine contract for all
+map families; it adds no MCC conversion semantics or gameplay rules. The
+failing run did not capture the particle value, so the endpoint defect was
+established independently by an extracted-source regression and negative
+control rather than inferred solely from that assertion.
 
 All additions in `source/` carry `port:` markers. General-feature logic
 stays in feature modules. No MCC compatibility logic was moved into the
@@ -256,7 +268,9 @@ collision rings keep searches synchronous so shared engine diagnostics
 cannot race. Obstacle queries and path smoothing remain on the game thread. Disposal
 joins the worker before releasing feature graphs; scenario geometry remains
 loaded until the later scenario unload. Allocation/start failures fall back
-to synchronous searches. Fixed-tick benchmarks also remain synchronous.
+to synchronous searches. Job arrays and graph buffers use the engine's paired
+tracked allocator; growth allocates before releasing an old buffer so failure
+preserves ownership. Fixed-tick benchmarks also remain synchronous.
 
 [`bots_vehicles.c`](../../port/linux/game/bots_vehicles.c)'s
 `bots_vehicle_goal` weighs seats and `bots_vehicle_action` drives, waits,
@@ -271,6 +285,65 @@ Xbox/CE/MCC map namespaces are unchanged.
 
 ## Checks and limits
 
+The navigation/combat/touch follow-up's final self-review covered the combined
+modules, generated settings, worker ownership, disabled behavior, map and
+respawn cleanup, source provenance and regression fixtures. It corrected
+closed-edge snapshot sentinels, allocation cleanup, a clock read before game
+initialization, duplicate powerup pursuit and climbing interrupted by horizontal
+stuck recovery. A live map transition exposed a worker allocation mismatch;
+the corrected allocator pair now survives repeated map disposal. Real
+Boarding Action movement also showed that tall ladders
+need more than the reference's fixed eight seconds: the allowance now scales
+with height, bounded to 8–60 seconds, followed by at most two seconds to land.
+
+Follow-up validation (final game code `4ec67c3d`):
+
+- [Build CI](https://github.com/chestahh/GulchCE/actions/runs/40796118360)
+  passed Linux, Windows, Android, web and changelog jobs;
+  [MCC validation](https://github.com/chestahh/GulchCE/actions/runs/40796118536)
+  also passed. These CI runs validate the final code before testing promotion.
+- Windows, Android guest/host and web release builds passed. The original
+  `--portable --release` configure options were restored. The unchanged Java
+  changes passed SDK 35 compilation and layout/gyro checks; all 36 web page
+  tests passed. Bot settings were rendered in a hidden window and inspected.
+- The [final web CI job](https://github.com/chestahh/GulchCE/actions/runs/40796118360/job/123192982935)
+  passed browser smoke/room checks and native WebRTC exchanges with Chromium
+  and Firefox (320 of 320 messages returned in each browser).
+- The focused bot/worker/navigation/cheat/gyro/glow suite passed 83 checks. The six
+  real-game stock/enhanced/disabled regressions passed on `3899ad7e`;
+  enhanced Slayer/CTF/King passed again on `94c60acc` after the climb-control
+  correction. These are earlier checks of those unchanged synchronous paths.
+  Stock Blood Gulch bots and the default-disabled network-bot path both
+  passed again on the final build (two real-game checks).
+- A 15-bot Infection match on `3899ad7e` with the worker enabled had active
+  movement/combat, completed teleports and a clean exit. Boarding Action matches discovered
+  ladder links and approached/climbed them, but random goals alone did not
+  establish completed landings during those bounded runs.
+- A disposable engine fixture of the `090dbd05` bot code placed one bot at
+  the foot of a discovered five-unit Boarding Action ladder with matching
+  initial facing and velocity.
+  Production traversal code then climbed, landed and resumed ordinary goals,
+  without an assertion. Only placement/initial route choice was instrumented;
+  this verifies traversal, not natural route selection or every ladder.
+- On `090dbd05`, a dedicated host with six bots and a joined client played
+  Xbox Blood Gulch, CE Death Island and Xbox Blood Gulch again. The worker started on all three
+  maps, cleanup raised no assertions, and the server quit cleanly. The test
+  stopped its own client after server shutdown. This establishes those live
+  transitions; a live transition involving MCC remains unverified.
+- The final Xbox Blood Gulch CTF run with vehicles and the worker admitted
+  63 bots plus two humans with unmodified OpenCE build 317. Both peers exited
+  cleanly and logged all 65 names. Intact players 0..31 compared for 67 paired
+  seconds without sustained divergence under unchanged tolerances. The
+  existing 4096-byte log truncation prevents comparing every player's state.
+- CE Death Island CTF with the same 63-bot/worker setup also admitted all 65
+  participants with OpenCE 317 and exited cleanly. Its intact records compared
+  for 67 paired seconds without sustained divergence, with the same log limit.
+- MCC DigsiteMP/1 with 63 bots and the worker admitted all 65 participants
+  using normal startup timeouts. After the glow endpoint fix, both peers
+  exited cleanly without assertions; intact records compared for 73 paired
+  seconds without sustained divergence. This uses two GulchCE peers and the
+  existing MCC protocol, not an upstream OpenCE client.
+
 The 63-bot/menu/cheat completion was reviewed as a combined implementation,
 including generated screens, shared hooks, failure rollback, ownership and
 cleanup. Runtime rendering exposed and fixed a description-ownership bug:
@@ -278,7 +351,7 @@ management feedback must have an owned text buffer with no string list,
 otherwise rendering replaces it every frame. The host's assigned player
 slot is encoded before publishing a join, and existing lobby focus is kept.
 
-Completion validation on Windows:
+Earlier 63-bot/menu/cheat completion validation on Windows:
 
 - Windows, Android guest/host and web release builds passed with the original
   PGO options restored. Android Java compiled against SDK 35; Java layout and
@@ -313,7 +386,8 @@ Completion validation on Windows:
 The Windows web-build test module has six POSIX path/header failures despite
 the web build succeeding; Linux CI supplies the native fixture environment.
 Android physical-device interaction, an Internet game through a broker, and
-live cross-family map changes are not established by these checks. Saves
+live cross-family map changes were not established by these earlier checks.
+The follow-up above adds Xbox/CE transition coverage. Saves
 from completed isolated runs are archived losslessly with original paths
 and verified hashes; copied maps and disposable binaries are removed.
 
@@ -357,9 +431,9 @@ Earlier implementation validation on Windows (six bots):
   this is not evidence for every MCC package or arbitrary storage stalls.
 
 Compilation and automated checks do not establish Android touch/gyro feel,
-all vehicle/map combinations, full campaign compatibility or Internet
-interoperability. The native/browser WebRTC harness could not run on this
-Windows host (POSIX build/path assumptions); the Internet game test also
-lacked its MQTT broker. Android device/visual checks and live cross-family
-map transitions remain outstanding. Record subsequent checks with the
-implementation commit; do not treat suggested checks as results.
+all vehicle/map combinations or full campaign compatibility. The
+native/browser WebRTC harness could not run on this Windows host (POSIX
+build/path assumptions); Linux CI runs it with Chromium and Firefox. An
+Internet game through a broker, Android device/visual checks and live map
+transitions involving MCC remain outstanding. Record subsequent checks with
+the implementation commit; do not treat suggested checks as results.
