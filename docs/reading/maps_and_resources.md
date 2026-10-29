@@ -187,6 +187,20 @@ to a complete weapon/parent draw, preventing inherited components from using
 different margins. Stock gameplay message offsets also use native margins;
 High-Res controller glyph dimensions and text spacing match the native HUD.
 
+MCC cutscene titles have a separate drawing adjustment:
+[`cinematic_render`](../../source/cutscene/cinematics.c) first resolves the
+authored/default rectangle and its widescreen position, then
+`mcc_hud_title_bounds` in
+[`mcc_hud_draw.c`](../../port/linux/game/mcc_hud_draw.c) expands non-wrapping
+lines toward the screen edges while preserving their left, right or center
+anchor and vertical bounds. Warthog Rally authors centered titles in a
+160-unit box even for longer trophy messages; the native clipping rectangle
+would hide their endings. Wrapping titles retain their authored rectangle.
+Only the temporary draw rectangle changes, so unloading MCC leaves no title
+layout state behind and Xbox/Custom Edition keep the native path. See the
+[title regression tests](../../tools/harness/tests/test_cinematic_titles.py)
+and [MCC evidence](../mcc_maps.md#cutscene-title-layout).
+
 For example, Descent's curved meters use RGB as shape coverage and alpha as
 fill order. `mcc_meter_usage` and `mcc_channels` in
 [`mcc_bitmaps.c`](../../port/linux/game/mcc_bitmaps.c) create the appropriate
