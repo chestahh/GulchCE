@@ -1221,7 +1221,11 @@ boolean cache_files_give_time_to_precache(
 			short status = cache_files_precache_map_status(&progress);
 
 			if (status == 2)
-				display_error_damaged_media();
+			{
+				/* port: CE explains its refusal without changing the fatal path. */
+				if (!custom_edition_cache_display_error(map_name))
+					display_error_damaged_media();
+			}
 			else if (status == 1)
 				cache_files_precache_map_end();
 		}
@@ -1229,7 +1233,11 @@ boolean cache_files_give_time_to_precache(
 		{
 			cache_files_precache_set_priority(0);
 			if (!cache_files_precache_map_begin(map_name, FALSE))
-				display_error_damaged_media();
+			{
+				/* port: Xbox retains its fixed error; CE supplies its own text. */
+				if (!custom_edition_cache_display_error(map_name))
+					display_error_damaged_media();
+			}
 		}
 	}
 

@@ -1484,7 +1484,11 @@ static void main_new_map(
 	{
 		if (mcc_main_load_failed(options->map_name))
 			return;
-		error(_error_immediate, "game_load() failed.");
+		/* port: keep the existing fatal load path, but name the CE failure. */
+		if (custom_edition_level_name(options->map_name))
+			error(_error_immediate, "%s", custom_edition_cache_load_error(options->map_name));
+		else
+			error(_error_immediate, "game_load() failed.");
 	}
 
 	if (!errors_handle())

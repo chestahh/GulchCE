@@ -8,6 +8,9 @@ struct bitmap_data;
 
 struct mcc_runtime {
     char level_name[64]; /* Canonical MCC package/map, retained through conversion. */
+    /* First terminal conversion/resource failure; probes own a separate runtime.
+     * The UI copies its explanation before this runtime is disposed. */
+    char failure[320];
     unsigned char *tags;
     unsigned char *tag_index;
     uint32_t used;

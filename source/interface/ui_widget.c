@@ -1490,6 +1490,8 @@ static wchar_t const *const kills_to_win_extra_descriptions[] =
 /* port: an error message of the port's own text (display_error_text_deferred):
 the text waiting for its dialog, then the dialog's text box showing it */
 static wchar_t const *ui_widget_port_error_pending_text = NULL;
+/* port: one synchronous fatal-screen call; its text is copied by the caller. */
+static wchar_t const *ui_widget_port_fatal_text = NULL;
 static wchar_t const *ui_widget_port_error_text = NULL;
 static struct widget_instance *ui_widget_port_error_text_box = NULL;
 
@@ -4739,13 +4741,35 @@ void display_error_abort_to_dashboard(
 		widget->parameters.text_box.string_list_index = error_code;
 		widget->widget_is_error_dialog = TRUE;
 		dashboard_abort_error = error_code;
+		/* port: keep the fatal screen and lifecycle, with a loader's explanation. */
+		if (ui_widget_port_fatal_text)
+		{
+			ui_widget_port_error_text_box = widget;
+			ui_widget_port_error_text = ui_widget_port_fatal_text;
+		}
 	}
 	else
 	{
 		error(_error_silent, "failed to load '%s' widget", widget_name);
 	}
+	/* port: never carry this override into another error. */
+	ui_widget_port_fatal_text = NULL;
 
 	return;
+}
+
+/* port: CE precache errors need text while retaining display_error_damaged_media's
+fatal behaviour. The copy remains valid throughout its non-returning loop. */
+void display_error_damaged_media_text(wchar_t const *text)
+{
+	static wchar_t message[512];
+	if (text && text[0])
+	{
+		ustrncpy(message, text, NUMBEROF(message) - 1);
+		message[NUMBEROF(message) - 1] = 0;
+		ui_widget_port_fatal_text = message;
+	}
+	display_error_damaged_media();
 }
 
 void display_error_damaged_media(

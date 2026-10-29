@@ -19,6 +19,7 @@ def test_menu_validation_cache(tmp_path):
 #include "cseries.h"
 #include "mcc_precache.h"
 #include "mcc_cache_format.h"
+#include "mcc_errors.h"
 #include <stdio.h>
 #include <string.h>
 #include <assert.h>
@@ -33,21 +34,31 @@ static int mcc_identity_check(char const *name) {(void)name;return identity_ok;}
 static FILE *mcc_open(char const *name, struct mcc_cache_source *s, struct mcc_cache_identity *i) {
     (void)s;(void)i;return name && !strncmp(name,"mcc_maps/",9) ? (FILE *)1 : NULL;
 }
+static FILE *mcc_open_explain(char const *name, struct mcc_cache_source *s, struct mcc_cache_identity *i,
+    char *reason,size_t size) {
+    if(reason && size)reason[0]=0;
+    return mcc_open(name,s,i);
+}
 static int close_stub(FILE *f) {(void)f;return 0;}
 #define fclose close_stub
-static int mcc_resources_probe(char const *name,struct mcc_cache_source const *s,uint32_t *checksum) {
+static int mcc_resources_probe_explain(char const *name,struct mcc_cache_source const *s,uint32_t *checksum,
+    char *reason,size_t size) {
     (void)name;(void)s;probes++;*checksum=123;
+    if(!valid && reason && size)snprintf(reason,size,"No matching sounds.map. Install its MCC package resources beside the level.");
     if(changing)files.files[0].written_low++;
     return valid;
 }
 ''' + declarations + "\n" + helpers + "\n" + "\n".join(function(source, name) for name in
         ["mcc_cache_checksum", "mcc_cache_present"]) + r'''
 int main(void) {
-    char message[256];int i,old;
+    char message[256],reason[320];uint32_t checksum;int i,old;
     char const *name="mcc_maps/package/a10";
     assert(mcc_cache_checksum(name)==123);assert(probes==1 && prepares==1);
     for(i=0;i<100;i++)assert(mcc_cache_present(name,123,message,sizeof(message)));
     assert(probes==1);
+    strcpy(reason,"stale failure");
+    assert(mcc_cache_probe(name,NULL,&checksum,reason,sizeof(reason)));
+    assert(!reason[0] && checksum==123 && probes==1);
     assert(!mcc_cache_present(name,124,message,sizeof(message)));assert(probes==1);
     assert(mcc_cache_checksum(name)==123);assert(probes==1 && prepares==2);
     identity_ok=0;assert(!mcc_cache_present(name,123,message,sizeof(message)));
@@ -60,6 +71,7 @@ int main(void) {
     }
     files.files[0].written_low++;valid=0;old=probes;
     assert(!mcc_cache_present(name,123,message,sizeof(message)));
+    assert(strstr(message,"sounds.map") && strstr(message,"Install"));
     assert(!mcc_cache_present(name,123,message,sizeof(message)));assert(probes==old+2);
     valid=1;assert(mcc_cache_checksum(name)==123);
     stamped=0;old=probes;
@@ -67,6 +79,7 @@ int main(void) {
     assert(mcc_cache_present(name,123,message,sizeof(message)));assert(probes==old+2);
     stamped=1;changing=1;
     assert(!mcc_cache_present(name,123,message,sizeof(message)));
+    assert(strstr(message,"changed during validation"));
     changing=0;assert(mcc_cache_present(name,123,message,sizeof(message)));
     old=probes;assert(mcc_cache_checksum("mcc_maps/other/a10")==123);assert(probes==old+1);
     assert(mcc_cache_checksum(name)==123);assert(probes==old+2);
@@ -77,5 +90,5 @@ int main(void) {
 '''
     path = tmp_path / "validation.c"
     path.write_text(test)
-    binary = compile_tool(tmp_path, [path])
+    binary = compile_tool(tmp_path, [path, ROOT / "port/linux/game/mcc_errors.c"])
     subprocess.run([str(binary)], check=True, capture_output=True)
