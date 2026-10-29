@@ -18,6 +18,8 @@ test_lobby_countdown.py takes the constants, enums and timer structures
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 #define CEILING(n, ceiling) ((n) > (ceiling) ? (ceiling) : (n))
 #define PIN(n, floor, ceiling) ((n) < (floor) ? (floor) : CEILING((n), (ceiling)))
+#define NUMBEROF(array) (sizeof(array) / sizeof((array)[0]))
+#define csmemset memset
 
 #include "config.inc"
 
@@ -34,22 +36,24 @@ struct network_game_server_client_machine
 	boolean joined;
 };
 
+struct network_game
+{
+	short player_count;
+	short minimum_players;
+	struct
+	{
+		struct
+		{
+			boolean teams;
+		} universal_variant;
+	} variant;
+	struct network_player players[MAXIMUM_NETWORK_PLAYER_COUNT];
+};
+
 struct network_game_server
 {
 	short state;
-	struct
-	{
-		short player_count;
-		short minimum_players;
-		struct
-		{
-			struct
-			{
-				boolean teams;
-			} universal_variant;
-		} variant;
-		struct network_player players[MAXIMUM_NETWORK_PLAYER_COUNT];
-	} game;
+	struct network_game game;
 	struct network_game_server_client_machine client_machines[MAXIMUM_NETWORK_MACHINE_COUNT];
 	struct network_game_server_countdown_state countdown_state;
 };
@@ -61,6 +65,11 @@ static unsigned long system_milliseconds(void) { return 1000; }
 static boolean network_game_should_accept_remote_connections(void) { return TRUE; }
 static boolean network_game_is_splitscreen_local(void) { return FALSE; }
 static boolean network_player_is_valid(struct network_player *player) { return player->valid; }
+static int network_bots, network_option, host = TRUE;
+static byte owned[BOTS_MAXIMUM];
+static int config_boolean(char const *name) { (void)name; return network_option; }
+static void bots_management_reset(void) { }
+static struct network_game_server *global_network_game_server_get(void) { return host ? &server : NULL; }
 static boolean network_game_server_client_machine_is_joined_to_game(
 	struct network_game_server *s,
 	struct network_game_server_client_machine *machine)
@@ -133,6 +142,67 @@ static void start_now(void)
 int main(int argc, char **argv)
 {
 	char const *case_name = argc > 1 ? argv[1] : "";
+	long index;
+
+	if (!strncmp(case_name, "bots-", 5) || strstr(case_name, "-bot-start") || strstr(case_name, "-bots-start"))
+	{
+		long count = !strcmp(case_name, "one-bot-start") ? 1 :
+			!strcmp(case_name, "63-bots-start") ? 63 : 31;
+		boolean blocked = !strcmp(case_name, "bots-team-rule") || !strcmp(case_name, "bots-minimum-rule") ||
+			!strcmp(case_name, "bots-paused") || !strcmp(case_name, "bots-no-machine");
+		lobby(!strcmp(case_name, "bots-no-machine") ? 0 : 1);
+		server.game.variant.universal_variant.teams = TRUE;
+		network_option = TRUE;
+		bots_network_session_begin();
+		add_player(0, 0);
+		for (index = 0; index < count; index++)
+		{
+			add_player(BOTS_FIRST_MACHINE + index, !strcmp(case_name, "bots-team-rule") ? 0 : (index + 1) % 2);
+			bots_player_ownership(BOTS_FIRST_MACHINE + index, TRUE);
+		}
+		if (!strcmp(case_name, "split-screen-bots-start")) add_player(0, 1);
+		CHECK(bots_lobby_can_start(&server.game), "owned bots did not extend lone human permission");
+		if (!strcmp(case_name, "bots-ownership-lifecycle"))
+		{
+			CHECK(!bots_lobby_can_start(NULL), "null game accepted");
+			host = FALSE;
+			CHECK(!bots_lobby_can_start(&server.game), "client granted bot permission");
+			host = TRUE;
+			server.game.players[0].valid = FALSE;
+			CHECK(!bots_lobby_can_start(&server.game), "bot-only lobby accepted");
+			server.game.players[0].valid = TRUE;
+			bots_network_session_end();
+			CHECK(!bots_lobby_can_start(&server.game), "disposed ownership survived");
+			bots_network_session_begin();
+			CHECK(!bots_lobby_can_start(&server.game), "high-ID humans treated as bots");
+			for (index = 0; index < count; index++) bots_player_ownership(BOTS_FIRST_MACHINE + index, TRUE);
+			CHECK(bots_lobby_can_start(&server.game), "new session ownership refused");
+			for (index = 0; index < count; index++) bots_player_ownership(BOTS_FIRST_MACHINE + index, FALSE);
+			start_now();
+			CHECK(!server.countdown_state.active, "unowned high IDs bypassed start gate");
+			network_option = FALSE;
+			bots_network_session_begin();
+			for (index = 0; index < count; index++) bots_player_ownership(BOTS_FIRST_MACHINE + index, TRUE);
+			CHECK(!bots_lobby_can_start(&server.game), "disabled network bots granted permission");
+			return 0;
+		}
+		if (!strcmp(case_name, "bots-minimum-rule")) server.game.minimum_players = count + 2;
+		if (!strcmp(case_name, "bots-paused")) server.countdown_state.paused = TRUE;
+		if (!strcmp(case_name, "bots-second-machine"))
+		{
+			join_machine(1);
+			add_player(1, 0);
+			CHECK(!bots_lobby_can_start(&server.game), "two human machines called a lone host");
+		}
+		if (!strcmp(case_name, "bots-existing-countdown"))
+		{
+			server.countdown_state.active = TRUE;
+			countdown_timer_set_time_remaining(&server.countdown_state.timer, NETWORK_GAME_COUNTDOWN_TIME);
+		}
+		start_now();
+		CHECK(server.countdown_state.active == !blocked, "bot lobby countdown: active=%d", server.countdown_state.active);
+		return 0;
+	}
 
 	CASE("split-screen-start-now")
 	{

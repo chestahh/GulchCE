@@ -4266,7 +4266,9 @@ void network_game_server_update_countdown(
 				{
 					if (network_game_should_accept_remote_connections() == FALSE ||
 						network_game_server_get_client_machine_count(server) > 1 ||
-						server_players_on_one_machine(server))
+						server_players_on_one_machine(server) ||
+						/* port: owned bots have machine IDs but no connections. */
+						bots_lobby_can_start(&server->game))
 					{
 						unsigned long countdown;
 
