@@ -124,6 +124,6 @@ void render_prepare_end(void);
 void texture_prepare_map(void);
 int render_prepare_texture(void const *header);
 /* port/linux/game/material_prepare.c: optional loading-only shader selection. */
-#include "material_prepare.h"
+#include "../game/material_prepare.h"
 
 #endif
