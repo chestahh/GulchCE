@@ -117,4 +117,13 @@ char const *server_director_first_level(void);
 /* port/linux/src/touch_gyro.c: consume zoom-only gyro input outside zoom. */
 void halo_linux_gyro_filter(int zoomed, float *yaw, float *pitch);
 
+/* port/linux/src/shader_prepare.c, through the active GL backend. */
+void render_prepare_map(char const *name);
+void render_prepare_end(void);
+/* port/linux/game/texture_prepare.c: bounded Xbox/CE preparation, default off. */
+void texture_prepare_map(void);
+int render_prepare_texture(void const *header);
+/* port/linux/game/material_prepare.c: optional loading-only shader selection. */
+#include "material_prepare.h"
+
 #endif

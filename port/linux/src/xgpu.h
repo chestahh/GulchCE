@@ -59,6 +59,10 @@ int xgpu_gl_ready(void);
 may give its name to a new texture (call before glDeleteTextures) */
 void xgpu_gl_texture_deleted(unsigned int texture);
 
+GLuint xgpu_texture_name_new(void);
+void xgpu_texture_names_prepare(void);
+void xgpu_texture_names_dispose(void);
+
 /* a compiled shader, or a linked program of two, or 0 with the log
 written */
 GLuint xgpu_compile_shader(GLenum type, const char *code, const char *what);
@@ -171,6 +175,8 @@ struct nv2a_pixel_shader_key
 	unsigned char mcc_bump_attenuation;
 	/* Optional model-light falloff/occlusion, only for selected point lights. */
 	unsigned char plasma_model;
+	/* The procedural surface is needed only while a shield draw enables it. */
+	unsigned char shield_honeycomb;
 };
 
 char *nv2a_pixel_shader_to_glsl(const struct nv2a_pixel_shader_key *key);
@@ -237,6 +243,7 @@ void xgpu_statistics_texture_upload(unsigned long bytes);
 /* MCC-owned immutable resources never enter the guest physical texture cache. */
 BOOL xgpu_mcc_texture_get(DWORD const *resource, D3DCOLOR const *palette,
 	GLuint *texture, GLenum *target, struct xgpu_texture_description *description);
+BOOL xgpu_mcc_texture_describe(DWORD const *resource, struct xgpu_texture_description *description);
 BOOL xgpu_mcc_texture_upload(GLuint texture, GLenum target,
 	struct xgpu_texture_description const *description, void const *pixels,
 	unsigned long bytes, D3DCOLOR const *palette);

@@ -261,6 +261,18 @@ static const struct config_setting config_settings[] =
 		"Keep the GPU programs the game links under the save root (shader_cache),\n"
 		"and load them from there next time instead of linking them again, which\n"
 		"stalls a frame on some drivers; false links each every run." },
+	{ "display.shader_prepare", _config_boolean, "false", "HALO_SHADER_PREPARE", _environment_value, _platform_desktop,
+		"Prepare observed shader pairs and bounded opaque/transparent material\n"
+		"variants while loading. Uses recipe files in shader_cache and can\n"
+		"extend loading. Effects outside this pass still prepare on first use." },
+	{ "display.mcc_texture_prepare_mb", _config_integer, "0", "HALO_MCC_TEXTURE_PREPARE_MB", _environment_value, _platform_desktop,
+		"MCC only: prepare large non-paletted textures during loading, within\n"
+		"this estimated GPU memory budget in MiB (0 disables, maximum 512).\n"
+		"Does not change texture quality or the Xbox/Custom Edition caches." },
+	{ "display.texture_prepare_mb", _config_integer, "0", "HALO_TEXTURE_PREPARE_MB", _environment_value, _platform_desktop,
+		"Xbox/Custom Edition: prepare non-paletted textures while loading.\n"
+		"Budget in MiB (0 disables, maximum 128), conservatively accounting\n"
+		"for both guest and GPU storage. MCC uses its own preparation budget." },
 	{ "display.per_pixel_lighting", _config_boolean, "false", "HALO_PER_PIXEL_LIGHTING", _environment_value,
 		_platform_all,
 		"Light the models (characters, weapons, vehicles, scenery) for each\n"
