@@ -1519,7 +1519,7 @@ def _password_screen() -> list:
 
 def _bots_link(base, name, host_only=False):
     target = f"{PE}/network_setup/bots/bots_screen"
-    return _widget(f"{base}/{name}", [("type", "text"), ("width", 118), ("height", 24),
+    return _widget(f"{base}/{name}", [("type", "text"), ("width", 128), ("height", 24),
         ("bitmap", "bitmaps/text_button_background"), ("text", "BOTS"), ("font", "ui\\small_ui"),
         ("color", "#FFFFFFFF"), ("align", "center"), ("text_y", 2)],
         ([ '<on event="created" run="port bots host entry"/>' ] if host_only else []) +
@@ -1905,10 +1905,11 @@ def _lobby() -> list:
                      # (SWITCH TEAM first: hidden in a game without teams, which
                      # moves the focus to the first shown, START NOW; at the end
                      # it traps none)
-                     [f'<child widget="{base}/lobby_button_team" x="120" y="1"/>',
-                      f'<child widget="{base}/lobby_button_start" x="250" y="1"/>',
-                      f'<child widget="{base}/lobby_button_add" x="380" y="1"/>',
-                      f'<child widget="{base}/lobby_button_leave" x="510" y="1"/>',
+                     # Five full-width button backgrounds fit the 640-wide bar.
+                     [f'<child widget="{base}/lobby_button_team" x="128" y="1"/>',
+                      f'<child widget="{base}/lobby_button_start" x="256" y="1"/>',
+                      f'<child widget="{base}/lobby_button_add" x="384" y="1"/>',
+                      f'<child widget="{base}/lobby_button_leave" x="512" y="1"/>',
                       f'<child widget="{base}/lobby_button_bots" y="1"/>'])
     lines += _bots_link(base, "lobby_button_bots", host_only=True)
     for key, caption, handlers in (
