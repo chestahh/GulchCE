@@ -422,7 +422,7 @@ static int game_modes_kind(int const *variant,int const *options) {(void)options
 static int network_game_server_get_state(void *server,void *state) {(void)server;(void)state;return 0;}
 static int network_game_server_game_is_loading(void *server) {(void)server;return 0;}
 ''' + defines + '\n#define BASE_VERSION ' + base + r'''
-static unsigned int mcc_protocol_version(char const *map) {return map[0] ? MCC_PROTOCOL_VERSION : BASE_VERSION;}
+unsigned int mcc_protocol_version(char const *map) {return map[0] ? MCC_PROTOCOL_VERSION : BASE_VERSION;}
 static void write_advertisement(byte *bytes,int kind,int mcc) {
     struct {byte reserved[26];} advertisement={{0}};
     struct game data={{""},0,0};
