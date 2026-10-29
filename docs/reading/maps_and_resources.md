@@ -237,6 +237,17 @@ adds the gain; older supported snapshots restore it to 1. This required MCC
 protocol 56; the later thread-storage extension uses 57. The verified OpenCE
 protocol is unchanged.
 
+For scripted inventory replacement, follow the MCC-only `player_add_equipment`
+registration in [`mcc_scripts.c`](../../port/linux/game/mcc_scripts.c) to
+[`mcc_player_add_equipment`](../../port/linux/game/mcc_player.c). A reset removes
+the held weapon before calling the existing profile-assignment service. For
+example, Meincrap 2 switches by readying a dummy weapon, then replacing it
+with a profile's real weapon and fresh dummy. Keeping the old held dummy
+prevents the switch from settling. Add-only calls retain existing equipment;
+clients wait for the host's object and inventory replication. The adapter has
+no persistent state, and Xbox/CE retain their original script registration.
+See [equipment compatibility](../mcc_maps.md) for evidence and boundaries.
+
 Halo Kart's NPC steering and pickups run through the same deeply nested `main`
 script. Exceeding the native 512-byte stack stopped that script.
 [`mcc_script_threads.inl`](../../port/linux/game/mcc_script_threads.inl)
