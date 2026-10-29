@@ -22,7 +22,8 @@ their existing map loaders, limits, rules and resource ownership.
   Aircraft navigation is not implemented. Switching this option off asks
   seated bots to leave; disabling enhanced bots takes effect on the next map.
 - `bots.network = true` permits bots on a network host. Set it before
-  creating the host; `bots.count`, `bots.skill` and `bots.teams` still apply.
+  creating the host or apply it with **OK** in the lobby's Bots settings;
+  `bots.count`, `bots.skill` and `bots.teams` still apply.
   Up to 63 bots join, subject to the lobby's player limit (63 bots plus one
   human need at least 64 player slots). The default count remains zero.
 - In the CE menus, **Settings > Network > Bots** configures count, network
@@ -69,9 +70,12 @@ The complete settings and environment variables are in
 ## Read the bot flow
 
 1. [bots_network.c](../../port/linux/game/bots_network.c):
-   `bots_network_session_begin` latches admission policy;
+   `bots_network_session_begin` initializes admission policy;
    `bots_player_ownership` records synthetic players actually created by
    this host. A high machine number alone never grants bot ownership.
+   `bots_network_lobby_enable` changes admission only after the bot management
+   module checks the pregame state and unused machine IDs. Disabling it
+   removes lobby bots but retains the reservation until session disposal.
 2. [network_server_manager.c](../../source/networking/network_server_manager.c):
    `network_game_server_port_bots` retains the existing lobby, team and
    capacity rules. An opted-in host reserves the final 63 machine IDs;
@@ -86,6 +90,12 @@ The complete settings and environment variables are in
    to Xbox, Custom Edition and MCC lobbies. High-ID human players never
    acquire this permission merely from their IDs.
    [bots_management.inl](../../port/linux/game/bots_management.inl)'s
+   `bots_lobby_settings_apply` is called by the Bots menu's OK event after
+   saving choices. It checks connections, including pending joins, and
+   unowned high-ID players before enabling bots in an existing network lobby.
+   Conflicts produce an actionable error without stealing a player's ID.
+   It runs the existing lobby reconciliation immediately; clients and hosts
+   already loading or playing only save their choices for a future host.
    `bots_manage` uses that server's existing join/quit dispatch for live
    changes. Admission assigns the authoritative slot before encoding;
    failed encoding rolls back the unannounced record. A departing bot's

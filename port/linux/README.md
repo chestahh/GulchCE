@@ -399,8 +399,14 @@ selects direct paths or side lanes, and `bots.vehicles` enables ground vehicles
 and turrets, with passenger waits, flipping and vehicle-width obstacle learning.
 The optional `bots.thread` path worker uses private snapshots; it defaults off
 and fixed-tick benchmarks always use synchronous searches.
-Enhanced policy takes effect at map load. `bots.network`, set before creating
-the host, permits host-controlled bots in system link and internet games.
+Enhanced policy takes effect at map load. `bots.network` permits host-controlled
+bots in system link and internet games. Enable it before hosting, or press
+**OK** in the lobby's Bots settings to apply it without re-hosting. Turning it
+off there removes the lobby's bots. Once reserved, their machine IDs remain
+reserved until the host closes, so pending updates cannot collide with humans.
+If a human connection already holds one of those IDs, an error asks you to
+re-host with Network Bots enabled. Changes during a match leave its bot policy
+unchanged and are read when creating the next host.
 The CE menus expose these settings at **Settings > Network > Bots**, with
 shortcuts in Create Game and the host's lobby. During a match, **Manage
 Current Bots** adds/removes bots by team without changing the saved count.
@@ -557,7 +563,7 @@ the setting for one start of the game. It has priority over the file.
 | `game.enhanced_animations` | `true` | `HALO_ENHANCED_ANIMATIONS` | `true`: the player bipeds' grenade throws keep their legs moving, blended by speed and direction (crouched throws stay crouched, throws in the air use the jump's legs), Warthog and Scorpion riders stay seated to throw and let go of the grips to throw and reload, and a player turns with the aim while throwing, as while meleeing. `false`: the original animations, which freeze the legs during a throw and stand a rider up. Only in config.toml, not in the menus. |
 | `game.unlock_all_levels` | `false` | `HALO_UNLOCK_ALL_LEVELS` | `true`: a profile created afterward starts with all the campaign levels finished on all the difficulties. `false`: a new profile starts at The Pillar of Autumn, and each level opens when you finish the level before it, as on the Xbox. Existing profiles keep their progress. To start a profile over, type `profile_reset_campaign` in the console. |
 | `bots.enhanced` | `false` | `HALO_BOTS_ENHANCED` | Optional goals, roles, vantage points and powerup choices. Read at map load. |
-| `bots.network` | `false` | `HALO_BOTS_NETWORK` | Host bots through ordinary player replication. Read when creating the host; reserves 63 machine IDs only when enabled. |
+| `bots.network` | `false` | `HALO_BOTS_NETWORK` | Host bots through ordinary player replication. Read when creating the host or applying lobby Bots settings. Enabling reserves 63 free machine IDs until that host closes. |
 | `bots.routes` | `"direct"` | `HALO_BOT_ROUTES` | Enhanced bot routes: `direct`, `lanes` or `mixed`; unreadable/unreachable routes fall back to the base pathfinder. |
 | `bots.vehicles` | `false` | `HALO_BOT_VEHICLES` | Enhanced ground-vehicle and turret use through ordinary controls; no aircraft navigation. |
 | `bots.thread` | `false` | `HALO_BOT_THREAD` | Optional snapshot path worker for enhanced bots. Read at map load; fixed-tick benchmarks remain synchronous. |

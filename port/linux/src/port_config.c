@@ -519,9 +519,9 @@ static const struct config_setting config_settings[] =
 		"Read at map load. False keeps the inherited Slayer bot behavior." },
 	{ "bots.network", _config_boolean, "false", "HALO_BOTS_NETWORK", _environment_value, _platform_all,
 		"Allow host-controlled bots in multiplayer network games. Read when\n"
-		"creating a host. Reserves the last 63 machine IDs for bots only when\n"
-		"enabled; clients use ordinary player replication. False keeps local\n"
-		"bots only and the full human machine capacity." },
+		"creating a host or pressing OK in the lobby's Bots settings. Enabling\n"
+		"reserves 63 free machine IDs until the host closes, even if disabled\n"
+		"again. Clients use ordinary player replication. False by default." },
 	{ "bots.routes", _config_string, "\"direct\"", "HALO_BOT_ROUTES", _environment_value, _platform_all,
 		"Enhanced bots' routes: \"direct\", \"lanes\" or \"mixed\". Direct takes\n"
 		"the shortest route; lanes spreads attackers across side routes." },
