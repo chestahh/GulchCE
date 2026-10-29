@@ -181,16 +181,25 @@ client clears queued requests and releases menu-owned switches. Existing
 host cheat semantics and object replication are reused; this menu adds no
 network messages or client-side cheat settings.
 
-Host access does not establish that every existing cheat synchronizes correctly.
-Two-instance Windows checks of the Android game-side module accepted host requests,
-rejected client requests and restored menu-owned invincibility after reset on Xbox,
-Custom Edition and MCC multiplayer maps and Xbox campaign co-op. The MCC and co-op
-comparisons passed; Xbox and Custom Edition multiplayer comparisons reported
-persistent weapon-inventory differences after spawning weapons. A production
-desktop-console run reproduced this on Xbox Blood Gulch using `cheat_all_weapons`;
-the cheat implementation and object replication were unchanged by Android access.
-Treat weapon-spawn synchronization as separate existing work. These checks do not
-replace physical Android touch or Android-to-desktop network testing.
+Both the desktop console and Android menu reach `cheat_all_weapons` in
+[cheats.c](../../source/game/cheats.c). Its map-supplied weapon list, or its fallback
+enumeration of loaded weapon tags, can include CTF flags and Oddball balls. These
+objective items need ownership assigned by the game mode. The generic cheat spawn
+has no such owner, so `distributed_client_change_valid` in
+[network_objects.c](../../port/linux/game/network_objects.c) rejects them. The host
+could still pick them up, leaving clients unable to reproduce its inventory.
+
+`cheat_objects` now skips weapons with the objective flag (the same bit used by
+`weapon_is_flag`) when the game is a network host. This applies to both weapon-list
+paths and both cheat interfaces. For example, spawning all weapons in Blood Gulch
+creates ordinary weapons without adding unowned flags or balls. Offline spawning,
+powerups, vehicles and the game modes' own objective creation retain their paths.
+This is a shared cheat-spawn correction, not an MCC adapter or a change to client
+validation. It adds no state, messages or peer agreement requirement: protocol 39
+and MCC's separate protocol remain unchanged.
+
+Host access does not establish that every cheat synchronizes correctly; physical
+Android touch and Android-to-desktop network testing remain separate checks.
 
 Cinematics suspend requests without losing owned toggle
 values. Disabling the menu or leaving the map restores values it changed,
