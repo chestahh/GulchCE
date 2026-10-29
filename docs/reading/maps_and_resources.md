@@ -319,6 +319,31 @@ models must agree, retained links must be consistent, and the resulting complete
 tree still passes the usual cycle and reachability checks. Recovery is logged;
 unrelated broken graphs are not automatically accepted.
 
+Issue #79 adds two narrower recoveries in the same MCC validator. Bot Bootcamp's
+cyborg and Arbiter's Demise's Ghost omit child or sibling links; recovery requires
+the associated models to agree on ordered names and every retained edge.
+`mcc_collision_surface_edges` repairs a misplaced first edge only when the
+surface's owned edges form one complete, bounded ring. The original collision
+callback then checks the result; the repair never changes geometry or ownership.
+
+For Extended's dialogue, follow `mcc_audio_prepare`, `mcc_audio_reserve`,
+`mcc_audio_read` and `mcc_audio_dispose` in
+[`mcc_audio.c`](../../port/linux/game/mcc_audio.c). Empty sounds may have an
+unspecified sample rate; a nonempty payload still needs a supported rate.
+Converted audio belongs to each full sound-tag handle, so two sounds may use the
+same virtual offset without sharing bytes. Each allocation stays below 256 MiB,
+with a 1 GiB aggregate budget. The MCC cache passes the existing read's tag handle,
+and the MCC validator checks the current tag's range. Failed loads and unloads
+free every sound's allocation. This does not change Xbox/CE caches or wire data.
+
+`breadcrumbs_navpoints_enabled_override` accepts a literal enable because the
+MCC breadcrumb service is already available. Reads return true; disabling it or
+assigning a computed value is refused. `mcc_spawn_weapons_evaluate` wraps the
+existing weapon-spawn service for MCC scripts, only while an MCC campaign owns
+state and only on the local game or host. It adds no native function-table entry
+or new network message. See [issue #79 evidence and limits](../mcc_maps.md#issue-79-map-compatibility)
+for the maps checked and remaining unsupported behavior.
+
 The public [H1 script reference](https://c20.reclaimers.net/h1/scripting/)
 documents the music-gain and team-query interfaces and identifies `debug_score`
 as a long that does not affect multiplayer score. The map-local implementation
