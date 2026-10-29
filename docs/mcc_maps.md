@@ -1957,7 +1957,7 @@ separate readiness cache did not cover those calls, and opening the map browser
 invalidated readiness even when no files changed. These synchronous reads can
 stall the menu while it is open or returning to the lobby.
 
-`mcc_cache_probe` now retains one successful checksum with the complete
+The original issue #74 fix made `mcc_cache_probe` retain one successful checksum with the complete
 `mcc_precache_snapshot`. Every reuse checks the name and all nine file stamps;
 failed validation or unavailable metadata cannot populate the cache. A change
 while validating refuses the result. The requested network checksum and admitted
@@ -1966,12 +1966,24 @@ clear the result, while catalog rescans can safely reuse unchanged inputs.
 The loader still validates the opened resources independently. All changes are
 in MCC-owned modules; no Xbox/CE implementation or network wire value changes.
 
-Uncached checksum and fingerprint probes use the existing MCC loading feedback.
-`mcc_loading_begin` returns ownership so an inner probe cannot close an outer
-loading screen. A first check can still take several seconds on large packages;
-this does not make validation asynchronous. The native missing-loading-art
-fallback remains unchanged. See the [reader's guide](reading/maps_and_resources.md#mcc-loading-feedback)
-for the call path and lifecycle.
+That initial fix also opened loading feedback for uncached probes. It was
+insufficient: disconnect cleared the result and a settings send during teardown
+could prepare the host identity again. Selecting a map also checked readiness
+synchronously through `main_set_multiplayer_map_name`.
+
+The follow-up keeps host preparation in MCC-owned pregame updates. Menu actions
+schedule a check, host readiness polls completed results, and settings sends
+never initiate validation. A cancellable worker checks complete CRC and SHA-256
+values using only private file readers, with incremental pregame work as a
+fallback when a worker is unavailable. Early start requests wait in pregame;
+four successful file-stamped results survive session teardown, while session
+bindings and unfinished readers are cleared. Any changed resource candidate
+invalidates reuse. Actual loads retain their independent content checks and
+loading display. The renderer, preparation settings, Android protections and
+Xbox/CE paths are unchanged. See the
+[reader's guide](reading/maps_and_resources.md#mcc-loading-feedback) for the
+call path, slice limits and lifecycle. The measurements below describe the
+original fix, not validation of this follow-up.
 
 Validation on Windows x86 portable release, based on `bed24ca3`, reproduced
 multiple resource probes with DigsiteMP/1 (about 1.07 GB of resources) and removed
@@ -1990,6 +2002,40 @@ on its Windows URL-to-path conversion; full browser internet play requires the
 unavailable built site, mosquitto and Xvfb. Linux and cross-platform runtime
 validation remain outstanding. No simulation, transport or protocol value was
 changed, so no network-version increment is needed.
+
+The menu-navigation follow-up was tested on Windows x86 portable release from
+`0a44a1e54`, with an RTX 5070 Ti. Hidden runs navigated from the main menu through
+LAN and Online creation, selected DigsiteMP/10 and DigsiteMP/12, backed out and
+created again. Completed checks were reused across teardown; the logs contain
+no menu loading sessions or repeated resource hashing on re-entry. This checks
+Online menu creation with online discovery disabled, not remote internet play.
+The first check still opens/parses its package on the main thread; this work and
+ordinary first-use rendering can produce smaller frame spikes.
+
+Two-peer runs against the existing installed build passed for MCC DigsiteMP/10
+(65 seconds), Xbox Blood Gulch (41 seconds), and CE Death Island (40 seconds).
+An initial CE stress run had a two-second respawn-position mismatch; neither an
+unchanged-build control nor the repeated mixed-build run reproduced it. No wire
+values, content-hash framing, simulation rules or network version changed.
+
+After the user closed another running game, fresh instrumented gameplay runs
+compared the fix with `main` under matching settings. CE's 601-frame settled
+window had worst frame times of 8.712 ms before and 8.715 ms after, with all 40
+sampled player states identical. Digsite's settled windows stayed below 11 ms
+with preparation enabled or disabled, without frames over 16.7 ms. Its bot
+combat differed between separate runs, so those results are smoke measurements,
+not a controlled speedup claim. Earlier measurements with the other game running
+are inconclusive. First-use/loading frames are outside these settled windows.
+
+Windows built successfully; 260 focused regression checks passed, with one
+POSIX-only socket harness skipped on Windows. Twenty Android/web translation units covering the
+changed implementation and renderer preparation compiled. Full Android/web
+builds remain blocked by Windows launcher/staging commands; browser/native
+transport tests remain blocked by the runner's Windows URL conversion and
+missing mosquitto/built web site. These checks do not establish Android-device,
+Linux or full browser interoperability. Final review kept private file hashing
+off the engine thread, joined it before reader cleanup, retained independent
+load-time content checks, and corrected an outdated GPU-preparation test stub.
 
 ### Missing-unit script calls (issues #50 and #63)
 
