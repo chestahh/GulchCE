@@ -18,7 +18,7 @@ def implementation():
     return code
 
 
-@pytest.mark.parametrize("case", ["measure", "reject", "reservation", "ladder", "climb_recovery", "timeout", "lifecycle"])
+@pytest.mark.parametrize("case", ["measure", "reject", "reservation", "ladder", "climb_recovery", "tall_ladder", "timeout", "lifecycle"])
 def test_navigation(case):
     status, output = run(build("bots_navigation", (("under_test.inc", implementation()),)), case)
     assert status == 0, output

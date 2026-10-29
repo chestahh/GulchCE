@@ -320,12 +320,19 @@ static boolean bots_navigation_follow(struct bots_bot *bot, real_point3d const *
 	target = &link->entrance;
 	if (link->ladder)
 	{
-		if (!route->climb_tick && bots_distance2d(position, target) < 0.35f) route->climb_tick = now;
+		/* Stock bipeds climbed about 0.48 units/second in Boarding Action.
+		Allow three seconds per unit, with bounded approach and landing slack. */
+		long climb_ticks = (long)(MIN(60.0f, MAX(8.0f, 3.0f * (link->top - link->entrance.z))) * TICKS_PER_SECOND);
+		if (!route->climb_tick && bots_distance2d(position, target) < 0.35f)
+		{
+			route->climb_tick = now;
+			route->deadline = now + climb_ticks + 2 * TICKS_PER_SECOND;
+		}
 		if (route->climb_tick)
 		{
 			if (position->z < link->top - 0.25f && !route->top_tick)
 			{
-				if (now - route->climb_tick > 8 * TICKS_PER_SECOND) bots_navigation_drop(bot, TRUE);
+				if (now - route->climb_tick > climb_ticks) bots_navigation_drop(bot, TRUE);
 				*direction = link->climb_direction;
 				return route->phase != _bots_nav_none;
 			}

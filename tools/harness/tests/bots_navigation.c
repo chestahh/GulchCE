@@ -8,6 +8,7 @@
 #define PATH_NODE_LIST_SIZE 16
 #define BOTS_PI 3.14159265f
 #define MAX(a,b) ((a) > (b) ? (a) : (b))
+#define MIN(a,b) ((a) < (b) ? (a) : (b))
 #define csmemset memset
 #define platform_log(...) ((void)0)
 enum { _bots_goal_none, _bots_goal_item, _bots_goal_vehicle, _bots_goal_enhanced };
@@ -121,6 +122,19 @@ int main(int argc, char **argv)
         now += 151;
         bots_navigation_answer(bot, &search, &start, TRUE, FALSE, 0.25f);
         CHECK(route->phase == _bots_nav_none, "failed link retried during cooldown");
+    }
+    else if (!strcmp(argv[1], "tall_ladder"))
+    {
+        route->phase = _bots_nav_going; route->goal = bot->goal_point; route->deadline = now + 240;
+        link->ladder = TRUE; link->top = 5; start = link->entrance;
+        CHECK(bots_navigation_follow(bot, &start, &direction), "climb not started");
+        now += 10 * TICKS_PER_SECOND; start.z = 4;
+        bots_navigation_update(bot, &start, FALSE);
+        CHECK(bots_navigation_follow(bot, &start, &direction) && !link->failures,
+            "tall ladder timed out during stock-speed progress");
+        now += 6 * TICKS_PER_SECOND;
+        CHECK(!bots_navigation_follow(bot, &start, &direction) && link->failures == 1 &&
+            link->successes == 0, "stalled ladder has no bounded timeout");
     }
     else if (!strcmp(argv[1], "climb_recovery"))
     {
