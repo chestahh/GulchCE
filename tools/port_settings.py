@@ -404,26 +404,27 @@ _network["categories"] = [
 ]
 SCREENS["network_setup/bots"] = {
     "screen": "bots_screen", "header": _network["header"], "title": "BOTS", "spacing": 30,
+    "save_event": "port bots settings save",
     "rows": [
         ("BOT COUNT:", "bots.count", [(str(n), str(n)) for n in range(64)],
-         "Bots to add in the lobby, when there is room.\n0 keeps bots off. Up to 63 bots per host.", None),
+         "Set the lobby's bot count, up to 63.\nBots fill the available player slots.", None),
         ("NETWORK BOTS:", "bots.network", ON_OFF,
-         "Allow bots online. Set before creating the host;\nreserves 63 machine slots until that host closes.", None),
+         "Allow bots in a network lobby.\nPress OK to apply before starting.", None),
         ("DIFFICULTY:", "bots.skill", [(s.upper(), s) for s in ("easy", "normal", "heroic", "legendary")],
-         "The host's bot aim, reactions and awareness.", None),
+         "Set bot aim, reactions and awareness.", None),
         ("TEAMS:", "bots.teams", [("EVEN", "even"), ("OPPOSE", "against")],
-         "In the lobby, balance bots between teams or\nplace them opposite the first human player's team.", None),
+         "Balance teams, or put bots on the\nother team from the first human.", None),
         ("ENHANCED BOTS:", "bots.enhanced", ON_OFF,
-         "Tactics and CTF/King goals. Takes effect when\nloading a map. Off preserves the original bots.", None),
+         "Add tactics and CTF/King goals.\nTakes effect when loading a map.", None),
         ("VEHICLES:", "bots.vehicles", ON_OFF,
-         "Enhanced bots may enter and drive ground vehicles\nand use turrets. Off by default.", None),
+         "Enhanced bots can drive vehicles\nand use turrets. Off by default.", None),
         ("ROUTES:", "bots.routes", [(s.upper(), s) for s in ("direct", "lanes", "mixed")],
-         "Enhanced bots can take alternate routes.\nDirect preserves the original route choice.", None),
+         "Let enhanced bots take other routes.\nDirect keeps the original routes.", None),
         ("PATH WORKER:", "bots.thread", ON_OFF,
-         "Optional background path searches for enhanced bots.\nOff by default. Takes effect on the next map.", None),
+         "Run path searches in the background.\nOff by default. Applies next map.", None),
     ],
     "categories": [("MANAGE CURRENT BOTS", "network_setup/bots/manage",
-                    "Host only: add or remove bots during a match.\nThese changes do not alter the saved Bot Count.")],
+                    "Add or remove bots during a match.\nThe saved Bot Count stays the same.")],
 }
 SCREENS["network_setup/map_sharing"] = {
     "screen": "map_sharing_settings_screen", "header": _network["header"], "spacing": 30,
@@ -759,8 +760,9 @@ def _setting_screen(folder: str, spec: dict) -> list:
                           ("font", "ui\\large_ui"), ("color", "#FF2896FF"), ("text_x", 13), ("text_y", 4)], [])
     extra += _button(f"{base}/button_defaults", 3, ['<on event="a" run="port settings defaults"/>',
                                                     '<on event="start" run="port settings defaults"/>'])
-    extra += _button(f"{base}/button_ok", 1, ['<on event="a" run="port settings save" back="true"/>',
-                                              '<on event="start" run="port settings save" back="true"/>'])
+    save_event = spec.get("save_event", "port settings save")
+    extra += _button(f"{base}/button_ok", 1, [f'<on event="a" run="{save_event}" back="true"/>',
+                                              f'<on event="start" run="{save_event}" back="true"/>'])
     extra += _strings(f"{base}/labels", [label for label, *_ in spec["rows"]] +
                       [label for label, *_ in spec.get("categories", ())])
     if spec.get("words"):
@@ -875,6 +877,7 @@ def _controller_screen() -> list:
 SCREENS["network_setup/bots/manage"] = {
     "screen": "bots_manage_screen", "header": _network["header"], "title": "MANAGE BOTS",
     "spacing": 36, "dynamic_help": True, "rows": [],
+    "help_top": 300, "help_height": 110,
     "help_init": "port bots init",
 }
 

@@ -39,10 +39,12 @@ int bots_manage(int add, int team, char *status, long size);
 void bots_management_reset(void);
 /* -1 for an unrelated command, otherwise the host action's success. */
 int bots_console_command(char const *expression);
-/* Host session policy; the network option takes effect when a host is created. */
+/* Host policy is read at creation and may be applied from the pregame menu. */
 void bots_network_session_begin(void);
 void bots_network_session_end(void);
 int bots_network_reserved(void);
+void bots_network_lobby_enable(int enabled);
+int bots_lobby_settings_apply(char *status, long size);
 int bots_session_allowed(void);
 void bots_player_ownership(long machine_index, int present);
 int bots_player_owned(long machine_index);

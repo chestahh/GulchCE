@@ -1,6 +1,6 @@
 /* Host-owned bot admission and input replication. The session uses ordinary
 player records and actions; unmodified OpenCE clients need no bot logic.
-The opt-in machine reservation is fixed when the host is created. */
+Once enabled, the machine reservation lasts until the host closes. */
 #include "cseries.h"
 #include "game/game.h"
 #include "game/game_engine.h"
@@ -16,6 +16,7 @@ The opt-in machine reservation is fixed when the host is created. */
 int config_boolean(const char *name);
 
 static int network_bots;
+static int network_bots_enabled;
 static byte owned[BOTS_MAXIMUM];
 
 int bots_console_command(char const *expression)
@@ -40,6 +41,7 @@ void bots_network_session_begin(void)
 {
 	bots_management_reset();
 	network_bots = config_boolean("bots.network");
+	network_bots_enabled = network_bots;
 	csmemset(owned, 0, sizeof(owned));
 }
 
@@ -47,6 +49,7 @@ void bots_network_session_end(void)
 {
 	bots_management_reset();
 	network_bots = FALSE;
+	network_bots_enabled = FALSE;
 	csmemset(owned, 0, sizeof(owned));
 }
 
@@ -68,7 +71,15 @@ int bots_network_reserved(void)
 
 int bots_session_allowed(void)
 {
-	return global_network_game_server_get() && (network_game_is_splitscreen_local() || network_bots);
+	return global_network_game_server_get() && (network_game_is_splitscreen_local() || network_bots_enabled);
+}
+
+/* Called only after the lobby has checked that no human holds a bot ID.
+Keep the reservation when disabled: peers may still be processing removals. */
+void bots_network_lobby_enable(int enabled)
+{
+	network_bots_enabled = enabled != 0;
+	if (enabled) network_bots = TRUE;
 }
 
 int bots_lobby_can_start(struct network_game *game)
