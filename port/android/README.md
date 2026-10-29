@@ -202,11 +202,14 @@ Gamepads): with "Swap triggers", the right trigger's button says "Grenade".
 The stick moves the player with every "Stick layout", southpaw too.
 
 A finger that holds a button can also swipe to look, so you can fire and
-aim with one thumb. The controls are a finger wide (48 dp) or larger, but
+aim with one thumb ("Held buttons don't aim" in General turns this off).
+The controls are a finger wide (48 dp) or larger, but
 on a small screen of high density they stay apart rather than reach that
 size. A short tap reaches the game even when it is shorter than one frame.
 Swipes that start in the edge-gesture zones of Android do not turn the
-view. The swipe aims as the controller's stick does, not as a mouse: the
+view or place the floating stick, but a control drawn in one still presses
+(Android keeps the zones while the system bars are hidden: with 3-button
+navigation, all of where the bar was). The swipe aims as the controller's stick does, not as a mouse: the
 aim slows over a target and follows a moving one, as with a controller,
 and it follows the profile's "invert look" (the gyroscope turns the view
 as the phone turns, never inverted). The setting `input.touch_aim_assist`
@@ -244,7 +247,8 @@ starts on them turns the view instead.
 
 The app keeps the layout in its own preferences, not in `config.toml`.
 Removing the app's data or the app removes the layout.
-Layout files now use version 4 and still accept versions 1–3. Imported
+Layout files now use version 4 and still accept versions 1–3. OpenCE version-4
+files without GulchCE's cheat gesture field use the three-finger default. Imported
 Options positions are bounded and rescaled to the display. Drawn controls
 accept touches in Android's edge-gesture area; empty-space edge swipes
 remain available to Android.
@@ -302,6 +306,7 @@ These settings are only for Android:
 | `input.touch_aim_assist` | `true` (the default): the touch controls' swipe aiming gets the aim assist of a controller (the aim slows over a target and follows a moving one). `false`: none, as with a mouse; the bullets' own autoaim stays. |
 | `input.touch_controls` | The touch controls in a game. `"auto"` (the default): shown on a touchscreen while no controller is connected. `"on"`: also shown with a controller. `"off"`: never shown. A device without a touchscreen never shows them. The menus take taps in any case. |
 | `display.screen_width` | The number of columns of the 480-line picture. `0` (the default): the shape of the display (1068 on a 20:9 phone). `640`: the 4:3 shape of the Xbox. |
+| `display.resolution_scaling` | Also Linux's, with another default on Android. `"original"` (the default): the game draws the 480 lines of the Xbox, which the display scales up. `"native"`: the game draws at the display's resolution (1080 lines on a 1080p phone). `"75%"`, `"50%"` or `"25%"`: that part of the display's resolution each way, scaled up: less for the GPU to draw, for more frames a second and less heat. Video Setup's Resolution Scaling sets it, from the next frame. |
 | `debug.sample_seconds` | Refer to "Find problems". |
 | `debug.memory_watch` | `true` (the default): the app notices the game's writes to cached textures by page protection. `false`: it compares page contents once a frame instead, which is slower. Geometry uses the streaming path in either mode. Refer to "Limits". |
 

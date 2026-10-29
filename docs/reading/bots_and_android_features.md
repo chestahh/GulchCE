@@ -41,6 +41,8 @@ their existing map loaders, limits, rules and resource ownership.
   sit in its center. General settings can disable aiming with held buttons
   and choose a three- or four-finger tap for enabled offline cheats. Older
   layouts retain their saved controls and gyro behavior when loaded.
+  OpenCE version-4 layouts omit GulchCE's `menu-fingers` field; importing
+  those files uses the existing three-finger cheat gesture default.
 - Android's **Cheat Menu** option adds **Cheats** to touch **Options**.
   It defaults off and is available during offline gameplay only. It exposes
   invincibility, ammunition, bottomless clip, super jump, omnipotence,

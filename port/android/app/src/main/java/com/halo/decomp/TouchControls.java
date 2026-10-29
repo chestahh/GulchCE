@@ -57,15 +57,20 @@ public final class TouchControls extends View implements SensorEventListener, In
     /** what a finger holds besides a control: the view swipe */
     private static final int LOOK = -5;
     private static final int NOTHING = Integer.MIN_VALUE;
-    /** the toolbar's items (at the top of the screen) */
+    /**
+     * the toolbar's items: Hide at the top, Options at the top right until
+     * it is dragged, and the layout editor's Export, Import and Save in the
+     * middle of the screen
+     */
     private static final int TOOLBAR_TOGGLE = -3;
     private static final int TOOLBAR_OPTIONS = -4;
     private static final int TOOLBAR_EXPORT = -6;
     private static final int TOOLBAR_IMPORT = -7;
-    private static final float TOOLBAR_RADIUS = 28;
     private static final int TOOLBAR_SAVE = -8;
-    private static final float EDITOR_SPACING = 78;
+    private static final float TOOLBAR_RADIUS = 28;
     private static final float OPTIONS_RADIUS = TouchLayout.OPTIONS_RADIUS;
+    /** the editor's items, this far apart */
+    private static final float EDITOR_SPACING = 78;
 
     /** the logical grid the controls are laid out on, scaled to the display's height */
     private static final float GRID_WIDTH = 960;
@@ -357,6 +362,7 @@ public final class TouchControls extends View implements SensorEventListener, In
         return Math.max(38, insetTop / scale + 38);
     }
 
+    /** Options: where it was dragged, else at the top right, clear of a cutout */
     private float optionsX() {
         if (layout.optionsMoved())
             return layout.optionsX();
@@ -1006,6 +1012,7 @@ public final class TouchControls extends View implements SensorEventListener, In
         panel.addView(opacityLabel);
         panel.addView(opacity);
 
+        // (scrolled: in portrait, or on a short display, the rows do not all fit)
         ScrollView scroll = new ScrollView(getContext());
         scroll.addView(panel);
         AlertDialog dialog = new AlertDialog.Builder(getContext())
