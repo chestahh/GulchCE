@@ -74,6 +74,16 @@ are stored in a `long`. Likewise, an array of local-player values cannot
 be indexed by either handle. The compiler sees similar integer types; the
 program's contracts give them different meanings.
 
+An object can also have no player owner. For example, multiplayer overshield
+decay in `object_damage_update` in [damage.c](../../source/objects/damage.c)
+can reach `hud_tick_shield` with `NONE`. The HUD function in
+[hud_unit.c](../../source/interface/hud_unit.c) skips that notification before
+looking up a player; decay still runs normally on the object. Monaco's
+multiplayer startup exposed the inherited invalid lookup. Local players
+still receive the HUD adjustment, while remote players have no local HUD
+to update. [test_hud_shield_tick.py](../../tools/test_hud_shield_tick.py)
+checks these three ownership cases against the real function.
+
 Pointers returned by lookups refer to engine-owned storage. They are not
 permission to free that storage, and retaining one across deletion or map
 unload can outlive its referent. When following a long-lived field, look
