@@ -69,6 +69,15 @@ The complete settings and environment variables are in
    `network_game_server_port_bots` retains the existing lobby, team and
    capacity rules. An opted-in host reserves the final 63 machine IDs;
    ordinary hosts retain all human machine slots.
+   `network_game_server_update_countdown` also asks `bots_lobby_can_start`
+   in the bot module whether one human machine has owned bots. Those bots
+   have synthetic machine IDs but no connections, so the ordinary
+   **START NOW** request can begin the countdown without another computer
+   joining. This hook only extends the inactive-countdown start gate;
+   existing player minimums, team requirements and countdown pauses still
+   apply. It adds no session state or network messages and applies equally
+   to Xbox, Custom Edition and MCC lobbies. High-ID human players never
+   acquire this permission merely from their IDs.
    [bots_management.inl](../../port/linux/game/bots_management.inl)'s
    `bots_manage` uses that server's existing join/quit dispatch for live
    changes. Admission assigns the authoritative slot before encoding;
@@ -115,6 +124,12 @@ Map disposal frees graph/grid allocations, including partial preparation.
 Respawn releases seat reservations and vantage claims. Session disposal
 clears bot ownership and the network reservation. Map-loading and MCC
 cleanup paths remain unchanged.
+
+`tools/harness/tests/test_lobby_countdown.py` exercises the real countdown
+and bot ownership functions with 1, 31 and 63 bots, split-screen humans,
+existing countdowns, team/minimum/pause checks and session ownership reset.
+It also checks that removing the bot start hook reproduces the failure.
+These asset-free checks do not establish map-loading or gameplay compatibility.
 
 [bots_menu.inl](../../port/linux/game/bots_menu.inl)'s `bots_menu_event`
 connects generated CE widgets to those host operations and displays their

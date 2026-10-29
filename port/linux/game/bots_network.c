@@ -8,6 +8,7 @@ The opt-in machine reservation is fixed when the host is created. */
 #include "memory/data.h"
 #include "game/player_queues_new.h"
 #include "networking/network_game_globals.h"
+#include "networking/network_game_manager.h"
 #include "bots.h"
 #include "main/console.h"
 #include <stdio.h>
@@ -68,6 +69,28 @@ int bots_network_reserved(void)
 int bots_session_allowed(void)
 {
 	return global_network_game_server_get() && (network_game_is_splitscreen_local() || network_bots);
+}
+
+int bots_lobby_can_start(struct network_game *game)
+{
+	long index;
+	short human_machine = NONE;
+	int has_bot = FALSE;
+	if (!game || !bots_session_allowed()) return FALSE;
+	/* Synthetic players have distinct machine IDs, but no connections. Only
+	owned bots may extend the lone human machine's countdown permission. */
+	for (index = 0; index < (long)NUMBEROF(game->players); index++)
+	{
+		struct network_player *player = &game->players[index];
+		if (!network_player_is_valid(player)) continue;
+		if (bots_player_owned(player->machine_index))
+			has_bot = TRUE;
+		else if (human_machine == NONE)
+			human_machine = player->machine_index;
+		else if (human_machine != player->machine_index)
+			return FALSE;
+	}
+	return has_bot && human_machine != NONE;
 }
 
 void bots_network_record_actions(struct player_action *actions)
