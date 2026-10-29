@@ -38,7 +38,6 @@ def test_empty_cleanup_respects_engine_allocator():
 
 
 def test_vertical_climb_is_not_stuck():
-    code = mutated(implementation(), "if (bots_enhanced_running && bots_navigation_climbing(bot))",
-                   "if (FALSE)")
+    code = mutated(implementation(), "route->climb_tick != 0", "route->climb_tick == 0")
     status, output = run(build("bots_navigation", (("under_test.inc", code),)), "climb_recovery")
     assert status == 1 and "climb mistaken for stuck movement" in output, output
