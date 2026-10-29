@@ -67,6 +67,7 @@ public final class TouchControls extends View implements SensorEventListener, In
     private static final int TOOLBAR_EXPORT = -6;
     private static final int TOOLBAR_IMPORT = -7;
     private static final int TOOLBAR_SAVE = -8;
+    private static final int TOOLBAR_CHEATS = -9;
     private static final float TOOLBAR_RADIUS = 28;
     private static final float OPTIONS_RADIUS = TouchLayout.OPTIONS_RADIUS;
     /** the editor's items, this far apart */
@@ -377,6 +378,14 @@ public final class TouchControls extends View implements SensorEventListener, In
         return logicalHeight / 2;
     }
 
+    private float cheatsX() {
+        return logicalWidth / 2 - toolbarRadius(TOOLBAR_RADIUS) - toolbarRadius(OPTIONS_RADIUS) - 12;
+    }
+
+    private float cheatsY() {
+        return Math.max(toolbarY(), insetTop / scale + toolbarRadius(OPTIONS_RADIUS) + 8);
+    }
+
     private int hitControl(float x, float y) {
         for (int i = 0; i < layout.size(); i++) {
             if (layout.shown(i) && layout.type(i) != TouchLayout.LEFT
@@ -564,6 +573,9 @@ public final class TouchControls extends View implements SensorEventListener, In
         if (inside(x, y, optionsX(), optionsY(), toolbarRadius(OPTIONS_RADIUS)))
             return TOOLBAR_OPTIONS;
         if (!editing) {
+            if (AndroidCheatMenu.available()
+                    && inside(x, y, cheatsX(), cheatsY(), toolbarRadius(OPTIONS_RADIUS)))
+                return TOOLBAR_CHEATS;
             if (inside(x, y, logicalWidth / 2, toolbarY(), toolbarRadius(TOOLBAR_RADIUS)))
                 return TOOLBAR_TOGGLE;
             return hidden ? NOTHING : hitControl(x, y);
@@ -672,7 +684,7 @@ public final class TouchControls extends View implements SensorEventListener, In
             floatStick(x, y);
             target = stick;
         }
-        if (target == TOOLBAR_OPTIONS || target == TOOLBAR_TOGGLE) {
+        if (target == TOOLBAR_OPTIONS || target == TOOLBAR_TOGGLE || target == TOOLBAR_CHEATS) {
             toolbarFingers.put(id, new float[] {px, py, target});
         } else if (target != NOTHING) {
             owners.put(id, target);
@@ -753,6 +765,8 @@ public final class TouchControls extends View implements SensorEventListener, In
             showOptions();
         else if (item == TOOLBAR_TOGGLE)
             setHidden(!hidden);
+        else if (item == TOOLBAR_CHEATS && AndroidCheatMenu.available())
+            AndroidCheatMenu.show(getContext(), this::openDialog);
         performClick();
     }
 
@@ -1331,6 +1345,8 @@ public final class TouchControls extends View implements SensorEventListener, In
             canvas.drawText("Drag the controls and Options, then push Save", middle,
                 editorY() + toolbarRadius(OPTIONS_RADIUS) + 24, paint);
         } else {
+            if (AndroidCheatMenu.available())
+                toolbarItem(canvas, cheatsX(), cheatsY(), OPTIONS_RADIUS, "CHEATS", false);
             toolbarItem(canvas, logicalWidth / 2, toolbarY(), TOOLBAR_RADIUS, hidden ? "Touch" : "Hide", false);
         }
     }

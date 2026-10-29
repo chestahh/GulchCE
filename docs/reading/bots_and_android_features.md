@@ -43,7 +43,11 @@ their existing map loaders, limits, rules and resource ownership.
   layouts retain their saved controls and gyro behavior when loaded.
   OpenCE version-4 layouts omit GulchCE's `menu-fingers` field; importing
   those files uses the existing three-finger cheat gesture default.
-- Android's **Cheat Menu** option adds **Cheats** to touch **Options**.
+- Android's **Cheat Menu** option adds a **CHEATS** touch button beside
+  **Hide/Touch**, as well as **Cheats** in touch **Options**. The button is
+  available during offline gameplay, including when the gameplay controls
+  are hidden; the layout editor and cinematics hide it. Tapping opens the
+  existing dialog through `openDialog`, which releases held controls.
   It defaults off and is available during offline gameplay only. It exposes
   invincibility, ammunition, bottomless clip, super jump, omnipotence,
   no fall damage, Medusa, bump possession, Easy Rider, weapon/powerup/vehicle

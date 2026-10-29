@@ -273,7 +273,10 @@ still stops gyro input.
 
 The **Cheat Menu** setting in **Android Controls** is off by default
 (`android.cheat_menu = false`, `HALO_ANDROID_CHEAT_MENU`). When enabled,
-touch **Options > Cheats** exposes invincibility, unlimited ammunition,
+the **CHEATS** touch button beside **Hide/Touch** opens the menu directly
+during offline gameplay. It remains visible when the gameplay controls are
+hidden, and disappears in the layout editor, cinematics and online games.
+Touch **Options > Cheats** also exposes invincibility, unlimited ammunition,
 bottomless clip, super jump, omnipotence, no fall damage, Medusa, bump
 possession, Easy Rider (no rider ejection), weapon/powerup/vehicle spawning
 and camouflage. It

@@ -20,6 +20,10 @@ final class AndroidCheatMenu {
         return (nativeState() & 1) != 0;
     }
 
+    static boolean available() {
+        return (nativeState() & 3) == 3;
+    }
+
     private static boolean request(Context context, int command) {
         if (nativeRequest(command)) return true;
         Toast.makeText(context, "Cheats unavailable or queue busy", Toast.LENGTH_SHORT).show();
