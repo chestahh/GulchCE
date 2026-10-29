@@ -63,6 +63,20 @@ begin/end scope must restore the world camera, as the FOV chapter explains.
 The same reading habit applies to a texture unit, render target or stencil
 state: identify who sets it, which draws use it and who restores it.
 
+Object shadows have the same begin/end contract. In
+[rasterizer_xbox_shadows.c](../../source/rasterizer/xbox/rasterizer_xbox_shadows.c),
+`_rasterizer_environment_shadow_begin` initializes the shadow volume only
+for the primary render target with environment shadows enabled. It returns
+false for a skipped pass, so `render_object` in
+[render_objects.c](../../source/render/render_objects.c) does not draw or end
+an uninitialized volume. This fixes inherited behavior that returned true
+even for a skipped pass. Monaco exposed it in a secondary reflection view,
+with `structure_clusters_in_sphere` rejecting the uninitialized radius.
+The correction applies to all map families and does not alter MCC conversion
+or enable shadows in reflections. [test_shadow_setup.py](../../tools/test_shadow_setup.py)
+exercises the real setup function for primary and secondary targets, disabled
+shadows and transitions back to an enabled primary pass.
+
 ```mermaid
 flowchart LR
     A[Simulation snapshots] --> B[Rendered poses and cameras]
