@@ -87,6 +87,14 @@ Ctrl+D, which moving and crouching would press, from the browser) */
 #define CROUCH_KEYS "\"Left Ctrl, C\""
 #endif
 
+/* display.resolution_scaling's default: on Android the Xbox's 480 lines, which
+a phone's GPU draws with time to spare, elsewhere the window's resolution */
+#ifdef HALO_ANDROID
+#define RESOLUTION_SCALING "\"original\""
+#else
+#define RESOLUTION_SCALING "\"native\""
+#endif
+
 static const struct config_setting config_settings[] =
 {
 	{ "display.fullscreen", _config_boolean, "true", "HALO_FULLSCREEN", _environment_value, _platform_desktop,
@@ -101,11 +109,13 @@ static const struct config_setting config_settings[] =
 		"What fullscreen and borderless draw at: \"native\", the display's own, or\n"
 		"\"<width>x<height>\" (\"1920x1080\"), 640x480 or more. Fullscreen sets the\n"
 		"display to it; borderless draws it scaled to the display." },
-	{ "display.resolution_scaling", _config_string, "\"native\"", "HALO_RESOLUTION_SCALING", _environment_value,
-		_platform_desktop,
+	{ "display.resolution_scaling", _config_string, RESOLUTION_SCALING, "HALO_RESOLUTION_SCALING", _environment_value,
+		_platform_all,
 		"\"native\" draws at the window's resolution (fullscreen, the display's or\n"
-		"display.resolution); \"original\" draws the Xbox's 640x480 and scales it\n"
-		"up." },
+		"display.resolution; on Android, the display's); \"75%\", \"50%\" or \"25%\"\n"
+		"draw that part of it each way and scale it up; \"original\" draws the\n"
+		"Xbox's 480 lines (640x480; on Android, at the display's shape) and\n"
+		"scales them up, as Android does unless this is set." },
 	{ "display.window_size", _config_string, "\"\"", "HALO_WINDOW_SIZE", _environment_value, _platform_desktop,
 		"The window's size, \"<width>x<height>\" (\"1920x1080\"), 640x480 or more (it\n"
 		"can be resized). Empty: display.window_scale's." },
@@ -501,17 +511,17 @@ static const struct config_setting config_settings[] =
 		"as the game's own maps' are before they run; false refuses them\n"
 		"(docs/custom_edition_caches.md)." },
 	{ "android.cheat_menu", _config_boolean, "false", "HALO_ANDROID_CHEAT_MENU", _environment_value, _platform_android,
-		"Show Cheats in the touch overlay's Options during offline games.\n"
-		"Off by default; never available to network hosts or clients.\n"
+		"Show a CHEATS touch button and Options entry during offline or hosted games.\n"
+		"Off by default; joining clients cannot use it.\n"
 		"Menu-owned switches reset on disabling the menu or leaving a map." },
 	{ "bots.enhanced", _config_boolean, "false", "HALO_BOTS_ENHANCED", _environment_value, _platform_all,
 		"Optional enhanced bots: tactical roles, navigation and CTF/King goals.\n"
 		"Read at map load. False keeps the inherited Slayer bot behavior." },
 	{ "bots.network", _config_boolean, "false", "HALO_BOTS_NETWORK", _environment_value, _platform_all,
 		"Allow host-controlled bots in multiplayer network games. Read when\n"
-		"creating a host. Reserves the last 63 machine IDs for bots only when\n"
-		"enabled; clients use ordinary player replication. False keeps local\n"
-		"bots only and the full human machine capacity." },
+		"creating a host or pressing OK in the lobby's Bots settings. Enabling\n"
+		"reserves 63 free machine IDs until the host closes, even if disabled\n"
+		"again. Clients use ordinary player replication. False by default." },
 	{ "bots.routes", _config_string, "\"direct\"", "HALO_BOT_ROUTES", _environment_value, _platform_all,
 		"Enhanced bots' routes: \"direct\", \"lanes\" or \"mixed\". Direct takes\n"
 		"the shortest route; lanes spreads attackers across side routes." },
@@ -1932,7 +1942,7 @@ static const struct
 } config_words[] =
 {
 	{ "display.mode", { "", "fullscreen", "borderless", "windowed", NULL }, "display.fullscreen's" },
-	{ "display.resolution_scaling", { "native", "original", NULL }, NULL },
+	{ "display.resolution_scaling", { "native", "75%", "50%", "25%", "original", NULL }, NULL },
 	{ "display.anti_aliasing", { "off", "fxaa", "smaa", "ssaa2x", "msaa2x", "msaa4x", "msaa8x", NULL }, NULL },
 	{ "display.hud_button_style", { "classic", "gems", "menu_gems", "dark_gems", "xbox_modern",
 		"ps_classic", "ps_gems", "ps_dark_gems", "ps_modern", "switch_classic", "switch_gems", "switch_modern", NULL }, NULL },

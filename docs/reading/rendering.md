@@ -20,6 +20,21 @@ and the [FOV walkthrough](field_of_view.md) for the timing and camera inputs.
 
 ## Prepare a view before drawing objects
 
+OpenCE's `convex_polygon2d_clip_to_plane` in
+[geometry.c](../../source/math/geometry.c) keeps a corner on the clip line
+when a rounding error would otherwise produce a NaN crossing. This prevents
+that invalid coordinate from hiding later portals for a frame. The fog-screen
+pass keeps each split-screen view's previous camera in its own slot through
+`previous_camera_matrix_for_window` in
+[rasterizer_xbox_environment_fog.c](../../source/rasterizer/xbox/rasterizer_xbox_environment_fog.c).
+Both corrections apply through the existing renderer for every map family.
+
+`screen_mode_choose` in [d3d8_gl.c](../../port/linux/src/d3d8_gl.c) selects
+the render-target scale separately from the game's logical 480-line view.
+Resolution scaling can use native pixels, 75%, 50%, 25%, or the original
+resolution. Android defaults to original and bounds larger targets by the
+GPU limit; the desktop default remains native. Settings apply between frames.
+
 The engine can render several local players. `render_frame` manages the
 frame and windows; `render_player_frame` prepares a player's frustums and
 handles additional views such as mirrors. `render_window` performs drawing
@@ -48,6 +63,21 @@ transparent draws can read them later. GulchCE's
 [viewmodel shield module](../../port/linux/game/viewmodel_shield.c) copies the
 interpolated unit values into its existing per-player arms storage; the shield
 and overshield modules still own their feature state and activation checks.
+
+The render functions use the incoming values saved by
+`object_compute_function_values`, rather than reading the object's current
+inputs. An invisible vehicle weapon can overwrite its parent's inputs after
+the parent ticks; rereading those inputs made Warthog headlights follow the
+gun's illumination with Smooth Motion enabled. The saved inputs live outside
+game state and are checked against the full object handle. Map starts and
+saved-game loads call `object_function_inputs_forget` in the lifecycle of
+[game_state.c](../../source/saved%20games/game_state.c). Until fresh inputs
+exist, or with Smooth Motion disabled, rendering uses the stored tick outputs.
+This shared rendering correction preserves the simulation and the separate
+Xbox, Custom Edition and MCC loading paths. The asset-free
+[picture-function tests](../../tools/harness/tests/test_picture_function_inputs.py)
+cover overwritten inputs, additive functions, reused handles and invalidation;
+they do not establish GPU visibility or lens-flare occlusion correctness.
 
 ## Draw passes have an order and temporary state
 

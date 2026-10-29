@@ -70,8 +70,9 @@ SCREENS = {
             # in place of this one)
             ("WINDOW SIZE:", "display.window_size", [("1280 x 960", "1280x960")],
              "The window's size: 4:3, then 16:10, 16:9 and 21:9\n(its edges can also be dragged).", "desktop"),
-            ("RESOLUTION SCALING:", "display.resolution_scaling", [("NATIVE", "native"), ("ORIGINAL", "original")],
-             "Native draws at the resolution; Original draws\nthe Xbox's 640x480 and scales it up.", "desktop web"),
+            ("RESOLUTION SCALING:", "display.resolution_scaling",
+             [("NATIVE", "native"), ("75%", "75%"), ("50%", "50%"), ("25%", "25%"), ("ORIGINAL", "original")],
+             "Native draws at the resolution, 75% to 25% that\npart each way; Original, the Xbox's 480 lines.", None),
             ("V-SYNC:", "display.vsync", ON_OFF,
              "Wait for the display between frames, so that the\npicture never tears.", None),
             ("FRAME RATE LIMIT:", "display.max_fps",
@@ -229,7 +230,7 @@ SCREENS = {
             ("TOUCH AIM ASSIST:", "input.touch_aim_assist", ON_OFF,
              "Apply controller aim assistance to touch aiming.", "android"),
             ("CHEAT MENU:", "android.cheat_menu", ON_OFF,
-             "Show Cheats in the touch overlay's Options.\nOffline games only. Off by default.", "android"),
+             "Show a CHEATS touch button and Options entry.\nOffline or game host only. Off by default.", "android"),
         ],
         "categories": [("GYRO AIM", "gamepad_setup/gyro",
                         "Phone gyro mode, sensitivity and inversion.\nTouch settings keeps your saved layout.", "android")],
@@ -404,26 +405,27 @@ _network["categories"] = [
 ]
 SCREENS["network_setup/bots"] = {
     "screen": "bots_screen", "header": _network["header"], "title": "BOTS", "spacing": 30,
+    "save_event": "port bots settings save",
     "rows": [
         ("BOT COUNT:", "bots.count", [(str(n), str(n)) for n in range(64)],
-         "Bots to add in the lobby, when there is room.\n0 keeps bots off. Up to 63 bots per host.", None),
+         "Set the lobby's bot count, up to 63.\nBots fill the available player slots.", None),
         ("NETWORK BOTS:", "bots.network", ON_OFF,
-         "Allow bots online. Set before creating the host;\nreserves 63 machine slots until that host closes.", None),
+         "Allow bots in a network lobby.\nPress OK to apply before starting.", None),
         ("DIFFICULTY:", "bots.skill", [(s.upper(), s) for s in ("easy", "normal", "heroic", "legendary")],
-         "The host's bot aim, reactions and awareness.", None),
+         "Set bot aim, reactions and awareness.", None),
         ("TEAMS:", "bots.teams", [("EVEN", "even"), ("OPPOSE", "against")],
-         "In the lobby, balance bots between teams or\nplace them opposite the first human player's team.", None),
+         "Balance teams, or put bots on the\nother team from the first human.", None),
         ("ENHANCED BOTS:", "bots.enhanced", ON_OFF,
-         "Tactics and CTF/King goals. Takes effect when\nloading a map. Off preserves the original bots.", None),
+         "Add tactics and CTF/King goals.\nTakes effect when loading a map.", None),
         ("VEHICLES:", "bots.vehicles", ON_OFF,
-         "Enhanced bots may enter and drive ground vehicles\nand use turrets. Off by default.", None),
+         "Enhanced bots can drive vehicles\nand use turrets. Off by default.", None),
         ("ROUTES:", "bots.routes", [(s.upper(), s) for s in ("direct", "lanes", "mixed")],
-         "Enhanced bots can take alternate routes.\nDirect preserves the original route choice.", None),
+         "Let enhanced bots take other routes.\nDirect keeps the original routes.", None),
         ("PATH WORKER:", "bots.thread", ON_OFF,
-         "Optional background path searches for enhanced bots.\nOff by default. Takes effect on the next map.", None),
+         "Run path searches in the background.\nOff by default. Applies next map.", None),
     ],
     "categories": [("MANAGE CURRENT BOTS", "network_setup/bots/manage",
-                    "Host only: add or remove bots during a match.\nThese changes do not alter the saved Bot Count.")],
+                    "Add or remove bots during a match.\nThe saved Bot Count stays the same.")],
 }
 SCREENS["network_setup/map_sharing"] = {
     "screen": "map_sharing_settings_screen", "header": _network["header"], "spacing": 30,
@@ -759,8 +761,9 @@ def _setting_screen(folder: str, spec: dict) -> list:
                           ("font", "ui\\large_ui"), ("color", "#FF2896FF"), ("text_x", 13), ("text_y", 4)], [])
     extra += _button(f"{base}/button_defaults", 3, ['<on event="a" run="port settings defaults"/>',
                                                     '<on event="start" run="port settings defaults"/>'])
-    extra += _button(f"{base}/button_ok", 1, ['<on event="a" run="port settings save" back="true"/>',
-                                              '<on event="start" run="port settings save" back="true"/>'])
+    save_event = spec.get("save_event", "port settings save")
+    extra += _button(f"{base}/button_ok", 1, [f'<on event="a" run="{save_event}" back="true"/>',
+                                              f'<on event="start" run="{save_event}" back="true"/>'])
     extra += _strings(f"{base}/labels", [label for label, *_ in spec["rows"]] +
                       [label for label, *_ in spec.get("categories", ())])
     if spec.get("words"):
@@ -875,6 +878,7 @@ def _controller_screen() -> list:
 SCREENS["network_setup/bots/manage"] = {
     "screen": "bots_manage_screen", "header": _network["header"], "title": "MANAGE BOTS",
     "spacing": 36, "dynamic_help": True, "rows": [],
+    "help_top": 300, "help_height": 110,
     "help_init": "port bots init",
 }
 
@@ -1515,7 +1519,7 @@ def _password_screen() -> list:
 
 def _bots_link(base, name, host_only=False):
     target = f"{PE}/network_setup/bots/bots_screen"
-    return _widget(f"{base}/{name}", [("type", "text"), ("width", 118), ("height", 24),
+    return _widget(f"{base}/{name}", [("type", "text"), ("width", 128), ("height", 24),
         ("bitmap", "bitmaps/text_button_background"), ("text", "BOTS"), ("font", "ui\\small_ui"),
         ("color", "#FFFFFFFF"), ("align", "center"), ("text_y", 2)],
         ([ '<on event="created" run="port bots host entry"/>' ] if host_only else []) +
@@ -1901,10 +1905,11 @@ def _lobby() -> list:
                      # (SWITCH TEAM first: hidden in a game without teams, which
                      # moves the focus to the first shown, START NOW; at the end
                      # it traps none)
-                     [f'<child widget="{base}/lobby_button_team" x="120" y="1"/>',
-                      f'<child widget="{base}/lobby_button_start" x="250" y="1"/>',
-                      f'<child widget="{base}/lobby_button_add" x="380" y="1"/>',
-                      f'<child widget="{base}/lobby_button_leave" x="510" y="1"/>',
+                     # Five full-width button backgrounds fit the 640-wide bar.
+                     [f'<child widget="{base}/lobby_button_team" x="128" y="1"/>',
+                      f'<child widget="{base}/lobby_button_start" x="256" y="1"/>',
+                      f'<child widget="{base}/lobby_button_add" x="384" y="1"/>',
+                      f'<child widget="{base}/lobby_button_leave" x="512" y="1"/>',
                       f'<child widget="{base}/lobby_button_bots" y="1"/>'])
     lines += _bots_link(base, "lobby_button_bots", host_only=True)
     for key, caption, handlers in (

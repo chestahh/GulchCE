@@ -65,7 +65,7 @@ static unsigned long system_milliseconds(void) { return 1000; }
 static boolean network_game_should_accept_remote_connections(void) { return TRUE; }
 static boolean network_game_is_splitscreen_local(void) { return FALSE; }
 static boolean network_player_is_valid(struct network_player *player) { return player->valid; }
-static int network_bots, network_option, host = TRUE;
+static int network_bots, network_bots_enabled, network_option, host = TRUE;
 static byte owned[BOTS_MAXIMUM];
 static int config_boolean(char const *name) { (void)name; return network_option; }
 static void bots_management_reset(void) { }
