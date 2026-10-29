@@ -2103,3 +2103,100 @@ Linux was not executed. Browser/native transport testing could not start
 because Playwright is absent. Those platform checks remain for CI. Temporary
 map copies and generated caches were removed; logs and verified compressed
 private test saves were retained.
+
+
+## Issue 79 map compatibility
+
+The 2026-10-29 investigation used the supplied version-13 maps against testing
+base `bed24ca319abae84f1de99351642a8ba27710f09`. The implementation stays in
+MCC-owned modules, using existing engine interfaces. No Xbox/CE implementation,
+map directory, native function table, network packet or checkpoint layout changes.
+
+- **Bot Bootcamp A10:** its syntax node 8865 assigns literal true to
+  `breadcrumbs_navpoints_enabled_override`. MCC already exposes breadcrumb
+  availability as true. This assignment and boolean reads now agree with that
+  policy; computed assignments and disables remain explicit errors.
+- **Bot Bootcamp D40:** `characters\ai_bbcmp\aicyborg` omits the neck-to-head
+  child edge. Its associated cyborg model supplies that edge with matching
+  ordered names and parents.
+- **Arbiter's Demise DE1:** `np\objects\vehicles\ghost\hr\ghost` omits
+  sibling edges and stores zero in every parent slot. Its associated model has
+  the matching ten nodes and a complete hierarchy. Recovery fills omissions
+  only when retained edges agree; the complete tree still undergoes cycle,
+  parent and reachability checks.
+- **Super Wacky Funtime Ultimate MCC Edition C20:** the Flood collision model's
+  node 3, BSP 0, surfaces 3 and 5 name starts belonging to the other surface.
+  Their own four-edge rings are intact. MCC selects a start from each complete
+  owned ring, preserving all vertices, planes and edge links, then invokes the
+  existing collision check. Related models expose the same defect. The map also
+  uses `cheat_all_weapons`; an MCC handler invokes the existing service only on
+  the local game or host. Existing host object replication carries the spawns.
+- **Halo CE Extended A30_2:** sound tag 3267,
+  `sound\dialog\infinite\perez\startle`, has sample rate NONE and one empty
+  pitch range. Its unused header is normalized without inventing audio. Nonempty
+  unknown-rate sounds still fail. The next blocker was the old aggregate audio
+  allocation reaching the engine's strict 256 MiB allocation bound. Conversion
+  now retains separate tag-owned streams: this fixture converts 17,992
+  permutations into 401,105,808 ADPCM bytes. Cache reads already carry the full
+  sound tag, and MCC validation now checks the same ownership. Individual
+  streams stay below 256 MiB and aggregate allocated capacity is bounded to
+  1 GiB. All streams are freed on failed load and unload.
+
+The new script entry is appended, preserving existing MCC function indices.
+The weapon operation uses an existing host-only service and replication format;
+audio offsets are local cache data, and newly recovered graphs retain their node
+indices. No new peer agreement or message format is introduced, so the native
+and MCC network versions remain unchanged.
+
+Focused asset-free coverage exercises partial animation links, conflicting
+models and cycles, misplaced collision starts, incomplete rings, sound ownership
+and stale handles, truncated reads, unknown-rate payload rejection, allocation
+failures and teardown. The native sound harness compiles the real converter;
+codec-vector tests continue to verify its output. Campaign tests check weapon
+spawning on the host/local game, refusal on clients and after teardown, and
+restart. The reader's route is in [Maps and resources](reading/maps_and_resources.md).
+
+Final verification used 631 passing automated tests (5 skipped), covering the
+MCC scripting, campaign, media/Vorbis, validation, resources, lifecycle,
+checkpoints, identity, protocol, saved games, syntax and parameters suites,
+plus cache formats and the smoke launcher. The Windows target built successfully.
+On the final executable, Extended A30_2 and Super Wacky Funtime C20 each passed
+120-second hidden startup/simulation runs; Bot Bootcamp D40 and Arbiter DE1 each
+passed 45 seconds. A single hidden process with dummy-device audio enabled
+advanced simulation through Extended A30_2 -> Xbox A10 -> Custom Edition Death
+Island -> Bot Bootcamp A10, then exited normally. Asset-free tests separately
+exercise allocation-failure teardown. Documentation links and named symbols
+were checked. Final review retained the focused MCC ownership boundaries and
+found no further necessary refactoring.
+
+A 90-second hidden, two-instance Bot Bootcamp A10 co-op run joined both players
+and exited normally. `net_compare` compared 51 seconds with no divergences or
+problems under its standard tolerances (135 of 1,459 drift samples apart).
+This is a bounded native loopback check, not a campaign completion or a browser
+transport test. An earlier fixture omitted the lobby's Xbox Carousel map and
+could not start; the corrected fixture supplied it on both peers.
+
+Disposable map fixtures, generated caches and duplicate test binaries were
+removed. Useful logs were retained, and test saves were archived with their
+original relative paths and SHA-256 hashes; every archived entry was verified
+before removing its loose copy. The final Windows executable and debug symbols
+remain available for the coordinating chat. Original supplied maps and saves
+were not modified.
+
+Remaining limitations established during this investigation:
+
+- **CE Third Person Armory** enables I Would Have Been Your Daddy and Grunt
+  Birthday Party. These skull effects are not implemented. The refusal now names
+  the offending global and syntax node; accepting an enable as a no-op would
+  change authored gameplay and is intentionally not done.
+- **PFD** loads and advances simulation during a three-minute idle run, without
+  reproducing the reported post-transition crash. Its assault rifle and M4A1
+  reference the model shader `deathstar\project_subterfuge\shader model\tag_334`
+  as an object modifier. That shader kind remains unsupported in the modifier
+  renderer, and the warning is retained. The original crash still needs a
+  reproducible route or checkpoint; startup success does not resolve it.
+- Windows debug portable builds were used, with PGO and LTO disabled. These are
+  bounded startup/simulation checks, not completed campaigns or visual parity
+  verification. Android and web builds were attempted but their generated shell
+  commands cannot run on this Windows host; WSL is absent. Platform integration
+  must repeat those builds in a supported environment.
