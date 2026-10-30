@@ -21,7 +21,7 @@ def test_honeycomb_translation(tmp_path, platform, omit):
     header = (ROOT/'port/linux/src/xgpu.h').read_text()
     pdb = (ROOT/'port/include/xdk/xdk_pdb.h').read_text()
     code = '#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n#include <stdarg.h>\n#include <assert.h>\n'
-    code += 'typedef unsigned long DWORD;typedef int BOOL;\n#define TRUE 1\n#define FALSE 0\n'
+    code += 'typedef unsigned long DWORD;typedef int BOOL;\n#define TRUE 1\n#define FALSE 0\nstatic BOOL xgpu_reversed_depth;\n'
     if platform != 'desktop': code += '#define HALO_GLES 1\n'
     if platform == 'android': code += '#define HALO_ANDROID 1\n'
     if platform == 'web': code += '#define HALO_WEB 1\n'

@@ -172,6 +172,10 @@ following packet details into those files.
 ## GulchCE compatibility and teardown
 
 Xbox/CE crossplay and MCC sessions have separate protocol boundaries.
+The current baseline is OpenCE 41 and MCC 62. Map-vote messages remain
+upstream IDs 94-95; MCC owns IDs 96-99 and join kind 100. The 512-byte MCC
+admission envelope also fits OpenCE's account-link credentials. This bound
+applies to the host's local join as well as remote MCC clients.
 `mcc_protocol.c` handles capability negotiation, settings sizing and
 connection-scoped admission. Its checks supplement ordinary host authority;
 a capability claim is not trusted identity. MCC-only gameplay messages must
