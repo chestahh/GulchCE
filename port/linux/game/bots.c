@@ -2228,7 +2228,9 @@ static void bots_level_aim_point(struct bots_bot *bot, struct bots_tick *tick, l
 {
 	struct bots_bot_combat *combat = &bot->combat;
 	struct object_datum *target = object_get(target_unit_index);
-	boolean head = tick->weapon_index != NONE && bots_combat_aim_head(bots_globals.skill,
+	/* Enhanced bots own their probabilistic head/SWAT/feet selection below.
+	 * Do not let the base head choice bypass that feature's skill thresholds. */
+	boolean head = !bots_enhanced_running && tick->weapon_index != NONE && bots_combat_aim_head(bots_globals.skill,
 		target->object.shield_vitality, bots_weapon_kind(weapon_get(tick->weapon_index)->definition_index)->precision);
 
 	if (head)
