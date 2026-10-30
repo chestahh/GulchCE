@@ -110,6 +110,16 @@ The complete settings and environment variables are in
    `bots_choose_goal` asks the enhanced module for urgent
    objectives before the inherited combat/item/roaming decisions.
 4. [enhanced_bots.c](../../port/linux/game/enhanced_bots.c):
+   Its enhanced aiming, healing, powerup reach and retreat thresholds use
+   the same six-level enum as upstream combat. Easy, Normal, Heroic and
+   Legendary retain their original enhanced values. Recruit shares Easy's
+   enhanced table row while upstream combat supplies its weaker reactions
+   and aiming; Veteran interpolates Heroic and Legendary. This prevents an
+   inserted skill from silently selecting the next difficulty's tactics.
+   When enhanced bots are enabled, their head/SWAT/feet selection owns the
+   aim-point override; the base automatic head selection must not bypass
+   its probabilities. Other upstream combat rules still run, including
+   reaction, shot pacing, grenade decisions and skill-dependent movement.
    `enhanced_bots_update` caches objective state once per tick;
    `enhanced_bots_goal` selects flag, carrier, hill or vantage destinations.
    A flag carrier keeps advancing while fighting. A bot on the hill holds
