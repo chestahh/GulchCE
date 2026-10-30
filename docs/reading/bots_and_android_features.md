@@ -83,8 +83,9 @@ The complete settings and environment variables are in
    `network_game_server_update_countdown` also asks `bots_lobby_can_start`
    in the bot module whether one human machine has owned bots. Those bots
    have synthetic machine IDs but no connections, so the ordinary
-   **START NOW** request can begin the countdown without another computer
-   joining. This hook only extends the inactive-countdown start gate;
+   **START NOW** request can start play without another computer joining.
+   Upstream now starts immediately for the host; a client request only
+   shortens the countdown. This hook only extends the inactive-countdown start gate;
    existing player minimums, team requirements and countdown pauses still
    apply. It adds no session state or network messages and applies equally
    to Xbox, Custom Edition and MCC lobbies. High-ID human players never
@@ -101,7 +102,12 @@ The complete settings and environment variables are in
    failed encoding rolls back the unannounced record. A departing bot's
    machine identity stays unavailable until after the scheduled quit tick.
 3. [bots.c](../../port/linux/game/bots.c): `bots_update_actions` runs only
-   on the host. `bots_choose_goal` asks the enhanced module for urgent
+   on the host. Upstream `bots_combat.c` supplies six skill levels: Recruit,
+   Easy, Normal, Heroic, Veteran and Legendary. `bots_level_may_fire`,
+   `bots_level_melee` and `bots_level_grenade` apply their combat rules.
+   GulchCE retains Infection zombies' no-gun/no-grenade rule and close-range
+   melee cadence; enhanced navigation, vehicles and objectives stay optional.
+   `bots_choose_goal` asks the enhanced module for urgent
    objectives before the inherited combat/item/roaming decisions.
 4. [enhanced_bots.c](../../port/linux/game/enhanced_bots.c):
    `enhanced_bots_update` caches objective state once per tick;
@@ -133,7 +139,7 @@ bounded working memory (32,768 walkable nodes and a 262,144-entry surface
 lookup at most) and releases it when finished. The optional worker only
 traverses private graph snapshots; bot decisions stay on the host's game
 thread. No network packet, deterministic simulation rule or protocol version
-is added. Xbox/CE network version remains 39. See
+is added. This bot extension does not add to the current upstream Xbox/CE protocol. See
 [NETCODE.md](../../port/linux/NETCODE.md) for authority and transport rules.
 
 Map initialization resets objective, precision-cache and vehicle state.
@@ -195,8 +201,8 @@ paths and both cheat interfaces. For example, spawning all weapons in Blood Gulc
 creates ordinary weapons without adding unowned flags or balls. Offline spawning,
 powerups, vehicles and the game modes' own objective creation retain their paths.
 This is a shared cheat-spawn correction, not an MCC adapter or a change to client
-validation. It adds no state, messages or peer agreement requirement: protocol 39
-and MCC's separate protocol remain unchanged.
+validation. It adds no state, messages or peer agreement requirement; the
+current upstream and separate MCC protocols are described in NETCODE.md.
 
 Host access does not establish that every cheat synchronizes correctly; physical
 Android touch and Android-to-desktop network testing remain separate checks.

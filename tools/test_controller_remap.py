@@ -492,6 +492,7 @@ def test_chat_owner_identity_and_per_port_hold_over(tmp_path):
 #define DATUM_INDEX_TO_ABSOLUTE_INDEX(p) ((p)&65535)
 typedef int boolean;
 static struct {boolean active,physical;short channel,controller;long player;char text[256];} chat_input;
+static short chat_scroll;
 static struct {int open;unsigned long opening_buttons;} chat_keyboard;
 static struct {short local_player_index;} players[4]={{0},{1},{2},{3}};
 static long occupants[4]={0x10004,0x20005,0x30006,0x40007};
@@ -509,7 +510,7 @@ static unsigned char chat_held_analog[4];
 int main(void) {
  XINPUT_GAMEPAD p0={0},p2={0};
  assert(chat_speaker(TRUE)==4);
- chat_input_begin(1,2,TRUE);chat_keyboard.open=1;
+ chat_scroll=3;chat_input_begin(1,2,TRUE);chat_keyboard.open=1;assert(!chat_scroll);
  assert(chat_speaker(TRUE)==6 && chat_speaker(FALSE)==4 && chat_input.channel==1 && network_chat_controller()==2);
  chat_keyboard.opening_buttons=255;
  assert(!chat_keyboard_buttons(255) && !chat_keyboard_buttons(128));
@@ -517,7 +518,7 @@ int main(void) {
  p0.bAnalogButtons[0]=255;p2.bAnalogButtons[0]=255;
  chat_pad_hold_over(0,&p0);chat_pad_hold_over(2,&p2);
  assert(p0.bAnalogButtons[0]==255 && !p2.bAnalogButtons[0]);
- chat_input_end();p2.bAnalogButtons[0]=255;chat_pad_hold_over(2,&p2);assert(!p2.bAnalogButtons[0]);
+ chat_scroll=4;chat_input_end();assert(!chat_scroll);p2.bAnalogButtons[0]=255;chat_pad_hold_over(2,&p2);assert(!p2.bAnalogButtons[0]);
  chat_pad_hold_over(2,&p2);p2.bAnalogButtons[0]=255;chat_pad_hold_over(2,&p2);assert(p2.bAnalogButtons[0]==255);
  chat_input_begin(2,3,TRUE);assert(chat_speaker(TRUE)==7 && chat_input.channel==2);
  occupants[3]=0x50007;assert(chat_speaker(TRUE)==NONE); /* New player, same slot. */
