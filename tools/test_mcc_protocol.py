@@ -104,7 +104,7 @@ int main(void) {
     CHECK(mcc_protocol_unwrap(outer,40,inner,&size));CHECK(size==32 && !memcmp(inner,original,32));
     /* The metadata extension is versioned even though settings retain their
      * size. Reject the previous MCC revision before interpreting settings. */
-    CHECK(MCC_PROTOCOL_VERSION==64);
+    CHECK(MCC_PROTOCOL_VERSION==65);
     ((byte *)outer)[4]=63;
     CHECK(!mcc_protocol_unwrap(outer,40,inner,&size));
     ((byte *)outer)[4]=MCC_PROTOCOL_VERSION;

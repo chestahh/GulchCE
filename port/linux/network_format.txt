@@ -1,4 +1,4 @@
-version 64
+version 65
 bound CHAT_TEXT_SIZE 64
 bound DISCORD_ID_SIZE 24
 bound DISCORD_NAME_SIZE 40
@@ -55,7 +55,16 @@ define MCC_PROTOCOL_ADVERTISED_FLAG 0x08
 define MCC_PROTOCOL_ADVERTISED_VERSION_OFFSET 4
 define MCC_PROTOCOL_JOIN_KIND 100
 define MCC_PROTOCOL_JOIN_MAX 512
-define MCC_PROTOCOL_VERSION 64
+define MCC_PROTOCOL_VERSION 65
+define MCC_SHARE_CHUNK_BYTES 3072
+define MCC_SHARE_CREDIT_SIZE 64
+define MCC_SHARE_LEAF_SIZE 32
+define MCC_SHARE_LEVEL_SIZE 64
+define MCC_SHARE_MAXIMUM_CREDITS 4
+define MCC_SHARE_MAXIMUM_CREDIT_BYTES 0x10000u
+define MCC_SHARE_MAXIMUM_FILE_BYTES 0x30000000u
+define MCC_SHARE_MAXIMUM_TOTAL_BYTES 0x40000000u
+define MCC_SHARE_STAGE_FILES 8
 define MCC_WORKSHOP_WIRE_OFFSET 64
 define MCC_WORKSHOP_WIRE_SIZE 64
 define MCC_WORKSHOP_WIRE_VERSION 1
@@ -115,6 +124,8 @@ enum _distributed_message_mcc_campaign 97
 enum _distributed_message_mcc_game_speed 99
 enum _distributed_message_mcc_grenades 96
 enum _distributed_message_mcc_object_names 98
+enum _distributed_message_mcc_share_request 102
+enum _distributed_message_mcc_share_response 103
 enum _distributed_message_notice 17
 enum _distributed_message_object_changes 5
 enum _distributed_message_object_states 6
@@ -338,4 +349,7 @@ struct distributed_voice_up 3d74ee44e4cb
 struct distributed_votekick_request 7e29ffd54bd1
 struct distributed_votekick_status b94458cdc180
 struct game_variant_options 0e258e4cf85b
+struct mcc_share_entry 66c2657ada44
+struct mcc_share_request 327320bc7edb
+struct mcc_share_response 3c288efa85b1
 struct network_game b3ed48577869

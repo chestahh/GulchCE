@@ -164,6 +164,12 @@ enum
 	_distributed_message_mcc_object_names = 98,
 	/* MCC host-authorized speed, ordered on the reliable stream, even paused. */
 	_distributed_message_mcc_game_speed = 99,
+	/* MCC package sharing (mcc_share.c), in the lobby too, reliably and over the
+	host's connection alone: a joiner's request for the game's package, and the
+	host's response (the list of files, or a chunk of one). Only MCC games of
+	protocol 65 send them; Custom Edition map sharing (83-86) is separate. */
+	_distributed_message_mcc_share_request = 102,
+	_distributed_message_mcc_share_response = 103,
 
 	NUMBER_OF_DISTRIBUTED_MESSAGES
 };
