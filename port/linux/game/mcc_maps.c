@@ -25,6 +25,7 @@ list, loader, resource directory or display index is used here.
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <errno.h>
 #include <xtl.h>
 
 /* main_set_map_name retains 63 characters including the namespace. */
@@ -104,6 +105,22 @@ static void mcc_map_description_read(struct mcc_menu_map *map)
 	}
 }
 
+/* Menu admission is separate from Steam metadata discovery. */
+static void mcc_map_discovery_log(char const *name, char const *reason, long detail)
+{
+#if !defined(HALO_ANDROID) && !defined(HALO_WEB)
+	int saved_errno = errno;
+	if (config_boolean("debug.workshop_discovery"))
+	{
+		fprintf(stderr, "mcc discovery: %s: %s (%ld)\n", name, reason, detail);
+		fflush(stderr);
+	}
+	errno = saved_errno;
+#else
+	(void)name; (void)reason; (void)detail;
+#endif
+}
+
 static void mcc_map_register(char const *name)
 {
 	char path[128], candidate[128], canonical[64];
@@ -114,13 +131,20 @@ static void mcc_map_register(char const *name)
 	struct mcc_workshop_item item;
 	FILE *file;
 	long file_size;
+	enum mcc_cache_status status;
 	size_t name_length = strlen(name), index;
 	boolean start_word = TRUE;
 
 	if (!name_length || name_length > MCC_MAP_FILENAME_MAXIMUM || mcc_menu_catalog.count == MCC_MAPS_MAXIMUM)
-        return;
+	{
+		mcc_map_discovery_log(name, "name length or catalog capacity rejected", (long)name_length);
+		return;
+	}
     snprintf(candidate, sizeof(candidate), "%s%s", MCC_MAPS_LEVEL_PREFIX, name);
-    if (!mcc_package_name(candidate, canonical)) return;
+    if (!mcc_package_name(candidate, canonical)) {
+        mcc_map_discovery_log(candidate, "invalid MCC package name", 0);
+        return;
+    }
     name = canonical + sizeof(MCC_MAPS_LEVEL_PREFIX) - 1;
 	for (index = 0; index < (size_t)mcc_menu_catalog.count; index++)
 	{
@@ -130,16 +154,25 @@ static void mcc_map_register(char const *name)
 	snprintf(path, sizeof(path), "%s%s.map", MCC_MAPS_DIRECTORY, name);
 	file = fopen(path, "rb");
 	if (!file)
+	{
+		mcc_map_discovery_log(path, "cannot open map; errno", errno);
 		return;
+	}
 	if (fseek(file, 0, SEEK_END) || (file_size = ftell(file)) < 0 || fseek(file, 0, SEEK_SET) ||
 		fread(header, 1, sizeof(header), file) != sizeof(header))
 	{
+		mcc_map_discovery_log(path, "cannot read complete map header; errno", errno);
 		fclose(file);
 		return;
 	}
 	fclose(file);
-	if (mcc_cache_identify(header, sizeof(header), (uint64_t)file_size, &identity) != MCC_CACHE_OK)
+	status = mcc_cache_identify(header, sizeof(header), (uint64_t)file_size, &identity);
+	if (status != MCC_CACHE_OK)
+	{
+		mcc_map_discovery_log(path, mcc_cache_status_string(status), (long)status);
 		return;
+	}
+	mcc_map_discovery_log(path, "admitted; scenario type", identity.scenario_type);
 	map = &mcc_menu_catalog.maps[mcc_menu_catalog.count++];
 	memset(map, 0, sizeof(*map));
 	memcpy(map->file_name, name, name_length + 1);
@@ -392,6 +425,7 @@ static void mcc_maps_scan(void)
     mcc_maps_campaign_metadata();
     mcc_maps_menu_metadata();
     error(_error_silent,"mcc maps: %d maps found in mcc_maps and its packages",mcc_menu_catalog.count);
+    mcc_map_discovery_log("catalog", "admitted map count", mcc_menu_catalog.count);
 }
 
 int mcc_maps_next_mission(char const *level_name, char next[64])

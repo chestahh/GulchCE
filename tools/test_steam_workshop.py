@@ -21,6 +21,7 @@ DRIVER = r'''
 #include <string.h>
 #include <ctype.h>
 int config_boolean(const char *name) {
+ if(!strcmp(name,"debug.workshop_discovery")) return getenv("TEST_WORKSHOP_DIAGNOSTICS") != NULL;
  if(!strcmp(name,"game.mcc_campaigns")) return getenv("TEST_MCC_CAMPAIGNS") != NULL;
  const char *value=getenv("TEST_WORKSHOP_ENABLED");(void)name;
  return !value || strcmp(value,"0");
@@ -702,3 +703,32 @@ def test_shared_discovery_checks_other_steam_libraries_and_types_independently(t
     assert Path(run(tool, "translate", "mcc_maps/222/bitmaps.map", **args)[0]["path"]) == package.parent / "222/Maps/bitmaps.map"
     for folder in ("maps", "custom_maps"):
         assert Path(run(tool, "translate", folder + "/sounds.map", **args)[0]["path"]) == data / folder / "sounds.map"
+
+
+@pytest.mark.parametrize("fault,reason", [
+    ("none", "discovered map"),
+    ("metadata", "rejected metadata"),
+    ("engine", "Halo1=0"),
+    ("map_json", "map metadata unavailable"),
+    ("map_file", "file missing/inaccessible"),
+    ("maps_directory", "maps directory missing or inaccessible"),
+])
+def test_diagnostics_explain_discovery_without_changing_results(tool, tmp_path, fault, reason):
+    item = make_item(tmp_path, "111")
+    if fault == "metadata": (item / "ModInfo.json").write_text("bad json")
+    elif fault == "engine": (item / "ModInfo.json").write_text(item_json(Engine="Halo3"))
+    elif fault == "map_json": (item / "Maps/beaver.json").unlink()
+    elif fault == "map_file": (item / "Maps/beaver.map").unlink()
+    elif fault == "maps_directory": (item / "Maps").rename(item / "not_maps")
+    env = dict(os.environ, TEST_STEAM_SETTING=str(tmp_path), TEST_DATA_ROOT=str(tmp_path),
+               TEST_WORKSHOP_ENABLED="1", HOME="/nonexistent", XDG_DATA_HOME="", STEAM_COMPAT_CLIENT_INSTALL_PATH="")
+    env.pop("TEST_WORKSHOP_DIAGNOSTICS", None)
+    quiet = subprocess.run([str(tool), "scan"], env=env, capture_output=True, text=True)
+    env["TEST_WORKSHOP_DIAGNOSTICS"] = "1"
+    traced = subprocess.run([str(tool), "scan"], env=env, capture_output=True, text=True)
+    assert quiet.returncode == traced.returncode == 0
+    assert quiet.stdout == traced.stdout
+    assert "workshop discovery:" not in quiet.stderr
+    assert "scan starts: workshop=1" in traced.stderr
+    assert reason in traced.stderr
+    assert "scan finished:" in traced.stderr

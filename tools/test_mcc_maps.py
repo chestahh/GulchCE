@@ -105,6 +105,7 @@ static unsigned reads, largest, scans, closed;
 void mcc_cache_precache_clear(void) {}
 void mcc_menu_preview_clear(void) {}
 int config_boolean(char const *name) {
+ if(!strcmp(name,"debug.workshop_discovery"))return getenv("TEST_WORKSHOP_DIAGNOSTICS")!=NULL;
  if(!strcmp(name,"game.mcc_campaigns"))return getenv("TEST_MISSIONS")!=NULL;
  char const *disabled=getenv("TEST_COLLECTIONS_DISABLED");(void)name;return !disabled;
 }
@@ -852,3 +853,23 @@ def test_imported_package_titles_do_not_depend_on_steam(catalog_tool,tmp_path,mo
     fields,_=run(catalog_tool,tmp_path,"browse","0","enter:0")
     assert fields["row0_0"].startswith("[Offline package title]|")
     assert fields["row1_0"]=="Authored offline level|mcc_maps\\12345\\arena"
+
+
+def test_diagnostic_admission_trace_keeps_catalog_results(catalog_tool, tmp_path):
+    install(tmp_path, {"valid.map": header(scenario=1), "wrong_version.map": header(version=5),
+                       "short.map": header()[:20]})
+    with (tmp_path / "mcc_maps/list.txt").open("a") as listing:
+        listing.write("\nmissing.map\n")
+    env = dict(os.environ)
+    env.pop("TEST_WORKSHOP_DIAGNOSTICS", None)
+    quiet = subprocess.run([str(catalog_tool), str(tmp_path)], env=env, capture_output=True, text=True, cwd=tmp_path)
+    env["TEST_WORKSHOP_DIAGNOSTICS"] = "1"
+    traced = subprocess.run([str(catalog_tool), str(tmp_path)], env=env, capture_output=True, text=True, cwd=tmp_path)
+    assert quiet.returncode == traced.returncode == 0
+    assert quiet.stdout == traced.stdout
+    assert "mcc discovery:" not in quiet.stderr
+    assert "valid.map: admitted; scenario type (1)" in traced.stderr
+    assert "wrong_version.map:" in traced.stderr
+    assert "short.map: cannot read complete map header" in traced.stderr
+    assert "missing.map: cannot open map" in traced.stderr
+    assert "catalog: admitted map count (1)" in traced.stderr

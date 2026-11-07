@@ -1259,6 +1259,11 @@ static const struct config_setting config_settings[] =
 		"Sentry project (port/windows/src/win32_crash.c): \"yes\" sends them, \"no\"\n"
 		"never does, \"ask\" asks at the next crash and writes the answer here." },
 
+	{ "debug.workshop_discovery", _config_boolean, "false", "HALO_WORKSHOP_DIAGNOSTICS", _environment_value, _platform_desktop,
+		"Log Steam roots, Workshop metadata decisions and MCC map admission to\n"
+		"standard error. Diagnostic reports include local paths and item IDs;\n"
+		"no files are uploaded. Off by default." },
+
 	{ "debug.network_test", _config_string, "\"\"", "HALO_NETWORK_TEST", _environment_value, _platform_all,
 		"Automated system link sessions for testing (port/linux/game/network_test.c):\n"
 		"\"host:<map>\" hosts a game on that map, \"local:<map>\" plays a local (split\n"

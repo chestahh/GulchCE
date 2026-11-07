@@ -13,6 +13,8 @@ The subscribed Steam Workshop items' Halo CE maps, found in place (steam_worksho
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdarg.h>
+#include <errno.h>
 
 #define STEAM_APP "976730"
 #define CONTENT_FOLDER "steamapps/workshop/content/" STEAM_APP
@@ -32,6 +34,30 @@ static int discovery_enabled(void)
 	return 0;
 #else
 	return config_boolean("game.workshop_maps");
+#endif
+}
+
+/* Diagnostics must not change discovery or the error reported by a failed read. */
+static void discovery_log(const char *format, ...)
+{
+#if !defined(HALO_ANDROID) && !defined(HALO_WEB)
+	int saved_errno = errno;
+	char message[1200];
+	unsigned index;
+	va_list arguments;
+	if (config_boolean("debug.workshop_discovery"))
+	{
+		va_start(arguments, format);
+		vsnprintf(message, sizeof(message), format, arguments);
+		va_end(arguments);
+		for (index = 0; message[index]; index++)
+			if ((unsigned char)message[index] < 32) message[index] = '?';
+		fprintf(stderr, "workshop discovery: %s\n", message);
+		fflush(stderr);
+	}
+	errno = saved_errno;
+#else
+	(void)format;
 #endif
 }
 
@@ -241,7 +267,10 @@ static char *read_file(const char *path, int *length)
 
 	*length = 0;
 	if (!file)
+	{
+		discovery_log("cannot read file %s: errno=%d", path, errno);
 		return NULL;
+	}
 	text = malloc(STEAM_WORKSHOP_MAXIMUM_JSON + 2);
 	if (!text)
 	{
@@ -353,16 +382,31 @@ static void scan_item(const char *item_folder, const char *item_id)
 	char *text;
 	int length, index, count;
 
+	discovery_log("item %s: checking %s", item_id, item_folder);
 	if (!resolve(item_folder, "ModInfo.json", path, sizeof(path)) || !(text = read_file(path, &length)))
+	{
+		discovery_log("item %s: ModInfo.json missing, inaccessible or path too long", item_id);
 		return;
+	}
 	index = steam_workshop_read_item(text, length, &item);
 	free(text);
-	if (!index || !item.halo1 || !resolve(item_folder, "maps", maps_folder, sizeof(maps_folder)) ||
-		!is_directory(maps_folder))
+	if (!index || !item.halo1)
+	{
+		discovery_log("item %s: rejected metadata (valid=%d Halo1=%d bytes=%d)", item_id, index, item.halo1, length);
 		return;
+	}
+	if (!resolve(item_folder, "maps", maps_folder, sizeof(maps_folder)) || !is_directory(maps_folder))
+	{
+		discovery_log("item %s: maps directory missing or inaccessible", item_id);
+		return;
+	}
 	campaign.count = 0;
 	if (item.has_campaign && config_boolean("game.mcc_campaigns"))
-		mcc_manifest_load(item_folder, &campaign, reason);
+	{
+		int status = mcc_manifest_load(item_folder, &campaign, reason);
+		discovery_log("item %s: campaign manifest status=%d reason=%s", item_id, status, reason);
+	}
+	discovery_log("item %s: multiplayer entries=%d campaign entries=%d", item_id, item.map_count, campaign.count);
 	count = item.map_count + campaign.count;
 	for (index = 0; index < count && catalog.count < STEAM_WORKSHOP_MAXIMUM_MAPS; index++)
 	{
@@ -371,7 +415,10 @@ static void scan_item(const char *item_folder, const char *item_id)
 		if (index < item.map_count)
 		{
 			if (!resolve(item_folder, item.map_json[index], path, sizeof(path)) || !(text = read_file(path, &length)))
+			{
+				discovery_log("item %s: map metadata unavailable: %s", item_id, item.map_json[index]);
 				continue;
+			}
 			length = steam_workshop_read_map(text, length, &map);
 			free(text);
 		}
@@ -383,7 +430,11 @@ static void scan_item(const char *item_folder, const char *item_id)
 		snprintf(file_name, sizeof(file_name), "%s.map", map.name);
 		if (!length || !posix_find_entry_case_insensitive(maps_folder, file_name, found, sizeof(found)) ||
 			!join(entry->path, sizeof(entry->path), maps_folder, found))
+		{
+			discovery_log("item %s: map entry %d rejected (metadata valid=%d name=%s); file missing/inaccessible or path too long",
+				item_id, index, length, map.name);
 			continue;
+		}
 		/* the name as the file is spelled on disk */
 		found[strlen(found) - 4] = 0;
 		if (!found[0] || strlen(found) >= sizeof(entry->name) || !is_file(entry->path))
@@ -395,6 +446,7 @@ static void scan_item(const char *item_folder, const char *item_id)
 		entry->preview[0] = 0;
 		if (map.thumbnail[0] && !resolve(item_folder, map.thumbnail, entry->preview, sizeof(entry->preview)))
 			entry->preview[0] = 0;
+		discovery_log("item %s: discovered map %s", item_id, entry->path);
 		catalog.count++;
 	}
 }
@@ -404,8 +456,18 @@ static void scan_library(const char *library)
 	char content[STEAM_WORKSHOP_PATH_SIZE], item_folder[STEAM_WORKSHOP_PATH_SIZE], name[256];
 	void *directory;
 
-	if (!join(content, sizeof(content), library, CONTENT_FOLDER) || !(directory = posix_directory_open(content)))
+	if (!join(content, sizeof(content), library, CONTENT_FOLDER))
+	{
+		discovery_log("library path too long: %s", library);
 		return;
+	}
+	directory = posix_directory_open(content);
+	if (!directory)
+	{
+		discovery_log("cannot enumerate Workshop folder %s: errno=%d", content, errno);
+		return;
+	}
+	discovery_log("enumerating %s", content);
 	while (catalog.count < STEAM_WORKSHOP_MAXIMUM_MAPS && posix_directory_next(directory, name, sizeof(name)))
 	{
 		/* an item already scanned is the same item seen through another path to its library */
@@ -491,6 +553,7 @@ static int libraries(char (*paths)[STEAM_WORKSHOP_PATH_SIZE], int maximum)
 		char *text;
 		int length, named_count, other;
 
+		discovery_log("Steam root candidate %d: %s", root, roots[root]);
 		/* the root itself is a library (a setting may name a library folder as well) */
 		for (other = 0; other < count && strcmp(paths[other], roots[root]); other++)
 			;
@@ -503,8 +566,10 @@ static int libraries(char (*paths)[STEAM_WORKSHOP_PATH_SIZE], int maximum)
 		if (named)
 		{
 			named_count = steam_workshop_read_libraries(text, length, named, STEAM_WORKSHOP_MAXIMUM_LIBRARIES);
+			discovery_log("library list %s: %d paths", vdf, named_count);
 			for (index = 0; index < named_count && count < maximum; index++)
 			{
+				discovery_log("listed library %d: %s", index, named[index]);
 				for (other = 0; other < count && strcmp(paths[other], named[index]); other++)
 					;
 				if (other == count && is_directory(named[index]))
@@ -525,15 +590,20 @@ int steam_workshop_scan(void)
 	catalog.scanned = 1;
 	catalog.count = 0;
 	catalog.enabled = discovery_enabled();
+	discovery_log("scan starts: workshop=%d campaigns=%d collections=%d paths.steam=%s",
+		catalog.enabled, config_boolean("game.mcc_campaigns"), config_boolean("game.mcc_collections"), config_string("paths.steam"));
 	if (!catalog.enabled)
 		return 0;
 	paths = malloc(sizeof(*paths) * 2 * STEAM_WORKSHOP_MAXIMUM_LIBRARIES);
 	if (!paths)
 		return 0;
 	count = libraries(paths, 2 * STEAM_WORKSHOP_MAXIMUM_LIBRARIES);
+	discovery_log("%d accessible Steam libraries", count);
 	for (index = 0; index < count && catalog.count < STEAM_WORKSHOP_MAXIMUM_MAPS; index++)
 		scan_library(paths[index]);
 	free(paths);
+	discovery_log("scan finished: %d maps%s", catalog.count,
+		catalog.count == STEAM_WORKSHOP_MAXIMUM_MAPS ? " (catalog capacity reached)" : "");
 	return catalog.count;
 }
 

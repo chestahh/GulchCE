@@ -101,6 +101,17 @@ the MCC-only branch in `platform_translate_path` resolves it in place unless a
 local package already owns that folder. A rescan retries an exact host identity
 before searching aliases. Xbox and CE roots retain their own resolution.
 
+For an empty Workshop list, enable `debug.workshop_discovery` (desktop;
+`HALO_WORKSHOP_DIAGNOSTICS=1`) and capture standard error while reopening the
+map list. The trace distinguishes registry/root/library discovery, metadata
+rejections, missing map files and MCC header admission. Follow `discovery_log`
+in the Workshop module and `mcc_map_discovery_log` in the MCC catalog. This
+setting does not enable Workshop maps or change admission; it defaults off.
+Reports contain local paths and item IDs, so inspect them before sharing.
+No files are uploaded by the diagnostic itself. The
+[Windows diagnostic launcher](../workshop_diagnostics.md) captures these stages
+using a copy of the player's configuration and separate saves.
+
 For resource discovery, follow `steam_workshop_resource_path` in
 [steam_workshop.c](../../port/linux/src/steam_workshop.c), called only inside the
 MCC branch of [xbox_files.c](../../port/linux/src/xbox_files.c)'s virtual path
