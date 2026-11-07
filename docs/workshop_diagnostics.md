@@ -85,7 +85,8 @@ The delivered Windows ZIP contains the verified executable, launcher,
 instructions, licence notices and SHA-256 manifest. Its executable hash is
 `2d9373b2077f711e342ee601f985807ab1206288fc96c73394beaf2320688da8`.
 The final hidden run captured 151 discovered files, 150 admitted maps and three
-registry lines in a 69,903-byte report. The omitted map is a catalog admission
+registry lines in a 70,638-byte report (69,903 characters after newline
+normalization). The omitted map is a catalog admission
 decision, not a claim about the remote player's failure.
 
 Temporary build/test intermediates totaling about 679 MiB were removed, along
