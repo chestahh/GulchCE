@@ -72,5 +72,24 @@ resource lookups emit no repeated Steam traces and subsequent catalog rescans
 still log, including the disabled-discovery exit. Its separate saves were
 archived and verified; copied map fixtures and generated caches were removed.
 This validates the diagnostic mechanism, not the remote player's configuration
-or the cause of their missing maps. Cross-platform CI results are recorded with
-the diagnostic delivery.
+or the cause of their missing maps.
+
+Final source revision `d2a010facf34cca44d22ec04d248e6e7bcf978dd` passed
+[Windows, Linux, Android and web CI](https://github.com/chestahh/GulchCE/actions/runs/42323292439),
+including the Linux regression suite and Chromium/Firefox checks, and
+[MCC validation](https://github.com/chestahh/GulchCE/actions/runs/42323292371).
+The latter passed 1,470 Linux checks (14 skips) and 1,625 Windows checks
+(17 skips). These are asset-free checks, not proof of every map's compatibility.
+
+The delivered Windows ZIP contains the verified executable, launcher,
+instructions, licence notices and SHA-256 manifest. Its executable hash is
+`2d9373b2077f711e342ee601f985807ab1206288fc96c73394beaf2320688da8`.
+The final hidden run captured 151 discovered files, 150 admitted maps and three
+registry lines in a 69,903-byte report. The omitted map is a catalog admission
+decision, not a claim about the remote player's failure.
+
+Temporary build/test intermediates totaling about 679 MiB were removed, along
+with the runtime copies of maps and generated caches. Logs and verified save
+archives remain; the delivery ZIP plus matching executable, SDL library and
+debug symbols total about 73 MiB. This work is on `workshop-discovery-diagnostics`;
+it does not promote changes to `testing` or `main`.
