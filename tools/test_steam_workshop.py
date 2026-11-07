@@ -94,6 +94,18 @@ int main(int argc, char **argv)
 		printf("title=%d %s\n", steam_workshop_item_title("222", title, sizeof(title)), title);
 		printf("small=%d\n", steam_workshop_package_folder("111", folder, 8));
 	}
+	else if (argc == 2 && !strcmp(argv[1], "trace-lifecycle"))
+	{
+		char path[1024];
+		steam_workshop_scan();
+		printf("after_scan=%d\n", steam_workshop_discovery_logging());
+		fprintf(stderr, "resource lookups begin\n");
+		for (index = 0; index < 4; index++)
+			steam_workshop_resource_path("mcc_maps/_shared/multiplayer/bitmaps.map", getenv("TEST_DATA_ROOT"), path, sizeof(path));
+		fprintf(stderr, "resource lookups end\n");
+		steam_workshop_scan();
+		printf("after_rescan=%d\n", steam_workshop_discovery_logging());
+	}
 	else if (argc == 3 && !strcmp(argv[1], "linux-roots"))
 	{
 		char paths[11][STEAM_WORKSHOP_PATH_SIZE];
@@ -732,3 +744,17 @@ def test_diagnostics_explain_discovery_without_changing_results(tool, tmp_path, 
     assert "scan starts: workshop=1" in traced.stderr
     assert reason in traced.stderr
     assert "scan finished:" in traced.stderr
+
+
+@pytest.mark.parametrize("enabled", [True, False])
+def test_diagnostic_scope_ends_before_resource_lookups(tool, tmp_path, enabled):
+    make_item(tmp_path, "111")
+    env = dict(os.environ, TEST_STEAM_SETTING=str(tmp_path), TEST_DATA_ROOT=str(tmp_path),
+               TEST_WORKSHOP_ENABLED=str(int(enabled)), TEST_WORKSHOP_DIAGNOSTICS="1",
+               HOME="/nonexistent", XDG_DATA_HOME="", STEAM_COMPAT_CLIENT_INSTALL_PATH="")
+    result = subprocess.run([str(tool), "trace-lifecycle"], env=env, capture_output=True, text=True)
+    assert result.returncode == 0
+    assert result.stdout.splitlines() == ["after_scan=0", "after_rescan=0"]
+    between = result.stderr.split("resource lookups begin\n")[1].split("resource lookups end\n")[0]
+    assert between == ""
+    assert result.stderr.count("scan starts:") == result.stderr.count("scan finished:") == 2

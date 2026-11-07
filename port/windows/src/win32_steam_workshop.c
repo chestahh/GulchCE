@@ -7,7 +7,6 @@ unit keeps the Windows SDK separate from the Xbox-facing platform headers.
 
 #include <windows.h>
 #include "steam_workshop.h"
-#include "port_config.h"
 #include <stdio.h>
 
 static int registry_steam_root(HKEY key, const char *value, DWORD view, char *path)
@@ -18,7 +17,7 @@ static int registry_steam_root(HKEY key, const char *value, DWORD view, char *pa
 	/* RegGetValue checks the string type, bounds and termination. Use the same
 	 * narrow encoding as win32_files.c and the runtime's file functions. */
 	status = RegGetValueA(key, "Software\\Valve\\Steam", value, RRF_RT_REG_SZ | view, NULL, path, &size);
-	if (config_boolean("debug.workshop_discovery"))
+	if (steam_workshop_discovery_logging())
 	{
 		fprintf(stderr, "workshop registry: %s %s view=%lu status=%ld\n",
 			key == HKEY_CURRENT_USER ? "HKCU" : "HKLM", value, (unsigned long)view, (long)status);

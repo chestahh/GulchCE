@@ -77,6 +77,9 @@ int steam_workshop_read_libraries(const char *text, int length, char (*paths)[ST
 
 /* ---------- the catalog */
 
+/* Diagnostic traces are scoped to catalog scans, not repeated resource lookups. */
+int steam_workshop_discovery_logging(void);
+
 #ifdef _WIN32
 /* Windows-only registry reader; keeps Windows SDK headers out of Xbox-facing units. */
 int steam_workshop_windows_roots(char (*paths)[STEAM_WORKSHOP_PATH_SIZE], int maximum);

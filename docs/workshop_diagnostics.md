@@ -4,6 +4,8 @@ This diagnostic uses the existing MCC/Workshop discovery and map-admission code.
 `debug.workshop_discovery` adds desktop traces to standard error and defaults off.
 It does not enable Workshop discovery, change the Steam path, loosen metadata or
 map validation, or upload a report. Xbox and CE discovery are unchanged.
+Steam traces are scoped to catalog scans, so ordinary resource lookups do not
+repeat registry and library messages for every resource candidate.
 
 ## Running the player package
 
@@ -62,10 +64,12 @@ and MCC modules; the only shared registration is the default-off debug setting.
 There are no gameplay, wire-format or simulation changes.
 
 On Windows, the portable release build succeeded. Discovery, MCC catalog,
-resources, protocol and web build-graph checks passed: 243 tests, with nine
+resources, protocol and web build-graph checks passed: 245 tests, with nine
 platform-specific skips. A hidden real-engine launcher run produced registry,
 discovery and admission traces plus both report logs, exited normally and left
-the source configuration byte-for-byte unchanged. Its separate saves were
+the source configuration byte-for-byte unchanged. Scope tests verify that
+resource lookups emit no repeated Steam traces and subsequent catalog rescans
+still log, including the disabled-discovery exit. Its separate saves were
 archived and verified; copied map fixtures and generated caches were removed.
 This validates the diagnostic mechanism, not the remote player's configuration
 or the cause of their missing maps. Cross-platform CI results are recorded with

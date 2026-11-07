@@ -27,6 +27,12 @@ static struct
 	int count;
 	struct steam_workshop_map maps[STEAM_WORKSHOP_MAXIMUM_MAPS];
 } catalog;
+static int discovery_logging;
+
+int steam_workshop_discovery_logging(void)
+{
+	return discovery_logging;
+}
 
 static int discovery_enabled(void)
 {
@@ -45,7 +51,7 @@ static void discovery_log(const char *format, ...)
 	char message[1200];
 	unsigned index;
 	va_list arguments;
-	if (config_boolean("debug.workshop_discovery"))
+	if (discovery_logging)
 	{
 		va_start(arguments, format);
 		vsnprintf(message, sizeof(message), format, arguments);
@@ -590,20 +596,28 @@ int steam_workshop_scan(void)
 	catalog.scanned = 1;
 	catalog.count = 0;
 	catalog.enabled = discovery_enabled();
+#if !defined(HALO_ANDROID) && !defined(HALO_WEB)
+	discovery_logging = config_boolean("debug.workshop_discovery");
+#endif
 	discovery_log("scan starts: workshop=%d campaigns=%d collections=%d paths.steam=%s",
 		catalog.enabled, config_boolean("game.mcc_campaigns"), config_boolean("game.mcc_collections"), config_string("paths.steam"));
 	if (!catalog.enabled)
-		return 0;
+		goto finished;
 	paths = malloc(sizeof(*paths) * 2 * STEAM_WORKSHOP_MAXIMUM_LIBRARIES);
 	if (!paths)
-		return 0;
+	{
+		discovery_log("cannot allocate Steam library list");
+		goto finished;
+	}
 	count = libraries(paths, 2 * STEAM_WORKSHOP_MAXIMUM_LIBRARIES);
 	discovery_log("%d accessible Steam libraries", count);
 	for (index = 0; index < count && catalog.count < STEAM_WORKSHOP_MAXIMUM_MAPS; index++)
 		scan_library(paths[index]);
 	free(paths);
+finished:
 	discovery_log("scan finished: %d maps%s", catalog.count,
 		catalog.count == STEAM_WORKSHOP_MAXIMUM_MAPS ? " (catalog capacity reached)" : "");
+	discovery_logging = 0;
 	return catalog.count;
 }
 
