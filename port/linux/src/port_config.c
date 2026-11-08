@@ -501,6 +501,14 @@ static const struct config_setting config_settings[] =
 		_platform_desktop,
 		"How far the view turns up and down for the mouse's movement; 0 for the\n"
 		"same as input.mouse_sensitivity." },
+	{ "input.left_stick_dead_zone", _config_integer, "-1", "HALO_LEFT_STICK_DEAD_ZONE", _environment_value, _platform_all,
+		"How far the controller's left stick moves before it moves the player,\n"
+		"in percent of its travel (0 to 50): lower for finer control, higher for\n"
+		"a worn stick that drifts; -1 for the game's own (27%). On Android, the\n"
+		"touch controls' stick too." },
+	{ "input.right_stick_dead_zone", _config_integer, "-1", "HALO_RIGHT_STICK_DEAD_ZONE", _environment_value, _platform_all,
+		"How far the controller's right stick moves before it turns the view, in\n"
+		"percent of its travel (0 to 50); -1 for the game's own (27%)." },
 
 	/* the keyboard and mouse's own controls (port/linux/src/xinput_sdl.c) */
 	{ "controls.move_forward", _config_string, "\"W\"", "HALO_KEY_MOVE_FORWARD", _environment_value, _platform_all,
@@ -630,7 +638,9 @@ static const struct config_setting config_settings[] =
 	{ "bots.count", _config_integer, "0", "HALO_BOTS", _environment_value, _platform_all,
 		"Computer players (bots): 0 to 63. Local Slayer by default; bots.enhanced\n"
 		"also allows CTF/King, and bots.network enables host-controlled network\n"
-		"bots. They join the lobby as room permits. 0: none, as in the stock game." },
+		"bots. Network humans replace bots, which return when humans leave.\n"
+		"The initial humans plus this count set the session population target.\n"
+		"0: no initial bots, as in the stock game." },
 	{ "bots.skill", _config_string, "\"normal\"", "HALO_BOT_SKILL", _environment_value, _platform_all,
 		"How well the bots play: \"recruit\", \"easy\", \"normal\", \"heroic\",\n"
 		"\"veteran\" or \"legendary\" (how soon they react, how well they aim,\n"
@@ -638,6 +648,9 @@ static const struct config_setting config_settings[] =
 	{ "bots.teams", _config_string, "\"even\"", "HALO_BOT_TEAMS", _environment_value, _platform_all,
 		"In team games: \"even\" puts the bots on both teams, evening them with\n"
 		"the players; \"against\" puts them all on the team the players are not on." },
+	{ "display.dynamic_lighting_reset", _config_boolean, "true", "HALO_DYNAMIC_LIGHTING_RESET", _environment_value, _platform_all,
+		"Migration marker: old saved dynamic-lighting preferences were reset to off.\n"
+		"Leave true to retain lighting choices made after that one-time reset." },
 	{ "display.plasma_occlusion", _config_boolean, "false", "HALO_PLASMA_OCCLUSION", _environment_value, _platform_desktop,
 		"Collision-filtered projectile, Covenant emitter and Shield Glow visibility.\n"
 		"Off preserves unoccluded plasma lighting. At most eight occluded lights." },
@@ -646,6 +659,9 @@ static const struct config_setting config_settings[] =
 		"Stock shield effects remain intact. Optional occlusion uses plasma_occlusion." },
 	{ "display.weapon_glow", _config_boolean, "false", "HALO_WEAPON_GLOW", _environment_value, _platform_desktop,
 		"Held energy weapons cast soft light. Disabled by default." },
+	{ "display.plasma_prong_lighting", _config_boolean, "false", "HALO_PLASMA_PRONG_LIGHTING", _environment_value, _platform_desktop,
+		"Short, soft forward spill from plasma-weapon prongs. Separate from Weapon Glow.\n"
+		"Off by default; uses the shared eight-light occlusion budget when enabled." },
 	{ "display.vehicle_lighting", _config_boolean, "false", "HALO_VEHICLE_LIGHTING", _environment_value, _platform_desktop,
 		"Vehicle engines and headlights illuminate nearby surfaces. Disabled by default." },
 	{ "display.world_lighting", _config_boolean, "false", "HALO_WORLD_LIGHTING", _environment_value, _platform_desktop,
@@ -2456,6 +2472,8 @@ static void config_apply_server_mode(void)
 }
 #endif
 
+#include "lighting_settings_migration.inl"
+
 static void config_load(void)
 {
 	char path[1024];
@@ -2524,8 +2542,27 @@ static void config_load(void)
 		if (result.ok)
 		{
 			char *completed;
+			int reset_lighting = lighting_settings_legacy(result.toptab);
+			int lighting_migrated = !reset_lighting;
+			if (reset_lighting)
+			{
+				char *migrated = lighting_settings_migrate(text, result.toptab);
+				if (migrated)
+				{
+					toml_result_t checked = toml_parse(migrated, (int)strlen(migrated));
+					if (checked.ok)
+					{
+						toml_free(result); result = checked;
+						free(text); text = migrated;
+						lighting_migrated = 1;
+					}
+					else { toml_free(checked); free(migrated); }
+				}
+				platform_log("settings: reset old dynamic-lighting preferences to off%s",
+					lighting_migrated ? "" : " in memory; the file could not be migrated");
+			}
 
-			if (joined && !skipped && !config_answer_only)
+			if (joined && !skipped && !config_answer_only && lighting_migrated)
 			{
 				if (config_write_file(path, text))
 					platform_log("settings: joined the sections %s had twice", path);
@@ -2533,7 +2570,12 @@ static void config_load(void)
 					platform_log("settings: cannot write %s", path);
 			}
 			for (index = 0; index < NUMBER_OF_CONFIG_SETTINGS; index++)
+			{
 				config_set_from_file(&config_values[index], &config_settings[index], result.toptab);
+				if (reset_lighting && lighting_settings_reset_key(config_settings[index].name))
+					config_set_from_text(&config_values[index], config_settings[index].type,
+						config_settings[index].type == _config_string ? "default" : "false");
+			}
 #if !defined(HALO_ANDROID) && !defined(HALO_WEB)
 			if (config_values[config_setting_index("server.enabled")].boolean && !config_probe_mode)
 				config_server_mode = 1;
@@ -2547,10 +2589,10 @@ static void config_load(void)
 				platform_log("settings: %d line%s of config.toml skipped; every other setting in it is used", skipped,
 					skipped == 1 ? "" : "s");
 			}
-			else if (!config_answer_only)
+			else if (!config_answer_only && lighting_migrated)
 			{
 				completed = config_add_missing(text, result.toptab);
-				if (completed && !config_write_file(path, completed))
+				if ((completed || reset_lighting) && !config_write_file(path, completed ? completed : text))
 					platform_log("settings: cannot write %s", path);
 				free(completed);
 			}

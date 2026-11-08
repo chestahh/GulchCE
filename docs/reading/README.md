@@ -27,6 +27,7 @@ the menu to the camera, reticle and first-person weapon.
 | Feature prototype | [Modern frontend](menu_redesign.md) | Isolated Settings/hosting/lobby views, native browsers and main-menu-only legacy switching. |
 | Branch feature | [Shoulder camera](third_person.md) | Director selection, cover-aware aiming, controls and host-owned hit validation. |
 | Worked detail | [Loading presentation](loading_presentation.md) | Fill the screen with the original loading artwork while preserving map-family ownership and the Xbox chant. |
+| Worked detail | [MCC level previews](mcc_level_previews.md) | Resolve installed package images, fit them inside existing menu thumbnails, and wrap package text. |
 | Reference | [Glossary](glossary.md) | Engine concepts and recurring C conventions, with source examples. |
 
 The chapters form a guide to the major systems, not an inventory of every
@@ -166,3 +167,6 @@ submenu, P1-P4 layouts, physical input isolation and prompt updates.
 
 The [standalone enhanced bot controller](enhanced_bots.md) explains stock/enhanced
 ownership, goal arbitration, boarding, aircraft routes and validation limits.
+
+The [network bot population walkthrough](bot_population.md) explains human-only
+listings, automatic replacement/restoration and the OpenCE crossplay boundary.
