@@ -69,7 +69,7 @@ static void game_state_revert(void){reverts++;}
 static void game_state_call_before_save_procs(void){}
 static void main_stop_time(void){}
 static void main_start_time(void){}
-static boolean game_state_write_to_file(void){return save_succeeds;}
+static boolean game_state_write_to_file(void){save_writes++;if(save_succeeds)saved_image_generation=live_image_generation;return save_succeeds;}
 static void game_state_note_event(char const *note){(void)note;}
 /* The unrelated state reset by the actual new-game lifecycle entry point. */
 static int coop_presentation,coop_events,host_devices,client_devices,client_names_differing[1];

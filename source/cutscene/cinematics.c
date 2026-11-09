@@ -464,18 +464,29 @@ void cinematic_render(
 					(title->shadow_color & 0x00FFFFFF));
 
 				{
-					/* port: use the justified anchor in the authored 640-column
-					bounds. The box center pulls right-aligned chapter titles
-					inward on wide screens. Keep the box's width and height. */
+					/* port: the bounds are for 640 columns: on a wider screen
+					move them so the edge the text is justified to (its middle,
+					if centered) keeps its place relative to the screen's sides,
+					where the Xbox's 4:3 picture had it. Moving the middle of a
+					right-justified title's box (most chapter titles: a box from
+					near the left edge) left the text short of the right side.
+					The justification is draw_string.c's: 0 left, 1 right,
+					2 center */
 					static rectangle2d wide_bounds;
 					short anchor;
 					short shift;
 
 					switch (title->justification)
 					{
-					case 0: anchor = title_bounds->x0; break; /* left */
-					case 1: anchor = title_bounds->x1; break; /* right */
-					default: anchor = (short)((title_bounds->x0 + title_bounds->x1) / 2); break;
+					case 0:
+						anchor = title_bounds->x0;
+						break;
+					case 1:
+						anchor = title_bounds->x1;
+						break;
+					default:
+						anchor = (short)((title_bounds->x0 + title_bounds->x1) / 2);
+						break;
 					}
 					shift = (short)(anchor * (halo_screen_width() - 640) / 640);
 

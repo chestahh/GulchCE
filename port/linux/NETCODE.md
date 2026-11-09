@@ -169,7 +169,7 @@ lockstep netcode was removed, set to play it): it tells the player why.
 
 ## OpenCE network agreement
 
-Version **42** replaces version 41 for Xbox, Custom Edition and MCC sessions.
+OpenCE network version 42 replaces version 41 for Xbox, Custom Edition and MCC sessions.
 Advertisements and ordinary join requests carry this one version; mismatched
 versions are rejected before admission. There is no separate MCC capability
 envelope or optional shoulder-camera protocol. Retired fork message IDs 101 and

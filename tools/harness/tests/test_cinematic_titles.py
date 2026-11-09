@@ -16,13 +16,18 @@ CASES = [
     "title-screen-anchors", "default-title-anchor", "mcc-title-screen-anchor",
     "mcc-title-bounds", "mcc-title-anchors", "drawn-in-the-game",
     "not-over-a-menu", "time-goes-on-under-a-menu",
+    "right-justified-on-a-wide-screen", "left-justified-on-a-wide-screen",
+    "centered-on-a-wide-screen", "unmoved-on-640-columns",
 ]
 
 # a fault in cinematic_render and the case that must catch it
 NEGATIVE_CONTROLS = {
-    "right-title-uses-box-center": (("case 1: anchor = title_bounds->x1; break;",
-                                     "case 1: anchor = (short)((title_bounds->x0 + title_bounds->x1) / 2); break;"),
+    "right-title-uses-box-center": (("anchor = title_bounds->x1;",
+                                     "anchor = (short)((title_bounds->x0 + title_bounds->x1) / 2);"),
                                     "default-title-anchor"),
+    "left-title-uses-box-center": (("anchor = title_bounds->x0;",
+                                    "anchor = (short)((title_bounds->x0 + title_bounds->x1) / 2);"),
+                                   "left-justified-on-a-wide-screen"),
     "mcc-title-clipped": (("mcc_hud_title_bounds(&wide_bounds, title->justification, title->text_flags);",
                            "(void)0;"), "mcc-title-bounds"),
     "drawn-over-a-menu": (("if (!ui_widgets_active())", "if (TRUE)"), "not-over-a-menu"),

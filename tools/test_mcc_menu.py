@@ -376,8 +376,11 @@ def test_stock_navigation_regeneration_is_reproducible(tmp_path):
     original = {}
     for name in MAP_WIDGETS:
         path = ROOT / "port/assets/menus/ce" / name
-        original[name] = path.read_bytes()
+        original[name] = path.read_text(encoding="utf-8")
         shutil.copyfile(path, tmp_path / name)
     regenerate(tmp_path)
+    # Git may check out CRLF; compare content, then require byte-stable output.
+    assert {name: (tmp_path / name).read_text(encoding="utf-8") for name in MAP_WIDGETS} == original
+    generated = {name: (tmp_path / name).read_bytes() for name in MAP_WIDGETS}
     regenerate(tmp_path)
-    assert {name: (tmp_path / name).read_bytes() for name in MAP_WIDGETS} == original
+    assert {name: (tmp_path / name).read_bytes() for name in MAP_WIDGETS} == generated

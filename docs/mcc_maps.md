@@ -126,8 +126,7 @@ packages; those require separate Workshop catalog integration.
 ### Subscribed Steam Workshop items
 
 Installed packages can also supply [level previews](reading/mcc_level_previews.md).
-Keep their listed map/mission metadata and PNGs together. Modern, Classic PC,
-Stock and Xbox-style panels use `Images.Large`, then `Images.Thumbnail`, with
+Keep their listed map/mission metadata and PNGs together. Stock menu panels use `Images.Large`, then `Images.Thumbnail`, with
 the question mark as fallback. Pictures fit and clip to the existing thumbnail
 rectangle, and MCC titles/descriptions wrap within their text boxes. This also
 works for complete Android imports without Steam and does not enable sharing.
@@ -408,9 +407,9 @@ start. The pending request and its cleanup remain in `mcc_ui_network.inl`,
 using the existing MCC server-disposal hook. Xbox/CE requests proceed through
 their existing map-selection code immediately.
 All hashing, package selection and binding lifetime policy lives in MCC modules;
-legacy settings omit the digest trailer and keep their original checks. The
+Xbox/CE settings use a zero digest trailer and keep their original map checks. The
 protocol recorder includes the full MCC settings record and its size/offset
-bounds; the crossplay tests separately pin the unchanged OpenCE prefix.
+bounds; all three map families use the shared OpenCE version 42 contract.
 
 Startup validation on Windows portable release used DigsiteMP/1 with normal
 timeouts and six enhanced network bots. Local play produced 61 logged samples;
@@ -2834,7 +2833,7 @@ to the captured pre-load value. Snapshot validation rejects nonfinite and
 out-of-range values. MCC protocol 63 introduced the larger snapshot on both peers
 while the shared agreement remained OpenCE 41. That was an MCC-only agreement
 change. The current shared checkpoint lifetime fix separately requires updated
-GulchCE peers for every map family; see the
+OpenCE 42 peers for every map family; see the
 [current protocol boundary](../port/linux/NETCODE.md#opence-network-agreement).
 
 `mcc_checkpoint.c` keeps the existing 768-byte campaign reservation and all

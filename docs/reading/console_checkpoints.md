@@ -11,9 +11,9 @@ remain separate.
 
 The interpreter represents an expression as linked **syntax nodes**. A
 thread's **stack frames** record the calls it must finish, including handles
-to those nodes. A handle contains both a slot and an identifier; see
-[datum indices](glossary.md). Reusing the slot does not preserve the old
-expression.
+to those nodes. A handle contains both a slot and an allocation identifier.
+Reusing the slot does not preserve the old expression: the identifier must
+still match the allocation being referenced.
 
 Historically, checkpoints saved the threads in the CPU game-state image,
 but their temporary console syntax lived outside that image. After the

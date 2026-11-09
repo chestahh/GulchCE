@@ -13287,9 +13287,6 @@ static void hs_scenario_functions_check(
 	struct scenario *scenario)
 {
 	{
-		extern boolean mcc_syntax_functions_check(struct scenario *scenario, struct data_array *syntax,
-			short (*node_refusal)(struct hs_syntax_node const *, char const **),
-			unsigned long *disabled_scripts, unsigned long *disabled_globals);
 		if (mcc_syntax_functions_check(scenario, hs_syntax_data, hs_syntax_node_refusal,
 			hs_scenario_disabled_scripts, hs_scenario_disabled_globals))
 			return;

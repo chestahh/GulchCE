@@ -69,7 +69,6 @@ static struct string_list help_text = { { 1 } };
 static long draws;
 static real drawn_alpha;
 static pixel32 shadow, drawn_shadow;
-static rectangle2d drawn_bounds;
 static void pixel32_to_real_argb_color(pixel32 pixel, real_argb_color *color)
 {
 	color->alpha = (real)((pixel >> 24) & 0xFF) / 255.0f;
@@ -90,6 +89,9 @@ static short halo_screen_width(void) { return screen_width; }
 static boolean mcc_cache_tags_loaded(void) { return mcc_loaded; }
 static rectangle2d drawn_bounds;
 #define rasterizer_draw_unicode_string(bounds, style, color, flags, string) (draws++, drawn_shadow = shadow, drawn_bounds = *(bounds))
+
+/* draw_string.c's justifications, as a title's tag has them */
+enum { justified_left, justified_right, justified_center };
 
 #include "under_test.inc"
 

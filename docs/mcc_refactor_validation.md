@@ -2359,7 +2359,7 @@ runtime compatibility. No simulation, protocol, engine or platform build
 generator changed, so Android/web rebuilds and transport interoperability runs
 were not required for these tooling changes. Later engine changes still need
 their affected platform, networking and cross-family checks under
-[AGENTS.md](../AGENTS.md) and [CODINGSTANDARDS.md](../CODINGSTANDARDS.md).
+[AGENTS.md](../AGENTS.md) and [CODINGSTANDARDS.md](https://github.com/chestahh/GulchCE/blob/3d26678bf837335fb66a225c9c2fe1ad8626409c/CODINGSTANDARDS.md).
 
 ## Stage 2: boat proof and preserved crossplay
 

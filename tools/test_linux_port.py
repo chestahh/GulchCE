@@ -479,6 +479,8 @@ def test_system_link_bots_messages_are_the_games():
         sizes[name] = sum(int(count) * {"pad": 0, "bytes": 1, "shorts": 2, "longs": 4}.get(kind, 0) + (kind == "array")
                           for kind, count in re.findall(r"_data_packet_field_(\w+), (\d+)", fields))
 
+    from tools import network_format
+    assert bots.NETWORK_VERSION == network_format.version()
     sent = []
     machine = bots.Machine(1, "127.0.0.2", "127.0.0.1", print)
     machine.udp.close()
@@ -504,8 +506,8 @@ def test_system_link_bots_messages_are_the_games():
 
 def test_network_format_is_the_recorded_one():
     """what the machines send each other is what port/linux/network_format.txt
-    records for MCC_PROTOCOL_VERSION, and NETCODE.md says what that version
-    changed. The ordinary OpenCE contract is pinned by test_mcc_protocol.py."""
+    records for HALO_PORT_NETWORK_VERSION, and NETCODE.md says what that
+    shared version changed."""
     from tools import network_format
 
     problems = network_format.check()
