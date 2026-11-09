@@ -39,7 +39,7 @@ The journal cache is keyed by profile and full mission identity, expires after
 one second, and retains no widget/catalog pointer. Folder and MP entries do
 not show campaign awards. Generated Back handlers unwind MCC selection state.
 
-## Local evidence so far
+## Local evidence
 
 Windows portable release, PGO/LTO disabled, clang 23, original Workshop inputs:
 
@@ -56,12 +56,12 @@ Windows portable release, PGO/LTO disabled, clang 23, original Workshop inputs:
   failure before the tested admission-revision mutation. Added failure-state
   diagnostics; all 69 sharing cases and 100 isolated repetitions subsequently
   passed. The original failure is retained and is not claimed fixed without
-  a reproduced cause. A final broad run remains required.
+  a reproduced cause. The final broad run below passes.
 - Stock menu, journal, texture ownership and preview checks pass. The glyph
   ownership test demonstrated a cache-hit release-order defect before the fix
   and passes after retaining the MCC callback on reused glyphs.
 - Windows and web builds passed during integration. Seventy browser JS tests
-  passed. Real-browser and final platform validation are still in progress.
+  passed. Completed browser checks and platform CI are recorded below.
 - The full harness initially encountered Windows CRT deprecation errors under
   `-Werror`; the Windows harness now defines `_CRT_SECURE_NO_WARNINGS`, matching
   the game build, without changing the functions being tested.
@@ -91,12 +91,6 @@ its failed replication makes it invalid baseline evidence and it is excluded.
 No production workaround was added. Under the agreed gate (fix if introduced
 by this work), this is an upstream follow-up, not a passing a10 co-op result.
 
-## Remaining completion gates
-
-Final combined review, Linux/Windows/Android/web CI, the final focused suites,
-real-browser import/storage and native/browser gameplay/sharing validation,
-artifact cleanup, final-commit Windows package and reproducible line counts.
-
 ## First CI corrections
 
 The initial CI build exposed omitted `host_mcc_memory.c/.h` and the Android
@@ -117,3 +111,82 @@ recovery, delayed replies and map-window exhaustion checks pass locally.
 Custom Edition Death Island also passed a two-native-peer multiplayer control:
 122 paired positions over 61 seconds, no judged gameplay differences, original
 files unchanged and both owned processes stopped.
+
+## Final review and validation
+
+The final code revision is `2b83ae7f92bebc0290d1f42458563e6f73faf601`.
+The combined review covered MCC ownership and cleanup, stock menu generation,
+shared settings admission, glyph texture lifetime, legacy code preservation,
+regression fixtures and current reader documentation. It restored the upstream
+cinematic alignment implementation and its original regression cases, removed
+unused fork-specific fixture stubs and a duplicate declaration, and corrected
+C89 declaration ordering. No further production simplification was justified.
+
+The final local MCC selection passes **2,636 tests, 14 skipped**. Those skips
+are environment/asset-dependent checks; they are not claimed as passes.
+Seventy browser JavaScript unit tests pass. Targeted legacy texture, checkpoint,
+teardown, inventory, cinematic and network-format fixtures pass after adapting
+their extraction/stubs to the production interfaces. Faulty implementations
+remain rejected by the existing negative controls.
+
+Real Chromium and Firefox checks exercise imports, cancellation, persistence,
+transaction recovery, delayed storage replies, simultaneous map windows and
+memory exhaustion. Native/web WebRTC transport checks also pass in web CI.
+The Windows and web portable release builds pass locally with PGO/LTO off.
+
+### Native host and Chromium client
+
+Mercury Rising II was loaded from Workshop item `3021510694`. A fresh browser
+accepted the observed stock-menu offer through normal input. The host sent
+786,191,316 verified bytes in ten snapshot files: the selected mission and
+required resource maps, metadata, supported thumbnails and receipt. The browser
+rendered the package preview, loaded the map and simulated both players over a
+connected bidirectional WebRTC channel. Snapshot hashes survived browser
+shutdown/reopening, original Workshop hashes remained unchanged and the native
+process exited normally.
+
+That first run's full introductory comparison **failed**: two consecutive
+position samples exceeded the unchanged one-unit limit during the initial
+scripted vehicle sequence (maximum over the run 4.109 units). Its raw logs and
+failed verdict are retained. It does not certify the cinematic or establish a
+new production defect; the timing/replication cause remains unresolved.
+
+A separate installed-package control on the final code used the same audited
+browser snapshot with **both host sharing and client downloads disabled**.
+It performed no new MCC installation. The complete comparison passes over
+63 paired seconds/112 positions (maximum 0.633 units, aim difference 9 degrees),
+and the two-live-player phase passes 49 paired samples/98 positions (maximum
+0.028 units, aim difference 8 degrees). All 873 measured drift samples agree.
+The two-live-player phase begins at the first common live state, tick 600,
+and retains every subsequent observation. The cinematic ended naturally;
+no skip input was sent. The private runner's generic phase-label text mentions
+a skip, but the absent input receipt and zero log offsets establish that none
+occurred. Neither tolerance nor sample timestamps were changed. This passing
+control does not explain away the earlier failure.
+
+These are bounded smoke checks, not complete campaign playthroughs or proof
+of every cinematic. Xbox a10 remains the pre-existing assertion documented
+above. No map-specific workaround or speculative simulation change was added.
+
+### CI and delivery
+
+The [MCC validation run](https://github.com/chestahh/GulchCE/actions/runs/42545755452)
+passes all three jobs: Linux readers/validators and sanitizers, GPU HUD rendering,
+and Windows adapters. The [platform run](https://github.com/chestahh/GulchCE/actions/runs/42545755450)
+passes Linux, Windows, Android and web, including the full Linux regression
+job. Release publishing and Pages deployment are intentionally skipped on this
+non-main branch.
+
+Documentation-only finalization does not change the tested source or trigger
+the repository's path-filtered build workflows. The Windows playtest package
+is built after the final commit, carries that commit and per-file hashes, and
+contains the executable, runtime DLL, notices and normal server examples.
+It contains no retail maps, Workshop packages, user saves or fork-only menus.
+
+Only verified fixtures and generated caches were removed after testing.
+Inactive native saves/captures were archived losslessly (152 files, 621,124,460
+original bytes, 38,910,232-byte archive), with every hash verified before loose
+copies were removed and original paths recorded. Browser saves and metadata
+remain preserved; downloaded maps and generated caches were removed only after
+their completed audits. Original inputs, diagnostic logs, the final builds and
+the pristine a10 baseline evidence remain available locally.
