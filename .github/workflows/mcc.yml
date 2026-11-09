@@ -88,6 +88,7 @@ jobs:
           tools/test_mcc_workshop.py
           tools/test_steam_workshop.py
           tools/test_mcc_android_importer.py
+          tools/test_mcc_metadata_importer.py
           tools/test_mcc_loading.py
           tools/test_mcc_load_network.py
           tools/test_mcc_precache.py
