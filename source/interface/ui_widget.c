@@ -5543,10 +5543,9 @@ static void widget_instance_render_text_box(
 		}
 		ui_widget_port_text_wrap(*text, &bounds, width);
 	}
-	/* MCC owns these text boxes; wrap their instance copies to the panel
+	/* port: MCC owns these text boxes; wrap their instance copies to the panel
 	 * width without changing the map's objective strings or other menus. */
 	{
-
 		if (mcc_pause_text_wrap_needed(widget->definition_tag_index))
 		{
 			ui_widget_port_text_wrap(*text, &bounds, (short)(bounds.x1 - bounds.x0));

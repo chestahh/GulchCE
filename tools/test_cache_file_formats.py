@@ -1201,11 +1201,10 @@ MALFORMED_CACHES = {
                              "the model vertex and index data do not fit in the file"),
     "handle": (instance_case(3, 0x0C, "<I", 0xE1770009), "load",
                "a tag handle does not match its position in the index"),
-    "name outside": (instance_case(2, 0x10, "<I", 0x3FFFFFFF), "load",
+    "external name outside": (instance_case(3, 0x10, "<I", 0x3FFFFFFF), "load",
                      "a tag name lies outside the tag data or is not terminated"),
     "tag address outside": (instance_case(8, 0x14, "<I", BASE + 0x1000000), "load",
                             "a tag's address lies outside the tag data"),
-    "null tag address": (instance_case(8, 0x14, "<I", 0), "load", "a tag's address lies outside the tag data"),
     "external weapon": (instance_case(8, 0x18, "<I", 1), "load",
                         "a tag of a group that resource maps never hold is marked as held by one"),
     "external sound header outside": (instance_case(4, 0x14, "<I", BASE - 0x100), "load",
@@ -1487,3 +1486,17 @@ def test_real_maps_convert_as_recorded(report_tool, real_maps):
         name = Path(block["file"]).name
         assert block["convert"] == "ok", name
         assert {key: block[key] for key in recorded[name]} == recorded[name], name
+
+
+@pytest.mark.parametrize("corrupt", [instance_case(2, 0x10, "<I", 0x3FFFFFFF),
+                                   instance_case(8, 0x14, "<I", 0)])
+def test_protected_map_unused_fields_follow_upstream_contract(report_tool, tmp_path, corrupt):
+    # OpenCE accepts unused protected tag names/absent data at the cache-reader
+    # stage. Resource names and dereferenced roots still require validation.
+    cache = Map()
+    path = cache.write(tmp_path)
+    corrupt(cache, path)
+    returncode, report = report_one(report_tool, path)
+    assert returncode == 0
+    assert report["load"] == "ok"
+    assert report["milestone.load"] == "yes"

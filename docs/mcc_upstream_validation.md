@@ -96,3 +96,24 @@ by this work), this is an upstream follow-up, not a passing a10 co-op result.
 Final combined review, Linux/Windows/Android/web CI, the final focused suites,
 real-browser import/storage and native/browser gameplay/sharing validation,
 artifact cleanup, final-commit Windows package and reproducible line counts.
+
+## First CI corrections
+
+The initial CI build exposed omitted `host_mcc_memory.c/.h` and the Android
+importer fixture. These are restored byte-for-byte from the refactored source.
+The pause test now locates its actual MCC hook instead of a removed local
+`extern` declaration. Windows fixture compilation uses the same empty CRT
+macro as the fixtures, and CI installs SciPy for the existing button generator.
+
+Two CE reader expectations were stale relative to upstream commit `29426d53c`
+(`Fix custom edition protected map loading`): unused internal tag names may be
+invalid and unreferenced tags may have address zero. The CE production reader
+is byte-for-byte unchanged from the base. Tests now assert those accepted cases
+and still reject invalid resource tag names and nonzero out-of-range addresses.
+The focused rerun passed 147 tests with five environment/asset skips.
+
+Real Chromium and Firefox imports, cancellation, persistence, transaction
+recovery, delayed replies and map-window exhaustion checks pass locally.
+Custom Edition Death Island also passed a two-native-peer multiplayer control:
+122 paired positions over 61 seconds, no judged gameplay differences, original
+files unchanged and both owned processes stopped.
