@@ -24,6 +24,13 @@ worth of voices.
 
 #include <math.h>
 #include <pthread.h>
+#ifdef _WIN32
+#include <io.h>
+#include <fcntl.h>
+/* Startup services are unused by this audio-only executable. */
+int crash_reporter_process(void) { return 1; }
+void mcc_memory_log_startup(void) { }
+#endif
 
 typedef int BOOL;
 typedef unsigned long DWORD;

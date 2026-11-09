@@ -13,11 +13,13 @@ from harness import CHECK_FAILED, build, function, mutated, read, run, structure
 
 SOURCE = "port/linux/game/network_distributed.c"
 CASES = ["riding-up", "elevator-at-rest", "on-foot", "jump-at-rest", "left-platform",
-         "reversals-100ms", "reversals-200ms"]
+         "reversals-100ms", "reversals-200ms", "mcc-host-movement"]
 FUNCTIONS = ("distributed_supported_elevator", "distributed_riding_elevator", "distributed_take_prediction")
 
 # a fault in network_distributed.c, the function it is in, and the case that must catch it
 NEGATIVE_CONTROLS = {
+    "mcc-client-position-taken": (("if (mcc_script_effects_host_movement())", "if (0)"),
+                                  "distributed_take_prediction", "mcc-host-movement"),
     "height-taken-riding": (("if (distributed_riding_elevator(unit_index))\n\t\tposition.z",
                              "if (0)\n\t\tposition.z"), "distributed_take_prediction", "riding-up"),
     "stopped-floor-not-protected": (("distributed_supported_elevator(unit_index) != NONE",

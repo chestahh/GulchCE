@@ -15,6 +15,13 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import net_compare  # noqa: E402
 
 
+def test_log_judge_imports_without_posix_hangup(monkeypatch):
+    import runpy
+    monkeypatch.delattr(signal, "SIGHUP", raising=False)
+    module = runpy.run_path(net_compare.__file__)
+    assert module['STOP_SIGNALS'] == (signal.SIGINT, signal.SIGTERM)
+
+
 def player(index, x, y=10.0, z=0.5, *, dead=False, kills=0, deaths=0, grenades="2/2", rounds=60, team=0, machine=0):
     if dead:
         return f" player {index}: dead s{kills} k{kills} d{deaths} f0 t{team} m{machine}"
@@ -146,6 +153,7 @@ def make_data(tmp_path):
     return data
 
 
+@pytest.mark.skipif(os.name == 'nt', reason='POSIX launcher uses symlinked libraries/data')
 def test_copy_of_a_flat_folder(tmp_path):
     build = tmp_path / "build"
     build.mkdir()
@@ -226,6 +234,7 @@ def read_pids(pids):
     return [int(pid) for pid in pids.read_text().split()] if pids.exists() else []
 
 
+@pytest.mark.skipif(os.name == 'nt', reason='POSIX shell and process-group lifecycle')
 def test_stop_ends_the_copy_and_what_it_started(tmp_path):
     game, pids = fake_game(tmp_path)
     process = net_compare.start([str(game)])
@@ -236,7 +245,8 @@ def test_stop_ends_the_copy_and_what_it_started(tmp_path):
     assert wait_for(lambda: not any(alive(pid) for pid in read_pids(pids)))
 
 
-@pytest.mark.parametrize("number", [signal.SIGTERM, signal.SIGHUP, signal.SIGINT])
+@pytest.mark.skipif(os.name == 'nt', reason='POSIX shell and process-group lifecycle')
+@pytest.mark.parametrize("number", net_compare.STOP_SIGNALS)
 def test_the_tool_stopped_leaves_no_copy(tmp_path, number):
     game, pids = fake_game(tmp_path)
     tool = subprocess.Popen([sys.executable, str(Path(net_compare.__file__)), "--a", str(game), "--data",
@@ -256,6 +266,7 @@ def test_the_tool_stopped_leaves_no_copy(tmp_path, number):
     assert not [pid for pid in read_pids(pids) if alive(pid)]
 
 
+@pytest.mark.skipif(sys.platform != 'linux', reason='Linux PR_SET_PDEATHSIG lifecycle')
 def test_a_copy_dies_with_a_killed_tool(tmp_path):
     # (SIGKILL cannot be caught: the kernel ends the copies, PR_SET_PDEATHSIG;
     # what a copy started is its own, and the test's to end)

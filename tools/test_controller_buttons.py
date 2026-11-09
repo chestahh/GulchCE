@@ -227,14 +227,17 @@ static struct bitmap_data *bitmap_2d_new(int w,int h,int m,int f){
  b=calloc(1,sizeof(*b));allocations++;live++;return b;
 }
 static int rasterizer_bitmap_new(struct bitmap_data *b){b->hardware_format=(unsigned long*)b;return fail!=2;}
-static void bitmap_delete(struct bitmap_data *b){free(b);live--;}
+static unsigned long const *bound;
+static int releases,unregistered;
+static void release_binding(unsigned long const *p){assert(p==bound && unregistered);bound=NULL;releases++;}
+static void bitmap_delete(struct bitmap_data *b){assert(bound!=b->hardware_format);free(b);live--;}
 static void rasterizer_psuedo_dynamic_screen_quad_draw(struct rasterizer_dynamic_screen_geometry_parameters *p,
  struct dynamic_screen_vertex *v){assert(p->framebuffer_blend_function==0);memcpy(drawn,v,sizeof(drawn));draws++;}
 '''
     code += (ROOT / 'port/linux/game/hud_button_layout.h').read_text() + source + r'''
 long hud_hires_asset_count(void){return NUMBEROF(controller_glyph_assets);}
 char const *hud_hires_asset_tag(long a){return controller_glyph_assets[a].tag;}
-void hud_hires_register_placeholder(long a,unsigned long const *p){if(p)last_asset=a;}
+void hud_hires_register_placeholder(long a,unsigned long const *p){if(p)last_asset=a;else unregistered++;}
 static void near(real a,real b){assert(a-b<0.001f && b-a<0.001f);}
 int main(void){
  struct icon_hud_element_definition icon={10,0,0};rectangle2d cursor;
@@ -275,6 +278,19 @@ int main(void){
  fail=0;assert(controller_glyph_draw(4,0,&icon,&cursor,0));assert(drawn[0].color==0xffffff);
  for(style=-1;style<3;style++)assert(!controller_glyph_draw(style,0,&icon,&cursor,0));
  assert(!controller_glyph_draw(11,0,&icon,&cursor,0));controller_glyphs_dispose();assert(!live);
+ /* The same cached artwork can reach the optional binding owner after a
+  * normal draw. Teardown unregisters and releases it before bitmap deletion. */
+ assert(controller_glyph_draw(4,0,&icon,&cursor,0));
+ assert(controller_glyph_draw_with_release(4,0,&icon,&cursor,0,release_binding));
+ bound=controller_glyph_cache[controller_glyph_asset_index(4,0)].bitmap->hardware_format;
+ unregistered=0;controller_glyphs_dispose();assert(!bound && !live && releases==1);
+ controller_glyphs_dispose();assert(releases==1);
+ assert(controller_glyph_draw_with_release(4,0,&icon,&cursor,0,release_binding));
+ assert(controller_glyph_draw(4,0,&icon,&cursor,0));
+ bound=controller_glyph_cache[controller_glyph_asset_index(4,0)].bitmap->hardware_format;
+ unregistered=0;controller_glyphs_dispose();assert(!bound && !live && releases==2);
+ assert(controller_glyph_draw(4,0,&icon,&cursor,0));controller_glyphs_dispose();
+ assert(!live && releases==2); /* A later stock map inherits no owner callback. */
  return 0;
 }
 '''

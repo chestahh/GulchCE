@@ -38,7 +38,7 @@ def test_supplied_sources_are_unchanged():
 
 
 def test_packed_corrections_use_supplied_pixels():
-    for filename in ['layout.json', 'ce_layout.json']:
+    for filename in ['layout.json', 'ce_layout.json', 'mcc_layout.json']:
         for entry in json.loads((ASSETS / filename).read_text())['assets']:
             if not any('source_png' in cell for cell in entry['cells']):
                 continue
@@ -63,9 +63,11 @@ def test_packed_corrections_use_supplied_pixels():
 
 def test_sniper_reticle_keeps_stock_visible_size_and_position():
     # Measured stock alpha bounds (>=128), not the padded sprite rectangles.
+    # MCC's original sheet has four times Xbox/CE's texture resolution.
     for name, scale, sprite, bounds in [
         ('sniper__hud_reticles_scope__0', 8, [32, 0, 50, 18], [36, 4, 45, 13]),
         ('ce_sniper_scope', 8, [51, 0, 63, 12], [52, 1, 61, 10]),
+        ('mcc_sniper_scope', 2, [108, 0, 152, 44], [112, 4, 148, 40]),
     ]:
         alpha = Image.open(ASSETS / (name+'.png')).getchannel('A')
         x0,y0,x1,y1 = [n*scale for n in sprite]
