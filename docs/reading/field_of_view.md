@@ -184,7 +184,7 @@ widening case, not every possible setting.
 
 | State | Written value | Reader |
 | --- | --- | --- |
-| `reticle_scales` | Native half-angle tangent divided by adjusted half-angle tangent, or one when unchanged or unusable. | `render_fov_reticle_scale`, used by HUD drawing. |
+| `reticle_scales` | Native half-angle tangent divided by adjusted half-angle tangent, or one when unchanged or unusable. | `render_fov_reticle_scale`, read by HUD drawing through `render_fov_reticle_draw_scale`, and by screen fog as a test for a changed view. |
 | `authored_vertical` | The incoming vertical angle when the adjustment changes it, otherwise zero. | `render_fov_authored_vertical`, used as the default weapon angle. |
 
 For a widened view, the scale is below one. In `hud_draw_bitmap_with_meter`,
@@ -193,6 +193,16 @@ only crosshair bitmaps anchored at the centre receive this scale.
 including the offsets of separate pieces. It does not scale the entire
 HUD. [hud_weapon.c](../../source/interface/hud_weapon.c) distinguishes
 scope overlays from the reticle drawing that receives this adjustment.
+
+The HUD takes the scale from `render_fov_reticle_draw_scale`, which returns
+`render_fov_reticle_scale` unless `display.reticle_stock_size` (STOCK
+RETICLE SIZE, a GulchCE option, off by default) is on; then it returns one,
+and the reticle keeps its stock pixel size at any field of view. Both HUD
+calls take the same value: `third_person_reticle` divides the shoulder
+view's aim offset by it before `hud_draw_bitmap_internal` multiplies it
+back, so the reticle lands on the aim point at either size. The fog
+screen's test reads `render_fov_reticle_scale` directly, so the option
+changes nothing but the reticle's size.
 
 The weapon can use `display.viewmodel_fov` explicitly. With that setting
 at zero, `viewmodel_projection_begin` falls back to the saved incoming

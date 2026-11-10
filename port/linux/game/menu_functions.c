@@ -8828,8 +8828,8 @@ void pc_menu_game_data_function_invoke(
 		if (third_person_policy() != _third_person_player_choice &&
 			widget->parameters.list.extended_description &&
 			widget->focused_child == named(widget, "op_third_person", 0))
-			/* FOV And Viewmodels: eight rows, one category, then this help. */
-			widget->parameters.list.extended_description->parameters.text_box.string_list_index = 10;
+			/* FOV And Viewmodels: nine rows, one category, then this help. */
+			widget->parameters.list.extended_description->parameters.text_box.string_list_index = 11;
 	}
 	else if (!strcmp(name, "port hdr calibration"))
 		hdr_calibration_update(widget);

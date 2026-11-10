@@ -14,6 +14,9 @@ real render_fov_vertical(short local_player_index, real native_vertical_field_of
 /* how much the reticle shrinks or grows to stay on its aim at that view (the
 last local view's own projection against the game's): 1 for the stock view */
 real render_fov_reticle_scale(short local_player_index);
+/* the scale the HUD draws the reticle at: render_fov_reticle_scale's, or 1
+with display.reticle_stock_size */
+real render_fov_reticle_draw_scale(short local_player_index);
 /* the view's own vertical angle when display.fov widened it, else 0 */
 real render_fov_authored_vertical(short local_player_index);
 
