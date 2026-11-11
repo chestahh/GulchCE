@@ -19,7 +19,7 @@ These unsupported areas are in the very small minority of maps as we've tested o
 
 All I ask is that if you do fix anything or add support for unsupported scripts that I haven't got around to covering, open a lil PR against Gulch's TESTING branch so I can enjoy it too.
 
-**And just for the avoidance of any doubt, I authorise people to relicense the code (currently AGPL) under their fork's own license, e.g. GPL, my work has and always will be open-source and free to the masses.**
+**And just for the avoidance of any doubt, I authorise people to relicense the code (currently AGPL) under their fork's own license (whether permissive or copyleft), e.g. Apache or GPL, my work has and always will be open-source and free to the masses.**
 
 My DMs are open and I will act in a support capacity for those who are eager to get the MCC stuff integrated onto their fork. Just shoot me a message.
 
