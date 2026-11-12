@@ -251,7 +251,7 @@ def test_negative_controls(tmp_path, before, after, case):
 
 @pytest.mark.parametrize("before,after,case", [
     ("if (mcc_package_shared_resource(resources[i-1],i)) continue;", "", "shared_resource"),
-    ("if (base) continue;", "", "base_copy"),
+    ("if (base_mask&(1u<<(i-1))) continue;", "", "base_copy"),
     ("if (!resources[i-1][0]) continue;",
      "if (!resources[i-1][0]) mcc_package_resource_path(canonical,i,resources[i-1]);", "unused_resources"),
 ])

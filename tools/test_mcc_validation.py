@@ -173,6 +173,7 @@ static struct mcc_resource_check *mcc_resources_check_begin(char const *n,
     struct mcc_cache_source const *s,char *r,size_t z) {
     (void)n;(void)s;(void)r;(void)z;allocated++;return calloc(1,sizeof(struct mcc_resource_check));
 }
+#define mcc_resources_check_begin_candidate(n,s,c,r,z) mcc_resources_check_begin(n,s,r,z)
 static int mcc_resources_check_step(struct mcc_resource_check *c,uint32_t *sum,unsigned char *digest) {
     steps++;if(bad)return -1;
     if(++c->step<3)return 0;
@@ -291,7 +292,11 @@ int main(void) {
 }
 '''
     path = tmp_path / "incremental.c"
-    source = source.replace("static struct mcc_precache_snapshot stamps;", function((ROOT / "port/linux/game/mcc_package.c").read_text(), "mcc_package_shared_resource") + "\nstatic struct mcc_precache_snapshot stamps;")
+    package = (ROOT / "port/linux/game/mcc_package.c").read_text()
+    helpers = "\n".join(function(package, name) for name in
+                        ("mcc_package_base_resource_path", "mcc_package_shared_resource"))
+    source = source.replace("static struct mcc_precache_snapshot stamps;",
+                            '#include "mcc_package.h"\n' + helpers + "\nstatic struct mcc_precache_snapshot stamps;")
     source = source.replace('assert(!opened&&!steps);', 'assert(!opened&&!steps);worker_enabled='+str(int(threaded))+';')
     path.write_text(source)
     binary = compile_tool(tmp_path, [path])

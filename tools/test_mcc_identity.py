@@ -165,6 +165,7 @@ struct mcc_validation_check *mcc_validation_check_begin(char const *s,char const
  if(!check)return NULL;memset(check,0,sizeof(*check));strcpy(check->name,s);
  mcc_precache_snapshot(s,&check->before);open_checks++;return check;
 }
+void mcc_validation_check_expect(struct mcc_validation_check *check,unsigned char const digest[32]) {(void)check;(void)digest;}
 int mcc_validation_check_step(struct mcc_validation_check *check,struct mcc_validation_proof *proof,char *reason,size_t size){
  struct mcc_precache_snapshot after;(void)reason;(void)size;
  if(!check->steps++)return 0;

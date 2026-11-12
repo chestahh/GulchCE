@@ -169,7 +169,7 @@ That accessor rechecks the same file stamps as admission; it does not repeat
 map parsing or hash every resource on each request. The selection comes from
 `mcc_resources_check_paths` in
 [`mcc_resource_check.inl`](../../port/linux/game/mcc_resource_check.inl), after
-`mcc_resources_select` validated the map's external references.
+`mcc_resources_select_paths` validated the map's external references.
 A self-contained map sends no unrelated resource siblings. A used package
 resource follows the platform's resolved path, including Workshop `halo1/maps`
 fallbacks. Required root/shared files and package copies matching installed
@@ -177,6 +177,25 @@ base files are omitted from transfer. Staged validation reads the joiner's own
 base resources; publication keeps those selected paths while remapping staged
 package paths. The complete snapshot and gameplay fingerprint remain required. An invalid
 present override fails validation rather than falling back to another file.
+
+`base_resources` caches the host's base-copy classification only while all nine
+candidate stamps and the selected paths match. It avoids repeating large byte
+comparisons for each joiner; changed or unreadable candidates prevent reuse.
+`mcc_package_base_resource_path` in
+[`mcc_package.c`](../../port/linux/game/mcc_package.c) supplies the shared candidate
+paths to classification, snapshots and resource selection.
+
+For staged and installed joins, `mcc_validation_check_expect` records the host's
+full SHA-256. The checker tries at most nine combinations of the three fixed
+local base locations, keeping present package overrides fixed. For example, an
+older root `sounds.map` can be rejected while the matching multiplayer shared
+copy succeeds. Every attempt still validates external references and hashes the
+complete content. A changed snapshot rejects the job. `mcc_cache_tags_load`
+reopens the successful proof's exact resource paths and verifies the loaded
+fingerprint again. No base-resource bytes or candidate paths are obtained from the host.
+[`test_mcc_resource_selection.py`](../../tools/test_mcc_resource_selection.py)
+covers this selection, staged publication, full-digest mismatch rejection and
+classification-cache invalidation.
 
 ## MCC package sharing between machines
 

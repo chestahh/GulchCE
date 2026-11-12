@@ -254,6 +254,8 @@ struct mcc_validation_check *mcc_validation_check_begin(char const *name,char co
     strcpy(check->name,name);strcpy(check->directory,directory);check->remaining=validation_delay;
     validation_live++;return check;
 }
+void mcc_validation_check_expect(struct mcc_validation_check *check,unsigned char const digest[32]) {(void)check;(void)digest;}
+int mcc_precache_snapshot(char const *name,struct mcc_precache_snapshot *out) {(void)name;memset(out,0,sizeof(*out));return 1;}
 int mcc_validation_check_step(struct mcc_validation_check *check,struct mcc_validation_proof *proof,
     char *reason,size_t reason_size)
 {
