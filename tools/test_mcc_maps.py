@@ -91,6 +91,7 @@ int CloseHandle(HANDLE);
 #include "mcc_package.h"
 #include "mcc_cache_format.h"
 #include "mcc_errors.h"
+#include "mcc_local_package.h"
 #include <errno.h>
 #include <stdarg.h>
 #include <stdint.h>
@@ -186,6 +187,7 @@ FILE *mcc_test_fopen(char const *path,char const *mode) {
         strpbrk(path+12,":*?\"<>|")) exit(20);
     snprintf(translated,sizeof(translated),"%s/mcc_maps/%s",root,path+12);
     {char *p;for(p=translated;*p;p++)if(*p=='\\')*p='/';}
+    mcc_local_package_path(path+3,root,translated,sizeof(translated));
     return fopen(translated,mode);
 }
 size_t mcc_test_fread(void *out,size_t size,size_t count,FILE *file) {
@@ -360,7 +362,9 @@ int main(int argc,char **argv) {
     source.write_text(source_code.replace("int main(int argc,char **argv)", "#define fopen mcc_test_fopen\n#define fread mcc_test_fread\n" + admission + "\n#undef fopen\n#undef fread\nint main(int argc,char **argv)"))
     output = work / ("catalog.exe" if sys.platform == "win32" else "catalog")
     command = [compiler, "-include", str(ROOT / "port/linux/game/mcc_loading.h"), str(ROOT / "tools/mcc_loading_stub.c"), "-std=c99", "-Wall", "-Wextra", "-Werror", "-DZ_PREFIX",
-               "-I", str(work), "-I", str(ROOT / "port/linux/game"), str(source),
+               "-I", str(work), "-I", str(ROOT / "port/linux/game"), "-I", str(ROOT / "port/linux/src"), str(source),
+               str(ROOT / "port/linux/src/mcc_local_package.c"), str(ROOT / "port/linux/src/posix_mcc_share.c"),
+               str(ROOT / ("port/windows/src/win32_files.c" if sys.platform == "win32" else "port/linux/src/posix_files.c")),
                str(ROOT / "port/linux/game/mcc_maps.c"),
                str(ROOT / "port/linux/game/mcc_workshop.c"),
                str(ROOT / "port/linux/game/mcc_package.c"), str(ROOT / "port/linux/src/workshop_collections.c"),
@@ -880,3 +884,24 @@ def test_imported_package_titles_do_not_depend_on_steam(catalog_tool,tmp_path,mo
     fields,_=run(catalog_tool,tmp_path,"browse","0","enter:0")
     assert fields["row0_0"].startswith("[Offline package title]|")
     assert fields["row1_0"]=="Authored offline level|mcc_maps\\12345\\arena"
+
+
+def test_intact_and_manual_packages_share_canonical_catalog(catalog_tool, tmp_path):
+    install(tmp_path, {})
+    root = tmp_path / "mcc_maps"
+    (root / "list.txt").write_text("/35530909\n/Manual\n")
+    for name, nested in (("35530909", True), ("Manual", False)):
+        package = root / name
+        maps = package / "maps" if nested else package
+        maps.mkdir(parents=True)
+        (maps / "arena.map").write_bytes(header(scenario=1))
+        (maps / "list.txt").write_text("arena.map\nbitmaps.map\n/deeper\n")
+        if nested:
+            (package / "list.txt").write_text("/maps\narena.map\n")
+            # The root copy wins even when nested discovery happens first.
+            (package / "arena.map").write_bytes(header(scenario=0))
+    _, maps = run(catalog_tool, tmp_path)
+    assert maps == ["mcc_maps\\35530909\\arena|1", "mcc_maps\\Manual\\arena|0"]
+    (root / "35530909/arena.map").unlink()
+    _, maps = run(catalog_tool, tmp_path)
+    assert maps == ["mcc_maps\\35530909\\arena|0", "mcc_maps\\Manual\\arena|0"]
