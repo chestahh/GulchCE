@@ -241,12 +241,13 @@ def test_confirmation_and_session_guards_detect_removal_regressions(tmp_path, be
 
 
 @pytest.mark.parametrize("platform", ["desktop", "android", "web"])
-def test_prompt_focus_tracks_visible_actions(tmp_path, platform):
+@pytest.mark.parametrize("screen", ["share", "downloads"])
+def test_prompt_focus_tracks_visible_actions(tmp_path, platform, screen):
     from harness import function
 
     source = (GAME / "menu_functions.c").read_text()
-    start = source.index('else if (!strcmp(name,"port mcc share update")) {')
-    end = source.index('\n\telse if', start)
+    start = source.index(f'else if (!strcmp(name,"port mcc {screen} update")) {{')
+    end = source.index('\n    else if' if screen == 'downloads' else '\n\telse if', start)
     body = source[start:end].replace('else if', 'if', 1)
     driver = r'''
 #include <assert.h>
@@ -263,6 +264,9 @@ static struct widget_instance children[6];
 static int download_on,workshop_on;
 static int mcc_share_game_can_download(void) {return download_on;}
 static int mcc_share_game_has_workshop(void) {return workshop_on;}
+#define mcc_share_menu_can_remove() download_on
+#define mcc_share_menu_confirming() 0
+#define text_set(widget,text) ((void)0)
 static struct widget_instance *named(struct widget_instance *w,char const *name,int unused) {
     (void)w;(void)unused;
     return children+(!strcmp(name,"download")?1:!strcmp(name,"workshop")?2:3);
@@ -289,6 +293,23 @@ int main(void) {
             update(&screen);assert(screen.focused_child==children+3);
             workshop_on=0;update(&screen);assert(screen.focused_child==children+(d?1:4));
         }
+    }
+    return 0;
+}
+'''
+    if screen == "downloads":
+        driver = driver.replace('name="port mcc share update"', 'name="port mcc downloads update"')
+        start = driver.index('    for(d=0;d<2;d++)')
+        driver = driver[:start] + r'''
+    (void)d;(void)w;(void)expected;(void)workshop_on;
+    (void)mcc_share_game_can_download;(void)mcc_share_game_has_workshop;
+    for(i=0;i<3;i++) {
+        download_on=i==0;
+        screen.focused_child=i==2?0:children+3;screen.parameters.list.selected_index=3;
+        update(&screen);
+        assert(screen.focused_child==children+(i==0?3:4));
+        assert(screen.parameters.list.selected_index==(i==0?3:4));
+        assert(screen.focused_child->visible);
     }
     return 0;
 }
