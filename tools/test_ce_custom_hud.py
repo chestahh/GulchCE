@@ -52,12 +52,14 @@ def test_shared_meter_channels_do_not_leak_or_convert_redraws(tmp_path):
 typedef unsigned int GLuint,GLenum;
 #define TRUE 1
 #define GL_TEXTURE_2D 2
+#define FALSE 0
+#define texture_entry_pixels_valid(e) 1
 #define _texel_p8 1
 #define _custom_edition_channels_xbox 0
 static int custom_edition_hud_meter_active,order,enabled;
 static void *custom_edition_texels;
 static unsigned long custom_edition_texel_count,custom_edition_texel_capacity;
-struct xgpu_texture_description {unsigned long levels,width,height;int compressed,format,hires,hires_coverage,hires_point_threshold,ce_meter_channels;};
+struct xgpu_texture_description {unsigned long levels,width,height;int linear,compressed,format,hires,hires_coverage,hires_point_threshold,ce_meter_channels;};
 struct texture_entry {GLuint target,texture;unsigned long data,address,size,hud_upscale_levels;int override,hud_upscale_checked;GLuint hud_upscale;struct xgpu_texture_description description;};
 #define text_hires_atlas_texture(a) 0
 #define menu_art_texture(a,b) 0
@@ -78,6 +80,14 @@ PRODUCTION
 int main(void) {
     struct texture_entry entry={0};struct xgpu_texture_description result;GLenum target;
     entry.override=-1;entry.texture=7;
+    entry.description.linear=1;entry.description.width=320;entry.description.height=240;
+    texture_entry_result(&entry,&target,&result);
+    assert(result.linear && 160.0/result.width==0.5);
+    entry.description.width=128;entry.description.height=16;
+    texture_entry_result(&entry,&target,&result);
+    assert(result.linear && 64.0/result.width==0.5);
+    entry.description.linear=0;
+    texture_entry_result(&entry,&target,&result);assert(!result.linear);
     halo_custom_edition_hud_meter(1);
     assert(texture_entry_result(&entry,&target,&result)==7 && result.ce_meter_channels);
     halo_custom_edition_hud_meter(0);

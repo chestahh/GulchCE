@@ -267,7 +267,11 @@ int main(void) {
         assert(mcc_validation_resources("mcc_maps/installed/a",paths));
         assert(!strcmp(paths[1],"mcc_maps/installed/sounds.map"));
         strcpy(proof.resources[1],"mcc_maps/_shared/singleplayer/sounds.map");
-        assert(!mcc_validation_publish("mcc_maps/borrowed/a",&proof));
+        assert(mcc_validation_publish("mcc_maps/borrowed/a",&proof));
+        assert(mcc_validation_resources("mcc_maps/borrowed/a",paths));
+        assert(!strcmp(paths[1],"mcc_maps/_shared/singleplayer/sounds.map"));
+        strcpy(proof.resources[1],"mcc_maps/another/sounds.map");
+        assert(!mcc_validation_publish("mcc_maps/foreign/a",&proof));
         mcc_validation_check_end(stage);
         local=mcc_validation_check_begin("mcc_maps/q/a",NULL);
         local_status=0;while(!local_status)local_status=mcc_validation_check_step(local,&local_proof,NULL,0);
@@ -287,6 +291,7 @@ int main(void) {
 }
 '''
     path = tmp_path / "incremental.c"
+    source = source.replace("static struct mcc_precache_snapshot stamps;", function((ROOT / "port/linux/game/mcc_package.c").read_text(), "mcc_package_shared_resource") + "\nstatic struct mcc_precache_snapshot stamps;")
     source = source.replace('assert(!opened&&!steps);', 'assert(!opened&&!steps);worker_enabled='+str(int(threaded))+';')
     path.write_text(source)
     binary = compile_tool(tmp_path, [path])

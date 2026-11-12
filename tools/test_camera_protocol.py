@@ -85,7 +85,7 @@ int main(void) {
     byte saved;
     int i,bytes;
 
-    CHECK(HALO_PORT_NETWORK_VERSION==43);
+    CHECK(HALO_PORT_NETWORK_VERSION==44);
     host=&server;third_person_session_host_begin();CHECK(!third_person_session_active());
     network_game_server_open_game(&server);CHECK(!third_person_session_locked());
     server.game.cooperative_flags=8; /* upstream vehicle riding survives camera policy changes */
@@ -95,11 +95,13 @@ int main(void) {
         char const *maps[]={"maps\\bloodgulch","custom_maps\\test","mcc_maps\\test"};
         int family;
         for(family=0;family<3;family++) {
-            CHECK(third_person_session_version(maps[family])==43);
-            CHECK(third_person_session_compatible(maps[family],43,1));
-            CHECK(!third_person_session_compatible(maps[family],43,0));
+            CHECK(third_person_session_version(maps[family])==44);
+            CHECK(third_person_session_compatible(maps[family],44,1));
+            CHECK(!third_person_session_compatible(maps[family],44,0));
             CHECK(third_person_session_compatible(maps[family],THIRD_PERSON_PROTOCOL_VERSION,1));
             CHECK(!third_person_session_compatible(maps[family],73,9));
+            CHECK(!third_person_session_compatible(maps[family],43,1));
+            CHECK(!third_person_session_compatible(maps[family],32744,1));
             CHECK(!third_person_session_compatible(maps[family],32738,1));
             CHECK(!third_person_session_compatible(maps[family],32740,1));
             CHECK(!third_person_session_compatible(maps[family],32742,9));

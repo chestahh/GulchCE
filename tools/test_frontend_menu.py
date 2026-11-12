@@ -558,10 +558,11 @@ def test_modern_network_menu_reaches_sharing(platform):
     widgets = {w.get('name'): w for w in ET.fromstring(frontend_menu.document()).findall('widget')}
     reached = reachable_menu_widgets(widgets, 'modern/online/settings', platform)
     settings = {widgets[name].get('setting') for name in reached}
-    assert {'network.mcc_map_share', 'network.map_download', 'network.map_seed',
+    assert {'network.map_download', 'network.map_seed',
             'game.mcc_campaigns', 'game.mcc_collections'} <= settings
     assert ('game.workshop_maps' in settings) == (platform == 'desktop')
     assert 'modern/sharing/row_mcc_downloads' in reached
+    assert 'network.mcc_map_share' not in settings
 
 
 @pytest.mark.parametrize('platform', ['desktop', 'android', 'web'])

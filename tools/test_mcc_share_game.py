@@ -20,7 +20,7 @@ CASES = ["transfer", "only_listed_files", "off", "unlisted", "listed_without_mak
          "handlers", "leave", "map_changes", "disk_space", "consent", "existing_version", "metadata_mismatch",
          "host_toggle", "peer_left", "client_toggle", "map_only", "cancel", "workshop_off", "workshop_client_off", "prompt_map_change", "prompt_disconnect", "prompt_content_change",
          "prompt_metadata_change", "stale_accept", "unused_resources", "bitmap_only",
-         "workshop_resource_fallback", "shared_resource", "invalid_resource", "host_revision", "prompt_overlay",
+         "workshop_resource_fallback", "shared_resource", "base_copy", "base_missing", "base_mismatch", "invalid_resource", "host_revision", "prompt_overlay",
          "admission_grace", "admission_player", "admission_peer_left", "admission_map", "admission_revision",
          "admission_off", "admission_disconnect", "admission_wrap", "local_validation_hold", "validation_pending_cancel",
          "validation_handoff", "validation_stale_handoff",
@@ -150,7 +150,8 @@ def build(work, share_source=None, package_source=None):
         source = stubs / filename
         original = (share_source if filename == "mcc_share.c" else package_source) or GAME / filename
         # Relocate includes only; the implementation is compiled unchanged.
-        source.write_text(original.read_text().replace('"../src/', '"'))
+        source.write_text(("#define fopen fixture_fopen\n" if filename=="mcc_share_package.c" else "") +
+                          original.read_text().replace('"../src/', '"'))
         for prefix in ("h_", "j_"):
             renames = [f"-D{name}={prefix}{name}" for name in RENAMED]
             obj = work / f"{prefix}{filename}.o"
@@ -249,7 +250,8 @@ def test_negative_controls(tmp_path, before, after, case):
 
 
 @pytest.mark.parametrize("before,after,case", [
-    ("csstrcasecmp(expected,resources[i-1])", "0", "shared_resource"),
+    ("if (mcc_package_shared_resource(resources[i-1],i)) continue;", "", "shared_resource"),
+    ("if (base) continue;", "", "base_copy"),
     ("if (!resources[i-1][0]) continue;",
      "if (!resources[i-1][0]) mcc_package_resource_path(canonical,i,resources[i-1]);", "unused_resources"),
 ])

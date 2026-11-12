@@ -2,9 +2,9 @@
 #ifndef THIRD_PERSON_PROTOCOL_H
 #define THIRD_PERSON_PROTOCOL_H
 
-/* OpenCE 43 plus shoulder-camera input and policy in cooperative flag bits 4-5.
+/* Network 44 plus shoulder-camera input and policy in cooperative flag bits 4-5.
  * All map families share this agreement; older camera sessions are incompatible. */
-#define THIRD_PERSON_PROTOCOL_VERSION 32744
+#define THIRD_PERSON_PROTOCOL_VERSION 32745
 
 struct network_game;
 void third_person_session_host_begin(void);

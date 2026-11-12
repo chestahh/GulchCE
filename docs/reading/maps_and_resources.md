@@ -148,17 +148,18 @@ Read [`mcc_share_rules.h`](../../port/linux/game/mcc_share_rules.h), then
 `mcc_share_decide` in [`mcc_share_rules.c`](../../port/linux/game/mcc_share_rules.c).
 The policy accepts eligible local and Workshop packages under the same checks.
 It requires host opt-in, portable package/level names, a known gameplay
-fingerprint and a host-established custom-content classification. Loose maps,
-`_shared`, known stock content and unknown classification remain refused.
+fingerprint. The low-level policy also rejects known stock/unknown content;
+the game adapter admits validated package identities and the planner excludes
+base resources. Loose maps and `_shared` remain refused.
 Workshop IDs identify a source; they do not establish permission or content identity.
 
-The classification provider is the host's own `mcc_share.txt`, parsed by
-[`mcc_share_list.c`](../../port/linux/game/mcc_share_list.c): one line contains
-`<64 hexadecimal digits> <maker>`. The digest covers the map and its used
-resources, independent of installation name. Required JSON has a separate
-identity. A matching list entry is the host's explicit approval of those
-content bytes, not a signature from the maker or a substitute for receiver
-validation. A missing maker or an unlisted digest blocks the offer.
+`mcc_share_admit` accepts a locally validated package when the host enables
+`network.map_share`. The planner separately excludes base resources. The
+optional legacy `mcc_share.txt`, parsed by
+[`mcc_share_list.c`](../../port/linux/game/mcc_share_list.c), supplies attribution
+only. Missing maker credit does not block the offer. The gameplay digest covers
+the map and used resources; required JSON has a separate identity. Neither
+an attribution line nor a Workshop ID substitutes for receiver validation.
 
 [`mcc_share_package.c`](../../port/linux/game/mcc_share_package.c) owns file
 selection. `mcc_share_package_build` obtains the actual selected dependencies
@@ -171,8 +172,10 @@ map parsing or hash every resource on each request. The selection comes from
 `mcc_resources_select` validated the map's external references.
 A self-contained map sends no unrelated resource siblings. A used package
 resource follows the platform's resolved path, including Workshop `halo1/maps`
-fallbacks. A required root/shared resource refuses the offer with its path in
-the host log; it is never silently copied as package content. An invalid
+fallbacks. Required root/shared files and package copies matching installed
+base files are omitted from transfer. Staged validation reads the joiner's own
+base resources; publication keeps those selected paths while remapping staged
+package paths. The complete snapshot and gameplay fingerprint remain required. An invalid
 present override fails validation rather than falling back to another file.
 
 ## MCC package sharing between machines
@@ -183,8 +186,8 @@ Browser playability and asynchronous admission have separate Milestone 14
 checks; compilation or successful publication alone does not establish play.
 
 For example, a host plays `mcc_maps\solar_flare\m0` and a joiner has another
-version in a local folder of that name. The host enables `network.mcc_map_share`
-and lists its gameplay fingerprint and maker; the client enables the existing
+version in a local folder of that name. The host enables `network.map_share`
+and its validated package is offered automatically; the client enables the existing
 `network.map_download` preference. The original local package stays intact.
 
 1. Read `mcc_identity_accept` and `mcc_identity_update` in
@@ -198,7 +201,7 @@ and lists its gameplay fingerprint and maker; the client enables the existing
    `mcc_share_missing` in [`mcc_share.c`](../../port/linux/game/mcc_share.c)
    requests an offer. Client downloads off means no request: show manual
    installation and, when a valid Workshop ID exists, the Workshop page.
-2. `mcc_share_package_build` applies the local list/policy and builds a bounded
+2. `mcc_share_package_build` applies the host setting and MCC policy and builds a bounded
    offer containing the current map, used package resources, recognized JSON,
    referenced supported PNG previews and permitted attribution text. A local
    map-only folder needs no JSON or thumbnail. `mcc_share_metadata_plan` in
