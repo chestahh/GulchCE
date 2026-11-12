@@ -192,6 +192,12 @@ its full gate is rerun with every domain through M10 and at M11/M12.
 
 ### M0 — Inventory, expected behavior and baseline
 
+**Recorded work (12 November 2026):** See the [M0 inventory and baseline](coop_m0.md),
+[source index](coop_m0_inventory.md) and [numerical results](coop_m0_results.json).
+The available Windows baseline and source audit are recorded; the full exit
+gate remains open for the explicitly listed measurement/platform gaps.
+No M1 implementation is authorized by this status entry.
+
 **Work:** Build a state-and-action ledger from every message kind, producer,
 consumer, script side effect and checkpoint participant. For each entry record
 authority, identifiers, serialization, dependency, update/removal, late-join,

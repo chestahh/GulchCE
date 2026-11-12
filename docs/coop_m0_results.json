@@ -1,0 +1,1121 @@
+{
+  "sessions": {
+    "ce-b30-lan": {
+      "revision": "a8ac6e6b6ad0bc382e43cd4c3bd50606b3c90e2e",
+      "binary_sha256": "58a40b25075006e8bb48a15bf90048d586884302175dfb4ab738367084e0a305",
+      "elapsed_seconds": 80.96900000000096,
+      "comparison": {
+        "divergences": [],
+        "problems": [],
+        "figures": {
+          "seconds": 60,
+          "position_max": 0.09823441352194284,
+          "position_sum": 2.1071561128545544,
+          "position_count": 82,
+          "aim_max": 1,
+          "mismatches": {},
+          "tick_offsets": [
+            0
+          ]
+        },
+        "drift": {
+          "samples": 761,
+          "apart": 74,
+          "mean": 0.00015609067017082785,
+          "largest": 0.034775
+        },
+        "client_corrections": 397,
+        "early_exits": {
+          "host": null,
+          "client": null
+        }
+      },
+      "process_memory": {
+        "host": {
+          "working_bytes": {
+            "min": 403632128,
+            "max": 439394304
+          },
+          "private_bytes": {
+            "min": 637009920,
+            "max": 639025152
+          }
+        },
+        "client": {
+          "working_bytes": {
+            "min": 403308544,
+            "max": 432402432
+          },
+          "private_bytes": {
+            "min": 637116416,
+            "max": 639569920
+          }
+        }
+      },
+      "map_identities": {
+        "carousel.map": {
+          "bytes": 20215808,
+          "sha256": "1c6353df6e4530437841b09775e62fa067caa46bb0e40f4579bbf2276991a38e"
+        },
+        "ui.map": {
+          "bytes": 14145536,
+          "sha256": "35e3e560478d85178749be310ad13d6d6ecde618d32675261a3554592333a833"
+        },
+        "ce/b30.map": {
+          "bytes": 201578087,
+          "sha256": "baec59d37cf8d3f017dd3ac0d61fb431087490eeb1c469b2071ae2aec66ca24a"
+        },
+        "bitmaps.map": {
+          "bytes": 123547749,
+          "sha256": "317658e0ebd4aa189bac68e994fe0b515928f44d17b62ba676d8850aa329dd3d"
+        },
+        "sounds.map": {
+          "bytes": 41718640,
+          "sha256": "81658a8d9b127b2771558a35e664ec3f1a2b370f271fe957426d945001ceb5d2"
+        },
+        "loc.map": {
+          "bytes": 391996,
+          "sha256": "1321e17b5a86be84b1930b6eb2e7fdfe9285275d5d54cbe3d4a3635e2bf04041"
+        }
+      }
+    },
+    "mcc-a10-lan": {
+      "revision": "a8ac6e6b6ad0bc382e43cd4c3bd50606b3c90e2e",
+      "binary_sha256": "58a40b25075006e8bb48a15bf90048d586884302175dfb4ab738367084e0a305",
+      "elapsed_seconds": 85.82900000000154,
+      "comparison": {
+        "divergences": [],
+        "problems": [],
+        "figures": {
+          "seconds": 59,
+          "position_max": 0.1641310452047821,
+          "position_sum": 7.514250840315222,
+          "position_count": 100,
+          "aim_max": 1,
+          "mismatches": {
+            "grenades": 1
+          },
+          "tick_offsets": [
+            0
+          ]
+        },
+        "drift": {
+          "samples": 1769,
+          "apart": 51,
+          "mean": 0.007303877897117016,
+          "largest": 12.887218
+        },
+        "client_corrections": 152,
+        "early_exits": {
+          "host": null,
+          "client": null
+        }
+      },
+      "process_memory": {
+        "host": {
+          "working_bytes": {
+            "min": 816242688,
+            "max": 820617216
+          },
+          "private_bytes": {
+            "min": 1096843264,
+            "max": 1097920512
+          }
+        },
+        "client": {
+          "working_bytes": {
+            "min": 808202240,
+            "max": 811958272
+          },
+          "private_bytes": {
+            "min": 1097310208,
+            "max": 1097555968
+          }
+        }
+      },
+      "map_identities": {
+        "carousel.map": {
+          "bytes": 20215808,
+          "sha256": "1c6353df6e4530437841b09775e62fa067caa46bb0e40f4579bbf2276991a38e"
+        },
+        "ui.map": {
+          "bytes": 14145536,
+          "sha256": "35e3e560478d85178749be310ad13d6d6ecde618d32675261a3554592333a833"
+        },
+        "mcc/a10.map": {
+          "bytes": 407040369,
+          "sha256": "3f7eaaaf27358591a1a1ae7ed99e3fdf9a826af4a4fa5ef1dd4757538ae0fed2"
+        }
+      }
+    },
+    "xbox-a30-completion-full-menu": {
+      "revision": "a8ac6e6b6ad0bc382e43cd4c3bd50606b3c90e2e",
+      "binary_sha256": "58a40b25075006e8bb48a15bf90048d586884302175dfb4ab738367084e0a305",
+      "elapsed_seconds": 87.90600000000268,
+      "comparison": {
+        "divergences": [],
+        "problems": [
+          "the client played only 37 seconds of 75"
+        ],
+        "figures": {
+          "seconds": 36,
+          "position_max": 0.06851277253183545,
+          "position_sum": 0.8964175846840456,
+          "position_count": 61,
+          "aim_max": 1,
+          "mismatches": {
+            "grenades": 4
+          },
+          "tick_offsets": [
+            0
+          ]
+        },
+        "drift": {
+          "samples": 1071,
+          "apart": 88,
+          "mean": 0.00020947712418300653,
+          "largest": 0.026602
+        },
+        "client_corrections": 19,
+        "early_exits": {
+          "host": null,
+          "client": null
+        }
+      },
+      "process_memory": {
+        "host": {
+          "working_bytes": {
+            "min": 209117184,
+            "max": 212680704
+          },
+          "private_bytes": {
+            "min": 446173184,
+            "max": 447209472
+          }
+        },
+        "client": {
+          "working_bytes": {
+            "min": 199921664,
+            "max": 204201984
+          },
+          "private_bytes": {
+            "min": 446255104,
+            "max": 446840832
+          }
+        }
+      },
+      "map_identities": {
+        "a30.map": {
+          "bytes": 152610816,
+          "sha256": "4875fa105e6c517589a796cfdcc7fcaa07e98df13d14e601bfc9eb1eab7e30b5"
+        },
+        "carousel.map": {
+          "bytes": 20215808,
+          "sha256": "1c6353df6e4530437841b09775e62fa067caa46bb0e40f4579bbf2276991a38e"
+        },
+        "ui.map": {
+          "bytes": 14145536,
+          "sha256": "35e3e560478d85178749be310ad13d6d6ecde618d32675261a3554592333a833"
+        },
+        "a50.map": {
+          "bytes": 176224256,
+          "sha256": "f8ec33c0130191cf944ef7b4a3f210bb680cfd1341cdf3a6ef3447391049abe7"
+        },
+        "beavercreek.map": {
+          "bytes": 22122496,
+          "sha256": "c65ac17d830552cdebfc173c1e8aa17f1f009149138c2c8e72afda1f79f88a60"
+        },
+        "bloodgulch.map": {
+          "bytes": 22571008,
+          "sha256": "50fe52406f075d975e24100a65b26ff696458023dd3509878953052ab0ef858f"
+        },
+        "boardingaction.map": {
+          "bytes": 22075392,
+          "sha256": "e14cebccd63f7780e1f5da7a1687a37bdaa3f0821701095075336ef548889efb"
+        },
+        "chillout.map": {
+          "bytes": 20336640,
+          "sha256": "81819e9d7037a6b6c4e9a7472a431ebb53ed25ea00d8af634ac8384f1fe13d8b"
+        },
+        "damnation.map": {
+          "bytes": 23756800,
+          "sha256": "8b97ca7d73a4b720ba1b88deeb5a250b02a3f6886ffd2ddaa789cc9ad05e47b8"
+        },
+        "hangemhigh.map": {
+          "bytes": 21338112,
+          "sha256": "932a3a13a69fff5dd6e69c9b2c896c1bf3942c54a2a207975c4d0da4df07ed30"
+        },
+        "longest.map": {
+          "bytes": 20512768,
+          "sha256": "12977a4042ecb960cbe48ef936046a35c6754c18829ad2d17206b66ddd03864e"
+        },
+        "prisoner.map": {
+          "bytes": 21323776,
+          "sha256": "50740d89600b7fa53613ced764fa6e688434a8132948224658bf1ed07662aa3d"
+        },
+        "putput.map": {
+          "bytes": 19777536,
+          "sha256": "7f5d13335d44982b0fbf7aad6b767d035aa64b32bf5c38d6d29bf20916fce5d4"
+        },
+        "ratrace.map": {
+          "bytes": 23840768,
+          "sha256": "ad83896842b2303d145b944f644e4ddfe8d0dd80feda7efcb058a0f567a6bdec"
+        },
+        "sidewinder.map": {
+          "bytes": 24823808,
+          "sha256": "210f7a01bac7b4c242483b1a640e0bc32fb0a2b4f97f56e69668720563b34912"
+        },
+        "wizard.map": {
+          "bytes": 19687424,
+          "sha256": "e782ad19071efa1c73f30be44feb6b7e073e15f00337e23d877a8e9776f2f3ad"
+        }
+      }
+    },
+    "xbox-a30-completion-profile": {
+      "revision": "a8ac6e6b6ad0bc382e43cd4c3bd50606b3c90e2e",
+      "binary_sha256": "011b4dee893c8ccaef601cd25f56a6339f50efb285cfec09dad481850eb36307",
+      "elapsed_seconds": 50.18800000000192,
+      "comparison": {
+        "divergences": [],
+        "problems": [
+          "the client played only 37 seconds of 60"
+        ],
+        "figures": {
+          "seconds": 36,
+          "position_max": 0.07816009211867937,
+          "position_sum": 2.2507980245827146,
+          "position_count": 61,
+          "aim_max": 1,
+          "mismatches": {
+            "grenades": 2
+          },
+          "tick_offsets": [
+            0
+          ]
+        },
+        "drift": {
+          "samples": 1079,
+          "apart": 29,
+          "mean": 8.428174235403152e-05,
+          "largest": 0.033016
+        },
+        "client_corrections": 20,
+        "early_exits": {
+          "host": 0,
+          "client": null
+        }
+      },
+      "process_memory": {
+        "host": {
+          "working_bytes": {
+            "min": 20480,
+            "max": 226717696
+          },
+          "private_bytes": {
+            "min": 65536,
+            "max": 464261120
+          }
+        },
+        "client": {
+          "working_bytes": {
+            "min": 204476416,
+            "max": 218853376
+          },
+          "private_bytes": {
+            "min": 446746624,
+            "max": 464248832
+          }
+        }
+      },
+      "map_identities": {
+        "a30.map": {
+          "bytes": 152610816,
+          "sha256": "4875fa105e6c517589a796cfdcc7fcaa07e98df13d14e601bfc9eb1eab7e30b5"
+        },
+        "carousel.map": {
+          "bytes": 20215808,
+          "sha256": "1c6353df6e4530437841b09775e62fa067caa46bb0e40f4579bbf2276991a38e"
+        },
+        "ui.map": {
+          "bytes": 14145536,
+          "sha256": "35e3e560478d85178749be310ad13d6d6ecde618d32675261a3554592333a833"
+        }
+      }
+    },
+    "xbox-a30-completion-with-lobby-map": {
+      "revision": "a8ac6e6b6ad0bc382e43cd4c3bd50606b3c90e2e",
+      "binary_sha256": "011b4dee893c8ccaef601cd25f56a6339f50efb285cfec09dad481850eb36307",
+      "elapsed_seconds": 65.4529999999977,
+      "comparison": {
+        "divergences": [],
+        "problems": [
+          "the client played only 37 seconds of 65"
+        ],
+        "figures": {
+          "seconds": 36,
+          "position_max": 0.048928519290902125,
+          "position_sum": 0.8334810595302348,
+          "position_count": 61,
+          "aim_max": 1,
+          "mismatches": {
+            "grenades": 1
+          },
+          "tick_offsets": [
+            0
+          ]
+        },
+        "drift": {
+          "samples": 1079,
+          "apart": 28,
+          "mean": 9.254958294717332e-05,
+          "largest": 0.02861
+        },
+        "client_corrections": 19,
+        "early_exits": {
+          "host": 0,
+          "client": null
+        }
+      },
+      "process_memory": {
+        "host": {
+          "working_bytes": {
+            "min": 20480,
+            "max": 213262336
+          },
+          "private_bytes": {
+            "min": 65536,
+            "max": 447868928
+          }
+        },
+        "client": {
+          "working_bytes": {
+            "min": 200011776,
+            "max": 204619776
+          },
+          "private_bytes": {
+            "min": 446472192,
+            "max": 446910464
+          }
+        }
+      },
+      "map_identities": {
+        "a30.map": {
+          "bytes": 152610816,
+          "sha256": "4875fa105e6c517589a796cfdcc7fcaa07e98df13d14e601bfc9eb1eab7e30b5"
+        },
+        "carousel.map": {
+          "bytes": 20215808,
+          "sha256": "1c6353df6e4530437841b09775e62fa067caa46bb0e40f4579bbf2276991a38e"
+        },
+        "ui.map": {
+          "bytes": 14145536,
+          "sha256": "35e3e560478d85178749be310ad13d6d6ecde618d32675261a3554592333a833"
+        },
+        "a50.map": {
+          "bytes": 176224256,
+          "sha256": "f8ec33c0130191cf944ef7b4a3f210bb680cfd1341cdf3a6ef3447391049abe7"
+        },
+        "sidewinder.map": {
+          "bytes": 24823808,
+          "sha256": "210f7a01bac7b4c242483b1a640e0bc32fb0a2b4f97f56e69668720563b34912"
+        }
+      }
+    },
+    "xbox-a30-completion-with-next": {
+      "revision": "a8ac6e6b6ad0bc382e43cd4c3bd50606b3c90e2e",
+      "binary_sha256": "011b4dee893c8ccaef601cd25f56a6339f50efb285cfec09dad481850eb36307",
+      "elapsed_seconds": 65.43800000000192,
+      "comparison": {
+        "divergences": [],
+        "problems": [
+          "the client played only 37 seconds of 65"
+        ],
+        "figures": {
+          "seconds": 36,
+          "position_max": 0.12017071190602027,
+          "position_sum": 2.043822301651506,
+          "position_count": 61,
+          "aim_max": 1,
+          "mismatches": {
+            "grenades": 3
+          },
+          "tick_offsets": [
+            0
+          ]
+        },
+        "drift": {
+          "samples": 1079,
+          "apart": 82,
+          "mean": 0.0002838507877664504,
+          "largest": 0.045962
+        },
+        "client_corrections": 19,
+        "early_exits": {
+          "host": 0,
+          "client": null
+        }
+      },
+      "process_memory": {
+        "host": {
+          "working_bytes": {
+            "min": 20480,
+            "max": 227737600
+          },
+          "private_bytes": {
+            "min": 65536,
+            "max": 465289216
+          }
+        },
+        "client": {
+          "working_bytes": {
+            "min": 204554240,
+            "max": 218509312
+          },
+          "private_bytes": {
+            "min": 446889984,
+            "max": 464306176
+          }
+        }
+      },
+      "map_identities": {
+        "a30.map": {
+          "bytes": 152610816,
+          "sha256": "4875fa105e6c517589a796cfdcc7fcaa07e98df13d14e601bfc9eb1eab7e30b5"
+        },
+        "carousel.map": {
+          "bytes": 20215808,
+          "sha256": "1c6353df6e4530437841b09775e62fa067caa46bb0e40f4579bbf2276991a38e"
+        },
+        "ui.map": {
+          "bytes": 14145536,
+          "sha256": "35e3e560478d85178749be310ad13d6d6ecde618d32675261a3554592333a833"
+        },
+        "a50.map": {
+          "bytes": 176224256,
+          "sha256": "f8ec33c0130191cf944ef7b4a3f210bb680cfd1341cdf3a6ef3447391049abe7"
+        }
+      }
+    },
+    "xbox-a30-lan": {
+      "revision": "a8ac6e6b6ad0bc382e43cd4c3bd50606b3c90e2e",
+      "binary_sha256": "58a40b25075006e8bb48a15bf90048d586884302175dfb4ab738367084e0a305",
+      "elapsed_seconds": 136.0470000000023,
+      "comparison": {
+        "divergences": [],
+        "problems": [
+          "the host logged no game (C:\\Users\\matty\\.codex\\worktrees\\coop-rewrite-feasibility\\GulchCE\\build\\m0\\sessions\\xbox-a30-lan\\host\\halo.log)",
+          "the client logged no game (C:\\Users\\matty\\.codex\\worktrees\\coop-rewrite-feasibility\\GulchCE\\build\\m0\\sessions\\xbox-a30-lan\\client\\halo.log)"
+        ],
+        "early_exits": {
+          "host": null,
+          "client": null
+        }
+      },
+      "process_memory": {
+        "host": {},
+        "client": {}
+      },
+      "map_identities": {
+        "a30.map": {
+          "bytes": 152610816,
+          "sha256": "4875fa105e6c517589a796cfdcc7fcaa07e98df13d14e601bfc9eb1eab7e30b5"
+        },
+        "carousel.map": {
+          "bytes": 20215808,
+          "sha256": "1c6353df6e4530437841b09775e62fa067caa46bb0e40f4579bbf2276991a38e"
+        },
+        "ui.map": {
+          "bytes": 14145536,
+          "sha256": "35e3e560478d85178749be310ad13d6d6ecde618d32675261a3554592333a833"
+        }
+      }
+    },
+    "xbox-a30-lan-unrestricted": {
+      "revision": "a8ac6e6b6ad0bc382e43cd4c3bd50606b3c90e2e",
+      "binary_sha256": "58a40b25075006e8bb48a15bf90048d586884302175dfb4ab738367084e0a305",
+      "elapsed_seconds": 72.42199999999866,
+      "comparison": {
+        "divergences": [],
+        "problems": [],
+        "figures": {
+          "seconds": 59,
+          "position_max": 0.07457881736793458,
+          "position_sum": 3.8823897299208596,
+          "position_count": 107,
+          "aim_max": 1,
+          "mismatches": {
+            "grenades": 3
+          },
+          "tick_offsets": [
+            0
+          ]
+        },
+        "drift": {
+          "samples": 1769,
+          "apart": 61,
+          "mean": 0.0001186630864895421,
+          "largest": 0.031478
+        },
+        "client_corrections": 19,
+        "early_exits": {
+          "host": null,
+          "client": null
+        }
+      },
+      "process_memory": {
+        "host": {
+          "working_bytes": {
+            "min": 209338368,
+            "max": 214380544
+          },
+          "private_bytes": {
+            "min": 446349312,
+            "max": 447680512
+          }
+        },
+        "client": {
+          "working_bytes": {
+            "min": 199630848,
+            "max": 205160448
+          },
+          "private_bytes": {
+            "min": 446214144,
+            "max": 447008768
+          }
+        }
+      },
+      "map_identities": {
+        "a30.map": {
+          "bytes": 152610816,
+          "sha256": "4875fa105e6c517589a796cfdcc7fcaa07e98df13d14e601bfc9eb1eab7e30b5"
+        },
+        "carousel.map": {
+          "bytes": 20215808,
+          "sha256": "1c6353df6e4530437841b09775e62fa067caa46bb0e40f4579bbf2276991a38e"
+        },
+        "ui.map": {
+          "bytes": 14145536,
+          "sha256": "35e3e560478d85178749be310ad13d6d6ecde618d32675261a3554592333a833"
+        }
+      }
+    },
+    "xbox-a30-late-loss": {
+      "revision": "a8ac6e6b6ad0bc382e43cd4c3bd50606b3c90e2e",
+      "binary_sha256": "58a40b25075006e8bb48a15bf90048d586884302175dfb4ab738367084e0a305",
+      "elapsed_seconds": 91.75,
+      "comparison": {
+        "divergences": [],
+        "problems": [],
+        "figures": {
+          "seconds": 62,
+          "position_max": 0.384329285899476,
+          "position_sum": 17.5078050584498,
+          "position_count": 124,
+          "aim_max": 17,
+          "mismatches": {
+            "aim": 1,
+            "grenades": 5
+          },
+          "tick_offsets": [
+            0
+          ]
+        },
+        "drift": {
+          "samples": 570,
+          "apart": 185,
+          "mean": 0.0003518210526315787,
+          "largest": 0.02244
+        },
+        "client_corrections": 0,
+        "early_exits": {
+          "host": null,
+          "client": null
+        }
+      },
+      "process_memory": {
+        "host": {
+          "working_bytes": {
+            "min": 212094976,
+            "max": 219607040
+          },
+          "private_bytes": {
+            "min": 452980736,
+            "max": 453529600
+          }
+        },
+        "client": {
+          "working_bytes": {
+            "min": 199647232,
+            "max": 207704064
+          },
+          "private_bytes": {
+            "min": 453304320,
+            "max": 454680576
+          }
+        }
+      },
+      "map_identities": {
+        "a30.map": {
+          "bytes": 152610816,
+          "sha256": "4875fa105e6c517589a796cfdcc7fcaa07e98df13d14e601bfc9eb1eab7e30b5"
+        },
+        "carousel.map": {
+          "bytes": 20215808,
+          "sha256": "1c6353df6e4530437841b09775e62fa067caa46bb0e40f4579bbf2276991a38e"
+        },
+        "ui.map": {
+          "bytes": 14145536,
+          "sha256": "35e3e560478d85178749be310ad13d6d6ecde618d32675261a3554592333a833"
+        }
+      }
+    },
+    "xbox-a30-profile": {
+      "revision": "a8ac6e6b6ad0bc382e43cd4c3bd50606b3c90e2e",
+      "binary_sha256": "011b4dee893c8ccaef601cd25f56a6339f50efb285cfec09dad481850eb36307",
+      "elapsed_seconds": 68.35900000000038,
+      "comparison": {
+        "divergences": [],
+        "problems": [],
+        "figures": {
+          "seconds": 55,
+          "position_max": 0.04908156476723889,
+          "position_sum": 1.515597385596769,
+          "position_count": 99,
+          "aim_max": 1,
+          "mismatches": {
+            "grenades": 5
+          },
+          "tick_offsets": [
+            0
+          ]
+        },
+        "drift": {
+          "samples": 1649,
+          "apart": 66,
+          "mean": 0.00021939842328684046,
+          "largest": 0.025585
+        },
+        "client_corrections": 19,
+        "early_exits": {
+          "host": null,
+          "client": null
+        }
+      },
+      "process_memory": {
+        "host": {
+          "working_bytes": {
+            "min": 223780864,
+            "max": 228065280
+          },
+          "private_bytes": {
+            "min": 463503360,
+            "max": 464506880
+          }
+        },
+        "client": {
+          "working_bytes": {
+            "min": 210067456,
+            "max": 219807744
+          },
+          "private_bytes": {
+            "min": 462753792,
+            "max": 463908864
+          }
+        }
+      },
+      "map_identities": {
+        "a30.map": {
+          "bytes": 152610816,
+          "sha256": "4875fa105e6c517589a796cfdcc7fcaa07e98df13d14e601bfc9eb1eab7e30b5"
+        },
+        "carousel.map": {
+          "bytes": 20215808,
+          "sha256": "1c6353df6e4530437841b09775e62fa067caa46bb0e40f4579bbf2276991a38e"
+        },
+        "ui.map": {
+          "bytes": 14145536,
+          "sha256": "35e3e560478d85178749be310ad13d6d6ecde618d32675261a3554592333a833"
+        }
+      }
+    },
+    "xbox-a30-revert": {
+      "revision": "a8ac6e6b6ad0bc382e43cd4c3bd50606b3c90e2e",
+      "binary_sha256": "58a40b25075006e8bb48a15bf90048d586884302175dfb4ab738367084e0a305",
+      "elapsed_seconds": 77.46900000000096,
+      "comparison": {
+        "divergences": [],
+        "problems": [],
+        "figures": {
+          "seconds": 64,
+          "position_max": 0.052134441590945234,
+          "position_sum": 1.785193772288269,
+          "position_count": 117,
+          "aim_max": 1,
+          "mismatches": {
+            "grenades": 1
+          },
+          "tick_offsets": [
+            0
+          ]
+        },
+        "drift": {
+          "samples": 1917,
+          "apart": 27,
+          "mean": 5.292175273865415e-05,
+          "largest": 0.02861
+        },
+        "client_corrections": 19,
+        "early_exits": {
+          "host": null,
+          "client": null
+        }
+      },
+      "process_memory": {
+        "host": {
+          "working_bytes": {
+            "min": 209457152,
+            "max": 214016000
+          },
+          "private_bytes": {
+            "min": 446562304,
+            "max": 447557632
+          }
+        },
+        "client": {
+          "working_bytes": {
+            "min": 199979008,
+            "max": 206278656
+          },
+          "private_bytes": {
+            "min": 446398464,
+            "max": 447598592
+          }
+        }
+      },
+      "map_identities": {
+        "a30.map": {
+          "bytes": 152610816,
+          "sha256": "4875fa105e6c517589a796cfdcc7fcaa07e98df13d14e601bfc9eb1eab7e30b5"
+        },
+        "carousel.map": {
+          "bytes": 20215808,
+          "sha256": "1c6353df6e4530437841b09775e62fa067caa46bb0e40f4579bbf2276991a38e"
+        },
+        "ui.map": {
+          "bytes": 14145536,
+          "sha256": "35e3e560478d85178749be310ad13d6d6ecde618d32675261a3554592333a833"
+        }
+      }
+    },
+    "xbox-bloodgulch-events": {
+      "revision": "a8ac6e6b6ad0bc382e43cd4c3bd50606b3c90e2e",
+      "binary_sha256": "58a40b25075006e8bb48a15bf90048d586884302175dfb4ab738367084e0a305",
+      "elapsed_seconds": 72.34400000000096,
+      "comparison": {
+        "divergences": [],
+        "problems": [],
+        "figures": {
+          "seconds": 59,
+          "position_max": 0.13148764200486548,
+          "position_sum": 5.384932643969302,
+          "position_count": 118,
+          "aim_max": 1,
+          "mismatches": {},
+          "tick_offsets": [
+            0
+          ]
+        },
+        "drift": {
+          "samples": 1770,
+          "apart": 193,
+          "mean": 0.00021152542372881354,
+          "largest": 0.021745
+        },
+        "client_corrections": 12,
+        "early_exits": {
+          "host": null,
+          "client": null
+        }
+      },
+      "process_memory": {
+        "host": {
+          "working_bytes": {
+            "min": 198197248,
+            "max": 201285632
+          },
+          "private_bytes": {
+            "min": 445759488,
+            "max": 446640128
+          }
+        },
+        "client": {
+          "working_bytes": {
+            "min": 197427200,
+            "max": 200859648
+          },
+          "private_bytes": {
+            "min": 444952576,
+            "max": 445935616
+          }
+        }
+      },
+      "map_identities": {
+        "bloodgulch.map": {
+          "bytes": 22571008,
+          "sha256": "50fe52406f075d975e24100a65b26ff696458023dd3509878953052ab0ef858f"
+        },
+        "carousel.map": {
+          "bytes": 20215808,
+          "sha256": "1c6353df6e4530437841b09775e62fa067caa46bb0e40f4579bbf2276991a38e"
+        },
+        "ui.map": {
+          "bytes": 14145536,
+          "sha256": "35e3e560478d85178749be310ad13d6d6ecde618d32675261a3554592333a833"
+        }
+      }
+    }
+  },
+  "tests": {
+    "baseline-tests.xml": {
+      "counts": {
+        "passed": 2778,
+        "failed": 353,
+        "skipped": 7
+      },
+      "failures_by_suite": {
+        "tools.harness.tests.test_config_write": 7,
+        "tools.harness.tests.test_console_lines": 9,
+        "tools.harness.tests.test_controls_capture": 11,
+        "tools.harness.tests.test_coop_script_players": 12,
+        "tools.harness.tests.test_lighting_migration": 1,
+        "tools.harness.tests.test_map_share_names": 27,
+        "tools.harness.tests.test_map_share_restart": 16,
+        "tools.harness.tests.test_master_protocol": 78,
+        "tools.harness.tests.test_object_bounds_cache": 9,
+        "tools.harness.tests.test_particle_draw_gate.TestParticleDrawGate": 4,
+        "tools.harness.tests.test_player_link": 27,
+        "tools.harness.tests.test_server_command_words": 32,
+        "tools.harness.tests.test_server_http": 1,
+        "tools.harness.tests.test_server_log": 20,
+        "tools.harness.tests.test_server_rotation": 49,
+        "tools.harness.tests.test_server_toml": 27,
+        "tools.harness.tests.test_text_filter": 23
+      }
+    },
+    "invocation-tests.xml": {
+      "counts": {
+        "passed": 67,
+        "skipped": 1,
+        "failed": 78
+      },
+      "failures_by_suite": {
+        "tools.harness.tests.test_master_protocol": 78
+      }
+    },
+    "final_unique_counts": {
+      "passed": 2845,
+      "failed": 286,
+      "skipped": 7
+    }
+  },
+  "profiles": {
+    "xbox-a30-completion-profile/client/profile_20261112-232449_client": {
+      "map": "levels\\a30\\a30",
+      "complete": true,
+      "parts": 6,
+      "seconds_in_parts": 38.839166999999996,
+      "dropped_scopes": 0,
+      "scopes_after_5_seconds": {
+        "network_distributed_tick": {
+          "count": 1003,
+          "mean_ms": 0.039406281156530415,
+          "p50_ms": 0.0384,
+          "p95_ms": 0.0606,
+          "p99_ms": 0.0728,
+          "max_ms": 0.15030000000000002
+        },
+        "game_tick": {
+          "count": 1002,
+          "mean_ms": 0.15784231536926147,
+          "p50_ms": 0.1444,
+          "p95_ms": 0.24509999999999998,
+          "p99_ms": 0.36319999999999997,
+          "max_ms": 0.5656
+        }
+      }
+    },
+    "xbox-a30-completion-profile/host/profile_20261112-232449_host": {
+      "map": "levels\\a30\\a30",
+      "complete": true,
+      "parts": 8,
+      "seconds_in_parts": 38.922872,
+      "dropped_scopes": 0,
+      "scopes_after_5_seconds": {
+        "game_tick": {
+          "count": 1003,
+          "mean_ms": 0.18441684945164508,
+          "p50_ms": 0.1678,
+          "p95_ms": 0.2851,
+          "p99_ms": 0.4061,
+          "max_ms": 0.5005
+        },
+        "network_distributed_tick": {
+          "count": 1003,
+          "mean_ms": 0.07585343968095713,
+          "p50_ms": 0.0728,
+          "p95_ms": 0.1141,
+          "p99_ms": 0.15130000000000002,
+          "max_ms": 0.2707
+        },
+        "network_distributed_tick.actors_host_tick": {
+          "count": 1003,
+          "mean_ms": 0.0003478564307078764,
+          "p50_ms": 0.0003,
+          "p95_ms": 0.0005,
+          "p99_ms": 0.0006,
+          "max_ms": 0.0016
+        },
+        "network_distributed_tick.coop_host_tick": {
+          "count": 1003,
+          "mean_ms": 0.014885144566301097,
+          "p50_ms": 0.011800000000000001,
+          "p95_ms": 0.038700000000000005,
+          "p99_ms": 0.0562,
+          "max_ms": 0.1759
+        }
+      }
+    },
+    "xbox-a30-completion-with-next/client/profile_20261112-233045_client": {
+      "map": "levels\\a30\\a30",
+      "complete": true,
+      "parts": 5,
+      "seconds_in_parts": 38.868088,
+      "dropped_scopes": 0,
+      "scopes_after_5_seconds": {
+        "game_tick": {
+          "count": 1002,
+          "mean_ms": 0.18823722554890218,
+          "p50_ms": 0.1575,
+          "p95_ms": 0.3201,
+          "p99_ms": 0.6366,
+          "max_ms": 1.4833
+        },
+        "network_distributed_tick": {
+          "count": 1002,
+          "mean_ms": 0.037146606786427144,
+          "p50_ms": 0.032,
+          "p95_ms": 0.0621,
+          "p99_ms": 0.12919999999999998,
+          "max_ms": 0.2888
+        }
+      }
+    },
+    "xbox-a30-completion-with-next/host/profile_20261112-233045_host": {
+      "map": "levels\\a30\\a30",
+      "complete": true,
+      "parts": 7,
+      "seconds_in_parts": 38.90325,
+      "dropped_scopes": 0,
+      "scopes_after_5_seconds": {
+        "game_tick": {
+          "count": 1003,
+          "mean_ms": 0.22052791625124626,
+          "p50_ms": 0.1854,
+          "p95_ms": 0.39080000000000004,
+          "p99_ms": 0.8377,
+          "max_ms": 1.6196
+        },
+        "network_distributed_tick": {
+          "count": 1003,
+          "mean_ms": 0.08502003988035892,
+          "p50_ms": 0.07429999999999999,
+          "p95_ms": 0.1425,
+          "p99_ms": 0.2983,
+          "max_ms": 0.5468
+        },
+        "network_distributed_tick.actors_host_tick": {
+          "count": 1003,
+          "mean_ms": 0.0003283150548354935,
+          "p50_ms": 0.0003,
+          "p95_ms": 0.0005,
+          "p99_ms": 0.0012,
+          "max_ms": 0.011300000000000001
+        },
+        "network_distributed_tick.coop_host_tick": {
+          "count": 1003,
+          "mean_ms": 0.01703310069790628,
+          "p50_ms": 0.0119,
+          "p95_ms": 0.0506,
+          "p99_ms": 0.0857,
+          "max_ms": 0.2759
+        }
+      }
+    },
+    "xbox-a30-profile/client/profile_20261112-230918_client": {
+      "map": "levels\\a30\\a30",
+      "complete": false,
+      "parts": 7,
+      "seconds_in_parts": 52.537757,
+      "dropped_scopes": 0,
+      "scopes_after_5_seconds": {
+        "game_tick": {
+          "count": 1427,
+          "mean_ms": 0.1582581639803784,
+          "p50_ms": 0.1467,
+          "p95_ms": 0.2296,
+          "p99_ms": 0.30369999999999997,
+          "max_ms": 0.5922000000000001
+        },
+        "network_distributed_tick": {
+          "count": 1427,
+          "mean_ms": 0.0397906096706377,
+          "p50_ms": 0.0396,
+          "p95_ms": 0.0517,
+          "p99_ms": 0.074,
+          "max_ms": 0.2298
+        }
+      }
+    },
+    "xbox-a30-profile/host/profile_20261112-230918_host": {
+      "map": "levels\\a30\\a30",
+      "complete": false,
+      "parts": 9,
+      "seconds_in_parts": 52.270344,
+      "dropped_scopes": 0,
+      "scopes_after_5_seconds": {
+        "game_tick": {
+          "count": 1418,
+          "mean_ms": 0.18362136812411847,
+          "p50_ms": 0.1714,
+          "p95_ms": 0.25880000000000003,
+          "p99_ms": 0.3173,
+          "max_ms": 0.8569
+        },
+        "network_distributed_tick": {
+          "count": 1418,
+          "mean_ms": 0.0776472496473907,
+          "p50_ms": 0.0741,
+          "p95_ms": 0.114,
+          "p99_ms": 0.1482,
+          "max_ms": 0.395
+        },
+        "network_distributed_tick.actors_host_tick": {
+          "count": 1418,
+          "mean_ms": 0.0003504231311706629,
+          "p50_ms": 0.0003,
+          "p95_ms": 0.0004,
+          "p99_ms": 0.0005,
+          "max_ms": 0.0571
+        },
+        "network_distributed_tick.coop_host_tick": {
+          "count": 1418,
+          "mean_ms": 0.015500634696755994,
+          "p50_ms": 0.012,
+          "p95_ms": 0.0496,
+          "p99_ms": 0.0598,
+          "max_ms": 0.2798
+        }
+      }
+    }
+  }
+}
