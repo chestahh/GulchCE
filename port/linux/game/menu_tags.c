@@ -375,6 +375,8 @@ static char const *const port_function_names[] =
 	"port mcc xbox init", "port mcc xbox open", "port mcc xbox choose", "port mcc xbox back",
 	"port mcc xbox left", "port mcc xbox right", "port mcc xbox card",
 	"port mcc xbox profile",
+	"port mcc share download", "port mcc share workshop", "port mcc share cancel", "port mcc share closed",
+	"port mcc downloads open", "port mcc downloads previous", "port mcc downloads next", "port mcc downloads remove",
 	"port pause end game", "port coop friendly fire",
 	"port coop begin", "port coop player 2 list initialize", "port coop player 2",
 	"port lobby open", "port lobby add player", "port lobby join", "port lobby leave",
@@ -442,8 +444,12 @@ static char const *const port_game_data_input_names[] =
 	"port gamepad layout preview",
 	"port controller update",
 	/* (the main menu's Mods) */
+	"port mcc share update", "port mcc share text",
+	"port mcc downloads update", "port mcc downloads text",
 	"port mods update",
 	"port changelog focus update",
+	"port mcc share update", "port mcc share text",
+	"port mcc downloads update", "port mcc downloads text",
 	/* (network co-op's pause menu's FRIENDLY FIRE: its text, ON or OFF) */
 	"port coop friendly fire text",
 	/* (the gametype editor's description, with OPENCE OPTIONS' row) */
@@ -2832,7 +2838,8 @@ struct pc_menu_setting *pc_menu_setting_get(
 	return NULL;
 }
 
-/* Share the existing widget definition with read-only legend layout. */
+/* Menu layout readers use this module's existing tag definition, not a second
+ * private structure or hard-coded field offsets in the glyph feature. */
 void pc_menu_widget_text_bounds(long tag, rectangle2d *bounds, short *text_offset)
 {
     struct ui_widget_definition const *definition = tag_get(UI_WIDGET_DEFINITION_TAG, tag);

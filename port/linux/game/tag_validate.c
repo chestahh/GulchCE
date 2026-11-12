@@ -1725,10 +1725,12 @@ boolean tag_validate_any_claimed(
 	void const *address,
 	unsigned long size)
 {
+	unsigned long offset;
+	unsigned long bit;
+
 	if (mcc_validation_callbacks)
 		return mcc_validation_callbacks->any_claimed(address, size);
-	unsigned long offset = (unsigned long)address - (unsigned long)tag_validate_globals.header;
-	unsigned long bit;
+	offset = (unsigned long)address - (unsigned long)tag_validate_globals.header;
 
 	if (!tag_validate_globals.header || (unsigned long)address < (unsigned long)tag_validate_globals.header ||
 		offset > tag_validate_globals.tag_cache_size || size > tag_validate_globals.tag_cache_size - offset)
@@ -1836,6 +1838,10 @@ boolean tag_validate_file_contains(
 		return mcc_validation_callbacks->file_contains(validation, offset, size);
 	short range_index;
 
+	if (mcc_validation_callbacks && mcc_validation_callbacks->owns(validation))
+		return mcc_validation_callbacks->file_contains(validation, offset, size);
+
+
 	(void)validation;
 	if (offset < 0 || size < 0)
 		return FALSE;
@@ -1886,10 +1892,12 @@ void *tag_validate_tag_get(
 	long tag_index,
 	unsigned long group_tag)
 {
+	struct tag_validate_instance *instance;
+	unsigned long groups[2];
+
 	if (mcc_validation_callbacks && mcc_validation_callbacks->owns(validation))
 		return mcc_validation_callbacks->tag_get(validation, tag_index, group_tag);
-	struct tag_validate_instance *instance = instance_get(tag_index);
-	unsigned long groups[2];
+	instance = instance_get(tag_index);
 
 	(void)validation;
 	groups[0] = group_tag;

@@ -91,7 +91,9 @@ def build(test, generated):
                "-Wno-unused-variable", "-I", str(HARNESS / "include"), "-I", str(work),
                str(HARNESS / "tests" / f"{test}.c"), "-o", str(executable)]
     # MSVC's runtime includes maths; there is no separate m.lib on Windows.
-    if os.name != "nt":
+    if os.name == "nt":
+        command.append("-D_CRT_SECURE_NO_WARNINGS=")
+    else:
         command.append("-lm")
     result = subprocess.run(command, capture_output=True, text=True)
     if result.returncode:

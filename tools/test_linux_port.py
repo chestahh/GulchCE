@@ -349,6 +349,34 @@ def test_menu_settings_exist():
     assert controls == set(re.findall(r'\{ "(controls\.[a-z_]+)", L"', functions))
 
 
+def assert_vehicle_riding_settings(config, commands):
+    assert '{ "network.vehicle_riding", _config_boolean, "false", "HALO_NET_VEHICLE_RIDING", _environment_value, _platform_all,' in config
+    override = '{ "server.vehicle_riding_override_gametype", _config_boolean, "false", "HALO_SERVER_VEHICLE_RIDING_OVERRIDE_GAMETYPE",'
+    assert override in config
+    block = commands.split("settable_settings[] =", 1)[1].split("};", 1)[0]
+    assert '"network.vehicle_riding"' in block and '"server.vehicle_riding_override_gametype"' in block
+
+
+@pytest.mark.parametrize("target,before,after", [
+    ("config", '{ "network.vehicle_riding", _config_boolean, "false",', '{ "network.vehicle_riding", _config_boolean, "true",'),
+    ("config", '"HALO_NET_VEHICLE_RIDING"', '"HALO_NET_RIDING"'),
+    ("config", '{ "server.vehicle_riding_override_gametype", _config_boolean, "false",',
+     '{ "server.vehicle_riding_override_gametype", _config_boolean, "true",'),
+    ("commands", '"server.vehicle_riding_override_gametype"', '"server.removed"'),
+    ("commands", '"network.vehicle_riding"', '"network.removed"'),
+], ids=["default-true", "env-key", "override-default-true", "override-not-settable", "riding-not-settable"])
+def test_vehicle_riding_settings(target, before, after):
+    """Riding's two settings keep their names, defaults and environment keys, and sv_set can set them."""
+    root = Path(__file__).resolve().parent.parent
+    texts = {"config": (root / "port/linux/src/port_config.c").read_text(),
+             "commands": (root / "port/linux/game/server_commands.c").read_text()}
+    assert_vehicle_riding_settings(**texts)
+    assert before in texts[target], f"control no longer applies: {before!r}"
+    texts[target] = texts[target].replace(before, after)
+    with pytest.raises(AssertionError):
+        assert_vehicle_riding_settings(**texts)
+
+
 def test_default_brokers_are_brokers_txt():
     """The brokers a game uses with no brokers.txt beside its config.toml
     (p2p_signal.c's DEFAULT_BROKERS) are port/assets/network/brokers.txt's."""
@@ -471,6 +499,12 @@ def test_config_has_each_section_once(tmp_path):
     run("write", "display.match_timer", "true")
     assert run("get", "display.match_timer")[0] == "true"
 
+    # MCC discovery starts enabled; an explicit later opt-out stays saved.
+    for key in ("game.workshop_maps", "game.mcc_campaigns", "game.mcc_collections"):
+        assert run("get", key)[0] == "true"
+        run("write", key, "false")
+        assert run("get", key)[0] == "false"
+
     # an older version's
     config.write_text("[display]\nvsync = false\n\n[game]\nconsole_log = \"all\"\n\n"
                       "[display]\nmatch_timer = true\n")
@@ -519,6 +553,8 @@ def test_system_link_bots_messages_are_the_games():
         sizes[name] = sum(int(count) * {"pad": 0, "bytes": 1, "shorts": 2, "longs": 4}.get(kind, 0) + (kind == "array")
                           for kind, count in re.findall(r"_data_packet_field_(\w+), (\d+)", fields))
 
+    from tools import network_format
+    assert bots.NETWORK_VERSION == network_format.version()
     sent = []
     machine = bots.Machine(1, "127.0.0.2", "127.0.0.1", print)
     machine.udp.close()
@@ -537,6 +573,12 @@ def test_system_link_bots_messages_are_the_games():
     for data in sent:
         name = names[data[-1]]
         assert len(data) - 4 == sizes[name], name
+    limits = (root / "port/linux/include/halo_port_limits.h").read_text()
+    version = int(re.search(r"^#define HALO_PORT_NETWORK_VERSION (\d+)$", limits, re.M)[1])
+    join = sent[0][3:-1]
+    assert sent[0][-1] == bots.CLIENT_JOIN_GAME_REQUEST
+    assert join[-2:] == struct.pack(">H", version)
+    assert join[112:-2] == bytes(170 + 64), "agreement must not replace account credentials"
 
 
 # ---------- the wire format (tools/network_format.py)
@@ -544,7 +586,7 @@ def test_system_link_bots_messages_are_the_games():
 
 def test_network_format_is_the_recorded_one():
     """what the machines send each other is what port/linux/network_format.txt
-    records for MCC_PROTOCOL_VERSION, and NETCODE.md says what that version
+    records for HALO_PORT_NETWORK_VERSION, and NETCODE.md says what that version
     changed. The ordinary OpenCE contract is pinned by test_mcc_protocol.py."""
     from tools import network_format
 
@@ -621,3 +663,254 @@ def test_custom_edition_loader_and_validator_survive_damaged_maps():
     result = subprocess.run([str(MAP_VALIDATE), "--fuzz", "100", "--seed", "1", *map(str, chosen)],
                             capture_output=True, text=True, timeout=3600)
     assert result.returncode == 0, (result.stdout + result.stderr)[-6000:]
+
+
+SERVER_SETUP = "main_menu.multiplayer_type_select.server_settings.xml"
+
+
+def riding_menu_layout(files):
+    """The host's switch belongs to vehicle and co-op options, not the main list."""
+    import xml.etree.ElementTree as ElementTree
+
+    tree = ElementTree.fromstring("\n".join(files[SERVER_SETUP]))
+    base = "main_menu/multiplayer_type_select/server_settings"
+    widgets = {w.get("name"): w for w in tree.findall("widget")}
+    strings = {s.get("name"): s for s in tree.findall("strings")}
+    children = widgets[base + "/options_menu"].findall("child")
+    names = [c.get("widget") for c in children]
+    assert base + "/op_vehicle_riding" not in names
+    assert base + "/op_vehicle_riding" not in widgets
+    assert base + "/var_vehicle_riding" not in strings
+    assert "VEHICLE RIDING:" not in [s.get("text") for s in strings[base + "/labels"]]
+    # GulchCE keeps its Session Options entries and full-height host rows.
+    assert len(strings[base + "/help_strings"]) == 20
+    help_widget = widgets[base + "/help"]
+    assert help_widget.get("font") == "ui\\small_ui" and int(help_widget.get("top")) == 392
+    assert int(help_widget.get("top")) + int(help_widget.get("height")) <= 448
+    for child in children:
+        name = child.get("widget")
+        if not name.endswith("/button_bar"):
+            assert int(child.get("y")) + int(widgets[name].get("height")) <= 392, name
+
+    # (no empty row slot where a row left, and no row over the next one's)
+    rows_y = sorted({int(c.get("y")) for c in children if not c.get("widget").endswith("/button_bar")})
+    assert {b - a for a, b in zip(rows_y, rows_y[1:])} == {28}, rows_y
+    coop = base + "/coop_options"
+    coop_rows = widgets[coop + "/coop_options_menu"].findall("child")[:-1]
+    for above, below in zip(coop_rows, coop_rows[1:]):
+        assert int(below.get("y")) - int(above.get("y")) >= int(widgets[above.get("widget")].get("height")), above.get("widget")
+    assert coop_rows[-1].get("widget") == coop + "/op_coop_vehicle_riding"
+    vehicle = "main_menu/settings_select/multiplayer_setup/vehicle_options_edit"
+    extra = ElementTree.fromstring("\n".join(files[vehicle.replace("/", ".") + ".port.xml"]))
+    for screen, root, key, labels in ((coop, tree, "coop_vehicle_riding", "coop_options_labels"),
+                                      (vehicle, extra, "vehicle_riding", "vehicle_options_labels")):
+        made = {w.get("name"): w for w in root.findall("widget")}
+        row = made[screen + "/op_" + key]
+        assert [c.get("widget") for c in row.findall("child")] == [
+            screen + "/" + key + "_label", screen + "/" + key + "_spinner"]
+        label = made[screen + "/" + key + "_label"]
+        assert label.get("string_index") == "9"
+        assert label.get("string_list") == screen + "/" + labels
+        spinner = made[screen + "/" + key + "_spinner"]
+        assert spinner.get("string_list") == screen + "/var_" + key
+        words = root.find(f"strings[@name='{screen}/var_{key}']")
+        assert [s.get("text") for s in words] == ["ON", "OFF"]
+    assert strings[coop + "/coop_options_labels"][-1].get("text") == "VEHICLE RIDING:"
+    assert [s.get("text") for s in strings[coop + "/cap_coop_options"]][-2:] == [RIDING_HELP] * 2
+
+
+RIDING_HELP = "Players standing on a vehicle are carried by it.\\nOff: as the original game, riders slide off."
+
+
+def riding_vehicle_patch(ns):
+    vehicle = ns["VEHICLE_EDIT"]
+    assert vehicle + "/vehicle_options_menu" in ns["WIDGET_PATCHES"]
+    assert ns["WIDGET_PATCHES"][vehicle + "/vehicle_options_menu"]["insert_before"] == {
+        vehicle + "/op_team": [f'<child widget="{vehicle}/op_vehicle_riding" x="54" y="100"/>']}
+    assert ns["STRING_INSERTS"][vehicle + "/vehicle_options_labels"] == [(9, ["VEHICLE RIDING:"])]
+    assert ns["STRING_INSERTS"][vehicle + "/cap_vehicle_options"] == [
+        (17, ["Every vehicle the map places will spawn, as in\\nHalo PC."]), (7, [RIDING_HELP] * 2)]
+
+
+def riding_port_settings_module(source=None):
+    """tools/port_settings.py's multiplayer_files, from its file or (a control) from a changed copy of its text."""
+    import importlib.util
+
+    path = Path(__file__).resolve().parent / "port_settings.py"
+    if source is None:
+        spec = importlib.util.spec_from_file_location("riding_port_settings", path)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        return vars(module)
+    namespace = {"__name__": "riding_port_settings_changed", "__file__": str(path)}
+    exec(compile(source, str(path), "exec"), namespace)
+    return namespace
+
+
+def riding_port_settings(source=None):
+    return riding_port_settings_module(source)["multiplayer_files"]
+
+
+def test_vehicle_riding_patch_data():
+    riding_vehicle_patch(riding_port_settings_module())
+
+
+def test_vehicle_riding_server_setup():
+    """Generated host options and committed extras agree, with every main row above help."""
+    root = Path(__file__).resolve().parent.parent
+    files = riding_port_settings()()
+    raw = (root / "port/assets/menus/ce" / SERVER_SETUP).read_bytes()
+    generated = "\n".join(files[SERVER_SETUP]).encode("utf-8")
+    if b"\r\n" in raw:
+        generated = generated.replace(b"\n", b"\r\n")
+    assert raw == generated, "the Server Setup XML is not the generator's"
+    riding_menu_layout(files)
+    riding_vehicle_patch(riding_port_settings_module())
+    vehicle = "main_menu/settings_select/multiplayer_setup/vehicle_options_edit"
+    extra = vehicle.replace("/", ".") + ".port.xml"
+    assert (root / "port/assets/menus/ce" / extra).read_text() == "\n".join(files[extra])
+    for other, lines in files.items():
+        if other != SERVER_SETUP:
+            assert not any('font="ui\\small_ui"' in line and '/help"' in line for line in lines), other
+
+
+SERVER_SETUP_CONTROLS = {
+    "riding-on-main-list": ('rows.append((f"{base}/op_password", None))',
+                            'rows.append((f"{base}/op_password", None))\n    rows.append((f"{base}/op_vehicle_riding", None, SETUP_OPTIONS_PLACE - 2))'),
+    "riding-row-after-team": ('f"{VEHICLE_EDIT}/op_team": [', 'f"{VEHICLE_EDIT}/op_vehicle_presets": ['),
+    "riding-label-index": ('"vehicle_riding", 9, ["ON", "OFF"]', '"vehicle_riding", 8, ["ON", "OFF"]'),
+    "setup-gap-left": ("SETUP_OPTIONS_PLACE = 6", "SETUP_OPTIONS_PLACE = 7"),
+    "coop-rows-overlap": ('("height", min(28, spacing))', '("height", 28)'),
+    "coop-riding-missing": ('        ("coop_vehicle_riding", "VEHICLE RIDING:", ["ON", "OFF"], [VEHICLE_RIDING_HELP] * 2),\n', ''),
+}
+
+
+@pytest.mark.parametrize("control", sorted(SERVER_SETUP_CONTROLS))
+def test_vehicle_riding_server_setup_control(control):
+    """Each fault in the generator, run in memory (the committed XML untouched), fails the layout's assertions."""
+    source = (Path(__file__).resolve().parent / "port_settings.py").read_text(encoding="latin-1")
+    before, after = SERVER_SETUP_CONTROLS[control]
+    assert source.count(before) == 1, f"negative control no longer applies: {before!r}"
+    ns = riding_port_settings_module(source.replace(before, after, 1))
+    files = ns["multiplayer_files"]()
+    with pytest.raises(AssertionError):
+        if control == "riding-row-after-team":
+            riding_vehicle_patch(ns)
+        else:
+            riding_menu_layout(files)
+
+
+# the riding network wiring (port/linux/game/vehicle_riding.c, port/linux/NETCODE.md): each check reads the sources
+# and asserts; each control is a fault in one function (or, with no function, in the whole file) its check must refuse
+RIDING_SOURCES = {
+    "limits": "port/linux/include/halo_port_limits.h",
+    "network": "port/linux/game/network_distributed.c",
+    "coop": "port/linux/game/network_coop.c",
+    "server": "source/networking/network_server_manager.c",
+    "director": "port/linux/game/server_director.c",
+}
+RIDING_CHECKS = {}
+RIDING_CONTROLS = {}
+
+
+def riding_sources():
+    root = Path(__file__).resolve().parent.parent
+    return {key: (root / path).read_text(encoding="latin-1") for key, path in RIDING_SOURCES.items()}
+
+
+def riding_function(text, name):
+    from tools.harness import function
+    return function(text, name)
+
+
+def riding_version_check(text):
+    assert re.search(r"#define HALO_PORT_NETWORK_VERSION 43\b", text["limits"])
+
+
+RIDING_CHECKS["version"] = riding_version_check
+RIDING_CONTROLS["version-lowered"] = ("limits", None, "#define HALO_PORT_NETWORK_VERSION 43",
+                                      "#define HALO_PORT_NETWORK_VERSION 42", "version")
+
+RIDING_MCC_GUARD = "\tif (mcc_script_effects_host_movement())\n\t\treturn;\n"
+
+
+def riding_mcc_guard_check(text):
+    body = riding_function(text["network"], "distributed_take_prediction")
+    assert body.index("mcc_script_effects_host_movement()") < body.index("distributed_riding_transition(")
+    assert body.index("mcc_script_effects_host_movement()") < body.index("distributed_take_riding(")
+
+
+RIDING_CHECKS["mcc-guard-first"] = riding_mcc_guard_check
+RIDING_CONTROLS["riding-before-mcc-guard"] = ("network", "distributed_take_prediction", RIDING_MCC_GUARD, "", "mcc-guard-first")
+
+
+def riding_bit_writers(text):
+    """Every statement under port/ and source/ that sets or clears the riding bit, as (path, statement)."""
+    root = Path(__file__).resolve().parent.parent
+    held = {path: text[key] for key, path in RIDING_SOURCES.items() if path.endswith(".c")}
+    writer = re.compile(r"SET_FLAG\([^;]*_network_game_cooperative_vehicle_riding_bit[^;]*;|"
+                        r"(?:\|=|&=)[^;]*_network_game_cooperative_vehicle_riding_bit[^;]*;")
+    found = []
+    for folder in ("port", "source"):
+        for path in sorted((root / folder).rglob("*.c")):
+            name = path.relative_to(root).as_posix()
+            source = held[name] if name in held else path.read_text(encoding="latin-1")
+            found += [(name, match.group(0)) for match in writer.finditer(source)]
+    return found
+
+
+def riding_switch_check(text):
+    start = riding_function(text["server"], "network_game_server_start_network_game")
+    call = "network_game_port_vehicle_riding_start(&server->game);"
+    assert start.index(call) < start.index(
+        "network_game_server_send_game_settings_to_all_machines(server, &server->game, sizeof(server->game))")
+    writers = riding_bit_writers(text)
+    assert [path for path, _ in writers] == ["port/linux/game/network_coop.c"], writers
+    assert writers[0][1] in riding_function(text["coop"], "network_game_port_vehicle_riding_start")
+
+
+RIDING_CHECKS["switch"] = riding_switch_check
+RIDING_CONTROLS["start-not-called"] = ("server", "network_game_server_start_network_game",
+                                       "\t\tnetwork_game_port_vehicle_riding_start(&server->game);\n", "", "switch")
+RIDING_CONTROLS["second-writer"] = ("director", "server_apply_game_settings",
+                                    "\tnetwork_game_server_port_set_cooperative_dedicated(TRUE);\n",
+                                    "\tnetwork_game_server_port_set_cooperative_dedicated(TRUE);\n"
+                                    "\tSET_FLAG(server->game.cooperative_flags, _network_game_cooperative_vehicle_riding_bit, TRUE);\n",
+                                    "switch")
+
+RIDING_ENTRY_CALL = "\tnetwork_game_port_vehicle_riding_entry(server_entry_riding_rule(entry));\n"
+
+
+def riding_entry_check(text):
+    apply = riding_function(text["director"], "server_apply_entry")
+    assert apply.count(RIDING_ENTRY_CALL.strip()) == 1, "the entry rule is not set exactly once"
+    before = apply.split(RIDING_ENTRY_CALL.strip())[0]
+    lines = [line for line in re.sub(r"/\*.*?\*/", "", before, flags=re.S).split("\n") if line.strip()]
+    assert lines[-1] == "\t}", lines[-1]
+
+
+RIDING_CHECKS["entry-wiring"] = riding_entry_check
+RIDING_CONTROLS["entry-rule-only-when-given"] = ("director", "server_apply_entry", RIDING_ENTRY_CALL,
+                                                 "\tif (server_entry_riding_rule(entry) != NONE)\n\t" + RIDING_ENTRY_CALL,
+                                                 "entry-wiring")
+
+
+@pytest.mark.parametrize("name", sorted(RIDING_CHECKS))
+def test_riding_network_wiring(name):
+    RIDING_CHECKS[name](riding_sources())
+
+
+@pytest.mark.parametrize("control", sorted(RIDING_CONTROLS))
+def test_riding_network_wiring_control(control):
+    from tools.harness import mutated
+    owner, scope, before, after, check = RIDING_CONTROLS[control]
+    text = riding_sources()
+    body = riding_function(text[owner], scope) if scope else text[owner]
+    text[owner] = text[owner].replace(body, mutated(body, before, after), 1)
+    if control == "riding-before-mcc-guard":
+        text["network"] = text["network"].replace(
+            "\tif (distributed_riding_elevator(unit_index))\n\t\tposition.z = object->object.position.z;\n\tdx = ",
+            RIDING_MCC_GUARD + "\tif (distributed_riding_elevator(unit_index))\n\t\tposition.z = object->object.position.z;\n\tdx = ", 1)
+    # (a check finds code by its text: a fault that removes the text fails its .index as ValueError)
+    with pytest.raises((AssertionError, ValueError)):
+        RIDING_CHECKS[check](text)
