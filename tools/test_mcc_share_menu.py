@@ -32,7 +32,7 @@ def test_stock_network_menu_reaches_sharing(platform, in_game):
                 if target:
                     pending.append(target)
     settings = {widgets[name].get("setting") for name in reached}
-    assert {"network.mcc_map_share", "network.map_download", "network.map_seed",
+    assert {"network.map_download", "network.map_seed",
             "game.mcc_campaigns", "game.mcc_collections"} <= settings
     assert ("game.workshop_maps" in settings) == (platform == "desktop")
     assert base + "mcc_downloads/screen" in reached

@@ -109,7 +109,7 @@ Both camera rows use the standard menu
 font and full-size selection background. The compatibility selector defaults
 to Crossplay.
 
-**Crossplay** (`opence_crossplay`) uses upstream protocol 43 for Xbox, Custom
+**Crossplay** (`opence_crossplay`) uses network protocol 44 for Xbox, Custom
 Edition and MCC maps. The optional shoulder camera, its input bit and muzzle
 solver are disabled, regardless of the saved preference. Shared checkpoint
 and bounded clock recovery use the upstream agreement in both session modes.
@@ -117,7 +117,7 @@ Normal vehicles, scripted cameras and MCC weapon-authored cameras are unchanged.
 No additional MCC capability guard or join envelope is needed.
 
 **GulchCE Only** (`gulchce_third_person`) enables Player Choice / Forced On /
-Forced Off and requires camera protocol 32744 for all map families. It uses
+Forced Off and requires camera protocol 32745 for all map families. It uses
 bounded join kind 102 around the ordinary join, including account-link
 credentials. Nested envelopes are rejected. Camera policy uses bits 4-5,
 leaving upstream co-op and vehicle-riding flags in bits 0-3. Forced Off remains
@@ -220,5 +220,6 @@ The [28 October qualification record](third_person_qualification.md) records
 the completed Windows/browser, checkpoint and rendered split-screen checks,
 the fixes they exposed, and their remaining coverage limits.
 
-MCC camera-relative projectile rays use upstream agreement 43 (camera mode 32744).
-Xbox/CE agreement versions are unchanged. Firing and preview share `mcc_projectiles.c`.
+MCC camera-relative projectile rays retain the OpenCE 43 simulation rules.
+Automatic sharing now requires agreement 44 (camera mode 32745) across all
+map families. Firing and preview share `mcc_projectiles.c`.

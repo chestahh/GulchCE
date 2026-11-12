@@ -1388,14 +1388,8 @@ static GLuint texture_entry_result(struct texture_entry *entry, GLenum *target,
 	*target = entry->target;
 	*description = entry->description;
 
-	/* port: a Custom Edition bitmap whose Size word gives sides that are
-	any uncompressed linear bitmap: sampled with normalized
-	coordinates like any other texture, not in texels as an Xbox's linear
-	texture is. Decoding keeps the entry's own description (its pitch). */
-	if (entry->description.linear && !entry->description.compressed)
-	{
-		description->linear = FALSE;
-	}
+	/* Linear textures retain texel coordinates, including the loading art
+	and mask. bind_textures normalizes them using these dimensions. */
 	/* (the high-res text's atlas, for its placeholder bitmap: text_hires.h) */
 	{
 		GLuint atlas = text_hires_atlas_texture(entry->data);

@@ -147,7 +147,7 @@ int mcc_share_storage_record(struct mcc_share_stage *stage,char const *source,ch
     struct mcc_workshop_item const *item)
 {
     (void)item;
-    return stage->verified && stage->state==MCC_SHARE_STAGE_STAGED && source[0] && maker[0];
+    return stage->verified && stage->state==MCC_SHARE_STAGE_STAGED && source[0] && maker;
 }
 
 struct message { unsigned bytes; unsigned char data[4200]; long machine; };
@@ -158,14 +158,18 @@ static int to_host_count,to_join_count;
 
 int config_boolean(char const *name)
 {
-    if (!strcmp(name,"network.mcc_map_share")) return map_share_on;
+    if (!strcmp(name,"network.map_share")) return map_share_on;
     if (!strcmp(name,"network.map_download")) return map_download_on;
     return 0;
 }
 static long upload_kb=64;
 long config_integer(char const *name) { return strcmp(name,"network.map_share_upload")==0 ? upload_kb : 0; }
 unsigned long system_milliseconds(void) { return clock_ms; }
-void error(short level, char const *format, ...) { (void)level;(void)format; }
+void error(short level, char const *format, ...)
+{
+    va_list args;
+    (void)level;va_start(args,format);vfprintf(stderr,format,args);va_end(args);fputc('\n',stderr);
+}
 int csstrcasecmp(char const *a, char const *b)
 {
     for (;*a && *b;a++,b++) {
@@ -228,6 +232,10 @@ static int package_digest(char const *level, unsigned char digest[32])
             for (p=path;*p;p++) if (*p=='\\') *p='/';
         } else if (!mcc_package_resource_path(level,i,path)) return 0;
         f=fixture_fopen(path,"rb");
+        if (!f && i) {
+            if (!mcc_package_resource_path("mcc_maps/root",i,path)) return 0;
+            f=fixture_fopen(path,"rb");
+        }
         if (!f) { if (i) continue; return 0; }
         while ((got=fread(block,1,sizeof(block),f))>0) mcc_sha256_add(&hash,block,(int)got);
         fclose(f);
@@ -665,9 +673,14 @@ int main(int argc,char **argv)
         else {
             CHECK(j_mcc_share_game_has_workshop()==(strcmp(argv[1],"manual_local")!=0));
             j_mcc_share_game_prompt_action(1);
+            if (strcmp(argv[1],"manual_local")) {
+                CHECK(!menu_returns && j_mcc_share_game_has_workshop());
+                CHECK(!strcmp(opened_url,"steam://url/CommunityFilePage/2915693904"));
+                j_mcc_share_game_prompt_action(3);
+                CHECK(!strcmp(opened_url,"https://steamcommunity.com/sharedfiles/filedetails/?id=2915693904"));
+                j_mcc_share_game_prompt_action(2);
+            } else CHECK(!opened_url[0]);
             CHECK(menu_returns==1);
-            CHECK(!strcmp(argv[1],"manual_local") ? !opened_url[0] :
-                !strcmp(opened_url,"https://steamcommunity.com/sharedfiles/filedetails/?id=2915693904"));
         }
         CHECK(!j_mcc_share_game_has_workshop() && !accepts && aborts==1);
         for (i=0;i<5;i++) pump_once();CHECK(prompts==1);
@@ -723,17 +736,33 @@ int main(int argc,char **argv)
         CHECK(transfer_started());as_host();host_revision++;h_mcc_share_game_update();
         CHECK(!h_mcc_share_game_machine_active(MACHINE));as_join();j_mcc_share_game_disconnect();return 0;
     }
-    if (!strcmp(argv[1],"shared_resource") || !strcmp(argv[1],"invalid_resource")) {
-        resource_shared=!strcmp(argv[1],"shared_resource");resource_invalid=!strcmp(argv[1],"invalid_resource");
-        if (resource_shared) {
-            unsigned char *data=NULL;unsigned bytes=0;
-            as_host();CHECK(read_file("mcc_maps/solar_flare/bitmaps.map",&data,&bytes));
-            CHECK(write_text("mcc_maps/bitmaps.map",data,bytes));free(data);
-            CHECK(read_file("mcc_maps/solar_flare/sounds.map",&data,&bytes));
-            CHECK(write_text("mcc_maps/sounds.map",data,bytes));free(data);
-        }
+    CASE("invalid_resource") {
+        resource_invalid=1;
         CHECK(joiner_asks(LEVEL,host_digest));CHECK(pump_prompt() && !j_mcc_share_game_can_download());
         CHECK(accepts==0);as_join();j_mcc_share_game_prompt_action(2);return 0;
+    }
+    if (!strcmp(argv[1],"shared_resource") || !strncmp(argv[1],"base_",5)) {
+        unsigned char *data;unsigned bytes;
+        resource_shared=strcmp(argv[1],"base_copy")!=0;
+        as_join();CHECK(!mkdir("mcc_maps",0755));
+        for(i=1;i<=2;i++) {
+            char package[128],base[128];
+            snprintf(package,sizeof(package),"mcc_maps/solar_flare/%s.map",i==1 ? "bitmaps" : "sounds");
+            snprintf(base,sizeof(base),"mcc_maps/%s.map",i==1 ? "bitmaps" : "sounds");
+            as_host();CHECK(read_file(package,&data,&bytes));CHECK(write_text(base,data,bytes));
+            if(resource_shared) CHECK(!unlink(package));
+            as_join();
+            if(strcmp(argv[1],"base_missing")) {
+                if(!strcmp(argv[1],"base_mismatch"))data[bytes-1]^=1;
+                CHECK(write_text(base,data,bytes));
+            }
+            free(data);
+        }
+        if(!strcmp(argv[1],"base_missing") || !strcmp(argv[1],"base_mismatch")) {
+            CHECK(joiner_asks(LEVEL,host_digest));CHECK(pump_prompt());CHECK(j_mcc_share_game_can_download());
+            as_join();j_mcc_share_game_prompt_action(0);CHECK(pump_prompt());
+            CHECK(!accepts && !j_mcc_share_game_can_download());find_snapshot();CHECK(!snapshot[0]);return 0;
+        }
     }
     if (!strcmp(argv[1],"unused_resources") || !strcmp(argv[1],"bitmap_only")) {
         resource_mask=!strcmp(argv[1],"unused_resources") ? 0 : 1;as_host();
@@ -792,7 +821,11 @@ int main(int argc,char **argv)
         CHECK(workshop_asks()); if (!map_download_on) CHECK(to_host_count==0);
         CHECK(pump_prompt() && j_mcc_share_game_has_workshop() && !j_mcc_share_game_can_download());
         as_join();j_mcc_share_game_prompt_action(1);
+        CHECK(!strcmp(opened_url,"steam://url/CommunityFilePage/2915693904"));
+        CHECK(aborts==1 && j_mcc_share_game_has_workshop());
+        j_mcc_share_game_prompt_action(3);
         CHECK(!strcmp(opened_url,"https://steamcommunity.com/sharedfiles/filedetails/?id=2915693904"));
+        j_mcc_share_game_prompt_action(2);
         CHECK(aborts==1 && accepts==0); snprintf(b,sizeof(b),"%s/mcc_maps",join_dir);CHECK(!exists(b));return 0;
     }
     CASE("off") { map_share_on=0; }
@@ -800,8 +833,7 @@ int main(int argc,char **argv)
     CASE("listed_without_maker") { CHECK(write_list(host_digest,"")); }
     CASE("another_package_listed") { unsigned char d[32];memcpy(d,host_digest,32);d[0]^=1;CHECK(write_list(d,"Other")); }
     CASE("unreadable_sidecar") { as_host();CHECK(write_text("mcc_maps/solar_flare/workshop_id.txt",(unsigned char *)"bad id",6)); }
-    if (!strcmp(argv[1],"off") || !strcmp(argv[1],"unlisted") || !strcmp(argv[1],"listed_without_maker") ||
-        !strcmp(argv[1],"another_package_listed") || !strcmp(argv[1],"unreadable_sidecar")) {
+    if (!strcmp(argv[1],"off") || !strcmp(argv[1],"unreadable_sidecar")) {
         CHECK(joiner_asks(LEVEL,host_digest));CHECK(pump_prompt()); CHECK(!j_mcc_share_game_can_download() && accepts==0);
         snprintf(b,sizeof(b),"%s/mcc_staging",join_dir);CHECK(!exists(b));
         as_join();j_mcc_share_game_prompt_action(2);CHECK(aborts==1);return 0;
@@ -903,7 +935,7 @@ int main(int argc,char **argv)
     if (strcmp(argv[1],"map_only")) {
         static char const *files[]={"bitmaps.map","sounds.map","ModInfo.json","assets/menu.png","readme.txt"};
         for (i=0;i<5;i++) {
-            if (i<2 && !(resource_mask&(1u<<i))) {
+            if (i<2 && (!(resource_mask&(1u<<i)) || resource_shared || !strcmp(argv[1],"base_copy"))) {
                 snprintf(b,sizeof(b),"%s/mcc_maps/%s/%s",join_dir,snapshot,files[i]);CHECK(!exists(b));continue;
             }
             snprintf(a,sizeof(a),"%s/%s/%s",host_dir,workshop_fallback && i<2 ? "halo1/maps" : "mcc_maps/solar_flare",files[i]);
