@@ -180,6 +180,10 @@ static const struct config_setting config_settings[] =
 		"The first-person weapon's and hands' field of view, in degrees across\n"
 		"at 16:9 (20 to 150); 0 keeps the weapon's stock view, also when\n"
 		"display.fov widens the world." },
+	{ "display.reticle_stock_size", _config_boolean, "false", "HALO_RETICLE_STOCK_SIZE", _environment_value, _platform_all,
+		"Draw the reticle at its stock size when display.fov changes the view.\n"
+		"Off, it shrinks or grows with the view, so its spread marks keep their\n"
+		"angle. It stays centred on the aim either way." },
 	{ "display.viewmodel_visible", _config_boolean, "true", "HALO_VIEWMODEL_VISIBLE", _environment_value, _platform_all,
 		"Draw the first-person weapon, hands and what is attached to them.\n"
 		"Off, they are not drawn; firing, animation, sound and lights go on." },

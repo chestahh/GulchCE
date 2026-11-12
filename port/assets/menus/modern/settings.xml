@@ -1602,12 +1602,13 @@
 		<child widget="modern/first_person/tabs" x="28" y="76" />
 		<child widget="modern/first_person/row_display_fov0" x="28" y="137" />
 		<child widget="modern/first_person/row_display_viewmodel_fov1" x="28" y="167" />
-		<child widget="modern/first_person/row_display_viewmodel_visible2" x="28" y="197" />
-		<child widget="modern/first_person/row_display_passenger_third_person3" x="28" y="227" />
-		<child widget="modern/first_person/row_display_shield_look4" x="28" y="257" />
-		<child widget="modern/first_person/row_display_viewmodel_shield5" x="28" y="287" />
-		<child widget="modern/first_person/row_display_first_person_legs6" x="28" y="317" />
-		<child widget="modern/first_person/row_link_0" x="28" y="347" />
+		<child widget="modern/first_person/row_display_reticle_stock_size2" x="28" y="197" />
+		<child widget="modern/first_person/row_display_viewmodel_visible3" x="28" y="227" />
+		<child widget="modern/first_person/row_display_passenger_third_person4" x="28" y="257" />
+		<child widget="modern/first_person/row_display_shield_look5" x="28" y="287" />
+		<child widget="modern/first_person/row_display_viewmodel_shield6" x="28" y="317" />
+		<child widget="modern/first_person/row_display_first_person_legs7" x="28" y="347" />
+		<child widget="modern/first_person/row_link_0" x="28" y="377" />
 		<child widget="modern/first_person/button_bar" x="26" y="414" />
 	</widget>
 	<widget name="modern/first_person/tabs" type="column_list" width="584" height="26" flags="pass_unhandled_to_focused_child left_right_tabs_items">
@@ -1664,44 +1665,52 @@
 	<widget name="modern/first_person/spinner_display_viewmodel_fov1" type="spinner" width="140" height="20" flags="pass_unhandled_to_focused_child left_right_tabs_items" strings="DEFAULT|80|85|90|95|100|105|110|115|120|125|130|135|140|145|150" values="0|80|85|90|95|100|105|110|115|120|125|130|135|140|145|150" setting="display.viewmodel_fov" font="ui\large_ui" color="#FF2896FF" align="center" header_bitmap="bitmaps/arrow_sm_left" footer_bitmap="bitmaps/arrow_sm_right" header_bounds="4 -10 16 -4" footer_bounds="4 144 16 150">
 		<on event="created" run="port setting load" />
 	</widget>
-	<widget name="modern/first_person/row_display_viewmodel_visible2" width="336" height="26" bitmap="modern/row" flags="pass_unhandled_to_focused_child nifty_fx">
-		<child widget="modern/first_person/label_display_viewmodel_visible2" x="12" y="3" />
-		<child widget="modern/first_person/spinner_display_viewmodel_visible2" x="180" y="3" />
+	<widget name="modern/first_person/row_display_reticle_stock_size2" width="336" height="26" bitmap="modern/row" flags="pass_unhandled_to_focused_child nifty_fx">
+		<child widget="modern/first_person/label_display_reticle_stock_size2" x="12" y="3" />
+		<child widget="modern/first_person/spinner_display_reticle_stock_size2" x="180" y="3" />
 	</widget>
-	<widget name="modern/first_person/label_display_viewmodel_visible2" type="text" controller="1" width="152" height="24" string_list="modern/first_person/labels" string_index="2" font="ui\large_ui" color="#FF2896FF" />
-	<widget name="modern/first_person/spinner_display_viewmodel_visible2" type="spinner" width="140" height="20" flags="pass_unhandled_to_focused_child left_right_tabs_items" strings="ON|OFF" values="true|false" setting="display.viewmodel_visible" font="ui\large_ui" color="#FF2896FF" align="center" header_bitmap="bitmaps/arrow_sm_left" footer_bitmap="bitmaps/arrow_sm_right" header_bounds="4 -10 16 -4" footer_bounds="4 144 16 150">
+	<widget name="modern/first_person/label_display_reticle_stock_size2" type="text" controller="1" width="152" height="24" string_list="modern/first_person/labels" string_index="2" font="ui\large_ui" color="#FF2896FF" />
+	<widget name="modern/first_person/spinner_display_reticle_stock_size2" type="spinner" width="140" height="20" flags="pass_unhandled_to_focused_child left_right_tabs_items" strings="ON|OFF" values="true|false" setting="display.reticle_stock_size" font="ui\large_ui" color="#FF2896FF" align="center" header_bitmap="bitmaps/arrow_sm_left" footer_bitmap="bitmaps/arrow_sm_right" header_bounds="4 -10 16 -4" footer_bounds="4 144 16 150">
 		<on event="created" run="port setting load" />
 	</widget>
-	<widget name="modern/first_person/row_display_passenger_third_person3" width="336" height="26" bitmap="modern/row" flags="pass_unhandled_to_focused_child nifty_fx">
-		<child widget="modern/first_person/label_display_passenger_third_person3" x="12" y="3" />
-		<child widget="modern/first_person/spinner_display_passenger_third_person3" x="180" y="3" />
+	<widget name="modern/first_person/row_display_viewmodel_visible3" width="336" height="26" bitmap="modern/row" flags="pass_unhandled_to_focused_child nifty_fx">
+		<child widget="modern/first_person/label_display_viewmodel_visible3" x="12" y="3" />
+		<child widget="modern/first_person/spinner_display_viewmodel_visible3" x="180" y="3" />
 	</widget>
-	<widget name="modern/first_person/label_display_passenger_third_person3" type="text" controller="1" width="152" height="24" string_list="modern/first_person/labels" string_index="3" font="ui\large_ui" color="#FF2896FF" />
-	<widget name="modern/first_person/spinner_display_passenger_third_person3" type="spinner" width="140" height="20" flags="pass_unhandled_to_focused_child left_right_tabs_items" strings="ON|OFF" values="true|false" setting="display.passenger_third_person" font="ui\large_ui" color="#FF2896FF" align="center" header_bitmap="bitmaps/arrow_sm_left" footer_bitmap="bitmaps/arrow_sm_right" header_bounds="4 -10 16 -4" footer_bounds="4 144 16 150">
+	<widget name="modern/first_person/label_display_viewmodel_visible3" type="text" controller="1" width="152" height="24" string_list="modern/first_person/labels" string_index="3" font="ui\large_ui" color="#FF2896FF" />
+	<widget name="modern/first_person/spinner_display_viewmodel_visible3" type="spinner" width="140" height="20" flags="pass_unhandled_to_focused_child left_right_tabs_items" strings="ON|OFF" values="true|false" setting="display.viewmodel_visible" font="ui\large_ui" color="#FF2896FF" align="center" header_bitmap="bitmaps/arrow_sm_left" footer_bitmap="bitmaps/arrow_sm_right" header_bounds="4 -10 16 -4" footer_bounds="4 144 16 150">
 		<on event="created" run="port setting load" />
 	</widget>
-	<widget name="modern/first_person/row_display_shield_look4" width="336" height="26" bitmap="modern/row" flags="pass_unhandled_to_focused_child nifty_fx">
-		<child widget="modern/first_person/label_display_shield_look4" x="12" y="3" />
-		<child widget="modern/first_person/spinner_display_shield_look4" x="122" y="3" />
+	<widget name="modern/first_person/row_display_passenger_third_person4" width="336" height="26" bitmap="modern/row" flags="pass_unhandled_to_focused_child nifty_fx">
+		<child widget="modern/first_person/label_display_passenger_third_person4" x="12" y="3" />
+		<child widget="modern/first_person/spinner_display_passenger_third_person4" x="180" y="3" />
 	</widget>
-	<widget name="modern/first_person/label_display_shield_look4" type="text" controller="1" width="94" height="24" string_list="modern/first_person/labels" string_index="4" font="ui\large_ui" color="#FF2896FF" />
-	<widget name="modern/first_person/spinner_display_shield_look4" type="spinner" width="198" height="20" flags="pass_unhandled_to_focused_child left_right_tabs_items" strings="DEFAULT|CLASSIC WITH SPRINKLES|MARK VI|INFINITE HONEYCOMB" values="classic|classic_with_sprinkles|enhanced|classic_honeycomb2" setting="display.shield_look" font="ui\large_ui" color="#FF2896FF" align="center" header_bitmap="bitmaps/arrow_sm_left" footer_bitmap="bitmaps/arrow_sm_right" header_bounds="4 -10 16 -4" footer_bounds="4 202 16 208">
+	<widget name="modern/first_person/label_display_passenger_third_person4" type="text" controller="1" width="152" height="24" string_list="modern/first_person/labels" string_index="4" font="ui\large_ui" color="#FF2896FF" />
+	<widget name="modern/first_person/spinner_display_passenger_third_person4" type="spinner" width="140" height="20" flags="pass_unhandled_to_focused_child left_right_tabs_items" strings="ON|OFF" values="true|false" setting="display.passenger_third_person" font="ui\large_ui" color="#FF2896FF" align="center" header_bitmap="bitmaps/arrow_sm_left" footer_bitmap="bitmaps/arrow_sm_right" header_bounds="4 -10 16 -4" footer_bounds="4 144 16 150">
 		<on event="created" run="port setting load" />
 	</widget>
-	<widget name="modern/first_person/row_display_viewmodel_shield5" width="336" height="26" bitmap="modern/row" flags="pass_unhandled_to_focused_child nifty_fx">
-		<child widget="modern/first_person/label_display_viewmodel_shield5" x="12" y="3" />
-		<child widget="modern/first_person/spinner_display_viewmodel_shield5" x="180" y="3" />
+	<widget name="modern/first_person/row_display_shield_look5" width="336" height="26" bitmap="modern/row" flags="pass_unhandled_to_focused_child nifty_fx">
+		<child widget="modern/first_person/label_display_shield_look5" x="12" y="3" />
+		<child widget="modern/first_person/spinner_display_shield_look5" x="122" y="3" />
 	</widget>
-	<widget name="modern/first_person/label_display_viewmodel_shield5" type="text" controller="1" width="152" height="24" string_list="modern/first_person/labels" string_index="5" font="ui\large_ui" color="#FF2896FF" />
-	<widget name="modern/first_person/spinner_display_viewmodel_shield5" type="spinner" width="140" height="20" flags="pass_unhandled_to_focused_child left_right_tabs_items" strings="ON|OFF" values="true|false" setting="display.viewmodel_shield" font="ui\large_ui" color="#FF2896FF" align="center" header_bitmap="bitmaps/arrow_sm_left" footer_bitmap="bitmaps/arrow_sm_right" header_bounds="4 -10 16 -4" footer_bounds="4 144 16 150">
+	<widget name="modern/first_person/label_display_shield_look5" type="text" controller="1" width="94" height="24" string_list="modern/first_person/labels" string_index="5" font="ui\large_ui" color="#FF2896FF" />
+	<widget name="modern/first_person/spinner_display_shield_look5" type="spinner" width="198" height="20" flags="pass_unhandled_to_focused_child left_right_tabs_items" strings="DEFAULT|CLASSIC WITH SPRINKLES|MARK VI|INFINITE HONEYCOMB" values="classic|classic_with_sprinkles|enhanced|classic_honeycomb2" setting="display.shield_look" font="ui\large_ui" color="#FF2896FF" align="center" header_bitmap="bitmaps/arrow_sm_left" footer_bitmap="bitmaps/arrow_sm_right" header_bounds="4 -10 16 -4" footer_bounds="4 202 16 208">
 		<on event="created" run="port setting load" />
 	</widget>
-	<widget name="modern/first_person/row_display_first_person_legs6" width="336" height="26" bitmap="modern/row" flags="pass_unhandled_to_focused_child nifty_fx">
-		<child widget="modern/first_person/label_display_first_person_legs6" x="12" y="3" />
-		<child widget="modern/first_person/spinner_display_first_person_legs6" x="180" y="3" />
+	<widget name="modern/first_person/row_display_viewmodel_shield6" width="336" height="26" bitmap="modern/row" flags="pass_unhandled_to_focused_child nifty_fx">
+		<child widget="modern/first_person/label_display_viewmodel_shield6" x="12" y="3" />
+		<child widget="modern/first_person/spinner_display_viewmodel_shield6" x="180" y="3" />
 	</widget>
-	<widget name="modern/first_person/label_display_first_person_legs6" type="text" controller="1" width="152" height="24" string_list="modern/first_person/labels" string_index="6" font="ui\large_ui" color="#FF2896FF" />
-	<widget name="modern/first_person/spinner_display_first_person_legs6" type="spinner" width="140" height="20" flags="pass_unhandled_to_focused_child left_right_tabs_items" strings="ON|OFF" values="true|false" setting="display.first_person_legs" font="ui\large_ui" color="#FF2896FF" align="center" header_bitmap="bitmaps/arrow_sm_left" footer_bitmap="bitmaps/arrow_sm_right" header_bounds="4 -10 16 -4" footer_bounds="4 144 16 150">
+	<widget name="modern/first_person/label_display_viewmodel_shield6" type="text" controller="1" width="152" height="24" string_list="modern/first_person/labels" string_index="6" font="ui\large_ui" color="#FF2896FF" />
+	<widget name="modern/first_person/spinner_display_viewmodel_shield6" type="spinner" width="140" height="20" flags="pass_unhandled_to_focused_child left_right_tabs_items" strings="ON|OFF" values="true|false" setting="display.viewmodel_shield" font="ui\large_ui" color="#FF2896FF" align="center" header_bitmap="bitmaps/arrow_sm_left" footer_bitmap="bitmaps/arrow_sm_right" header_bounds="4 -10 16 -4" footer_bounds="4 144 16 150">
+		<on event="created" run="port setting load" />
+	</widget>
+	<widget name="modern/first_person/row_display_first_person_legs7" width="336" height="26" bitmap="modern/row" flags="pass_unhandled_to_focused_child nifty_fx">
+		<child widget="modern/first_person/label_display_first_person_legs7" x="12" y="3" />
+		<child widget="modern/first_person/spinner_display_first_person_legs7" x="180" y="3" />
+	</widget>
+	<widget name="modern/first_person/label_display_first_person_legs7" type="text" controller="1" width="152" height="24" string_list="modern/first_person/labels" string_index="7" font="ui\large_ui" color="#FF2896FF" />
+	<widget name="modern/first_person/spinner_display_first_person_legs7" type="spinner" width="140" height="20" flags="pass_unhandled_to_focused_child left_right_tabs_items" strings="ON|OFF" values="true|false" setting="display.first_person_legs" font="ui\large_ui" color="#FF2896FF" align="center" header_bitmap="bitmaps/arrow_sm_left" footer_bitmap="bitmaps/arrow_sm_right" header_bounds="4 -10 16 -4" footer_bounds="4 144 16 150">
 		<on event="created" run="port setting load" />
 	</widget>
 	<widget name="modern/first_person/row_link_0" width="336" height="26" bitmap="modern/row" flags="nifty_fx">
@@ -1710,10 +1719,11 @@
 		<on event="left_mouse" run="mouse emit accept event" />
 		<child widget="modern/first_person/label_link_0" x="12" y="3" />
 	</widget>
-	<widget name="modern/first_person/label_link_0" type="text" controller="1" width="312" height="24" string_list="modern/first_person/labels" string_index="7" font="ui\large_ui" color="#FF2896FF" />
+	<widget name="modern/first_person/label_link_0" type="text" controller="1" width="312" height="24" string_list="modern/first_person/labels" string_index="8" font="ui\large_ui" color="#FF2896FF" />
 	<strings name="modern/first_person/labels">
 		<string text="FOV" />
 		<string text="VIEWMODEL FOV" />
+		<string text="STOCK RETICLE SIZE" />
 		<string text="VIEWMODELS" />
 		<string text="PASSENGER VIEW" />
 		<string text="SHIELD LOOK" />
@@ -1725,6 +1735,7 @@
 		<string text="OK saves pending settings across pages. Defaults resets this page. Cancel discards pending settings. Tab or Y changes tabs." />
 		<string text="On foot, horizontal at 16:9, in degrees. Default keeps the stock view." />
 		<string text="The weapon and hands, horizontal at 16:9. Default keeps the weapon's stock view." />
+		<string text="Keep the reticle its normal size at any FOV. Off scales it with the view." />
 		<string text="Draw first-person weapons, hands and attached visuals. Gameplay and sound continue when off." />
 		<string text="Third-person Warthog and Scorpion passengers in the campaign and co-op. Weapon zoom is disabled." />
 		<string text="Classic keeps map shields. Other looks keep custom colour. Sprinkles adds layers, arcs and recharge to the classic surface." />

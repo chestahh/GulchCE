@@ -182,5 +182,5 @@ def test_host_camera_menu_layout():
             index = int(re.search(r"#define " + name + r" (\d+)", menus).group(1))
             assert phrase in help_text[index]
     spec = port_settings.SCREENS["video_settings/fov_viewmodels"]
-    assert 1 + len(spec["rows"]) + len(spec["categories"]) == 10
+    assert 1 + len(spec["rows"]) + len(spec["categories"]) == 11
     assert spec["extra_help"][0].startswith("CONTROLLED BY HOST")

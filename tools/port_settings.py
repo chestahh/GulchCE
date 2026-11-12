@@ -430,6 +430,8 @@ SCREENS["video_settings/fov_viewmodels"] = {
          "On foot, horizontal at 16:9, in degrees.\nDefault keeps the stock view.", None),
         ("VIEWMODEL FOV:", "display.viewmodel_fov", [("DEFAULT", "0")] + [(str(n), str(n)) for n in range(80, 151, 5)],
          "The weapon and hands, horizontal at 16:9.\nDefault keeps the weapon's stock view.", None),
+        ("STOCK RETICLE SIZE:", "display.reticle_stock_size", ON_OFF,
+         "Keep the reticle its normal size at any FOV.\nOff scales it with the view.", None),
         ("VIEWMODELS:", "display.viewmodel_visible", ON_OFF,
          "Draw first-person weapons, hands and attached\nvisuals. Gameplay and sound continue when off.", None),
         ("PASSENGER THIRD PERSON:", "display.passenger_third_person", ON_OFF,

@@ -149,6 +149,24 @@ real render_fov_vertical(short local_player_index, real native_vertical_field_of
 	return adjusted;
 }
 
+/* the reticle's drawn scale: render_fov_reticle_scale's, or 1 (its stock
+size) with display.reticle_stock_size. Only the HUD's reticle drawing takes
+this; other callers keep the view's own scale */
+real render_fov_reticle_draw_scale(short local_player_index)
+{
+	static boolean initialized, stock_size;
+	static unsigned long read_at;
+	unsigned long changes = config_changes();
+
+	if (!initialized || read_at != changes)
+	{
+		stock_size = config_boolean("display.reticle_stock_size") != 0;
+		initialized = TRUE;
+		read_at = changes;
+	}
+	return stock_size ? 1.0f : render_fov_reticle_scale(local_player_index);
+}
+
 real render_fov_authored_vertical(short local_player_index)
 {
 	if (local_player_index < 0 || local_player_index >= MAXIMUM_LOCAL_PLAYERS)

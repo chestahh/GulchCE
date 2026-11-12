@@ -1702,9 +1702,10 @@ static void hud_draw_bitmap_with_meter(
 			_hud_dont_scale_offset_bit),
 		0.0f,
 		&point);
-	/* port: move every reticle piece to the stock aim point in the shoulder view. */
+	/* port: move every reticle piece to the stock aim point in the shoulder view
+	(at the scale it is drawn at, below). */
 	if (is_crosshair_bitmap && absolute_placement->corner == _hud_anchor_center &&
-		!third_person_reticle(&point, render_fov_reticle_scale(render.local_player_index)))
+		!third_person_reticle(&point, render_fov_reticle_draw_scale(render.local_player_index)))
 		return;
 	/* port: the crosshairs_draw scope moves only the weapon's reticle */
 	if (is_crosshair_bitmap)
@@ -1724,9 +1725,10 @@ static void hud_draw_bitmap_with_meter(
 		&xy_scale,
 		theta,
 		color,
-		/* port: a reticle at the centre keeps to its aim (view_fov.c) */
+		/* port: a reticle at the centre keeps to its aim (view_fov.c), at
+		the view's scale or, with display.reticle_stock_size, its own size */
 		is_crosshair_bitmap && absolute_placement->corner == _hud_anchor_center ?
-			render_fov_reticle_scale(render.local_player_index) : 1.0f);
+			render_fov_reticle_draw_scale(render.local_player_index) : 1.0f);
 
 	match_assert_stack_frame("c:\\halo\\SOURCE\\interface\\hud_draw.c", 814);
 

@@ -71,6 +71,51 @@ int main(void){
     assert subprocess.run([str(exe)], timeout=10).returncode == 0
 
 
+def test_reticle_stock_size(tmp_path):
+    """display.reticle_stock_size changes only the reticle's drawn scale."""
+    from harness import function
+    compiler = shutil.which("clang") or shutil.which("cc")
+    if not compiler:
+        pytest.skip("a C compiler is required")
+    actual = (ROOT / "port/linux/game/view_fov.c").read_text()
+    hud = (ROOT / "source/interface/hud_draw.c").read_text()
+    # Both HUD calls (the shoulder view's aim and the drawing) take the drawn
+    # scale, so the aim offset is divided and multiplied by the same value.
+    assert hud.count("render_fov_reticle_draw_scale(render.local_player_index)") == 2
+    assert "render_fov_reticle_scale(" not in hud
+    code = r'''
+typedef float real;
+typedef int boolean;
+#define TRUE 1
+#define MAXIMUM_LOCAL_PLAYERS 4
+static real reticle_scales[4];
+static unsigned long changes;
+static int stock_size;
+static unsigned long config_changes(void){return changes;}
+static int config_boolean(char const *n){(void)n;return stock_size;}
+''' + function(actual, "render_fov_reticle_scale") + function(actual, "render_fov_reticle_draw_scale") + r'''
+#define CHECK(c) do{if(!(c))return __LINE__;}while(0)
+int main(void){
+ reticle_scales[0]=.4f;
+ CHECK(render_fov_reticle_draw_scale(0)==.4f);
+ CHECK(render_fov_reticle_draw_scale(1)==1);
+ stock_size=1;changes++;
+ CHECK(render_fov_reticle_draw_scale(0)==1&&render_fov_reticle_scale(0)==.4f);
+ stock_size=0;changes++;
+ CHECK(render_fov_reticle_draw_scale(0)==.4f);
+ CHECK(render_fov_reticle_draw_scale(-1)==1&&render_fov_reticle_draw_scale(4)==1);
+ return 0;
+}
+'''
+    source = tmp_path / "reticle.c"
+    source.write_text(code)
+    exe = tmp_path / ("reticle.exe" if sys.platform == "win32" else "reticle")
+    flags = ["--target=i686-pc-windows-msvc", "-fuse-ld=lld"] if sys.platform == "win32" else []
+    compiled = subprocess.run([compiler, str(source), *flags, "-o", str(exe)], capture_output=True, text=True)
+    assert compiled.returncode == 0, compiled.stderr
+    assert subprocess.run([str(exe)], timeout=10).returncode == 0
+
+
 def test_camera_reset_load_hooks():
     """Checkpoint/core loads bypass objects_initialize_for_new_map."""
     from harness import function
