@@ -1,5 +1,10 @@
 # Network co-op rewrite feasibility
 
+Planning follow-up: [the detailed staged rewrite plan](coop_rewrite_plan.md) keeps
+the full co-op system in scope, including mandatory movement, AI and combat
+milestones and host-controlled restart/revert. This assessment remains the
+original investigation record; the plan is not implementation authorization.
+
 Investigation dated 12 November 2026. No game implementation was changed.
 Local branch: `investigate-coop-rewrite`.
 
