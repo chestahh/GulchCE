@@ -8903,7 +8903,8 @@ void pc_menu_game_data_function_invoke(
             remove->visible=mcc_share_menu_can_remove();
             text_set(remove,mcc_share_menu_confirming() ? L"CONFIRM REMOVAL" : L"REMOVE SELECTED");
         }
-        if (widget->parameters.list.selected_index<1 ||
+        if (!widget->focused_child || !widget->focused_child->visible ||
+            widget->parameters.list.selected_index<1 || widget->parameters.list.selected_index>4 ||
             (widget->parameters.list.selected_index==3 && !mcc_share_menu_can_remove()))
             widget->parameters.list.selected_index=4;
     }
@@ -8922,7 +8923,7 @@ void pc_menu_game_data_function_invoke(
             (widget->parameters.list.selected_index==1 && !mcc_share_game_can_download()) ||
             (widget->parameters.list.selected_index==2 && !steam) ||
             (widget->parameters.list.selected_index==3 && !mcc_share_game_has_workshop()))
-            widget->parameters.list.selected_index=mcc_share_game_can_download() ? 1 : steam ? 2 : mcc_share_game_has_workshop() ? 3 : 4;
+            focus_row(widget,mcc_share_game_can_download() ? 1 : steam ? 2 : mcc_share_game_has_workshop() ? 3 : 4);
     }
 	else if (!strcmp(name, "port mods update"))
 		mods_update(widget);

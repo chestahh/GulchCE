@@ -343,10 +343,24 @@ match the upstream 43 fixture. No third-party source was imported.
   Windows virtual-environment launcher rather than its Python child.
 - URL construction and all 5,100 non-NUL byte/position combinations in a
   20-digit Workshop ID are checked. Arbitrary schemes, paths, switches and
-  escaping cannot enter the constructed URI. Actual Steam navigation remains
-  an external-client runtime check, not a guarantee about Steam's internals.
+  escaping cannot enter the constructed URI. The fixed URI was exercised from the actual game prompt and the Steam
+  client displayed Lava Lab item 2898867177. This is not a guarantee about
+  Steam's internals.
 
 Useful runtime evidence is under the ignored `build/local-mcc-server`,
 `build/local-mcc-transfer` and `build/capture-hotfix-*` directories. Test data
 uses copied maps, isolated saves and loopback-only services, with at most two
 game instances. Original installations and the original checkout are untouched.
+
+
+The live manual-installation prompt exposed stale focus on the hidden download
+button. The final follow-up uses the existing `focus_row` helper to update
+both the focused widget and list index. An executed prompt test covers desktop,
+Android and web visibility changes and preserves a selected browser fallback.
+The new MCC server test fixture also needs an include guard under Linux's
+strict C89 warnings; the initial Linux MCC run passed 2,510 other cases.
+
+The corrected prompt opened Lava Lab in Steam and then the same fixed HTTPS
+page in the browser from its fallback action. Both were observed in their
+actual application windows. The affected final rerun passed 104 tests, and
+Windows/web rebuilds passed. No subscription or account changes were made.
