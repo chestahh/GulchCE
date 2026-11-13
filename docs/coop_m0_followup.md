@@ -371,6 +371,11 @@ The [running-timer and held-ammunition continuation](coop_m0_recovery_timing.md)
 adds two-player non-default primary magazine recovery and measures countdown
 loss independently of peer agreement, including warning-state and expiry
 semantics. These bounded observations do not replace the full recovery ledger.
+The [identity/ownership continuation](coop_m0_recovery_identity.md) adds actual
+normal-allocator weapon-slot reuse with different generations, definitions
+and player owners. It checks original identity restoration and post-save
+absence independently of readiness, including the first sampled ready state
+in each new epoch. Cross-type reuse and unobserved dependencies remain open.
 
 | Gate | Current disposition |
 | --- | --- |

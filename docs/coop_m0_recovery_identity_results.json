@@ -1,0 +1,1230 @@
+{
+  "date": "2026-11-13",
+  "source_revision": "ef424531ea34efcf1be2f3fb64307eb8c76f9c6a",
+  "configuration": "Windows release portable PGO-off LTO-off; generated-only diagnostics",
+  "binary_sha256": "9c4ce3789b06a494cc817c212424c451cc2947435bb92e59491710a340dbb638",
+  "generated_files": {
+    "port/windows/src/win32_net.c": {
+      "source_sha256": "3b5f5441175b72ddb778009beeb327d1c89775c74e0ca49c4c00f3eb4d48e76c",
+      "copy_sha256": "7e09e05f2cf83d9bbc5890089df5bcaeba79e7952dc78b8b248ed72c36491b6b"
+    },
+    "port/linux/game/network_objects.c": {
+      "source_sha256": "4892f109c784213c56e61f2b75b9b07b9d65c9d3500f3d7a14889f28025ee552",
+      "copy_sha256": "be7ef3361860d14d37070fc35c42eb6ffb33d5b430f2f6c4d8ec759dc9ebf33e"
+    },
+    "port/linux/game/network_distributed.c": {
+      "source_sha256": "11bf034c6ce01014073a1efe305a47bc9f7d69059d233fec42837f3ea7f80c8a",
+      "copy_sha256": "53e2f068b318d84362d437184e3acecefde8e0ff3a9900011610ee88751b2b59"
+    },
+    "port/linux/game/network_coop.c": {
+      "source_sha256": "a19a999cd8866307d6ea69c6e32b86d4454bd4d39f5bf66267f63a74bf0266e3",
+      "copy_sha256": "151280a56003e43a0eb8adce6a74ab1b7a201279fa9ef9e3b876eb5b94b6fdee"
+    },
+    "port/linux/game/network_test.c": {
+      "source_sha256": "d97c0f5569c0db474d9719d587e3956bec57b586567c04bcbb21e38011cadf4d",
+      "copy_sha256": "a1f67863b4b9e905459cfed18d9eb8bb87211fe62dfae8d1705e8e8baea88f5c"
+    },
+    "source/interface/hud_messaging.c": {
+      "source_sha256": "7d3ad62a2d766c2315556fb46730a72b8f5d6b6c73058ac52ccaced812712973",
+      "copy_sha256": "be29d8486bc0cf63826bdb0d2532e1e7cc2e10383bc69c63a5deea99e505a1ec"
+    },
+    "source/interface/hud_nav_points.c": {
+      "source_sha256": "6fa800eb47b1a0cad318754392f89a2b6c68b69b084061d4c7ff2cc44434cf13",
+      "copy_sha256": "d2bdcb9821aff1f57aac09987fe2d6169c11ba9fa1f3e9d004e61ad353729e8c"
+    }
+  },
+  "content": {
+    "a30.map": {
+      "bytes": 152610816,
+      "sha256": "4875fa105e6c517589a796cfdcc7fcaa07e98df13d14e601bfc9eb1eab7e30b5"
+    },
+    "carousel.map": {
+      "bytes": 20215808,
+      "sha256": "1c6353df6e4530437841b09775e62fa067caa46bb0e40f4579bbf2276991a38e"
+    },
+    "ui.map": {
+      "bytes": 14145536,
+      "sha256": "35e3e560478d85178749be310ad13d6d6ecde618d32675261a3554592333a833"
+    },
+    "ce/b30.map": {
+      "bytes": 201578087,
+      "sha256": "baec59d37cf8d3f017dd3ac0d61fb431087490eeb1c469b2071ae2aec66ca24a"
+    },
+    "bitmaps.map": {
+      "bytes": 123547749,
+      "sha256": "317658e0ebd4aa189bac68e994fe0b515928f44d17b62ba676d8850aa329dd3d"
+    },
+    "sounds.map": {
+      "bytes": 41718640,
+      "sha256": "81658a8d9b127b2771558a35e664ec3f1a2b370f271fe957426d945001ceb5d2"
+    },
+    "loc.map": {
+      "bytes": 391996,
+      "sha256": "1321e17b5a86be84b1930b6eb2e7fdfe9285275d5d54cbe3d4a3635e2bf04041"
+    },
+    "mcc/a10.map": {
+      "bytes": 407040369,
+      "sha256": "3f7eaaaf27358591a1a1ae7ed99e3fdf9a826af4a4fa5ef1dd4757538ae0fed2"
+    }
+  },
+  "runs": [
+    {
+      "case": "xbox-reuse",
+      "complete_sequence": true,
+      "early_exits": {
+        "host": null,
+        "client": null
+      },
+      "discarded_final_captures": {
+        "host": [],
+        "client": []
+      },
+      "allocations": [
+        {
+          "time": 11037.901116,
+          "kind": "identity_new",
+          "v": [
+            1003.0,
+            0.0,
+            -456523765.0,
+            -437058433.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "time": 11043.9243,
+          "kind": "identity_new",
+          "v": [
+            1183.0,
+            1.0,
+            -456458229.0,
+            -391837903.0,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "additions": [
+        {
+          "time": 11037.901121,
+          "kind": "identity_add",
+          "v": [
+            1003.0,
+            0.0,
+            -457768376.0,
+            -456523765.0,
+            1.0,
+            0.0
+          ]
+        },
+        {
+          "time": 11043.924306,
+          "kind": "identity_add",
+          "v": [
+            1183.0,
+            1.0,
+            -456851447.0,
+            -456458229.0,
+            1.0,
+            0.0
+          ]
+        }
+      ],
+      "reverts": [
+        {
+          "time": 11046.942232,
+          "kind": "identity_revert",
+          "v": [
+            1273.0,
+            180.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "time": 11055.942468,
+          "kind": "identity_revert",
+          "v": [
+            1543.0,
+            450.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "original": -456523765.0,
+      "replacement": -456458229.0,
+      "replacement_allocations": 1,
+      "slot": 11,
+      "units": [
+        -457768376.0,
+        -456851447.0
+      ],
+      "players": [
+        -328204288.0,
+        -328138751.0
+      ],
+      "definitions": [
+        -437058433.0,
+        -391837903.0
+      ],
+      "save": {
+        "time": 11040.924192,
+        "kind": "checkpoint_saved",
+        "v": [
+          1093.0,
+          1.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "later_saves": [],
+      "mutations_observed": {
+        "same_slot_different_generation": true,
+        "different_weapon_definition": true,
+        "saved_identity": true,
+        "replacement_identity": true,
+        "saved_owner_inventory": true,
+        "replacement_owner_inventory": true,
+        "saved_owner_metadata": true,
+        "replacement_owner_metadata": true,
+        "saved_primary_rounds": true,
+        "replacement_primary_rounds": true,
+        "post_save_absence_at_save": true
+      },
+      "client_mutations_observed": {
+        "same_slot_different_generation": true,
+        "different_weapon_definition": true,
+        "saved_identity": true,
+        "replacement_identity": true,
+        "saved_owner_inventory": true,
+        "replacement_owner_inventory": true,
+        "saved_owner_metadata": true,
+        "replacement_owner_metadata": true,
+        "saved_primary_rounds": true,
+        "replacement_primary_rounds": true,
+        "post_save_absence_at_save": true
+      },
+      "restoration_failures": {
+        "restored": {
+          "host": {},
+          "client": {}
+        },
+        "restored_again": {
+          "host": {},
+          "client": {}
+        }
+      },
+      "recovery_windows": {
+        "1": {
+          "ended_at_later_save": false,
+          "peers": {
+            "host": {
+              "samples": 9,
+              "duration_seconds": 6.433309999998528,
+              "wrong_saved_value_samples": {
+                "slot_contents": 0,
+                "post_save_presence": 0,
+                "inventories": 0,
+                "all_tracked_inventory_references": 0,
+                "owners": 0,
+                "primary_magazines": 0
+              },
+              "unresolved_references": 0,
+              "epochs": [
+                2.0
+              ],
+              "ready_samples": null
+            },
+            "client": {
+              "samples": 7,
+              "duration_seconds": 5.998809999999139,
+              "wrong_saved_value_samples": {
+                "slot_contents": 0,
+                "post_save_presence": 0,
+                "inventories": 0,
+                "all_tracked_inventory_references": 0,
+                "owners": 0,
+                "primary_magazines": 0
+              },
+              "unresolved_references": 0,
+              "epochs": [
+                2.0
+              ],
+              "ready_samples": 7
+            }
+          },
+          "client_ready_observations": {
+            "samples": 9,
+            "first_capture_after_revert_seconds": 0.5788220000013098,
+            "wrong_saved_value_samples": {
+              "slot_contents": 0,
+              "post_save_presence": 0,
+              "inventories": 0,
+              "all_tracked_inventory_references": 0,
+              "owners": 0,
+              "primary_magazines": 0
+            },
+            "unresolved_references": 0
+          }
+        },
+        "2": {
+          "ended_at_later_save": false,
+          "peers": {
+            "host": {
+              "samples": 39,
+              "duration_seconds": 36.99975599999925,
+              "wrong_saved_value_samples": {
+                "slot_contents": 0,
+                "post_save_presence": 0,
+                "inventories": 0,
+                "all_tracked_inventory_references": 0,
+                "owners": 0,
+                "primary_magazines": 0
+              },
+              "unresolved_references": 0,
+              "epochs": [
+                3.0
+              ],
+              "ready_samples": null
+            },
+            "client": {
+              "samples": 38,
+              "duration_seconds": 37.00036100000034,
+              "wrong_saved_value_samples": {
+                "slot_contents": 0,
+                "post_save_presence": 0,
+                "inventories": 0,
+                "all_tracked_inventory_references": 0,
+                "owners": 0,
+                "primary_magazines": 0
+              },
+              "unresolved_references": 0,
+              "epochs": [
+                3.0
+              ],
+              "ready_samples": 38
+            }
+          },
+          "client_ready_observations": {
+            "samples": 40,
+            "first_capture_after_revert_seconds": 0.5778660000014497,
+            "wrong_saved_value_samples": {
+              "slot_contents": 0,
+              "post_save_presence": 0,
+              "inventories": 0,
+              "all_tracked_inventory_references": 0,
+              "owners": 0,
+              "primary_magazines": 0
+            },
+            "unresolved_references": 0
+          }
+        }
+      },
+      "epoch_sequence_valid": true,
+      "sample_skew_within_1_1_seconds": true,
+      "unchanged_net_compare": {
+        "problems": [],
+        "divergences": []
+      },
+      "evidence": {
+        "folder": "build/m0/recovery-identity/xbox-reuse",
+        "archive_sha256": "234ddc6f7c6edbb7f75d0a647614e694d9e281e6a385fcdaee57edcf023babe7",
+        "manifest_sha256": "257e46e03abf0b2a9261a7230b0b4eb983227d17f1fa533796d935f1210ce6d2",
+        "full_reduction_sha256": "20e9144626bff24db7cca52423888ac10554a114c5091f60c21ea65469b69012"
+      },
+      "sample_checks": {
+        "saved": {
+          "skew_seconds": 0.37817200000063167,
+          "ticks": {
+            "host": 1093.0,
+            "client": 1080.0
+          },
+          "epochs": {
+            "host": [
+              1.0,
+              0.0
+            ],
+            "client": [
+              1.0,
+              1.0
+            ]
+          },
+          "reference_failures": {
+            "host": [],
+            "client": []
+          },
+          "peer_disagreement": {}
+        },
+        "changed": {
+          "skew_seconds": 0.02852299999904062,
+          "ticks": {
+            "host": 1260.0,
+            "client": 1260.0
+          },
+          "epochs": {
+            "host": [
+              1.0,
+              0.0
+            ],
+            "client": [
+              1.0,
+              1.0
+            ]
+          },
+          "reference_failures": {
+            "host": [],
+            "client": []
+          },
+          "peer_disagreement": {}
+        },
+        "restored": {
+          "skew_seconds": 0.40416000000004715,
+          "ticks": {
+            "host": 1453.0,
+            "client": 1440.0
+          },
+          "epochs": {
+            "host": [
+              2.0,
+              0.0
+            ],
+            "client": [
+              2.0,
+              1.0
+            ]
+          },
+          "reference_failures": {
+            "host": [],
+            "client": []
+          },
+          "peer_disagreement": {}
+        },
+        "restored_again": {
+          "skew_seconds": 0.4046679999992193,
+          "ticks": {
+            "host": 1633.0,
+            "client": 1620.0
+          },
+          "epochs": {
+            "host": [
+              3.0,
+              0.0
+            ],
+            "client": [
+              3.0,
+              1.0
+            ]
+          },
+          "reference_failures": {
+            "host": [],
+            "client": []
+          },
+          "peer_disagreement": {}
+        }
+      }
+    },
+    {
+      "case": "ce-reuse",
+      "complete_sequence": true,
+      "early_exits": {
+        "host": null,
+        "client": null
+      },
+      "discarded_final_captures": {
+        "host": [],
+        "client": []
+      },
+      "allocations": [
+        {
+          "time": 11179.96815,
+          "kind": "identity_new",
+          "v": [
+            1204.0,
+            0.0,
+            -292224042.0,
+            -370669452.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "time": 11185.996517,
+          "kind": "identity_new",
+          "v": [
+            1384.0,
+            1.0,
+            -269417546.0,
+            -485817961.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "time": 11185.996547,
+          "kind": "identity_new",
+          "v": [
+            1384.0,
+            1.0,
+            -269351995.0,
+            -485817961.0,
+            1.0,
+            0.0
+          ]
+        },
+        {
+          "time": 11185.996574,
+          "kind": "identity_new",
+          "v": [
+            1384.0,
+            1.0,
+            -269286442.0,
+            -485817961.0,
+            2.0,
+            0.0
+          ]
+        }
+      ],
+      "additions": [
+        {
+          "time": 11179.968156,
+          "kind": "identity_add",
+          "v": [
+            1204.0,
+            0.0,
+            -431881261.0,
+            -292224042.0,
+            1.0,
+            0.0
+          ]
+        },
+        {
+          "time": 11185.99658,
+          "kind": "identity_add",
+          "v": [
+            1384.0,
+            1.0,
+            -292880371.0,
+            -269286442.0,
+            1.0,
+            0.0
+          ]
+        }
+      ],
+      "reverts": [
+        {
+          "time": 11189.026751,
+          "kind": "identity_revert",
+          "v": [
+            1474.0,
+            180.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "time": 11198.034954,
+          "kind": "identity_revert",
+          "v": [
+            1744.0,
+            450.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "original": -292224042.0,
+      "replacement": -269286442.0,
+      "replacement_allocations": 3,
+      "slot": 982,
+      "units": [
+        -431881261.0,
+        -292880371.0
+      ],
+      "players": [
+        -328204288.0,
+        -328138751.0
+      ],
+      "definitions": [
+        -370669452.0,
+        -485817961.0
+      ],
+      "save": {
+        "time": 11182.994725,
+        "kind": "checkpoint_saved",
+        "v": [
+          1294.0,
+          1.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "later_saves": [],
+      "mutations_observed": {
+        "same_slot_different_generation": true,
+        "different_weapon_definition": true,
+        "saved_identity": true,
+        "replacement_identity": true,
+        "saved_owner_inventory": true,
+        "replacement_owner_inventory": true,
+        "saved_owner_metadata": true,
+        "replacement_owner_metadata": true,
+        "saved_primary_rounds": true,
+        "replacement_primary_rounds": true,
+        "post_save_absence_at_save": true
+      },
+      "client_mutations_observed": {
+        "same_slot_different_generation": true,
+        "different_weapon_definition": true,
+        "saved_identity": true,
+        "replacement_identity": true,
+        "saved_owner_inventory": true,
+        "replacement_owner_inventory": true,
+        "saved_owner_metadata": true,
+        "replacement_owner_metadata": true,
+        "saved_primary_rounds": true,
+        "replacement_primary_rounds": true,
+        "post_save_absence_at_save": true
+      },
+      "restoration_failures": {
+        "restored": {
+          "host": {},
+          "client": {}
+        },
+        "restored_again": {
+          "host": {},
+          "client": {}
+        }
+      },
+      "recovery_windows": {
+        "1": {
+          "ended_at_later_save": false,
+          "peers": {
+            "host": {
+              "samples": 9,
+              "duration_seconds": 6.132659999999305,
+              "wrong_saved_value_samples": {
+                "slot_contents": 0,
+                "post_save_presence": 0,
+                "inventories": 0,
+                "all_tracked_inventory_references": 0,
+                "owners": 0,
+                "primary_magazines": 0
+              },
+              "unresolved_references": 0,
+              "epochs": [
+                2.0
+              ],
+              "ready_samples": null
+            },
+            "client": {
+              "samples": 7,
+              "duration_seconds": 5.998795999999857,
+              "wrong_saved_value_samples": {
+                "slot_contents": 0,
+                "post_save_presence": 0,
+                "inventories": 0,
+                "all_tracked_inventory_references": 0,
+                "owners": 0,
+                "primary_magazines": 0
+              },
+              "unresolved_references": 0,
+              "epochs": [
+                2.0
+              ],
+              "ready_samples": 7
+            }
+          },
+          "client_ready_observations": {
+            "samples": 9,
+            "first_capture_after_revert_seconds": 0.8044910000007803,
+            "wrong_saved_value_samples": {
+              "slot_contents": 0,
+              "post_save_presence": 0,
+              "inventories": 0,
+              "all_tracked_inventory_references": 0,
+              "owners": 0,
+              "primary_magazines": 0
+            },
+            "unresolved_references": 0
+          }
+        },
+        "2": {
+          "ended_at_later_save": false,
+          "peers": {
+            "host": {
+              "samples": 32,
+              "duration_seconds": 30.00067399999898,
+              "wrong_saved_value_samples": {
+                "slot_contents": 0,
+                "post_save_presence": 0,
+                "inventories": 0,
+                "all_tracked_inventory_references": 0,
+                "owners": 0,
+                "primary_magazines": 0
+              },
+              "unresolved_references": 0,
+              "epochs": [
+                3.0
+              ],
+              "ready_samples": null
+            },
+            "client": {
+              "samples": 31,
+              "duration_seconds": 29.99891899999966,
+              "wrong_saved_value_samples": {
+                "slot_contents": 0,
+                "post_save_presence": 0,
+                "inventories": 0,
+                "all_tracked_inventory_references": 0,
+                "owners": 0,
+                "primary_magazines": 0
+              },
+              "unresolved_references": 0,
+              "epochs": [
+                3.0
+              ],
+              "ready_samples": 31
+            }
+          },
+          "client_ready_observations": {
+            "samples": 33,
+            "first_capture_after_revert_seconds": 0.7964029999984632,
+            "wrong_saved_value_samples": {
+              "slot_contents": 0,
+              "post_save_presence": 0,
+              "inventories": 0,
+              "all_tracked_inventory_references": 0,
+              "owners": 0,
+              "primary_magazines": 0
+            },
+            "unresolved_references": 0
+          }
+        }
+      },
+      "epoch_sequence_valid": true,
+      "sample_skew_within_1_1_seconds": true,
+      "unchanged_net_compare": {
+        "problems": [],
+        "divergences": []
+      },
+      "evidence": {
+        "folder": "build/m0/recovery-identity/ce-reuse",
+        "archive_sha256": "f7fc543a84673282e62dc593fbd6fcc05d3d0b60811595229765c5ce043d1484",
+        "manifest_sha256": "9fcce0838817b91e15490258899f17a39508d20bceabd69aa5ca90a4d594c19a",
+        "full_reduction_sha256": "9e1a6d9449fec3d4c7f691a9808de509be8a57c4b8c8cdb40c9b79f263aee5b9"
+      },
+      "sample_checks": {
+        "saved": {
+          "skew_seconds": 0.13471800000115763,
+          "ticks": {
+            "host": 1294.0,
+            "client": 1290.0
+          },
+          "epochs": {
+            "host": [
+              1.0,
+              0.0
+            ],
+            "client": [
+              1.0,
+              1.0
+            ]
+          },
+          "reference_failures": {
+            "host": [],
+            "client": []
+          },
+          "peer_disagreement": {}
+        },
+        "changed": {
+          "skew_seconds": 0.03336899999885645,
+          "ticks": {
+            "host": 1470.0,
+            "client": 1470.0
+          },
+          "epochs": {
+            "host": [
+              1.0,
+              0.0
+            ],
+            "client": [
+              1.0,
+              1.0
+            ]
+          },
+          "reference_failures": {
+            "host": [],
+            "client": []
+          },
+          "peer_disagreement": {}
+        },
+        "restored": {
+          "skew_seconds": 0.16728800000055344,
+          "ticks": {
+            "host": 1654.0,
+            "client": 1650.0
+          },
+          "epochs": {
+            "host": [
+              2.0,
+              0.0
+            ],
+            "client": [
+              2.0,
+              1.0
+            ]
+          },
+          "reference_failures": {
+            "host": [],
+            "client": []
+          },
+          "peer_disagreement": {}
+        },
+        "restored_again": {
+          "skew_seconds": 0.16682500000024447,
+          "ticks": {
+            "host": 1834.0,
+            "client": 1830.0
+          },
+          "epochs": {
+            "host": [
+              3.0,
+              0.0
+            ],
+            "client": [
+              3.0,
+              1.0
+            ]
+          },
+          "reference_failures": {
+            "host": [],
+            "client": []
+          },
+          "peer_disagreement": {}
+        }
+      }
+    },
+    {
+      "case": "mcc-reuse",
+      "complete_sequence": true,
+      "early_exits": {
+        "host": null,
+        "client": null
+      },
+      "discarded_final_captures": {
+        "host": [],
+        "client": []
+      },
+      "allocations": [
+        {
+          "time": 11353.155153,
+          "kind": "identity_new",
+          "v": [
+            622.0,
+            0.0,
+            -456326754.0,
+            -307491784.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "time": 11359.172282,
+          "kind": "identity_new",
+          "v": [
+            802.0,
+            1.0,
+            -456261218.0,
+            -293597940.0,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "additions": [
+        {
+          "time": 11353.155163,
+          "kind": "identity_add",
+          "v": [
+            622.0,
+            0.0,
+            -456785321.0,
+            -456326754.0,
+            1.0,
+            0.0
+          ]
+        },
+        {
+          "time": 11359.172288,
+          "kind": "identity_add",
+          "v": [
+            802.0,
+            1.0,
+            -456523775.0,
+            -456261218.0,
+            1.0,
+            0.0
+          ]
+        }
+      ],
+      "reverts": [
+        {
+          "time": 11362.19537,
+          "kind": "identity_revert",
+          "v": [
+            892.0,
+            180.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "time": 11371.195598,
+          "kind": "identity_revert",
+          "v": [
+            1162.0,
+            450.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "original": -456326754.0,
+      "replacement": -456261218.0,
+      "replacement_allocations": 1,
+      "slot": 414,
+      "units": [
+        -456785321.0,
+        -456523775.0
+      ],
+      "players": [
+        -328204288.0,
+        -328138751.0
+      ],
+      "definitions": [
+        -307491784.0,
+        -293597940.0
+      ],
+      "save": {
+        "time": 11356.170821,
+        "kind": "checkpoint_saved",
+        "v": [
+          712.0,
+          1.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "later_saves": [
+        {
+          "time": 11410.579921,
+          "kind": "checkpoint_saved",
+          "v": [
+            2344.0,
+            1.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "mutations_observed": {
+        "same_slot_different_generation": true,
+        "different_weapon_definition": true,
+        "saved_identity": true,
+        "replacement_identity": true,
+        "saved_owner_inventory": true,
+        "replacement_owner_inventory": true,
+        "saved_owner_metadata": true,
+        "replacement_owner_metadata": true,
+        "saved_primary_rounds": true,
+        "replacement_primary_rounds": true,
+        "post_save_absence_at_save": true
+      },
+      "client_mutations_observed": {
+        "same_slot_different_generation": true,
+        "different_weapon_definition": true,
+        "saved_identity": true,
+        "replacement_identity": true,
+        "saved_owner_inventory": true,
+        "replacement_owner_inventory": true,
+        "saved_owner_metadata": true,
+        "replacement_owner_metadata": true,
+        "saved_primary_rounds": true,
+        "replacement_primary_rounds": true,
+        "post_save_absence_at_save": true
+      },
+      "restoration_failures": {
+        "restored": {
+          "host": {},
+          "client": {}
+        },
+        "restored_again": {
+          "host": {},
+          "client": {}
+        }
+      },
+      "recovery_windows": {
+        "1": {
+          "ended_at_later_save": false,
+          "peers": {
+            "host": {
+              "samples": 9,
+              "duration_seconds": 6.731667999998535,
+              "wrong_saved_value_samples": {
+                "slot_contents": 0,
+                "post_save_presence": 0,
+                "inventories": 0,
+                "all_tracked_inventory_references": 0,
+                "owners": 0,
+                "primary_magazines": 0
+              },
+              "unresolved_references": 0,
+              "epochs": [
+                2.0
+              ],
+              "ready_samples": null
+            },
+            "client": {
+              "samples": 7,
+              "duration_seconds": 6.000020999999833,
+              "wrong_saved_value_samples": {
+                "slot_contents": 0,
+                "post_save_presence": 0,
+                "inventories": 0,
+                "all_tracked_inventory_references": 0,
+                "owners": 0,
+                "primary_magazines": 0
+              },
+              "unresolved_references": 0,
+              "epochs": [
+                2.0
+              ],
+              "ready_samples": 7
+            }
+          },
+          "client_ready_observations": {
+            "samples": 9,
+            "first_capture_after_revert_seconds": 0.2517020000013872,
+            "wrong_saved_value_samples": {
+              "slot_contents": 0,
+              "post_save_presence": 0,
+              "inventories": 0,
+              "all_tracked_inventory_references": 0,
+              "owners": 0,
+              "primary_magazines": 0
+            },
+            "unresolved_references": 0
+          }
+        },
+        "2": {
+          "ended_at_later_save": true,
+          "peers": {
+            "host": {
+              "samples": 39,
+              "duration_seconds": 36.99998400000004,
+              "wrong_saved_value_samples": {
+                "slot_contents": 0,
+                "post_save_presence": 0,
+                "inventories": 0,
+                "all_tracked_inventory_references": 0,
+                "owners": 0,
+                "primary_magazines": 0
+              },
+              "unresolved_references": 0,
+              "epochs": [
+                3.0
+              ],
+              "ready_samples": null
+            },
+            "client": {
+              "samples": 38,
+              "duration_seconds": 36.99640999999974,
+              "wrong_saved_value_samples": {
+                "slot_contents": 0,
+                "post_save_presence": 0,
+                "inventories": 0,
+                "all_tracked_inventory_references": 0,
+                "owners": 0,
+                "primary_magazines": 0
+              },
+              "unresolved_references": 0,
+              "epochs": [
+                3.0
+              ],
+              "ready_samples": 38
+            }
+          },
+          "client_ready_observations": {
+            "samples": 40,
+            "first_capture_after_revert_seconds": 0.2512800000004063,
+            "wrong_saved_value_samples": {
+              "slot_contents": 0,
+              "post_save_presence": 0,
+              "inventories": 0,
+              "all_tracked_inventory_references": 0,
+              "owners": 0,
+              "primary_magazines": 0
+            },
+            "unresolved_references": 0
+          }
+        }
+      },
+      "epoch_sequence_valid": true,
+      "sample_skew_within_1_1_seconds": true,
+      "unchanged_net_compare": {
+        "problems": [],
+        "divergences": []
+      },
+      "evidence": {
+        "folder": "build/m0/recovery-identity/mcc-reuse",
+        "archive_sha256": "b123e6aeece7989b14da828a7e2eba613bc6c5ac6b325047c6607c8b7f9600d1",
+        "manifest_sha256": "58cc1a18041f2c17b8a7fd87c02f07a3edbaeca40993c9002d930edb8edb9486",
+        "full_reduction_sha256": "46b5307e7b3ae4119e071dc4c66db62b4b159b02b3666c066e5a53ff0c9daa7e"
+      },
+      "sample_checks": {
+        "saved": {
+          "skew_seconds": 0.2932200000013836,
+          "ticks": {
+            "host": 712.0,
+            "client": 720.0
+          },
+          "epochs": {
+            "host": [
+              1.0,
+              0.0
+            ],
+            "client": [
+              1.0,
+              1.0
+            ]
+          },
+          "reference_failures": {
+            "host": [],
+            "client": []
+          },
+          "peer_disagreement": {}
+        },
+        "changed": {
+          "skew_seconds": 0.008895000000848086,
+          "ticks": {
+            "host": 870.0,
+            "client": 870.0
+          },
+          "epochs": {
+            "host": [
+              1.0,
+              0.0
+            ],
+            "client": [
+              1.0,
+              1.0
+            ]
+          },
+          "reference_failures": {
+            "host": [],
+            "client": []
+          },
+          "peer_disagreement": {}
+        },
+        "restored": {
+          "skew_seconds": 0.27455400000144436,
+          "ticks": {
+            "host": 1072.0,
+            "client": 1080.0
+          },
+          "epochs": {
+            "host": [
+              2.0,
+              0.0
+            ],
+            "client": [
+              2.0,
+              1.0
+            ]
+          },
+          "reference_failures": {
+            "host": [],
+            "client": []
+          },
+          "peer_disagreement": {}
+        },
+        "restored_again": {
+          "skew_seconds": 0.2749309999999241,
+          "ticks": {
+            "host": 1252.0,
+            "client": 1260.0
+          },
+          "epochs": {
+            "host": [
+              3.0,
+              0.0
+            ],
+            "client": [
+              3.0,
+              1.0
+            ]
+          },
+          "reference_failures": {
+            "host": [],
+            "client": []
+          },
+          "peer_disagreement": {}
+        }
+      }
+    }
+  ],
+  "status": "M0 open; original 19-domain scope retained; M1 unstarted; unpublished",
+  "platforms": {
+    "Windows": "Hidden native two-peer loopback, null rendering, audio off",
+    "Linux_runtime": "blocked: no runner",
+    "Android_runtime": "blocked: no device/emulator",
+    "Android_build": "earlier Windows shell/CMake blocker separate",
+    "browser_recovery": "unqualified by this native pass"
+  },
+  "profile_source": {
+    "profile_sha256": "7836a51dfec5f336f6fbe1b2a81a90a40793b7e09b7dc605250841961867901d",
+    "metadata_sha256": "686c9489b9807951a83cb2c609ab5dfe826ed1e36204dd123767a3e18571607e"
+  },
+  "focused_tests": {
+    "tests": "173",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0"
+  },
+  "unchanged_diagnostic_modes": {
+    "recovery": 7,
+    "recovery-domains": 7,
+    "recovery-timing": 7
+  },
+  "cleanup": {
+    "private_fixture_bytes_removed": 6827899346,
+    "archived_files": 278,
+    "archived_raw_bytes": 240617352,
+    "archive_bytes": 27754672,
+    "temporary_build_test_bytes_removed": 241949023,
+    "retained_pass_bytes": 94913645,
+    "retained_all_m0_bytes": 2194902664
+  }
+}

@@ -1,5 +1,9 @@
 # M0: running countdown and held-ammunition recovery
 
+**Continuation:** The [identity/ownership pass](coop_m0_recovery_identity.md)
+adds bounded weapon-slot reuse and replacement-inventory observations. The
+full-system ledger remains authoritative; earlier findings below are retained.
+
 Local investigation on `investigate-coop-rewrite`, starting from `c75240132`
 on 13 November 2026. This continues the [domain recovery pass](coop_m0_recovery_domains.md)
 and retains the [complete 19-domain ledger](coop_m0_recovery.md#full-system-recovery-coverage).

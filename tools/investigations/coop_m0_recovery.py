@@ -72,7 +72,7 @@ void m0_recovery_nav(void)
 '''
 
 
-def instrument(relative, original, domains=False, timing=False):
+def instrument(relative, original, domains=False, timing=False, identity=False):
     name = Path(relative).stem
     if name in ('hud_messaging', 'hud_nav_points'):
         return trace.HEADER.replace('TRACE_NAME', name) + original + (HUD if name == 'hud_messaging' else NAV)
@@ -91,7 +91,7 @@ def instrument(relative, original, domains=False, timing=False):
             '\t{\n\t\tm0_emit("fault_drop_objective", game_time_get(), events[index].number, events[index].value, 0, 0, 0);\n\t\tcontinue;\n\t}\n'
             '\tclient_apply_event(&events[index]);')
         text += '\n' + Path(__file__).with_suffix('.c').read_text()
-        if domains or timing:
+        if domains or timing or identity:
             text = trace.once(text, 'static void m0_recovery_capture(void);',
                               'static void m0_domains_capture(void);\nstatic void m0_domains_fixture(void);\nstatic void m0_recovery_capture(void);')
             text = trace.once(text, '\tm0_recovery_epoch();', '\tm0_domains_capture();\n\tm0_recovery_epoch();')
@@ -109,13 +109,24 @@ def instrument(relative, original, domains=False, timing=False):
                 text = trace.once(text, '\tnetwork_distributed_reverted();',
                     '\tnetwork_distributed_reverted();\n'
                     '\tm0_emit("timing_revert", game_time_get(), ticks, scripted_hud_get_timer_ticks(), 0, 0, 0);')
+            elif identity:
+                extra = extra.split('static long m0_domains_create(', 1)[0]
+                extra = trace.once(extra, '\t\t\tstruct weapon_datum *weapon = weapon_get(iterator.index);',
+                    '\t\t\tstruct weapon_datum *weapon = weapon_get(iterator.index);\n'
+                    '\t\t\tm0_emit("identity_owner", tick, iterator.index, weapon->object.owner_player_index,\n'
+                    '\t\t\t\tTEST_FLAG(weapon->item.flags, _item_attached_to_unit_bit),\n'
+                    '\t\t\t\tTEST_FLAG(weapon->item.flags, _item_belongs_to_player_bit), 0);')
+                extra += Path(__file__).with_name('coop_m0_recovery_identity.c').read_text()
+                text = trace.once(text, '\tnetwork_distributed_reverted();',
+                    '\tnetwork_distributed_reverted();\n'
+                    '\tm0_emit("identity_revert", game_time_get(), ticks, 0, 0, 0, 0);')
             text += '\n' + extra
     elif name == 'network_distributed':
         text += '\nvoid m0_recovery_epoch(void)\n{\n\tm0_emit("epoch", game_time_get(), distributed_checkpoint_epoch, distributed_checkpoint_ready(), 0, 0, 0);\n}\n'
     return text
 
 
-def generate(domains=False, timing=False):
+def generate(domains=False, timing=False, identity=False):
     OUTPUT.mkdir(parents=True, exist_ok=True)
     manifest = {'revision': subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=trace.ROOT, text=True).strip(), 'files': {}}
     paths = ['port/windows/src/win32_net.c', 'port/linux/game/network_objects.c',
@@ -125,11 +136,11 @@ def generate(domains=False, timing=False):
         source = trace.ROOT / relative
         original = source.read_bytes()
         target = OUTPUT / source.name
-        target.write_text(instrument(relative, original.decode('utf8').replace('\r\n', '\n'), domains, timing), encoding='utf8')
+        target.write_text(instrument(relative, original.decode('utf8').replace('\r\n', '\n'), domains, timing, identity), encoding='utf8')
         manifest['files'][relative] = {'source_sha256': hashlib.sha256(original).hexdigest(),
             'copy': str(target), 'copy_sha256': hashlib.sha256(target.read_bytes()).hexdigest()}
     (OUTPUT / 'manifest.json').write_text(json.dumps(manifest, indent=2) + '\n')
-    mode = ' --timing' if timing else (' --domains' if domains else '')
+    mode = ' --identity' if identity else (' --timing' if timing else (' --domains' if domains else ''))
     (OUTPUT / 'compile.cmd').write_text(f'@echo off\n"{sys.executable}" "{Path(__file__).resolve()}"{mode} compile %*\n')
     print(OUTPUT / 'compile.cmd')
 
@@ -139,13 +150,15 @@ if __name__ == '__main__':
     modes = parser.add_mutually_exclusive_group()
     modes.add_argument('--domains', action='store_true', help='Additional persistent-state mutations; separate build artifacts')
     modes.add_argument('--timing', action='store_true', help='Running timer and held ammunition; separate build artifacts')
+    modes.add_argument('--identity', action='store_true', help='Normal allocator slot reuse and inventory ownership; separate build artifacts')
     parser.add_argument('arguments', nargs=argparse.REMAINDER)
     args = parser.parse_args()
-    if args.domains or args.timing:
-        OUTPUT = trace.ROOT / ('build/m0/recovery-timing/generated' if args.timing else 'build/m0/recovery-domains/generated')
+    if args.domains or args.timing or args.identity:
+        mode = 'identity' if args.identity else ('timing' if args.timing else 'domains')
+        OUTPUT = trace.ROOT / f'build/m0/recovery-{mode}/generated'
         trace.OUTPUT = OUTPUT
     if args.arguments:
         if args.arguments[0] != 'compile':
             parser.error('Expected compile or no positional arguments')
         sys.exit(trace.compile_source(args.arguments[1:]))
-    generate(args.domains, args.timing)
+    generate(args.domains, args.timing, args.identity)
