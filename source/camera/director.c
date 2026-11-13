@@ -268,6 +268,7 @@ void director_dispose_from_old_map(
 	short local_player_index;
 
 	controller_remap_reset(); /* port: release held actions and camera context between maps */
+	third_person_reset(); /* port: discard orbit and collision state on unload */
 	sound_listener_motion_reset(NONE); /* port: discard motion across map unload */
 
 	for (local_player_index = 0; local_player_index < MAXIMUM_NUMBER_OF_LOCAL_PLAYERS; local_player_index++)

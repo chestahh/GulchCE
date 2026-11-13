@@ -3,8 +3,10 @@
 #define THIRD_PERSON_PROTOCOL_H
 
 /* Network 44 plus shoulder-camera input and policy in cooperative flag bits 4-5.
+ * Version 32746 retains the wire layout and uses pre-creation MCC cover validation
+ * without a second shoulder-shot repair after attachment effects have spawned.
  * All map families share this agreement; older camera sessions are incompatible. */
-#define THIRD_PERSON_PROTOCOL_VERSION 32745
+#define THIRD_PERSON_PROTOCOL_VERSION 32746
 
 struct network_game;
 void third_person_session_host_begin(void);

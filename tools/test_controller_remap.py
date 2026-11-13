@@ -180,7 +180,7 @@ int main(void) {
 
 def test_camera_perspective_physical_input_and_host_policy(tmp_path):
     common = COMMON.replace('config_string(', 'layout_string(').replace('config_write(', 'layout_write(')
-    update = function((ROOT / 'port/linux/game/third_person_policy.c').read_text(), 'third_person_input_update')
+    update = function((ROOT / 'port/linux/game/third_person_input.c').read_text(), 'third_person_input_update')
     run_c(tmp_path, common + r'''
 static int perspective,shoulder,policy,writes;
 static char const *config_string(char const *name){return layout_string(name);}

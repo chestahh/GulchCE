@@ -458,6 +458,11 @@ SCREENS["video_settings/shoulder_camera"] = {
     "rows": [
         ("CAMERA MOTION:", "display.third_person_smooth", [("SMOOTH", "true"), ("SHARP", "false")],
          "Smooth eases recovery and shoulder changes.\nSharp moves immediately; collision stays active.", None),
+        ("SMOOTH CROSSHAIR:", "display.third_person_crosshair_smooth", ON_OFF,
+         "Reduce crosshair jitter in shoulder view.\nDoes not change aim or weapon accuracy.", None),
+        ("CROSSHAIR SIZE:", "display.third_person_crosshair_size",
+         [(f"{n}%", f"{n / 100:.2f}") for n in [75, 80, 85, 90, 95, 100]],
+         "Shoulder crosshair size. Default 100%.\nDoes not change aim or weapon accuracy.", None),
         ("LEFT SHOULDER:", "display.third_person_left_shoulder", ON_OFF,
          "Off uses the right shoulder. B swaps in game.\nRemap it under Controls Setup > Camera.", None),
         ("DISTANCE:", "display.third_person_distance",
@@ -1723,7 +1728,7 @@ def _session_options(base: str, host: str) -> list:
     rows, extra = [], []
     for key, label, values in [
         ("session_compatibility", "SESSION COMPATIBILITY:", "CROSSPLAY|GULCHCE ONLY"),
-        ("camera_policy", "CAMERA POLICY:", "PLAYER CHOICE|FORCED ON|FORCED OFF"),
+        ("camera_policy", "CAMERA POLICY:", "PLAYER CHOICE|FORCED OFF"),
     ]:
         extra += _widget(f"{base}/op_{key}", [("width", 512), ("height", 28),
             ("flags", "pass_unhandled_to_focused_child"), ("bitmap", "bitmaps/option_bkds"), ("color", "#FF2896FF")],
@@ -1747,7 +1752,6 @@ def _session_options(base: str, host: str) -> list:
         "Compatible GulchCE hosts and clients only.\\nEnables GulchCE session features, including third person.",
         "Compatibility is locked for this session.\\nClose the lobby to choose another mode.",
         "Each player chooses first or third person.\\nTheir camera toggle remains available.",
-        "Everyone uses third person on foot. Scoping and\\ntight spaces still use first person.",
         "Third person is disabled for everyone.\\nNormal vehicle and cinematic cameras remain.",
         "Players join by this invite link. Enter copies it.\\nLAN games use the server browser instead.",
     ])

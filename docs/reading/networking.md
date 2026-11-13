@@ -348,7 +348,7 @@ existing MCC co-op selector keep their own lifecycle.
 
 The Session Options selector chooses Crossplay (`opence_crossplay`) or GulchCE
 Only (`gulchce_third_person`). Crossplay disables multiplayer shoulder-camera
-behavior. GulchCE Only uses camera protocol 32745, an additional shoulder relay
+behavior. GulchCE Only uses camera protocol 32746, an additional shoulder relay
 byte and a mandatory kind 102 join envelope around the ordinary join. It is the
 same contract for all map families. Forced Off remains a camera session and
 does not relax admission.

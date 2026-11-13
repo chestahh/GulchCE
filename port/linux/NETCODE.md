@@ -251,8 +251,9 @@ OpenCE network version 42 replaced version 41 for Xbox, Custom Edition and MCC s
 version 43 (below, "Versions") replaces it.
 Advertisements and ordinary join requests carry this one version; mismatched
 versions are rejected before admission. There is no separate MCC capability
-envelope or optional shoulder-camera protocol. Retired fork message IDs 101 and
-102 remain unused. The historical version-41 record is retained as a test fixture,
+envelope. GulchCE Only uses the separate camera contract described below;
+Crossplay does not send its envelope or shoulder byte. Retired MCC message ID
+101 remains unused. The historical version-41 record is retained as a test fixture,
 not a crossplay promise.
 
 Every settings transfer sends the complete shared `network_game` record, including
@@ -1487,7 +1488,7 @@ so a legitimate shot from beside cover is not judged only from the head.
 Both the eye-to-muzzle and muzzle-to-impact routes must be clear; weapon
 ownership, rate, target history and damage limits still apply. Scoped, dead,
 seated, Forced Off and ordinary first-person paths do not add this history.
-The camera rules use agreement version 32745. Shared checkpoint recovery
+The camera rules use agreement version 32746. Shared checkpoint recovery
 also applies in Crossplay sessions through network protocol 44. Older camera
 builds are excluded; camera policy bits leave upstream vehicle riding intact.
 The host independently excludes weapon-authored following cameras from the
@@ -1575,13 +1576,19 @@ The host's Session Compatibility selector defaults to Crossplay
 44, retaining OpenCE 43 checkpoint, loading and content identity message layouts.
 There is no separate MCC capability or join envelope. The optional shoulder
 camera, its input and muzzle behavior remain disabled in Crossplay mode.
-GulchCE Only (`gulchce_third_person`) advertises camera protocol 32745 for every
+GulchCE Only (`gulchce_third_person`) advertises camera protocol 32746 for every
 map family, requires a kind 102 envelope before admission and adds the shoulder
 byte to relayed actions. The envelope's bound is 520 bytes: an eight-byte camera
 header plus at most 512 bytes of ordinary join data, including account-link
-credentials. Its header carries revision 1, camera version 32745 and zero
+credentials. Its header carries revision 1, camera version 32746 and zero
 reserved bytes. Nested envelopes are rejected. Ordinary authorization and
 map-family checks still apply.
+
+Camera version 32746 preserves the packet layout but removes the second
+post-creation repair of MCC shoulder shots: MCC has already checked cover
+before projectile attachments spawn. Camera peers must agree on that simulated
+origin. Crossplay has shoulder shots disabled and remains protocol 44.
+Smooth Crosshair and Crosshair Size are local presentation controls.
 
 Session mode is selected before opening the lobby and locked until disposal,
 including across rounds. The client binds camera permission to the selected
@@ -1713,5 +1720,5 @@ on average, 0.24 at most, in every game, perturbed or not: the netcode
 corrects them.
 
 MCC camera-relative projectile rays retain the OpenCE 43 simulation rules.
-Automatic sharing now requires agreement 44 (camera mode 32745) across all
+Automatic sharing now requires agreement 44 (camera mode 32746) across all
 map families. Firing and preview share `mcc_projectiles.c`.

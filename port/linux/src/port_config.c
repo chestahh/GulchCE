@@ -159,6 +159,10 @@ static const struct config_setting config_settings[] =
 		"In first person, point the view where the player aims now instead of\n"
 		"where the last tick left it: the view turns the frame the mouse moves,\n"
 		"not up to two ticks (66 ms) later." },
+	{ "display.third_person_crosshair_smooth", _config_boolean, "true", "HALO_THIRD_PERSON_CROSSHAIR_SMOOTH", _environment_value, _platform_all,
+		"Match the shoulder crosshair to the rendered view without changing weapon aim." },
+	{ "display.third_person_crosshair_size", _config_real, "1.0", "HALO_THIRD_PERSON_CROSSHAIR_SIZE", _environment_value, _platform_all,
+		"Shoulder crosshair size (0.75 to 1.0); 1.0 preserves its normal size." },
 	{ "display.third_person_smooth", _config_boolean, "true", "HALO_THIRD_PERSON_SMOOTH", _environment_value, _platform_all,
 		"Smooth camera recovery and shoulder changes; false uses sharp movement." },
 	{ "display.third_person_left_shoulder", _config_boolean, "false", "HALO_THIRD_PERSON_LEFT_SHOULDER", _environment_value, _platform_all,
@@ -171,7 +175,7 @@ static const struct config_setting config_settings[] =
 		"Shoulder camera lateral offset, in world units (0.0 to 0.6)." },
 	{ "display.third_person", _config_boolean, "false", "HALO_THIRD_PERSON", _environment_value, _platform_all,
 		"On foot, use a right-shoulder camera. Zoom returns to first person.\n"
-		"The reticle follows the stock aim point; weapon behaviour is unchanged." },
+		"The reticle follows the cover-aware muzzle ray; the host controls availability." },
 	{ "display.fov", _config_real, "0.0", "HALO_FOV", _environment_value, _platform_all,
 		"The first-person view's field of view on foot, in degrees across at\n"
 		"16:9 (20 to 150); 0 keeps the stock view. Vehicles, cinematics and\n"
@@ -764,7 +768,7 @@ static const struct config_setting config_settings[] =
 	{ "network.session_compatibility", _config_string, "\"opence_crossplay\"", "HALO_SESSION_COMPATIBILITY", _environment_value, _platform_all,
         "Host session: opence_crossplay uses the shared OpenCE protocol with multiplayer shoulder cameras off; gulchce_third_person requires matching GulchCE camera clients. Fixed once the lobby opens." },
 	{ "network.camera_policy", _config_string, "\"player_choice\"", "HALO_CAMERA_POLICY", _environment_value, _platform_all,
-		"Host camera rule for new matches: player_choice, forced_on, or forced_off.\n"
+		"Host camera rule for new matches: player_choice or forced_off.\n"
 		"Applies to LAN, internet and co-op matches; scope and collision overrides remain." },
 	{ "network.broadcast", _config_string, "\"\"", "HALO_NET_BROADCAST", _environment_value, _platform_all,
 		"Comma-separated IPv4 addresses system link sends its announcements to\n"
