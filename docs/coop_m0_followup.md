@@ -356,14 +356,17 @@ evidence are retained under `build/m0/local`.
 The [subsequent readiness, transport and roster checks](coop_m0_readiness_transport.md)
 add reproducible incomplete-state baselines and a real native-loopback reliable
 stream fault fixture. They do not waive the full-system gate.
+The [real-engine load and budget report](coop_m0_load.md) adds Windows snapshot
+measurements at the actual object-slot and byte-pool boundaries, plus frozen
+desktop comparison gates and explicit target exceedances.
 
 | Gate | Current disposition |
 | --- | --- |
 | Full-system inventory and validation routes | Recorded in the existing 19-domain ledger and generated index; scope retained. |
 | Ordinary two-peer payload, object snapshot and correction observations | Added for Xbox, CE, MCC and delayed/lossy joining/revert. Coverage limits are explicit above. |
-| Empty/near-capacity snapshots | Real-function reconstruction checked at the production slot limit; high-load real-world snapshot measurements remain open. |
+| Empty/near-capacity snapshots | Real-function reconstruction checked at the production slot limit. Real-engine Windows initial snapshots now measured at stock slot/byte-pool saturation on Xbox, CE and MCC, plus inventory-heavy units. Large active AI/combat, full-state readiness and cross-platform capacity remain unqualified. |
 | Full persistent-state ready oracle and independent reliable faults | Complete oracle remains open; failed construction and pending inventory now reproduce early gameplay readiness. Native stream component passed real-loopback reorder/loss/duplicate and independent wire/reader stalls. End-to-end game faults remain unqualified. |
-| Final numeric operating budgets | Still open for near-capacity and low-end/mobile cases. Freeze the measured desktop references for like-for-like comparison, not as universal ceilings. |
+| Final numeric operating budgets | Desktop reference observations and versioned comparison/design gates are recorded, including failures for synchronous snapshot work and CE traffic. Full-world memory ownership, sustained active workloads, transport/platform-specific and low-end/mobile budgets remain open; desktop results are not universal ceilings. |
 | Mission progression/profile ownership | Ordinary host-menu completion, wrong profile award, profile reload and postgame cancellation reproduced. Natural completion, next-round play and full roster/profile ownership remain open. |
 | Platform/preservation matrix | Linux and Android runtime explicitly blocked: no runner/device available. Android build remains blocked separately. Short rendered family transitions, failed-load baseline and two-local-player Xbox/CE/MCC split-screen entry checked. Ordinary local campaign-menu entry, multi-local-player network rosters and broad rendered/audio behavior remain unqualified. |
 | Current testing delta | Source audit and 142 focused tests complete; newer-revision runtime coverage remains separate. |

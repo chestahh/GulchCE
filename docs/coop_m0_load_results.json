@@ -1,0 +1,5084 @@
+{
+  "hardware": {
+    "cpu": "Intel(R) Core(TM) i7-14700K",
+    "os": "Windows-11-10.0.26300-SP0",
+    "physical_bytes": 34088050688,
+    "binary_sha256": "e36a563d8a0d939ff8b4abe89fc2d98b67e032d167c9caad8d8d3a7cfdd185fd",
+    "source_revision": "1e021e462",
+    "build": "release portable PGO off LTO off Windows x86",
+    "peers": 2,
+    "renderer": "null",
+    "audio": "disabled",
+    "network": "loopback"
+  },
+  "budget_sha256": "a60830dc0d84b949db0138cf4d7261079476128135001eaff93af8318871fdfc",
+  "build_manifest": {
+    "revision": "1e021e46209ff8993c6a8fab3b180d3dd16ae13d",
+    "files": {
+      "port/windows/src/win32_net.c": {
+        "source_sha256": "3b5f5441175b72ddb778009beeb327d1c89775c74e0ca49c4c00f3eb4d48e76c",
+        "copy": "C:\\Users\\matty\\.codex\\worktrees\\coop-rewrite-feasibility\\GulchCE\\build\\m0\\load\\generated\\win32_net.c",
+        "copy_sha256": "7e09e05f2cf83d9bbc5890089df5bcaeba79e7952dc78b8b248ed72c36491b6b"
+      },
+      "port/linux/game/network_objects.c": {
+        "source_sha256": "4892f109c784213c56e61f2b75b9b07b9d65c9d3500f3d7a14889f28025ee552",
+        "copy": "C:\\Users\\matty\\.codex\\worktrees\\coop-rewrite-feasibility\\GulchCE\\build\\m0\\load\\generated\\network_objects.c",
+        "copy_sha256": "138e3f082e53d16670741c91321ddd4f1f103fd0bf2a4fe1b3a395cb44683604"
+      },
+      "port/linux/game/network_distributed.c": {
+        "source_sha256": "11bf034c6ce01014073a1efe305a47bc9f7d69059d233fec42837f3ea7f80c8a",
+        "copy": "C:\\Users\\matty\\.codex\\worktrees\\coop-rewrite-feasibility\\GulchCE\\build\\m0\\load\\generated\\network_distributed.c",
+        "copy_sha256": "18a3f065793350460594f710a0cf84502c3df648bdcda9e41bb468592722f3b9"
+      },
+      "port/linux/game/network_coop.c": {
+        "source_sha256": "a19a999cd8866307d6ea69c6e32b86d4454bd4d39f5bf66267f63a74bf0266e3",
+        "copy": "C:\\Users\\matty\\.codex\\worktrees\\coop-rewrite-feasibility\\GulchCE\\build\\m0\\load\\generated\\network_coop.c",
+        "copy_sha256": "7fc404ffb706536d8ffa585784418d2c13b933ec0aea067ccc8dbbae1925e004"
+      },
+      "port/linux/game/network_test.c": {
+        "source_sha256": "d97c0f5569c0db474d9719d587e3956bec57b586567c04bcbb21e38011cadf4d",
+        "copy": "C:\\Users\\matty\\.codex\\worktrees\\coop-rewrite-feasibility\\GulchCE\\build\\m0\\load\\generated\\network_test.c",
+        "copy_sha256": "a1f67863b4b9e905459cfed18d9eb8bb87211fe62dfae8d1705e8e8baea88f5c"
+      },
+      "source/game/game.c": {
+        "source_sha256": "5750ed185c8f24ac662525ef363c9b8f96a462a67348de03036138b4712a4668",
+        "copy": "C:\\Users\\matty\\.codex\\worktrees\\coop-rewrite-feasibility\\GulchCE\\build\\m0\\load\\generated\\game.c",
+        "copy_sha256": "54d1f7edfe67ff8cb20ccadd505221cfc9511b85b75d59c6f4e2cd67502c089b"
+      }
+    },
+    "fixture_sha256": "42d2df824e9c3910ea6c1d341828692552f856b6df1e69974cc9c90b0efe283d"
+  },
+  "cases": [
+    {
+      "case": "ce-capacity",
+      "family": "ce",
+      "classification": "final_instrumentation",
+      "binary_sha256": "e36a563d8a0d939ff8b4abe89fc2d98b67e032d167c9caad8d8d3a7cfdd185fd",
+      "content": {
+        "carousel.map": {
+          "bytes": 20215808,
+          "sha256": "1c6353df6e4530437841b09775e62fa067caa46bb0e40f4579bbf2276991a38e"
+        },
+        "ui.map": {
+          "bytes": 14145536,
+          "sha256": "35e3e560478d85178749be310ad13d6d6ecde618d32675261a3554592333a833"
+        },
+        "ce/b30.map": {
+          "bytes": 201578087,
+          "sha256": "baec59d37cf8d3f017dd3ac0d61fb431087490eeb1c469b2071ae2aec66ca24a"
+        },
+        "bitmaps.map": {
+          "bytes": 123547749,
+          "sha256": "317658e0ebd4aa189bac68e994fe0b515928f44d17b62ba676d8850aa329dd3d"
+        },
+        "sounds.map": {
+          "bytes": 41718640,
+          "sha256": "81658a8d9b127b2771558a35e664ec3f1a2b370f271fe957426d945001ceb5d2"
+        },
+        "loc.map": {
+          "bytes": 391996,
+          "sha256": "1321e17b5a86be84b1930b6eb2e7fdfe9285275d5d54cbe3d4a3635e2bf04041"
+        }
+      },
+      "seconds_requested": 60,
+      "seconds_measured": 56.2208149999999,
+      "receive_delay_ms_per_peer": 0,
+      "loss_setting_percent": 0,
+      "requested_extra": 8000,
+      "template_kind": "weapon",
+      "creation": {
+        "requested": 8000.0,
+        "created": 7233.0,
+        "failed": 1.0,
+        "tag_index": -354481813.0,
+        "type_mask": 4.0,
+        "fixture_ms": 631.2778999999864
+      },
+      "initial_snapshot": {
+        "host_counts": {
+          "time": 1038.296348,
+          "kind": "snapshot_counts",
+          "v": [
+            1.0,
+            7396.0,
+            80.0,
+            8192.0,
+            8192.0,
+            3048136837.0
+          ]
+        },
+        "client_counts": {
+          "time": 1038.943236,
+          "kind": "received_counts",
+          "v": [
+            39.0,
+            7396.0,
+            80.0,
+            8192.0,
+            8192.0,
+            3048136837.0
+          ]
+        },
+        "count_and_identity_tag_fingerprint_agree": true,
+        "begin_to_received_counts_ms": 646.8500000000859
+      },
+      "snapshots": [
+        {
+          "host_tick": 1.0,
+          "host_construction_ms": 18.96400000009635,
+          "offered_message_bytes": 983636,
+          "serialized_object_entries": 7396,
+          "host_begin_to_client_usable_ms": null,
+          "client_pending_inventories_at_usable": null
+        }
+      ],
+      "pending_inventories_at_first_ready": 0.0,
+      "host_pool_initial": [
+        {
+          "time": 1037.664749,
+          "kind": "pool_counts",
+          "v": [
+            1.0,
+            959.0,
+            179.0,
+            0.08456277847290039,
+            8388608.0,
+            0.0
+          ]
+        },
+        {
+          "time": 1038.296249,
+          "kind": "pool_counts",
+          "v": [
+            1.0,
+            8192.0,
+            436.0,
+            0.7536616325378418,
+            8388608.0,
+            0.0
+          ]
+        },
+        {
+          "time": 1038.296371,
+          "kind": "pool_counts",
+          "v": [
+            1.0,
+            8192.0,
+            436.0,
+            0.7536616325378418,
+            8388608.0,
+            0.0
+          ]
+        }
+      ],
+      "host_pool_unavailable_contiguous_fraction_max": 0.7536616325378418,
+      "host_active_objects_max": 828.0,
+      "steady_networked_objects_range": [
+        6609.0,
+        6738.0
+      ],
+      "simulation_tick_ms": {
+        "host": {
+          "count": 1686,
+          "mean": 2.696050415178043,
+          "max": 13.226799999983996,
+          "p50": 2.6382000000921835,
+          "p95": 3.9434000000255764,
+          "p99": 4.976899999974194
+        },
+        "client": {
+          "count": 1687,
+          "mean": 2.0815630705404136,
+          "max": 9.7241999999369,
+          "p50": 2.01880000008714,
+          "p95": 3.281100000094739,
+          "p99": 4.024500000014086
+        }
+      },
+      "network_tick_ms": {
+        "host": {
+          "count": 1686,
+          "mean": 0.8959542704617814,
+          "max": 2.2598000000471075,
+          "p50": 0.9480999999595952,
+          "p95": 1.1447999997926672,
+          "p99": 1.2856000000738277
+        },
+        "client": {
+          "count": 1686,
+          "mean": 0.13151981020208856,
+          "max": 2.6354000001447275,
+          "p50": 0.12030000016238773,
+          "p95": 0.1661999999669206,
+          "p99": 0.41739999983292364
+        }
+      },
+      "host_object_network_ms": {
+        "count": 1686,
+        "mean": 0.5753253262149363,
+        "max": 1.9699000001764944,
+        "p50": 0.6072000001040578,
+        "p95": 0.749199999972916,
+        "p99": 0.8192999998755113
+      },
+      "payload": {
+        "host": {
+          "sent": {
+            "bytes": 32434179,
+            "bytes_per_second": 576906.9516334841,
+            "complete_one_second_windows_bytes": {
+              "count": 56,
+              "mean": 576782.9464285715,
+              "max": 641445,
+              "p50": 605889,
+              "p95": 640310,
+              "p99": 641445
+            },
+            "successful_calls": 28684,
+            "udp_bytes": 32388107
+          },
+          "received": {
+            "bytes": 187648,
+            "bytes_per_second": 3337.696189569652,
+            "complete_one_second_windows_bytes": {
+              "count": 56,
+              "mean": 3336.285714285714,
+              "max": 4340,
+              "p50": 2690,
+              "p95": 4172,
+              "p99": 4340
+            },
+            "successful_calls": 2273,
+            "udp_bytes": 187648
+          }
+        },
+        "client": {
+          "sent": {
+            "bytes": 187648,
+            "bytes_per_second": 3337.696189569652,
+            "complete_one_second_windows_bytes": {
+              "count": 56,
+              "mean": 3336.285714285714,
+              "max": 4340,
+              "p50": 2690,
+              "p95": 4172,
+              "p99": 4340
+            },
+            "successful_calls": 2273,
+            "udp_bytes": 0
+          },
+          "received": {
+            "bytes": 32434179,
+            "bytes_per_second": 576906.9516334841,
+            "complete_one_second_windows_bytes": {
+              "count": 56,
+              "mean": 576782.9464285715,
+              "max": 641445,
+              "p50": 605889,
+              "p95": 640310,
+              "p99": 641445
+            },
+            "successful_calls": 28665,
+            "udp_bytes": 0
+          }
+        }
+      },
+      "memory_whole_session": {
+        "host": {
+          "working_bytes": {
+            "count": 86,
+            "mean": 372329067.1627907,
+            "max": 446324736,
+            "p50": 423120896,
+            "p95": 445587456,
+            "p99": 446324736
+          },
+          "private_bytes": {
+            "count": 86,
+            "mean": 602733687.0697675,
+            "max": 691732480,
+            "p50": 640249856,
+            "p95": 642326528,
+            "p99": 691732480
+          }
+        },
+        "client": {
+          "working_bytes": {
+            "count": 86,
+            "mean": 368064940.6511628,
+            "max": 433852416,
+            "p50": 416878592,
+            "p95": 433569792,
+            "p99": 433852416
+          },
+          "private_bytes": {
+            "count": 86,
+            "mean": 599095677.0232558,
+            "max": 727220224,
+            "p50": 639700992,
+            "p95": 641896448,
+            "p99": 727220224
+          }
+        }
+      },
+      "inventory_queue_peak": 0.0,
+      "client_create_failure_counter_max": 0.0,
+      "event_queue_peak": 4.0,
+      "event_overflow_observations": 0,
+      "correction_max_per_tick_world_units": {
+        "count": 1687,
+        "mean": 0.06625975677346578,
+        "max": 1.6072490968856121,
+        "p50": 0.04806216776890665,
+        "p95": 0.2253117842193458,
+        "p99": 0.4998674895238277
+      },
+      "comparison": {
+        "divergences": [],
+        "problems": [],
+        "figures": {
+          "seconds": 60,
+          "position_max": 0.34953397545874443,
+          "position_sum": 9.33422369111553,
+          "position_count": 82,
+          "aim_max": 21,
+          "mismatches": {
+            "aim": 1
+          },
+          "tick_offsets": [
+            0,
+            1
+          ]
+        },
+        "drift": {
+          "samples": 761,
+          "apart": 2,
+          "mean": 3.19645203679369e-05,
+          "largest": 0.020884
+        },
+        "client_corrections": 521,
+        "early_exits": {
+          "host": null,
+          "client": null
+        }
+      },
+      "early_exits": {
+        "host": null,
+        "client": null
+      },
+      "archive_index": "build/m0/load/ce-capacity/archive-index.json",
+      "cleanup": {
+        "removed_bytes": 2392488688,
+        "archived_files": 89
+      },
+      "desktop_gate_checks": {
+        "host_simulation_tick_ms_p99": {
+          "observed": 4.976899999974194,
+          "limit": 25,
+          "pass": true
+        },
+        "host_network_tick_ms_p99": {
+          "observed": 1.2856000000738277,
+          "limit": 5,
+          "pass": true
+        },
+        "host_payload_mean": {
+          "observed": 576906.9516334841,
+          "limit": 262144,
+          "pass": false
+        },
+        "host_payload_p95_second": {
+          "observed": 640310,
+          "limit": 262144,
+          "pass": false
+        },
+        "host_private_commit_delta": {
+          "observed": -31387648,
+          "limit": 33554432,
+          "pass": true
+        },
+        "client_simulation_tick_ms_p99": {
+          "observed": 4.024500000014086,
+          "limit": 25,
+          "pass": true
+        },
+        "client_network_tick_ms_p99": {
+          "observed": 0.41739999983292364,
+          "limit": 5,
+          "pass": true
+        },
+        "client_payload_mean": {
+          "observed": 3337.696189569652,
+          "limit": 262144,
+          "pass": true
+        },
+        "client_payload_p95_second": {
+          "observed": 4172,
+          "limit": 262144,
+          "pass": true
+        },
+        "client_private_commit_delta": {
+          "observed": 29917184,
+          "limit": 33554432,
+          "pass": true
+        },
+        "snapshot_construction_max_ms": {
+          "observed": 18.96400000009635,
+          "limit": 5,
+          "pass": false
+        },
+        "snapshot_offered_bytes_max": {
+          "observed": 983636,
+          "limit": 2097152,
+          "pass": true
+        },
+        "initial_count_receipt_ms": {
+          "observed": 646.8500000000859,
+          "limit": 1000,
+          "pass": true
+        },
+        "pool_contiguous_headroom": {
+          "observed": 0.2463383674621582,
+          "minimum": 0.2,
+          "pass": true
+        },
+        "client_create_failures": {
+          "observed": 0.0,
+          "limit": 0,
+          "pass": true
+        },
+        "event_overflows": {
+          "observed": 0,
+          "limit": 0,
+          "pass": true
+        },
+        "pending_inventory_at_first_ready": {
+          "observed": 0.0,
+          "limit": 0,
+          "pass": true
+        }
+      }
+    },
+    {
+      "case": "ce-capacity-repeat",
+      "family": "ce",
+      "classification": "final_instrumentation",
+      "binary_sha256": "e36a563d8a0d939ff8b4abe89fc2d98b67e032d167c9caad8d8d3a7cfdd185fd",
+      "content": {
+        "carousel.map": {
+          "bytes": 20215808,
+          "sha256": "1c6353df6e4530437841b09775e62fa067caa46bb0e40f4579bbf2276991a38e"
+        },
+        "ui.map": {
+          "bytes": 14145536,
+          "sha256": "35e3e560478d85178749be310ad13d6d6ecde618d32675261a3554592333a833"
+        },
+        "ce/b30.map": {
+          "bytes": 201578087,
+          "sha256": "baec59d37cf8d3f017dd3ac0d61fb431087490eeb1c469b2071ae2aec66ca24a"
+        },
+        "bitmaps.map": {
+          "bytes": 123547749,
+          "sha256": "317658e0ebd4aa189bac68e994fe0b515928f44d17b62ba676d8850aa329dd3d"
+        },
+        "sounds.map": {
+          "bytes": 41718640,
+          "sha256": "81658a8d9b127b2771558a35e664ec3f1a2b370f271fe957426d945001ceb5d2"
+        },
+        "loc.map": {
+          "bytes": 391996,
+          "sha256": "1321e17b5a86be84b1930b6eb2e7fdfe9285275d5d54cbe3d4a3635e2bf04041"
+        }
+      },
+      "seconds_requested": 60,
+      "seconds_measured": 56.175985999999966,
+      "receive_delay_ms_per_peer": 0,
+      "loss_setting_percent": 0,
+      "requested_extra": 8000,
+      "template_kind": "weapon",
+      "creation": {
+        "requested": 8000.0,
+        "created": 7233.0,
+        "failed": 1.0,
+        "tag_index": -354481813.0,
+        "type_mask": 4.0,
+        "fixture_ms": 538.1483999999546
+      },
+      "initial_snapshot": {
+        "host_counts": {
+          "time": 1450.978562,
+          "kind": "snapshot_counts",
+          "v": [
+            1.0,
+            7396.0,
+            80.0,
+            8192.0,
+            8192.0,
+            3048136837.0
+          ]
+        },
+        "client_counts": {
+          "time": 1451.698356,
+          "kind": "received_counts",
+          "v": [
+            38.0,
+            7396.0,
+            80.0,
+            8192.0,
+            8192.0,
+            3048136837.0
+          ]
+        },
+        "count_and_identity_tag_fingerprint_agree": true,
+        "begin_to_received_counts_ms": 719.7410000001128
+      },
+      "snapshots": [
+        {
+          "host_tick": 1.0,
+          "host_construction_ms": 13.267000000041662,
+          "offered_message_bytes": 983636,
+          "serialized_object_entries": 7396,
+          "host_begin_to_client_usable_ms": null,
+          "client_pending_inventories_at_usable": null
+        }
+      ],
+      "pending_inventories_at_first_ready": 0.0,
+      "host_pool_initial": [
+        {
+          "time": 1450.440044,
+          "kind": "pool_counts",
+          "v": [
+            1.0,
+            959.0,
+            179.0,
+            0.08456277847290039,
+            8388608.0,
+            0.0
+          ]
+        },
+        {
+          "time": 1450.978422,
+          "kind": "pool_counts",
+          "v": [
+            1.0,
+            8192.0,
+            436.0,
+            0.7536616325378418,
+            8388608.0,
+            0.0
+          ]
+        },
+        {
+          "time": 1450.978594,
+          "kind": "pool_counts",
+          "v": [
+            1.0,
+            8192.0,
+            436.0,
+            0.7536616325378418,
+            8388608.0,
+            0.0
+          ]
+        }
+      ],
+      "host_pool_unavailable_contiguous_fraction_max": 0.7536616325378418,
+      "host_active_objects_max": 805.0,
+      "steady_networked_objects_range": [
+        6601.0,
+        6736.0
+      ],
+      "simulation_tick_ms": {
+        "host": {
+          "count": 1684,
+          "mean": 2.0609418646046356,
+          "max": 8.1531000000723,
+          "p50": 1.9800000000032014,
+          "p95": 3.137000000151602,
+          "p99": 4.141800000070361
+        },
+        "client": {
+          "count": 1686,
+          "mean": 1.6128956702288615,
+          "max": 6.243000000040411,
+          "p50": 1.549799999793322,
+          "p95": 2.6305999999749474,
+          "p99": 3.4009000000878586
+        }
+      },
+      "network_tick_ms": {
+        "host": {
+          "count": 1684,
+          "mean": 0.6579257719735023,
+          "max": 3.8699000001543027,
+          "p50": 0.5886999999802356,
+          "p95": 1.0110000000622676,
+          "p99": 1.34370000000672
+        },
+        "client": {
+          "count": 1685,
+          "mean": 0.09353133530942126,
+          "max": 1.7087000001083652,
+          "p50": 0.07819999996172555,
+          "p95": 0.1409000001331151,
+          "p99": 0.30020000008335046
+        }
+      },
+      "host_object_network_ms": {
+        "count": 1684,
+        "mean": 0.420863954869407,
+        "max": 2.627000000074986,
+        "p50": 0.36969999996472325,
+        "p95": 0.675200000159748,
+        "p99": 0.8766999999352265
+      },
+      "payload": {
+        "host": {
+          "sent": {
+            "bytes": 32381176,
+            "bytes_per_second": 576423.8121249891,
+            "complete_one_second_windows_bytes": {
+              "count": 56,
+              "mean": 576842.5,
+              "max": 641490,
+              "p50": 602486,
+              "p95": 635313,
+              "p99": 641490
+            },
+            "successful_calls": 28652,
+            "udp_bytes": 32351628
+          },
+          "received": {
+            "bytes": 187522,
+            "bytes_per_second": 3338.116753304519,
+            "complete_one_second_windows_bytes": {
+              "count": 56,
+              "mean": 3338.4285714285716,
+              "max": 4340,
+              "p50": 2690,
+              "p95": 4268,
+              "p99": 4340
+            },
+            "successful_calls": 2272,
+            "udp_bytes": 187522
+          }
+        },
+        "client": {
+          "sent": {
+            "bytes": 187645,
+            "bytes_per_second": 3340.3063009877587,
+            "complete_one_second_windows_bytes": {
+              "count": 56,
+              "mean": 3338.4285714285716,
+              "max": 4340,
+              "p50": 2690,
+              "p95": 4268,
+              "p99": 4340
+            },
+            "successful_calls": 2273,
+            "udp_bytes": 0
+          },
+          "received": {
+            "bytes": 32381176,
+            "bytes_per_second": 576423.8121249891,
+            "complete_one_second_windows_bytes": {
+              "count": 56,
+              "mean": 576842.5,
+              "max": 641490,
+              "p50": 602486,
+              "p95": 635313,
+              "p99": 641490
+            },
+            "successful_calls": 28641,
+            "udp_bytes": 0
+          }
+        }
+      },
+      "memory_whole_session": {
+        "host": {
+          "working_bytes": {
+            "count": 91,
+            "mean": 361430229.8021978,
+            "max": 442261504,
+            "p50": 422477824,
+            "p95": 441737216,
+            "p99": 442261504
+          },
+          "private_bytes": {
+            "count": 91,
+            "mean": 594695854.4175824,
+            "max": 720474112,
+            "p50": 639692800,
+            "p95": 641052672,
+            "p99": 720474112
+          }
+        },
+        "client": {
+          "working_bytes": {
+            "count": 91,
+            "mean": 358297690.021978,
+            "max": 432902144,
+            "p50": 415182848,
+            "p95": 432574464,
+            "p99": 432902144
+          },
+          "private_bytes": {
+            "count": 91,
+            "mean": 590845569.4065934,
+            "max": 693116928,
+            "p50": 639549440,
+            "p95": 641101824,
+            "p99": 693116928
+          }
+        }
+      },
+      "inventory_queue_peak": 0.0,
+      "client_create_failure_counter_max": 0.0,
+      "event_queue_peak": 4.0,
+      "event_overflow_observations": 0,
+      "correction_max_per_tick_world_units": {
+        "count": 1686,
+        "mean": 0.05354309336950042,
+        "max": 1.6344718214966667,
+        "p50": 0.040323967570129245,
+        "p95": 0.1271037501170575,
+        "p99": 0.40151476639929584
+      },
+      "comparison": {
+        "divergences": [],
+        "problems": [],
+        "figures": {
+          "seconds": 60,
+          "position_max": 0.17927911200136912,
+          "position_sum": 5.145098496240373,
+          "position_count": 82,
+          "aim_max": 0.0,
+          "mismatches": {},
+          "tick_offsets": [
+            0
+          ]
+        },
+        "drift": {
+          "samples": 761,
+          "apart": 6,
+          "mean": 6.358081471747705e-05,
+          "largest": 0.022097
+        },
+        "client_corrections": 551,
+        "early_exits": {
+          "host": null,
+          "client": null
+        }
+      },
+      "early_exits": {
+        "host": null,
+        "client": null
+      },
+      "archive_index": "build/m0/load/ce-capacity-repeat/archive-index.json",
+      "cleanup": {
+        "removed_bytes": 2392488688,
+        "archived_files": 89
+      },
+      "desktop_gate_checks": {
+        "host_simulation_tick_ms_p99": {
+          "observed": 4.141800000070361,
+          "limit": 25,
+          "pass": true
+        },
+        "host_network_tick_ms_p99": {
+          "observed": 1.34370000000672,
+          "limit": 5,
+          "pass": true
+        },
+        "host_payload_mean": {
+          "observed": 576423.8121249891,
+          "limit": 262144,
+          "pass": false
+        },
+        "host_payload_p95_second": {
+          "observed": 635313,
+          "limit": 262144,
+          "pass": false
+        },
+        "host_private_commit_delta": {
+          "observed": -2646016,
+          "limit": 33554432,
+          "pass": true
+        },
+        "client_simulation_tick_ms_p99": {
+          "observed": 3.4009000000878586,
+          "limit": 25,
+          "pass": true
+        },
+        "client_network_tick_ms_p99": {
+          "observed": 0.30020000008335046,
+          "limit": 5,
+          "pass": true
+        },
+        "client_payload_mean": {
+          "observed": 3340.3063009877587,
+          "limit": 262144,
+          "pass": true
+        },
+        "client_payload_p95_second": {
+          "observed": 4268,
+          "limit": 262144,
+          "pass": true
+        },
+        "client_private_commit_delta": {
+          "observed": -4186112,
+          "limit": 33554432,
+          "pass": true
+        },
+        "snapshot_construction_max_ms": {
+          "observed": 13.267000000041662,
+          "limit": 5,
+          "pass": false
+        },
+        "snapshot_offered_bytes_max": {
+          "observed": 983636,
+          "limit": 2097152,
+          "pass": true
+        },
+        "initial_count_receipt_ms": {
+          "observed": 719.7410000001128,
+          "limit": 1000,
+          "pass": true
+        },
+        "pool_contiguous_headroom": {
+          "observed": 0.2463383674621582,
+          "minimum": 0.2,
+          "pass": true
+        },
+        "client_create_failures": {
+          "observed": 0.0,
+          "limit": 0,
+          "pass": true
+        },
+        "event_overflows": {
+          "observed": 0,
+          "limit": 0,
+          "pass": true
+        },
+        "pending_inventory_at_first_ready": {
+          "observed": 0.0,
+          "limit": 0,
+          "pass": true
+        }
+      }
+    },
+    {
+      "case": "ce-control",
+      "family": "ce",
+      "classification": "final_instrumentation",
+      "binary_sha256": "e36a563d8a0d939ff8b4abe89fc2d98b67e032d167c9caad8d8d3a7cfdd185fd",
+      "content": {
+        "carousel.map": {
+          "bytes": 20215808,
+          "sha256": "1c6353df6e4530437841b09775e62fa067caa46bb0e40f4579bbf2276991a38e"
+        },
+        "ui.map": {
+          "bytes": 14145536,
+          "sha256": "35e3e560478d85178749be310ad13d6d6ecde618d32675261a3554592333a833"
+        },
+        "ce/b30.map": {
+          "bytes": 201578087,
+          "sha256": "baec59d37cf8d3f017dd3ac0d61fb431087490eeb1c469b2071ae2aec66ca24a"
+        },
+        "bitmaps.map": {
+          "bytes": 123547749,
+          "sha256": "317658e0ebd4aa189bac68e994fe0b515928f44d17b62ba676d8850aa329dd3d"
+        },
+        "sounds.map": {
+          "bytes": 41718640,
+          "sha256": "81658a8d9b127b2771558a35e664ec3f1a2b370f271fe957426d945001ceb5d2"
+        },
+        "loc.map": {
+          "bytes": 391996,
+          "sha256": "1321e17b5a86be84b1930b6eb2e7fdfe9285275d5d54cbe3d4a3635e2bf04041"
+        }
+      },
+      "seconds_requested": 60,
+      "seconds_measured": 57.39589799999999,
+      "receive_delay_ms_per_peer": 0,
+      "loss_setting_percent": 0,
+      "requested_extra": 0,
+      "template_kind": "weapon",
+      "creation": {
+        "requested": 0.0,
+        "created": 0.0,
+        "failed": 0.0,
+        "tag_index": -354481813.0,
+        "type_mask": 4.0,
+        "fixture_ms": 0.0
+      },
+      "initial_snapshot": {
+        "host_counts": {
+          "time": 949.681276,
+          "kind": "snapshot_counts",
+          "v": [
+            1.0,
+            163.0,
+            80.0,
+            959.0,
+            984.0,
+            3613140879.0
+          ]
+        },
+        "client_counts": {
+          "time": 949.683304,
+          "kind": "received_counts",
+          "v": [
+            1.0,
+            163.0,
+            80.0,
+            959.0,
+            984.0,
+            3613140879.0
+          ]
+        },
+        "count_and_identity_tag_fingerprint_agree": true,
+        "begin_to_received_counts_ms": 2.0130000000335713
+      },
+      "snapshots": [
+        {
+          "host_tick": 1.0,
+          "host_construction_ms": 0.7699999999886131,
+          "offered_message_bytes": 25988,
+          "serialized_object_entries": 163,
+          "host_begin_to_client_usable_ms": 2.025000000003274,
+          "client_pending_inventories_at_usable": 0.0
+        }
+      ],
+      "pending_inventories_at_first_ready": 0.0,
+      "host_pool_initial": [
+        {
+          "time": 949.681239,
+          "kind": "pool_counts",
+          "v": [
+            1.0,
+            959.0,
+            179.0,
+            0.08456277847290039,
+            8388608.0,
+            0.0
+          ]
+        },
+        {
+          "time": 949.681265,
+          "kind": "pool_counts",
+          "v": [
+            1.0,
+            959.0,
+            179.0,
+            0.08456277847290039,
+            8388608.0,
+            0.0
+          ]
+        },
+        {
+          "time": 949.681284,
+          "kind": "pool_counts",
+          "v": [
+            1.0,
+            959.0,
+            179.0,
+            0.08456277847290039,
+            8388608.0,
+            0.0
+          ]
+        }
+      ],
+      "host_pool_unavailable_contiguous_fraction_max": 0.1934981346130371,
+      "host_active_objects_max": 768.0,
+      "steady_networked_objects_range": [
+        271.0,
+        298.0
+      ],
+      "simulation_tick_ms": {
+        "host": {
+          "count": 1720,
+          "mean": 2.0605143604635874,
+          "max": 7.812100000023747,
+          "p50": 1.9317000000000917,
+          "p95": 3.3554999999978463,
+          "p99": 3.9385000000038417
+        },
+        "client": {
+          "count": 1722,
+          "mean": 1.1752204994194722,
+          "max": 6.430999999906817,
+          "p50": 0.9970999999495689,
+          "p95": 2.161300000011579,
+          "p99": 2.790399999980764
+        }
+      },
+      "network_tick_ms": {
+        "host": {
+          "count": 1720,
+          "mean": 0.1758791279080681,
+          "max": 0.5912999999964086,
+          "p50": 0.15070000006289774,
+          "p95": 0.2869999999575157,
+          "p99": 0.34989999994650134
+        },
+        "client": {
+          "count": 1721,
+          "mean": 0.08980958744754435,
+          "max": 0.4149000000097658,
+          "p50": 0.08100000002286833,
+          "p95": 0.12800000001789158,
+          "p99": 0.20730000005642069
+        }
+      },
+      "host_object_network_ms": {
+        "count": 1720,
+        "mean": 0.03428284883628209,
+        "max": 0.26549999995495455,
+        "p50": 0.019499999893923814,
+        "p95": 0.09190000002945453,
+        "p99": 0.1349000000345768
+      },
+      "payload": {
+        "host": {
+          "sent": {
+            "bytes": 6532617,
+            "bytes_per_second": 113816.79227320394,
+            "complete_one_second_windows_bytes": {
+              "count": 57,
+              "mean": 113941.73684210527,
+              "max": 159041,
+              "p50": 112829,
+              "p95": 147529,
+              "p99": 159041
+            },
+            "successful_calls": 6579,
+            "udp_bytes": 6510416
+          },
+          "received": {
+            "bytes": 184965,
+            "bytes_per_second": 3222.6170588009622,
+            "complete_one_second_windows_bytes": {
+              "count": 57,
+              "mean": 3220.684210526316,
+              "max": 4223,
+              "p50": 2690,
+              "p95": 4223,
+              "p99": 4223
+            },
+            "successful_calls": 2320,
+            "udp_bytes": 184965
+          }
+        },
+        "client": {
+          "sent": {
+            "bytes": 185088,
+            "bytes_per_second": 3224.7600690906525,
+            "complete_one_second_windows_bytes": {
+              "count": 57,
+              "mean": 3220.684210526316,
+              "max": 4100,
+              "p50": 2690,
+              "p95": 4100,
+              "p99": 4100
+            },
+            "successful_calls": 2321,
+            "udp_bytes": 0
+          },
+          "received": {
+            "bytes": 6532617,
+            "bytes_per_second": 113816.79227320394,
+            "complete_one_second_windows_bytes": {
+              "count": 57,
+              "mean": 113941.73684210527,
+              "max": 161345,
+              "p50": 112829,
+              "p95": 145225,
+              "p99": 161345
+            },
+            "successful_calls": 6567,
+            "udp_bytes": 0
+          }
+        }
+      },
+      "memory_whole_session": {
+        "host": {
+          "working_bytes": {
+            "count": 89,
+            "mean": 364741252.3146067,
+            "max": 437055488,
+            "p50": 410279936,
+            "p95": 437055488,
+            "p99": 437055488
+          },
+          "private_bytes": {
+            "count": 89,
+            "mean": 599502617.8876405,
+            "max": 723120128,
+            "p50": 637730816,
+            "p95": 639569920,
+            "p99": 723120128
+          }
+        },
+        "client": {
+          "working_bytes": {
+            "count": 89,
+            "mean": 357175434.0674157,
+            "max": 430096384,
+            "p50": 415010816,
+            "p95": 429764608,
+            "p99": 430096384
+          },
+          "private_bytes": {
+            "count": 89,
+            "mean": 591030663.1910112,
+            "max": 697303040,
+            "p50": 637239296,
+            "p95": 638189568,
+            "p99": 697303040
+          }
+        }
+      },
+      "inventory_queue_peak": 0.0,
+      "client_create_failure_counter_max": 0.0,
+      "event_queue_peak": 4.0,
+      "event_overflow_observations": 0,
+      "correction_max_per_tick_world_units": {
+        "count": 1722,
+        "mean": 0.056362745488515574,
+        "max": 3.369966313930171,
+        "p50": 0.030262480580024516,
+        "p95": 0.15984430577647749,
+        "p99": 0.4289724404381387
+      },
+      "comparison": {
+        "divergences": [],
+        "problems": [],
+        "figures": {
+          "seconds": 60,
+          "position_max": 0.0094339811320542,
+          "position_sum": 0.2452835094334093,
+          "position_count": 82,
+          "aim_max": 0.0,
+          "mismatches": {},
+          "tick_offsets": [
+            0
+          ]
+        },
+        "drift": {
+          "samples": 655,
+          "apart": 0,
+          "mean": 0.0,
+          "largest": 1e-06
+        },
+        "client_corrections": 327,
+        "early_exits": {
+          "host": null,
+          "client": null
+        }
+      },
+      "early_exits": {
+        "host": null,
+        "client": null
+      },
+      "archive_index": "build/m0/load/ce-control/archive-index.json",
+      "cleanup": {
+        "removed_bytes": 2392488688,
+        "archived_files": 89
+      },
+      "desktop_gate_checks": {
+        "host_simulation_tick_ms_p99": {
+          "observed": 3.9385000000038417,
+          "limit": 25,
+          "pass": true
+        },
+        "host_network_tick_ms_p99": {
+          "observed": 0.34989999994650134,
+          "limit": 5,
+          "pass": true
+        },
+        "host_payload_mean": {
+          "observed": 113816.79227320394,
+          "limit": 262144,
+          "pass": true
+        },
+        "host_payload_p95_second": {
+          "observed": 147529,
+          "limit": 262144,
+          "pass": true
+        },
+        "host_private_commit_delta": {
+          "observed": 0,
+          "limit": 33554432,
+          "pass": true
+        },
+        "client_simulation_tick_ms_p99": {
+          "observed": 2.790399999980764,
+          "limit": 25,
+          "pass": true
+        },
+        "client_network_tick_ms_p99": {
+          "observed": 0.20730000005642069,
+          "limit": 5,
+          "pass": true
+        },
+        "client_payload_mean": {
+          "observed": 3224.7600690906525,
+          "limit": 262144,
+          "pass": true
+        },
+        "client_payload_p95_second": {
+          "observed": 4100,
+          "limit": 262144,
+          "pass": true
+        },
+        "client_private_commit_delta": {
+          "observed": 0,
+          "limit": 33554432,
+          "pass": true
+        },
+        "snapshot_construction_max_ms": {
+          "observed": 0.7699999999886131,
+          "limit": 5,
+          "pass": true
+        },
+        "snapshot_offered_bytes_max": {
+          "observed": 25988,
+          "limit": 2097152,
+          "pass": true
+        },
+        "initial_count_receipt_ms": {
+          "observed": 2.0130000000335713,
+          "limit": 1000,
+          "pass": true
+        },
+        "pool_contiguous_headroom": {
+          "observed": 0.8065018653869629,
+          "minimum": 0.2,
+          "pass": true
+        },
+        "client_create_failures": {
+          "observed": 0.0,
+          "limit": 0,
+          "pass": true
+        },
+        "event_overflows": {
+          "observed": 0,
+          "limit": 0,
+          "pass": true
+        },
+        "pending_inventory_at_first_ready": {
+          "observed": 0.0,
+          "limit": 0,
+          "pass": true
+        }
+      }
+    },
+    {
+      "case": "mcc-capacity",
+      "family": "mcc",
+      "classification": "final_instrumentation",
+      "binary_sha256": "e36a563d8a0d939ff8b4abe89fc2d98b67e032d167c9caad8d8d3a7cfdd185fd",
+      "content": {
+        "carousel.map": {
+          "bytes": 20215808,
+          "sha256": "1c6353df6e4530437841b09775e62fa067caa46bb0e40f4579bbf2276991a38e"
+        },
+        "ui.map": {
+          "bytes": 14145536,
+          "sha256": "35e3e560478d85178749be310ad13d6d6ecde618d32675261a3554592333a833"
+        },
+        "mcc/a10.map": {
+          "bytes": 407040369,
+          "sha256": "3f7eaaaf27358591a1a1ae7ed99e3fdf9a826af4a4fa5ef1dd4757538ae0fed2"
+        }
+      },
+      "seconds_requested": 60,
+      "seconds_measured": 55.82089499999984,
+      "receive_delay_ms_per_peer": 0,
+      "loss_setting_percent": 0,
+      "requested_extra": 8000,
+      "template_kind": "weapon",
+      "creation": {
+        "requested": 8000.0,
+        "created": 7635.0,
+        "failed": 1.0,
+        "tag_index": -326431977.0,
+        "type_mask": 4.0,
+        "fixture_ms": 546.9769999999698
+      },
+      "initial_snapshot": {
+        "host_counts": {
+          "time": 1223.667899,
+          "kind": "snapshot_counts",
+          "v": [
+            16.0,
+            7823.0,
+            90.0,
+            8192.0,
+            8192.0,
+            2854951379.0
+          ]
+        },
+        "client_counts": {
+          "time": 1224.200139,
+          "kind": "received_counts",
+          "v": [
+            40.0,
+            7823.0,
+            90.0,
+            8192.0,
+            8192.0,
+            2854951379.0
+          ]
+        },
+        "count_and_identity_tag_fingerprint_agree": true,
+        "begin_to_received_counts_ms": 532.2209999999359
+      },
+      "snapshots": [
+        {
+          "host_tick": 16.0,
+          "host_construction_ms": 8.264999999937572,
+          "offered_message_bytes": 1041256,
+          "serialized_object_entries": 7823,
+          "host_begin_to_client_usable_ms": null,
+          "client_pending_inventories_at_usable": null
+        }
+      ],
+      "pending_inventories_at_first_ready": 0.0,
+      "host_pool_initial": [
+        {
+          "time": 1223.120668,
+          "kind": "pool_counts",
+          "v": [
+            16.0,
+            557.0,
+            374.0,
+            0.08092641830444336,
+            8388608.0,
+            0.0
+          ]
+        },
+        {
+          "time": 1223.667831,
+          "kind": "pool_counts",
+          "v": [
+            16.0,
+            8192.0,
+            374.0,
+            0.7872128486633301,
+            8388608.0,
+            0.0
+          ]
+        },
+        {
+          "time": 1223.667914,
+          "kind": "pool_counts",
+          "v": [
+            16.0,
+            8192.0,
+            374.0,
+            0.7872128486633301,
+            8388608.0,
+            0.0
+          ]
+        }
+      ],
+      "host_pool_unavailable_contiguous_fraction_max": 0.7872128486633301,
+      "host_active_objects_max": 450.0,
+      "steady_networked_objects_range": [
+        7821.0,
+        7823.0
+      ],
+      "simulation_tick_ms": {
+        "host": {
+          "count": 1674,
+          "mean": 1.4182069892471736,
+          "max": 6.4728999998351355,
+          "p50": 1.2980000001334702,
+          "p95": 1.9591000000218628,
+          "p99": 2.75099999998929
+        },
+        "client": {
+          "count": 1675,
+          "mean": 1.0870425074638512,
+          "max": 4.0895000001910375,
+          "p50": 1.0128999999778898,
+          "p95": 1.5051000000312342,
+          "p99": 2.1412999999483873
+        }
+      },
+      "network_tick_ms": {
+        "host": {
+          "count": 1674,
+          "mean": 0.5185051373935009,
+          "max": 1.662399999986519,
+          "p50": 0.4851999999573309,
+          "p95": 0.767400000086127,
+          "p99": 0.9786000000531203
+        },
+        "client": {
+          "count": 1674,
+          "mean": 0.07796911588828428,
+          "max": 21.11960000002,
+          "p50": 0.05729999998038693,
+          "p95": 0.097200000027442,
+          "p99": 0.14680000003863825
+        }
+      },
+      "host_object_network_ms": {
+        "count": 1674,
+        "mean": 0.23271463560284653,
+        "max": 0.9119999999711581,
+        "p50": 0.220299999909912,
+        "p95": 0.37180000003900204,
+        "p99": 0.47569999992447265
+      },
+      "payload": {
+        "host": {
+          "sent": {
+            "bytes": 7527376,
+            "bytes_per_second": 134848.7157004563,
+            "complete_one_second_windows_bytes": {
+              "count": 55,
+              "mean": 134943.1090909091,
+              "max": 156181,
+              "p50": 132409,
+              "p95": 150785,
+              "p99": 156181
+            },
+            "successful_calls": 7836,
+            "udp_bytes": 7521856
+          },
+          "received": {
+            "bytes": 208229,
+            "bytes_per_second": 3730.3056498825504,
+            "complete_one_second_windows_bytes": {
+              "count": 55,
+              "mean": 3726.6363636363635,
+              "max": 4100,
+              "p50": 4080,
+              "p95": 4100,
+              "p99": 4100
+            },
+            "successful_calls": 2259,
+            "udp_bytes": 208229
+          }
+        },
+        "client": {
+          "sent": {
+            "bytes": 208229,
+            "bytes_per_second": 3730.3056498825504,
+            "complete_one_second_windows_bytes": {
+              "count": 55,
+              "mean": 3726.6363636363635,
+              "max": 4100,
+              "p50": 4080,
+              "p95": 4100,
+              "p99": 4100
+            },
+            "successful_calls": 2259,
+            "udp_bytes": 0
+          },
+          "received": {
+            "bytes": 7527376,
+            "bytes_per_second": 134848.7157004563,
+            "complete_one_second_windows_bytes": {
+              "count": 55,
+              "mean": 134943.1090909091,
+              "max": 156181,
+              "p50": 132409,
+              "p95": 150785,
+              "p99": 156181
+            },
+            "successful_calls": 7834,
+            "udp_bytes": 0
+          }
+        }
+      },
+      "memory_whole_session": {
+        "host": {
+          "working_bytes": {
+            "count": 91,
+            "mean": 634780435.6923077,
+            "max": 822378496,
+            "p50": 820899840,
+            "p95": 822378496,
+            "p99": 822378496
+          },
+          "private_bytes": {
+            "count": 91,
+            "mean": 910660034.1098901,
+            "max": 1100472320,
+            "p50": 1100226560,
+            "p95": 1100472320,
+            "p99": 1100472320
+          }
+        },
+        "client": {
+          "working_bytes": {
+            "count": 91,
+            "mean": 631428647.3846154,
+            "max": 819081216,
+            "p50": 817348608,
+            "p95": 818950144,
+            "p99": 819081216
+          },
+          "private_bytes": {
+            "count": 91,
+            "mean": 906136924.8351648,
+            "max": 1099825152,
+            "p50": 1099567104,
+            "p95": 1099825152,
+            "p99": 1099825152
+          }
+        }
+      },
+      "inventory_queue_peak": 0.0,
+      "client_create_failure_counter_max": 0.0,
+      "event_queue_peak": 5.0,
+      "event_overflow_observations": 0,
+      "correction_max_per_tick_world_units": {
+        "count": 1675,
+        "mean": 0.10620547443501191,
+        "max": 143.27056884765625,
+        "p50": 0.0,
+        "p95": 0.057673123211209036,
+        "p99": 0.0931728128156998
+      },
+      "comparison": {
+        "divergences": [],
+        "problems": [],
+        "figures": {
+          "seconds": 60,
+          "position_max": 0.0,
+          "position_sum": 0.0,
+          "position_count": 102,
+          "aim_max": 2,
+          "mismatches": {},
+          "tick_offsets": [
+            0
+          ]
+        },
+        "drift": {
+          "samples": 1235,
+          "apart": 0,
+          "mean": 0.0,
+          "largest": 0.0
+        },
+        "client_corrections": 163,
+        "early_exits": {
+          "host": null,
+          "client": null
+        }
+      },
+      "early_exits": {
+        "host": null,
+        "client": null
+      },
+      "archive_index": "build/m0/load/mcc-capacity/archive-index.json",
+      "cleanup": {
+        "removed_bytes": 2472096482,
+        "archived_files": 89
+      },
+      "desktop_gate_checks": {
+        "host_simulation_tick_ms_p99": {
+          "observed": 2.75099999998929,
+          "limit": 25,
+          "pass": true
+        },
+        "host_network_tick_ms_p99": {
+          "observed": 0.9786000000531203,
+          "limit": 5,
+          "pass": true
+        },
+        "host_payload_mean": {
+          "observed": 134848.7157004563,
+          "limit": 262144,
+          "pass": true
+        },
+        "host_payload_p95_second": {
+          "observed": 150785,
+          "limit": 262144,
+          "pass": true
+        },
+        "host_private_commit_delta": {
+          "observed": 2273280,
+          "limit": 33554432,
+          "pass": true
+        },
+        "client_simulation_tick_ms_p99": {
+          "observed": 2.1412999999483873,
+          "limit": 25,
+          "pass": true
+        },
+        "client_network_tick_ms_p99": {
+          "observed": 0.14680000003863825,
+          "limit": 5,
+          "pass": true
+        },
+        "client_payload_mean": {
+          "observed": 3730.3056498825504,
+          "limit": 262144,
+          "pass": true
+        },
+        "client_payload_p95_second": {
+          "observed": 4100,
+          "limit": 262144,
+          "pass": true
+        },
+        "client_private_commit_delta": {
+          "observed": 2363392,
+          "limit": 33554432,
+          "pass": true
+        },
+        "snapshot_construction_max_ms": {
+          "observed": 8.264999999937572,
+          "limit": 5,
+          "pass": false
+        },
+        "snapshot_offered_bytes_max": {
+          "observed": 1041256,
+          "limit": 2097152,
+          "pass": true
+        },
+        "initial_count_receipt_ms": {
+          "observed": 532.2209999999359,
+          "limit": 1000,
+          "pass": true
+        },
+        "pool_contiguous_headroom": {
+          "observed": 0.21278715133666992,
+          "minimum": 0.2,
+          "pass": true
+        },
+        "client_create_failures": {
+          "observed": 0.0,
+          "limit": 0,
+          "pass": true
+        },
+        "event_overflows": {
+          "observed": 0,
+          "limit": 0,
+          "pass": true
+        },
+        "pending_inventory_at_first_ready": {
+          "observed": 0.0,
+          "limit": 0,
+          "pass": true
+        }
+      }
+    },
+    {
+      "case": "mcc-control",
+      "family": "mcc",
+      "classification": "final_instrumentation",
+      "binary_sha256": "e36a563d8a0d939ff8b4abe89fc2d98b67e032d167c9caad8d8d3a7cfdd185fd",
+      "content": {
+        "carousel.map": {
+          "bytes": 20215808,
+          "sha256": "1c6353df6e4530437841b09775e62fa067caa46bb0e40f4579bbf2276991a38e"
+        },
+        "ui.map": {
+          "bytes": 14145536,
+          "sha256": "35e3e560478d85178749be310ad13d6d6ecde618d32675261a3554592333a833"
+        },
+        "mcc/a10.map": {
+          "bytes": 407040369,
+          "sha256": "3f7eaaaf27358591a1a1ae7ed99e3fdf9a826af4a4fa5ef1dd4757538ae0fed2"
+        }
+      },
+      "seconds_requested": 60,
+      "seconds_measured": 56.46430499999997,
+      "receive_delay_ms_per_peer": 0,
+      "loss_setting_percent": 0,
+      "requested_extra": 0,
+      "template_kind": "weapon",
+      "creation": {
+        "requested": 0.0,
+        "created": 0.0,
+        "failed": 0.0,
+        "tag_index": -326431977.0,
+        "type_mask": 4.0,
+        "fixture_ms": 0.0
+      },
+      "initial_snapshot": {
+        "host_counts": {
+          "time": 1130.403275,
+          "kind": "snapshot_counts",
+          "v": [
+            16.0,
+            188.0,
+            90.0,
+            557.0,
+            602.0,
+            2135424182.0
+          ]
+        },
+        "client_counts": {
+          "time": 1130.405537,
+          "kind": "received_counts",
+          "v": [
+            2.0,
+            188.0,
+            90.0,
+            557.0,
+            602.0,
+            2135424182.0
+          ]
+        },
+        "count_and_identity_tag_fingerprint_agree": true,
+        "begin_to_received_counts_ms": 2.2530000001097505
+      },
+      "snapshots": [
+        {
+          "host_tick": 16.0,
+          "host_construction_ms": 0.13699999999516876,
+          "offered_message_bytes": 30388,
+          "serialized_object_entries": 188,
+          "host_begin_to_client_usable_ms": 2.263000000084503,
+          "client_pending_inventories_at_usable": 0.0
+        }
+      ],
+      "pending_inventories_at_first_ready": 0.0,
+      "host_pool_initial": [
+        {
+          "time": 1130.403252,
+          "kind": "pool_counts",
+          "v": [
+            16.0,
+            557.0,
+            374.0,
+            0.08092641830444336,
+            8388608.0,
+            0.0
+          ]
+        },
+        {
+          "time": 1130.403268,
+          "kind": "pool_counts",
+          "v": [
+            16.0,
+            557.0,
+            374.0,
+            0.08092641830444336,
+            8388608.0,
+            0.0
+          ]
+        },
+        {
+          "time": 1130.40328,
+          "kind": "pool_counts",
+          "v": [
+            16.0,
+            557.0,
+            374.0,
+            0.08092641830444336,
+            8388608.0,
+            0.0
+          ]
+        }
+      ],
+      "host_pool_unavailable_contiguous_fraction_max": 0.0812082290649414,
+      "host_active_objects_max": 450.0,
+      "steady_networked_objects_range": [
+        186.0,
+        189.0
+      ],
+      "simulation_tick_ms": {
+        "host": {
+          "count": 1692,
+          "mean": 1.362498226947926,
+          "max": 3.6528000000544125,
+          "p50": 1.4701999998578685,
+          "p95": 1.7881999999644904,
+          "p99": 1.926099999991493
+        },
+        "client": {
+          "count": 1694,
+          "mean": 0.9691518299893055,
+          "max": 4.075400000147056,
+          "p50": 1.0385000000496802,
+          "p95": 1.280899999983376,
+          "p99": 1.4596000000892673
+        }
+      },
+      "network_tick_ms": {
+        "host": {
+          "count": 1692,
+          "mean": 0.2011999999958692,
+          "max": 19.246500000008382,
+          "p50": 0.20730000005642069,
+          "p95": 0.27980000004390604,
+          "p99": 0.3289999999651627
+        },
+        "client": {
+          "count": 1693,
+          "mean": 0.06324211459153516,
+          "max": 9.220899999945686,
+          "p50": 0.06039999993845413,
+          "p95": 0.0809999999091815,
+          "p99": 0.09280000017497514
+        }
+      },
+      "host_object_network_ms": {
+        "count": 1692,
+        "mean": 0.044696099293004304,
+        "max": 19.12270000002536,
+        "p50": 0.013699999954042141,
+        "p95": 0.09689999978945707,
+        "p99": 0.150300000086645
+      },
+      "payload": {
+        "host": {
+          "sent": {
+            "bytes": 7620727,
+            "bytes_per_second": 134965.3909669127,
+            "complete_one_second_windows_bytes": {
+              "count": 56,
+              "mean": 135011.30357142858,
+              "max": 151358,
+              "p50": 132889,
+              "p95": 148498,
+              "p99": 151358
+            },
+            "successful_calls": 7911,
+            "udp_bytes": 7615027
+          },
+          "received": {
+            "bytes": 230795,
+            "bytes_per_second": 4087.449584299322,
+            "complete_one_second_windows_bytes": {
+              "count": 56,
+              "mean": 4090.0,
+              "max": 4100,
+              "p50": 4080,
+              "p95": 4100,
+              "p99": 4100
+            },
+            "successful_calls": 2285,
+            "udp_bytes": 230795
+          }
+        },
+        "client": {
+          "sent": {
+            "bytes": 230795,
+            "bytes_per_second": 4087.449584299322,
+            "complete_one_second_windows_bytes": {
+              "count": 56,
+              "mean": 4090.0,
+              "max": 4100,
+              "p50": 4080,
+              "p95": 4100,
+              "p99": 4100
+            },
+            "successful_calls": 2285,
+            "udp_bytes": 0
+          },
+          "received": {
+            "bytes": 7620727,
+            "bytes_per_second": 134965.3909669127,
+            "complete_one_second_windows_bytes": {
+              "count": 56,
+              "mean": 135011.30357142858,
+              "max": 151358,
+              "p50": 132889,
+              "p95": 148498,
+              "p99": 151358
+            },
+            "successful_calls": 7904,
+            "udp_bytes": 0
+          }
+        }
+      },
+      "memory_whole_session": {
+        "host": {
+          "working_bytes": {
+            "count": 89,
+            "mean": 637578389.5730337,
+            "max": 820199424,
+            "p50": 818302976,
+            "p95": 820199424,
+            "p99": 820199424
+          },
+          "private_bytes": {
+            "count": 89,
+            "mean": 914098060.9438202,
+            "max": 1098199040,
+            "p50": 1097904128,
+            "p95": 1098199040,
+            "p99": 1098199040
+          }
+        },
+        "client": {
+          "working_bytes": {
+            "count": 89,
+            "mean": 629203082.0674157,
+            "max": 811237376,
+            "p50": 809836544,
+            "p95": 811237376,
+            "p99": 811237376
+          },
+          "private_bytes": {
+            "count": 89,
+            "mean": 908877363.775281,
+            "max": 1097461760,
+            "p50": 1097220096,
+            "p95": 1097461760,
+            "p99": 1097461760
+          }
+        }
+      },
+      "inventory_queue_peak": 0.0,
+      "client_create_failure_counter_max": 0.0,
+      "event_queue_peak": 5.0,
+      "event_overflow_observations": 0,
+      "correction_max_per_tick_world_units": {
+        "count": 1694,
+        "mean": 0.020710184515216088,
+        "max": 13.57959650024381,
+        "p50": 0.0,
+        "p95": 0.062129219280647345,
+        "p99": 0.08659979230753151
+      },
+      "comparison": {
+        "divergences": [],
+        "problems": [],
+        "figures": {
+          "seconds": 59,
+          "position_max": 0.0,
+          "position_sum": 0.0,
+          "position_count": 100,
+          "aim_max": 0.0,
+          "mismatches": {},
+          "tick_offsets": [
+            0
+          ]
+        },
+        "drift": {
+          "samples": 1768,
+          "apart": 1,
+          "mean": 0.007680768099547512,
+          "largest": 13.579597
+        },
+        "client_corrections": 132,
+        "early_exits": {
+          "host": null,
+          "client": null
+        }
+      },
+      "early_exits": {
+        "host": null,
+        "client": null
+      },
+      "archive_index": "build/m0/load/mcc-control/archive-index.json",
+      "cleanup": {
+        "removed_bytes": 2472096482,
+        "archived_files": 89
+      },
+      "desktop_gate_checks": {
+        "host_simulation_tick_ms_p99": {
+          "observed": 1.926099999991493,
+          "limit": 25,
+          "pass": true
+        },
+        "host_network_tick_ms_p99": {
+          "observed": 0.3289999999651627,
+          "limit": 5,
+          "pass": true
+        },
+        "host_payload_mean": {
+          "observed": 134965.3909669127,
+          "limit": 262144,
+          "pass": true
+        },
+        "host_payload_p95_second": {
+          "observed": 148498,
+          "limit": 262144,
+          "pass": true
+        },
+        "host_private_commit_delta": {
+          "observed": 0,
+          "limit": 33554432,
+          "pass": true
+        },
+        "client_simulation_tick_ms_p99": {
+          "observed": 1.4596000000892673,
+          "limit": 25,
+          "pass": true
+        },
+        "client_network_tick_ms_p99": {
+          "observed": 0.09280000017497514,
+          "limit": 5,
+          "pass": true
+        },
+        "client_payload_mean": {
+          "observed": 4087.449584299322,
+          "limit": 262144,
+          "pass": true
+        },
+        "client_payload_p95_second": {
+          "observed": 4100,
+          "limit": 262144,
+          "pass": true
+        },
+        "client_private_commit_delta": {
+          "observed": 0,
+          "limit": 33554432,
+          "pass": true
+        },
+        "snapshot_construction_max_ms": {
+          "observed": 0.13699999999516876,
+          "limit": 5,
+          "pass": true
+        },
+        "snapshot_offered_bytes_max": {
+          "observed": 30388,
+          "limit": 2097152,
+          "pass": true
+        },
+        "initial_count_receipt_ms": {
+          "observed": 2.2530000001097505,
+          "limit": 1000,
+          "pass": true
+        },
+        "pool_contiguous_headroom": {
+          "observed": 0.9187917709350586,
+          "minimum": 0.2,
+          "pass": true
+        },
+        "client_create_failures": {
+          "observed": 0.0,
+          "limit": 0,
+          "pass": true
+        },
+        "event_overflows": {
+          "observed": 0,
+          "limit": 0,
+          "pass": true
+        },
+        "pending_inventory_at_first_ready": {
+          "observed": 0.0,
+          "limit": 0,
+          "pass": true
+        }
+      }
+    },
+    {
+      "case": "xbox-0",
+      "family": "xbox",
+      "classification": "pilot",
+      "binary_sha256": "e6f5829e511e8689fc72d2f00e58df94cfc8e0e1f5d60e74be694b44434089f5",
+      "content": {
+        "a30.map": {
+          "bytes": 152610816,
+          "sha256": "4875fa105e6c517589a796cfdcc7fcaa07e98df13d14e601bfc9eb1eab7e30b5"
+        },
+        "carousel.map": {
+          "bytes": 20215808,
+          "sha256": "1c6353df6e4530437841b09775e62fa067caa46bb0e40f4579bbf2276991a38e"
+        },
+        "ui.map": {
+          "bytes": 14145536,
+          "sha256": "35e3e560478d85178749be310ad13d6d6ecde618d32675261a3554592333a833"
+        }
+      },
+      "seconds_requested": 30,
+      "seconds_measured": 27.14509000000004,
+      "receive_delay_ms_per_peer": 0,
+      "loss_setting_percent": 0,
+      "requested_extra": 0,
+      "template_kind": "weapon",
+      "creation": {
+        "requested": 0.0,
+        "created": 0.0,
+        "failed": 0.0,
+        "tag_index": -397867307.0,
+        "type_mask": 4.0,
+        "fixture_ms": 9.999996564147295e-05
+      },
+      "initial_snapshot": {
+        "host_counts": {
+          "time": 470.133037,
+          "kind": "snapshot_counts",
+          "v": [
+            1.0,
+            107.0,
+            20.0,
+            568.0,
+            589.0,
+            1864335190.0
+          ]
+        },
+        "client_counts": {
+          "time": 470.135439,
+          "kind": "received_counts",
+          "v": [
+            1.0,
+            107.0,
+            20.0,
+            568.0,
+            589.0,
+            1864335190.0
+          ]
+        },
+        "count_and_identity_tag_fingerprint_agree": true,
+        "begin_to_received_counts_ms": 2.3889999999937572
+      },
+      "snapshots": [
+        {
+          "host_tick": 1.0,
+          "host_construction_ms": 0.22199999995109465,
+          "offered_message_bytes": 14592,
+          "serialized_object_entries": 107,
+          "host_begin_to_client_usable_ms": 2.4029999999584106,
+          "client_pending_inventories_at_usable": 0.0
+        }
+      ],
+      "pending_inventories_at_first_ready": 0.0,
+      "host_pool_initial": [],
+      "host_pool_unavailable_contiguous_fraction_max": null,
+      "host_active_objects_max": null,
+      "steady_networked_objects_range": [
+        107.0,
+        111.0
+      ],
+      "simulation_tick_ms": {
+        "host": {
+          "count": 818,
+          "mean": 0.22729938875328506,
+          "max": 0.6209000000012566,
+          "p50": 0.23429999998825224,
+          "p95": 0.3126000000293061,
+          "p99": 0.4141999999660584
+        },
+        "client": {
+          "count": 821,
+          "mean": 0.1974887941537944,
+          "max": 0.5016000000068743,
+          "p50": 0.20799999998644125,
+          "p95": 0.2513000000021748,
+          "p99": 0.2797999999870626
+        }
+      },
+      "network_tick_ms": null,
+      "host_object_network_ms": {
+        "count": 818,
+        "mean": 0.012736919314322049,
+        "max": 0.06209999997963678,
+        "p50": 0.012700000013410317,
+        "p95": 0.018199999999524152,
+        "p99": 0.027099999954316445
+      },
+      "payload": {
+        "host": {
+          "sent": {
+            "bytes": 791361,
+            "bytes_per_second": 29153.007044736227,
+            "complete_one_second_windows_bytes": {
+              "count": 27,
+              "mean": 29220.666666666668,
+              "max": 38714,
+              "p50": 27690,
+              "p95": 34126,
+              "p99": 38714
+            },
+            "successful_calls": 918,
+            "udp_bytes": 789066
+          },
+          "received": {
+            "bytes": 120461,
+            "bytes_per_second": 4437.671785210505,
+            "complete_one_second_windows_bytes": {
+              "count": 27,
+              "mean": 4441.851851851852,
+              "max": 4858,
+              "p50": 4560,
+              "p95": 4838,
+              "p99": 4858
+            },
+            "successful_calls": 1105,
+            "udp_bytes": 120461
+          }
+        },
+        "client": {
+          "sent": {
+            "bytes": 120461,
+            "bytes_per_second": 4437.671785210505,
+            "complete_one_second_windows_bytes": {
+              "count": 27,
+              "mean": 4441.851851851852,
+              "max": 4858,
+              "p50": 4560,
+              "p95": 4838,
+              "p99": 4858
+            },
+            "successful_calls": 1105,
+            "udp_bytes": 0
+          },
+          "received": {
+            "bytes": 791361,
+            "bytes_per_second": 29153.007044736227,
+            "complete_one_second_windows_bytes": {
+              "count": 27,
+              "mean": 29220.666666666668,
+              "max": 38714,
+              "p50": 27690,
+              "p95": 34126,
+              "p99": 38714
+            },
+            "successful_calls": 918,
+            "udp_bytes": 0
+          }
+        }
+      },
+      "memory_whole_session": {
+        "host": {
+          "working_bytes": {
+            "count": 47,
+            "mean": 201083097.8723404,
+            "max": 215068672,
+            "p50": 210632704,
+            "p95": 215068672,
+            "p99": 215068672
+          },
+          "private_bytes": {
+            "count": 47,
+            "mean": 443619720.17021275,
+            "max": 447328256,
+            "p50": 446648320,
+            "p95": 447254528,
+            "p99": 447328256
+          }
+        },
+        "client": {
+          "working_bytes": {
+            "count": 47,
+            "mean": 194284522.21276596,
+            "max": 204705792,
+            "p50": 201117696,
+            "p95": 204640256,
+            "p99": 204705792
+          },
+          "private_bytes": {
+            "count": 47,
+            "mean": 436363874.0425532,
+            "max": 447131648,
+            "p50": 446476288,
+            "p95": 447049728,
+            "p99": 447131648
+          }
+        }
+      },
+      "inventory_queue_peak": 0.0,
+      "client_create_failure_counter_max": 0.0,
+      "event_queue_peak": 8.0,
+      "event_overflow_observations": 0,
+      "correction_max_per_tick_world_units": {
+        "count": 821,
+        "mean": 0.0,
+        "max": 0.0,
+        "p50": 0.0,
+        "p95": 0.0,
+        "p99": 0.0
+      },
+      "comparison": {
+        "divergences": [],
+        "problems": [],
+        "figures": {
+          "seconds": 30,
+          "position_max": 0.0,
+          "position_sum": 0.0,
+          "position_count": 30,
+          "aim_max": 0.0,
+          "mismatches": {},
+          "tick_offsets": [
+            -2,
+            0
+          ]
+        },
+        "drift": {
+          "samples": 881,
+          "apart": 0,
+          "mean": 0.0,
+          "largest": 0.0
+        },
+        "client_corrections": 0,
+        "early_exits": {
+          "host": null,
+          "client": null
+        }
+      },
+      "early_exits": {
+        "host": null,
+        "client": null
+      },
+      "archive_index": "build/m0/load/xbox-0/archive-index.json",
+      "cleanup": {
+        "removed_bytes": 1963235328,
+        "archived_files": 91
+      }
+    },
+    {
+      "case": "xbox-2048",
+      "family": "xbox",
+      "classification": "pilot",
+      "binary_sha256": "e6f5829e511e8689fc72d2f00e58df94cfc8e0e1f5d60e74be694b44434089f5",
+      "content": {
+        "a30.map": {
+          "bytes": 152610816,
+          "sha256": "4875fa105e6c517589a796cfdcc7fcaa07e98df13d14e601bfc9eb1eab7e30b5"
+        },
+        "carousel.map": {
+          "bytes": 20215808,
+          "sha256": "1c6353df6e4530437841b09775e62fa067caa46bb0e40f4579bbf2276991a38e"
+        },
+        "ui.map": {
+          "bytes": 14145536,
+          "sha256": "35e3e560478d85178749be310ad13d6d6ecde618d32675261a3554592333a833"
+        }
+      },
+      "seconds_requested": 30,
+      "seconds_measured": 26.309293000000025,
+      "receive_delay_ms_per_peer": 0,
+      "loss_setting_percent": 0,
+      "requested_extra": 2048,
+      "template_kind": "weapon",
+      "creation": {
+        "requested": 2048.0,
+        "created": 2048.0,
+        "failed": 0.0,
+        "tag_index": -397867307.0,
+        "type_mask": 4.0,
+        "fixture_ms": 63.77450000002227
+      },
+      "initial_snapshot": {
+        "host_counts": {
+          "time": 521.959428,
+          "kind": "snapshot_counts",
+          "v": [
+            1.0,
+            2155.0,
+            20.0,
+            2616.0,
+            2616.0,
+            3802952351.0
+          ]
+        },
+        "client_counts": {
+          "time": 522.051606,
+          "kind": "received_counts",
+          "v": [
+            5.0,
+            2155.0,
+            20.0,
+            2616.0,
+            2616.0,
+            3802952351.0
+          ]
+        },
+        "count_and_identity_tag_fingerprint_agree": true,
+        "begin_to_received_counts_ms": 92.16300000002775
+      },
+      "snapshots": [
+        {
+          "host_tick": 1.0,
+          "host_construction_ms": 6.757999999990716,
+          "offered_message_bytes": 285744,
+          "serialized_object_entries": 2155,
+          "host_begin_to_client_usable_ms": null,
+          "client_pending_inventories_at_usable": null
+        }
+      ],
+      "pending_inventories_at_first_ready": 0.0,
+      "host_pool_initial": [],
+      "host_pool_unavailable_contiguous_fraction_max": null,
+      "host_active_objects_max": null,
+      "steady_networked_objects_range": [
+        2155.0,
+        2159.0
+      ],
+      "simulation_tick_ms": {
+        "host": {
+          "count": 793,
+          "mean": 0.22744627994536618,
+          "max": 0.8472999999185049,
+          "p50": 0.2341000000569693,
+          "p95": 0.31519999993179226,
+          "p99": 0.4336999999168256
+        },
+        "client": {
+          "count": 797,
+          "mean": 0.19533626097789858,
+          "max": 0.5838999999241423,
+          "p50": 0.2064999999902284,
+          "p95": 0.2531999999746404,
+          "p99": 0.29180000001360895
+        }
+      },
+      "network_tick_ms": null,
+      "host_object_network_ms": {
+        "count": 793,
+        "mean": 0.08733102143822656,
+        "max": 0.44169999989662756,
+        "p50": 0.0837000000046828,
+        "p95": 0.12489999994613754,
+        "p99": 0.15699999994467362
+      },
+      "payload": {
+        "host": {
+          "sent": {
+            "bytes": 769490,
+            "bytes_per_second": 29247.840297342816,
+            "complete_one_second_windows_bytes": {
+              "count": 26,
+              "mean": 29345.076923076922,
+              "max": 39330,
+              "p50": 27570,
+              "p95": 34150,
+              "p99": 39330
+            },
+            "successful_calls": 896,
+            "udp_bytes": 767228
+          },
+          "received": {
+            "bytes": 116967,
+            "bytes_per_second": 4445.843527608282,
+            "complete_one_second_windows_bytes": {
+              "count": 26,
+              "mean": 4457.884615384615,
+              "max": 4858,
+              "p50": 4560,
+              "p95": 4838,
+              "p99": 4858
+            },
+            "successful_calls": 1070,
+            "udp_bytes": 116967
+          }
+        },
+        "client": {
+          "sent": {
+            "bytes": 117129,
+            "bytes_per_second": 4452.001047690635,
+            "complete_one_second_windows_bytes": {
+              "count": 26,
+              "mean": 4457.884615384615,
+              "max": 4858,
+              "p50": 4560,
+              "p95": 4838,
+              "p99": 4858
+            },
+            "successful_calls": 1072,
+            "udp_bytes": 0
+          },
+          "received": {
+            "bytes": 769490,
+            "bytes_per_second": 29247.840297342816,
+            "complete_one_second_windows_bytes": {
+              "count": 26,
+              "mean": 29345.076923076922,
+              "max": 39330,
+              "p50": 27570,
+              "p95": 34150,
+              "p99": 39330
+            },
+            "successful_calls": 896,
+            "udp_bytes": 0
+          }
+        }
+      },
+      "memory_whole_session": {
+        "host": {
+          "working_bytes": {
+            "count": 50,
+            "mean": 192995082.24,
+            "max": 216952832,
+            "p50": 212283392,
+            "p95": 216797184,
+            "p99": 216952832
+          },
+          "private_bytes": {
+            "count": 50,
+            "mean": 440519475.2,
+            "max": 449613824,
+            "p50": 448815104,
+            "p95": 449613824,
+            "p99": 449613824
+          }
+        },
+        "client": {
+          "working_bytes": {
+            "count": 50,
+            "mean": 187416084.48,
+            "max": 208732160,
+            "p50": 204091392,
+            "p95": 208560128,
+            "p99": 208732160
+          },
+          "private_bytes": {
+            "count": 50,
+            "mean": 433090641.92,
+            "max": 448876544,
+            "p50": 447860736,
+            "p95": 448876544,
+            "p99": 448876544
+          }
+        }
+      },
+      "inventory_queue_peak": 0.0,
+      "client_create_failure_counter_max": 0.0,
+      "event_queue_peak": 8.0,
+      "event_overflow_observations": 0,
+      "correction_max_per_tick_world_units": {
+        "count": 797,
+        "mean": 0.0,
+        "max": 0.0,
+        "p50": 0.0,
+        "p95": 0.0,
+        "p99": 0.0
+      },
+      "comparison": {
+        "divergences": [],
+        "problems": [],
+        "figures": {
+          "seconds": 29,
+          "position_max": 0.0,
+          "position_sum": 0.0,
+          "position_count": 29,
+          "aim_max": 0.0,
+          "mismatches": {},
+          "tick_offsets": [
+            -2,
+            0
+          ]
+        },
+        "drift": {
+          "samples": 849,
+          "apart": 0,
+          "mean": 0.0,
+          "largest": 0.0
+        },
+        "client_corrections": 0,
+        "early_exits": {
+          "host": null,
+          "client": null
+        }
+      },
+      "early_exits": {
+        "host": null,
+        "client": null
+      },
+      "archive_index": "build/m0/load/xbox-2048/archive-index.json",
+      "cleanup": {
+        "removed_bytes": 1963235328,
+        "archived_files": 91
+      }
+    },
+    {
+      "case": "xbox-512-pilot",
+      "family": "xbox",
+      "classification": "pilot",
+      "binary_sha256": "e6f5829e511e8689fc72d2f00e58df94cfc8e0e1f5d60e74be694b44434089f5",
+      "content": {
+        "a30.map": {
+          "bytes": 152610816,
+          "sha256": "4875fa105e6c517589a796cfdcc7fcaa07e98df13d14e601bfc9eb1eab7e30b5"
+        },
+        "carousel.map": {
+          "bytes": 20215808,
+          "sha256": "1c6353df6e4530437841b09775e62fa067caa46bb0e40f4579bbf2276991a38e"
+        },
+        "ui.map": {
+          "bytes": 14145536,
+          "sha256": "35e3e560478d85178749be310ad13d6d6ecde618d32675261a3554592333a833"
+        }
+      },
+      "seconds_requested": 30,
+      "seconds_measured": 27.240828000000022,
+      "receive_delay_ms_per_peer": 0,
+      "loss_setting_percent": 0,
+      "requested_extra": 512,
+      "template_kind": "weapon",
+      "creation": {
+        "requested": 512.0,
+        "created": 512.0,
+        "failed": 0.0,
+        "tag_index": -397867307.0,
+        "type_mask": 4.0,
+        "fixture_ms": 9.541500000011638
+      },
+      "initial_snapshot": {
+        "host_counts": {
+          "time": 382.631217,
+          "kind": "snapshot_counts",
+          "v": [
+            1.0,
+            619.0,
+            20.0,
+            1080.0,
+            1080.0,
+            2699851987.0
+          ]
+        },
+        "client_counts": {
+          "time": 382.646088,
+          "kind": "received_counts",
+          "v": [
+            1.0,
+            619.0,
+            20.0,
+            1080.0,
+            1080.0,
+            2699851987.0
+          ]
+        },
+        "count_and_identity_tag_fingerprint_agree": true,
+        "begin_to_received_counts_ms": 14.864000000045507
+      },
+      "snapshots": [
+        {
+          "host_tick": 1.0,
+          "host_construction_ms": 1.0280000000193468,
+          "offered_message_bytes": 82380,
+          "serialized_object_entries": 619,
+          "host_begin_to_client_usable_ms": 14.873000000022785,
+          "client_pending_inventories_at_usable": 0.0
+        }
+      ],
+      "pending_inventories_at_first_ready": 0.0,
+      "host_pool_initial": [],
+      "host_pool_unavailable_contiguous_fraction_max": null,
+      "host_active_objects_max": null,
+      "steady_networked_objects_range": [
+        619.0,
+        623.0
+      ],
+      "simulation_tick_ms": {
+        "host": {
+          "count": 821,
+          "mean": 0.1728696711327798,
+          "max": 1.0186000000089734,
+          "p50": 0.15010000004167523,
+          "p95": 0.25870000001759763,
+          "p99": 0.4615999999941778
+        },
+        "client": {
+          "count": 825,
+          "mean": 0.15171563636337823,
+          "max": 0.6137000000308035,
+          "p50": 0.132799999960298,
+          "p95": 0.2251000000228487,
+          "p99": 0.32889999999952124
+        }
+      },
+      "network_tick_ms": null,
+      "host_object_network_ms": {
+        "count": 821,
+        "mean": 0.021725700365682266,
+        "max": 0.09319999998069761,
+        "p50": 0.019100000031357922,
+        "p95": 0.0382999999715139,
+        "p99": 0.05149999998366184
+      },
+      "payload": {
+        "host": {
+          "sent": {
+            "bytes": 793939,
+            "bytes_per_second": 29145.18604206889,
+            "complete_one_second_windows_bytes": {
+              "count": 27,
+              "mean": 29221.85185185185,
+              "max": 39054,
+              "p50": 27670,
+              "p95": 34150,
+              "p99": 39054
+            },
+            "successful_calls": 926,
+            "udp_bytes": 791644
+          },
+          "received": {
+            "bytes": 120976,
+            "bytes_per_second": 4440.981015701868,
+            "complete_one_second_windows_bytes": {
+              "count": 27,
+              "mean": 4445.814814814815,
+              "max": 4997,
+              "p50": 4560,
+              "p95": 4719,
+              "p99": 4997
+            },
+            "successful_calls": 1110,
+            "udp_bytes": 120976
+          }
+        },
+        "client": {
+          "sent": {
+            "bytes": 120976,
+            "bytes_per_second": 4440.981015701868,
+            "complete_one_second_windows_bytes": {
+              "count": 27,
+              "mean": 4445.814814814815,
+              "max": 4997,
+              "p50": 4560,
+              "p95": 4719,
+              "p99": 4997
+            },
+            "successful_calls": 1110,
+            "udp_bytes": 0
+          },
+          "received": {
+            "bytes": 793939,
+            "bytes_per_second": 29145.18604206889,
+            "complete_one_second_windows_bytes": {
+              "count": 27,
+              "mean": 29221.85185185185,
+              "max": 39054,
+              "p50": 27670,
+              "p95": 34150,
+              "p99": 39054
+            },
+            "successful_calls": 926,
+            "udp_bytes": 0
+          }
+        }
+      },
+      "memory_whole_session": {
+        "host": {
+          "working_bytes": {
+            "count": 47,
+            "mean": 201805911.14893618,
+            "max": 215703552,
+            "p50": 211353600,
+            "p95": 215703552,
+            "p99": 215703552
+          },
+          "private_bytes": {
+            "count": 47,
+            "mean": 444484237.61702126,
+            "max": 448122880,
+            "p50": 447393792,
+            "p95": 448122880,
+            "p99": 448122880
+          }
+        },
+        "client": {
+          "working_bytes": {
+            "count": 47,
+            "mean": 195418329.8723404,
+            "max": 206491648,
+            "p50": 202342400,
+            "p95": 206491648,
+            "p99": 206491648
+          },
+          "private_bytes": {
+            "count": 47,
+            "mean": 437141939.7446808,
+            "max": 447901696,
+            "p50": 447176704,
+            "p95": 447901696,
+            "p99": 447901696
+          }
+        }
+      },
+      "inventory_queue_peak": 0.0,
+      "client_create_failure_counter_max": 0.0,
+      "event_queue_peak": 8.0,
+      "event_overflow_observations": 0,
+      "correction_max_per_tick_world_units": {
+        "count": 825,
+        "mean": 0.0,
+        "max": 0.0,
+        "p50": 0.0,
+        "p95": 0.0,
+        "p99": 0.0
+      },
+      "comparison": {
+        "divergences": [],
+        "problems": [],
+        "figures": {
+          "seconds": 30,
+          "position_max": 0.0,
+          "position_sum": 0.0,
+          "position_count": 30,
+          "aim_max": 0.0,
+          "mismatches": {},
+          "tick_offsets": [
+            -1,
+            0
+          ]
+        },
+        "drift": {
+          "samples": 880,
+          "apart": 0,
+          "mean": 0.0,
+          "largest": 0.0
+        },
+        "client_corrections": 0,
+        "early_exits": {
+          "host": null,
+          "client": null
+        }
+      },
+      "early_exits": {
+        "host": null,
+        "client": null
+      },
+      "archive_index": "build/m0/load/xbox-512-pilot/archive-index.json",
+      "cleanup": {
+        "removed_bytes": 1963235328,
+        "archived_files": 91
+      }
+    },
+    {
+      "case": "xbox-8000",
+      "family": "xbox",
+      "classification": "pilot",
+      "binary_sha256": "e6f5829e511e8689fc72d2f00e58df94cfc8e0e1f5d60e74be694b44434089f5",
+      "content": {
+        "a30.map": {
+          "bytes": 152610816,
+          "sha256": "4875fa105e6c517589a796cfdcc7fcaa07e98df13d14e601bfc9eb1eab7e30b5"
+        },
+        "carousel.map": {
+          "bytes": 20215808,
+          "sha256": "1c6353df6e4530437841b09775e62fa067caa46bb0e40f4579bbf2276991a38e"
+        },
+        "ui.map": {
+          "bytes": 14145536,
+          "sha256": "35e3e560478d85178749be310ad13d6d6ecde618d32675261a3554592333a833"
+        }
+      },
+      "seconds_requested": 30,
+      "seconds_measured": 25.87412500000005,
+      "receive_delay_ms_per_peer": 0,
+      "loss_setting_percent": 0,
+      "requested_extra": 8000,
+      "template_kind": "weapon",
+      "creation": {
+        "requested": 8000.0,
+        "created": 7099.0,
+        "failed": 1.0,
+        "tag_index": -397867307.0,
+        "type_mask": 4.0,
+        "fixture_ms": 426.938600000085
+      },
+      "initial_snapshot": {
+        "host_counts": {
+          "time": 572.439169,
+          "kind": "snapshot_counts",
+          "v": [
+            1.0,
+            7206.0,
+            20.0,
+            7667.0,
+            7667.0,
+            2927224671.0
+          ]
+        },
+        "client_counts": {
+          "time": 572.971054,
+          "kind": "received_counts",
+          "v": [
+            29.0,
+            7206.0,
+            20.0,
+            7667.0,
+            7667.0,
+            2927224671.0
+          ]
+        },
+        "count_and_identity_tag_fingerprint_agree": true,
+        "begin_to_received_counts_ms": 531.8770000000086
+      },
+      "snapshots": [
+        {
+          "host_tick": 1.0,
+          "host_construction_ms": 8.577000000059343,
+          "offered_message_bytes": 954504,
+          "serialized_object_entries": 7206,
+          "host_begin_to_client_usable_ms": null,
+          "client_pending_inventories_at_usable": null
+        }
+      ],
+      "pending_inventories_at_first_ready": 0.0,
+      "host_pool_initial": [],
+      "host_pool_unavailable_contiguous_fraction_max": null,
+      "host_active_objects_max": null,
+      "steady_networked_objects_range": [
+        7206.0,
+        7210.0
+      ],
+      "simulation_tick_ms": {
+        "host": {
+          "count": 780,
+          "mean": 0.5532157692310846,
+          "max": 1.498900000001413,
+          "p50": 0.5957000000762491,
+          "p95": 0.706300000047122,
+          "p99": 0.8121000000755885
+        },
+        "client": {
+          "count": 777,
+          "mean": 0.5423256113283675,
+          "max": 1.2689999999793145,
+          "p50": 0.5757999999786989,
+          "p95": 0.6724000000986052,
+          "p99": 0.8822999999438252
+        }
+      },
+      "network_tick_ms": null,
+      "host_object_network_ms": {
+        "count": 780,
+        "mean": 0.29572564102700666,
+        "max": 0.6094999999959327,
+        "p50": 0.2905999999711639,
+        "p95": 0.4155999999966298,
+        "p99": 0.5042000000230473
+      },
+      "payload": {
+        "host": {
+          "sent": {
+            "bytes": 758240,
+            "bytes_per_second": 29304.95234138347,
+            "complete_one_second_windows_bytes": {
+              "count": 25,
+              "mean": 29484.56,
+              "max": 40506,
+              "p50": 27854,
+              "p95": 34090,
+              "p99": 40506
+            },
+            "successful_calls": 874,
+            "udp_bytes": 755978
+          },
+          "received": {
+            "bytes": 114202,
+            "bytes_per_second": 4413.753122086246,
+            "complete_one_second_windows_bytes": {
+              "count": 25,
+              "mean": 4426.12,
+              "max": 4580,
+              "p50": 4560,
+              "p95": 4580,
+              "p99": 4580
+            },
+            "successful_calls": 1047,
+            "udp_bytes": 114202
+          }
+        },
+        "client": {
+          "sent": {
+            "bytes": 114202,
+            "bytes_per_second": 4413.753122086246,
+            "complete_one_second_windows_bytes": {
+              "count": 25,
+              "mean": 4426.12,
+              "max": 4580,
+              "p50": 4560,
+              "p95": 4580,
+              "p99": 4580
+            },
+            "successful_calls": 1047,
+            "udp_bytes": 0
+          },
+          "received": {
+            "bytes": 758240,
+            "bytes_per_second": 29304.95234138347,
+            "complete_one_second_windows_bytes": {
+              "count": 25,
+              "mean": 29484.56,
+              "max": 40506,
+              "p50": 27854,
+              "p95": 34090,
+              "p99": 40506
+            },
+            "successful_calls": 874,
+            "udp_bytes": 0
+          }
+        }
+      },
+      "memory_whole_session": {
+        "host": {
+          "working_bytes": {
+            "count": 49,
+            "mean": 205965103.02040815,
+            "max": 222420992,
+            "p50": 217231360,
+            "p95": 222420992,
+            "p99": 222420992
+          },
+          "private_bytes": {
+            "count": 49,
+            "mean": 448383519.3469388,
+            "max": 454561792,
+            "p50": 453619712,
+            "p95": 454561792,
+            "p99": 454561792
+          }
+        },
+        "client": {
+          "working_bytes": {
+            "count": 49,
+            "mean": 199384837.2244898,
+            "max": 220614656,
+            "p50": 215195648,
+            "p95": 220614656,
+            "p99": 220614656
+          },
+          "private_bytes": {
+            "count": 49,
+            "mean": 439239659.1020408,
+            "max": 454549504,
+            "p50": 453554176,
+            "p95": 454549504,
+            "p99": 454549504
+          }
+        }
+      },
+      "inventory_queue_peak": 0.0,
+      "client_create_failure_counter_max": 0.0,
+      "event_queue_peak": 8.0,
+      "event_overflow_observations": 0,
+      "correction_max_per_tick_world_units": {
+        "count": 777,
+        "mean": 0.0,
+        "max": 0.0,
+        "p50": 0.0,
+        "p95": 0.0,
+        "p99": 0.0
+      },
+      "comparison": {
+        "divergences": [],
+        "problems": [],
+        "figures": {
+          "seconds": 29,
+          "position_max": 0.0,
+          "position_sum": 0.0,
+          "position_count": 29,
+          "aim_max": 0.0,
+          "mismatches": {},
+          "tick_offsets": [
+            -1,
+            0
+          ]
+        },
+        "drift": {
+          "samples": 858,
+          "apart": 0,
+          "mean": 0.0,
+          "largest": 0.0
+        },
+        "client_corrections": 6,
+        "early_exits": {
+          "host": null,
+          "client": null
+        }
+      },
+      "early_exits": {
+        "host": null,
+        "client": null
+      },
+      "archive_index": "build/m0/load/xbox-8000/archive-index.json",
+      "cleanup": {
+        "removed_bytes": 1963235328,
+        "archived_files": 91
+      }
+    },
+    {
+      "case": "xbox-biped",
+      "family": "xbox",
+      "classification": "final_instrumentation",
+      "binary_sha256": "e36a563d8a0d939ff8b4abe89fc2d98b67e032d167c9caad8d8d3a7cfdd185fd",
+      "content": {
+        "a30.map": {
+          "bytes": 152610816,
+          "sha256": "4875fa105e6c517589a796cfdcc7fcaa07e98df13d14e601bfc9eb1eab7e30b5"
+        },
+        "carousel.map": {
+          "bytes": 20215808,
+          "sha256": "1c6353df6e4530437841b09775e62fa067caa46bb0e40f4579bbf2276991a38e"
+        },
+        "ui.map": {
+          "bytes": 14145536,
+          "sha256": "35e3e560478d85178749be310ad13d6d6ecde618d32675261a3554592333a833"
+        }
+      },
+      "seconds_requested": 60,
+      "seconds_measured": 56.638708000000065,
+      "receive_delay_ms_per_peer": 0,
+      "loss_setting_percent": 0,
+      "requested_extra": 1024,
+      "template_kind": "biped",
+      "creation": {
+        "requested": 1024.0,
+        "created": 1024.0,
+        "failed": 0.0,
+        "tag_index": -489815718.0,
+        "type_mask": 1.0,
+        "fixture_ms": 129.0184000000636
+      },
+      "initial_snapshot": {
+        "host_counts": {
+          "time": 841.544751,
+          "kind": "snapshot_counts",
+          "v": [
+            1.0,
+            2155.0,
+            1044.0,
+            2616.0,
+            2616.0,
+            667423619.0
+          ]
+        },
+        "client_counts": {
+          "time": 841.70615,
+          "kind": "received_counts",
+          "v": [
+            9.0,
+            2155.0,
+            1044.0,
+            2616.0,
+            2616.0,
+            667423619.0
+          ]
+        },
+        "count_and_identity_tag_fingerprint_agree": true,
+        "begin_to_received_counts_ms": 161.36699999992743
+      },
+      "snapshots": [
+        {
+          "host_tick": 1.0,
+          "host_construction_ms": 5.277999999975691,
+          "offered_message_bytes": 351472,
+          "serialized_object_entries": 2155,
+          "host_begin_to_client_usable_ms": null,
+          "client_pending_inventories_at_usable": null
+        }
+      ],
+      "pending_inventories_at_first_ready": 0.0,
+      "host_pool_initial": [
+        {
+          "time": 841.415514,
+          "kind": "pool_counts",
+          "v": [
+            1.0,
+            568.0,
+            217.0,
+            0.048766136169433594,
+            8388608.0,
+            0.0
+          ]
+        },
+        {
+          "time": 841.544703,
+          "kind": "pool_counts",
+          "v": [
+            1.0,
+            2616.0,
+            217.0,
+            0.6117544174194336,
+            8388608.0,
+            0.0
+          ]
+        },
+        {
+          "time": 841.544769,
+          "kind": "pool_counts",
+          "v": [
+            1.0,
+            2616.0,
+            217.0,
+            0.6117544174194336,
+            8388608.0,
+            0.0
+          ]
+        }
+      ],
+      "host_pool_unavailable_contiguous_fraction_max": 0.6144938468933105,
+      "host_active_objects_max": 218.0,
+      "steady_networked_objects_range": [
+        2155.0,
+        2162.0
+      ],
+      "simulation_tick_ms": {
+        "host": {
+          "count": 1703,
+          "mean": 0.2443151497364845,
+          "max": 3.9456000000654967,
+          "p50": 0.2491999999847394,
+          "p95": 0.34630000004653994,
+          "p99": 0.4009000000451124
+        },
+        "client": {
+          "count": 1704,
+          "mean": 0.210805751172281,
+          "max": 0.8631000000605127,
+          "p50": 0.21879999997054256,
+          "p95": 0.28649999990193464,
+          "p99": 0.331200000005083
+        }
+      },
+      "network_tick_ms": {
+        "host": {
+          "count": 1703,
+          "mean": 0.3657341162644296,
+          "max": 10.719899999912741,
+          "p50": 0.3424999999879219,
+          "p95": 0.6002000000080443,
+          "p99": 1.619699999992008
+        },
+        "client": {
+          "count": 1703,
+          "mean": 0.07346512037575617,
+          "max": 0.48380000009728974,
+          "p50": 0.07699999991928053,
+          "p95": 0.10259999999107094,
+          "p99": 0.11910000000625587
+        }
+      },
+      "host_object_network_ms": {
+        "count": 1703,
+        "mean": 0.18302360540332657,
+        "max": 1.5864000000647138,
+        "p50": 0.14199999998254498,
+        "p95": 0.2922000001035485,
+        "p99": 1.432399999998779
+      },
+      "payload": {
+        "host": {
+          "sent": {
+            "bytes": 5454060,
+            "bytes_per_second": 96295.62877740774,
+            "complete_one_second_windows_bytes": {
+              "count": 56,
+              "mean": 95880.19642857143,
+              "max": 106906,
+              "p50": 94834,
+              "p95": 101202,
+              "p99": 106906
+            },
+            "successful_calls": 5119,
+            "udp_bytes": 5450615
+          },
+          "received": {
+            "bytes": 240759,
+            "bytes_per_second": 4250.785522861851,
+            "complete_one_second_windows_bytes": {
+              "count": 56,
+              "mean": 4253.357142857143,
+              "max": 4858,
+              "p50": 4100,
+              "p95": 4699,
+              "p99": 4858
+            },
+            "successful_calls": 2297,
+            "udp_bytes": 240759
+          }
+        },
+        "client": {
+          "sent": {
+            "bytes": 240759,
+            "bytes_per_second": 4250.785522861851,
+            "complete_one_second_windows_bytes": {
+              "count": 56,
+              "mean": 4253.357142857143,
+              "max": 4858,
+              "p50": 4100,
+              "p95": 4699,
+              "p99": 4858
+            },
+            "successful_calls": 2297,
+            "udp_bytes": 0
+          },
+          "received": {
+            "bytes": 5454060,
+            "bytes_per_second": 96295.62877740774,
+            "complete_one_second_windows_bytes": {
+              "count": 56,
+              "mean": 95880.19642857143,
+              "max": 106906,
+              "p50": 94834,
+              "p95": 101202,
+              "p99": 106906
+            },
+            "successful_calls": 5119,
+            "udp_bytes": 0
+          }
+        }
+      },
+      "memory_whole_session": {
+        "host": {
+          "working_bytes": {
+            "count": 83,
+            "mean": 209546819.8554217,
+            "max": 220323840,
+            "p50": 219684864,
+            "p95": 220323840,
+            "p99": 220323840
+          },
+          "private_bytes": {
+            "count": 83,
+            "mean": 448818114.313253,
+            "max": 452345856,
+            "p50": 452100096,
+            "p95": 452345856,
+            "p99": 452345856
+          }
+        },
+        "client": {
+          "working_bytes": {
+            "count": 83,
+            "mean": 195997153.1566265,
+            "max": 215261184,
+            "p50": 214781952,
+            "p95": 215261184,
+            "p99": 215261184
+          },
+          "private_bytes": {
+            "count": 83,
+            "mean": 439672486.55421686,
+            "max": 452210688,
+            "p50": 451969024,
+            "p95": 452210688,
+            "p99": 452210688
+          }
+        }
+      },
+      "inventory_queue_peak": 0.0,
+      "client_create_failure_counter_max": 0.0,
+      "event_queue_peak": 8.0,
+      "event_overflow_observations": 0,
+      "correction_max_per_tick_world_units": {
+        "count": 1704,
+        "mean": 0.0,
+        "max": 0.0,
+        "p50": 0.0,
+        "p95": 0.0,
+        "p99": 0.0
+      },
+      "comparison": {
+        "divergences": [],
+        "problems": [],
+        "figures": {
+          "seconds": 60,
+          "position_max": 0.0010000000000047748,
+          "position_sum": 0.02900000000013847,
+          "position_count": 89,
+          "aim_max": 0.0,
+          "mismatches": {},
+          "tick_offsets": [
+            -2,
+            0
+          ]
+        },
+        "drift": {
+          "samples": 1785,
+          "apart": 0,
+          "mean": 0.0,
+          "largest": 0.0
+        },
+        "client_corrections": 0,
+        "early_exits": {
+          "host": null,
+          "client": null
+        }
+      },
+      "early_exits": {
+        "host": null,
+        "client": null
+      },
+      "archive_index": "build/m0/load/xbox-biped/archive-index.json",
+      "cleanup": {
+        "removed_bytes": 1963237376,
+        "archived_files": 91
+      },
+      "desktop_gate_checks": {
+        "host_simulation_tick_ms_p99": {
+          "observed": 0.4009000000451124,
+          "limit": 25,
+          "pass": true
+        },
+        "host_network_tick_ms_p99": {
+          "observed": 1.619699999992008,
+          "limit": 5,
+          "pass": true
+        },
+        "host_payload_mean": {
+          "observed": 96295.62877740774,
+          "limit": 262144,
+          "pass": true
+        },
+        "host_payload_p95_second": {
+          "observed": 101202,
+          "limit": 262144,
+          "pass": true
+        },
+        "host_private_commit_delta": {
+          "observed": 4800512,
+          "limit": 33554432,
+          "pass": true
+        },
+        "client_simulation_tick_ms_p99": {
+          "observed": 0.331200000005083,
+          "limit": 25,
+          "pass": true
+        },
+        "client_network_tick_ms_p99": {
+          "observed": 0.11910000000625587,
+          "limit": 5,
+          "pass": true
+        },
+        "client_payload_mean": {
+          "observed": 4250.785522861851,
+          "limit": 262144,
+          "pass": true
+        },
+        "client_payload_p95_second": {
+          "observed": 4699,
+          "limit": 262144,
+          "pass": true
+        },
+        "client_private_commit_delta": {
+          "observed": 5029888,
+          "limit": 33554432,
+          "pass": true
+        },
+        "snapshot_construction_max_ms": {
+          "observed": 5.277999999975691,
+          "limit": 5,
+          "pass": false
+        },
+        "snapshot_offered_bytes_max": {
+          "observed": 351472,
+          "limit": 2097152,
+          "pass": true
+        },
+        "initial_count_receipt_ms": {
+          "observed": 161.36699999992743,
+          "limit": 1000,
+          "pass": true
+        },
+        "pool_contiguous_headroom": {
+          "observed": 0.38550615310668945,
+          "minimum": 0.2,
+          "pass": true
+        },
+        "client_create_failures": {
+          "observed": 0.0,
+          "limit": 0,
+          "pass": true
+        },
+        "event_overflows": {
+          "observed": 0,
+          "limit": 0,
+          "pass": true
+        },
+        "pending_inventory_at_first_ready": {
+          "observed": 0.0,
+          "limit": 0,
+          "pass": true
+        }
+      }
+    },
+    {
+      "case": "xbox-capacity-1",
+      "family": "xbox",
+      "classification": "final_instrumentation",
+      "binary_sha256": "e36a563d8a0d939ff8b4abe89fc2d98b67e032d167c9caad8d8d3a7cfdd185fd",
+      "content": {
+        "a30.map": {
+          "bytes": 152610816,
+          "sha256": "4875fa105e6c517589a796cfdcc7fcaa07e98df13d14e601bfc9eb1eab7e30b5"
+        },
+        "carousel.map": {
+          "bytes": 20215808,
+          "sha256": "1c6353df6e4530437841b09775e62fa067caa46bb0e40f4579bbf2276991a38e"
+        },
+        "ui.map": {
+          "bytes": 14145536,
+          "sha256": "35e3e560478d85178749be310ad13d6d6ecde618d32675261a3554592333a833"
+        }
+      },
+      "seconds_requested": 60,
+      "seconds_measured": 56.49231700000007,
+      "receive_delay_ms_per_peer": 0,
+      "loss_setting_percent": 0,
+      "requested_extra": 8000,
+      "template_kind": "weapon",
+      "creation": {
+        "requested": 8000.0,
+        "created": 7099.0,
+        "failed": 1.0,
+        "tag_index": -397867307.0,
+        "type_mask": 4.0,
+        "fixture_ms": 467.4035000000458
+      },
+      "initial_snapshot": {
+        "host_counts": {
+          "time": 756.673426,
+          "kind": "snapshot_counts",
+          "v": [
+            1.0,
+            7206.0,
+            20.0,
+            7667.0,
+            7667.0,
+            4030143471.0
+          ]
+        },
+        "client_counts": {
+          "time": 757.263231,
+          "kind": "received_counts",
+          "v": [
+            33.0,
+            7206.0,
+            20.0,
+            7667.0,
+            7667.0,
+            4030143471.0
+          ]
+        },
+        "count_and_identity_tag_fingerprint_agree": true,
+        "begin_to_received_counts_ms": 589.7670000000517
+      },
+      "snapshots": [
+        {
+          "host_tick": 1.0,
+          "host_construction_ms": 12.096000000042295,
+          "offered_message_bytes": 954504,
+          "serialized_object_entries": 7206,
+          "host_begin_to_client_usable_ms": null,
+          "client_pending_inventories_at_usable": null
+        }
+      ],
+      "pending_inventories_at_first_ready": 0.0,
+      "host_pool_initial": [
+        {
+          "time": 756.205699,
+          "kind": "pool_counts",
+          "v": [
+            1.0,
+            568.0,
+            217.0,
+            0.048766136169433594,
+            8388608.0,
+            0.0
+          ]
+        },
+        {
+          "time": 756.673333,
+          "kind": "pool_counts",
+          "v": [
+            1.0,
+            7667.0,
+            217.0,
+            0.9999699592590332,
+            8388608.0,
+            0.0
+          ]
+        },
+        {
+          "time": 756.67345,
+          "kind": "pool_counts",
+          "v": [
+            1.0,
+            7667.0,
+            217.0,
+            0.9999699592590332,
+            8388608.0,
+            0.0
+          ]
+        }
+      ],
+      "host_pool_unavailable_contiguous_fraction_max": 0.9999699592590332,
+      "host_active_objects_max": 218.0,
+      "steady_networked_objects_range": [
+        7206.0,
+        7212.0
+      ],
+      "simulation_tick_ms": {
+        "host": {
+          "count": 1699,
+          "mean": 0.5401559741028925,
+          "max": 6.45370000006551,
+          "p50": 0.5597000000534536,
+          "p95": 0.7135000000744185,
+          "p99": 0.8536999999932959
+        },
+        "client": {
+          "count": 1695,
+          "mean": 0.5446106784670935,
+          "max": 1.9968000000289976,
+          "p50": 0.5636999999296677,
+          "p95": 0.703000000044085,
+          "p99": 0.8571000000756612
+        }
+      },
+      "network_tick_ms": {
+        "host": {
+          "count": 1699,
+          "mean": 0.5368288993517438,
+          "max": 5.004099999950995,
+          "p50": 0.5396000000246204,
+          "p95": 0.7407000000512198,
+          "p99": 0.8675000000266664
+        },
+        "client": {
+          "count": 1694,
+          "mean": 0.0758779220788513,
+          "max": 0.7256999999754044,
+          "p50": 0.07940000000417058,
+          "p95": 0.1077999999097301,
+          "p99": 0.13520000004518806
+        }
+      },
+      "host_object_network_ms": {
+        "count": 1699,
+        "mean": 0.26029299587834903,
+        "max": 1.4629999999442589,
+        "p50": 0.25269999991905934,
+        "p95": 0.37290000000211876,
+        "p99": 0.43890000006285845
+      },
+      "payload": {
+        "host": {
+          "sent": {
+            "bytes": 1598741,
+            "bytes_per_second": 28300.149204359914,
+            "complete_one_second_windows_bytes": {
+              "count": 56,
+              "mean": 28304.0,
+              "max": 40871,
+              "p50": 27366,
+              "p95": 33550,
+              "p99": 40871
+            },
+            "successful_calls": 1885,
+            "udp_bytes": 1595428
+          },
+          "received": {
+            "bytes": 239302,
+            "bytes_per_second": 4236.009650657446,
+            "complete_one_second_windows_bytes": {
+              "count": 56,
+              "mean": 4239.017857142857,
+              "max": 4580,
+              "p50": 4100,
+              "p95": 4580,
+              "p99": 4580
+            },
+            "successful_calls": 2286,
+            "udp_bytes": 239302
+          }
+        },
+        "client": {
+          "sent": {
+            "bytes": 239302,
+            "bytes_per_second": 4236.009650657446,
+            "complete_one_second_windows_bytes": {
+              "count": 56,
+              "mean": 4239.017857142857,
+              "max": 4580,
+              "p50": 4100,
+              "p95": 4580,
+              "p99": 4580
+            },
+            "successful_calls": 2286,
+            "udp_bytes": 0
+          },
+          "received": {
+            "bytes": 1598741,
+            "bytes_per_second": 28300.149204359914,
+            "complete_one_second_windows_bytes": {
+              "count": 56,
+              "mean": 28304.0,
+              "max": 40871,
+              "p50": 27366,
+              "p95": 33550,
+              "p99": 40871
+            },
+            "successful_calls": 1885,
+            "udp_bytes": 0
+          }
+        }
+      },
+      "memory_whole_session": {
+        "host": {
+          "working_bytes": {
+            "count": 79,
+            "mean": 210975834.7341772,
+            "max": 222326784,
+            "p50": 221827072,
+            "p95": 222326784,
+            "p99": 222326784
+          },
+          "private_bytes": {
+            "count": 79,
+            "mean": 450447334.0759494,
+            "max": 454414336,
+            "p50": 454172672,
+            "p95": 454414336,
+            "p99": 454414336
+          }
+        },
+        "client": {
+          "working_bytes": {
+            "count": 79,
+            "mean": 207950290.63291138,
+            "max": 220598272,
+            "p50": 220266496,
+            "p95": 220557312,
+            "p99": 220598272
+          },
+          "private_bytes": {
+            "count": 79,
+            "mean": 445427867.5443038,
+            "max": 454578176,
+            "p50": 454332416,
+            "p95": 454578176,
+            "p99": 454578176
+          }
+        }
+      },
+      "inventory_queue_peak": 0.0,
+      "client_create_failure_counter_max": 0.0,
+      "event_queue_peak": 8.0,
+      "event_overflow_observations": 0,
+      "correction_max_per_tick_world_units": {
+        "count": 1695,
+        "mean": 0.0,
+        "max": 0.0,
+        "p50": 0.0,
+        "p95": 0.0,
+        "p99": 0.0
+      },
+      "comparison": {
+        "divergences": [],
+        "problems": [],
+        "figures": {
+          "seconds": 60,
+          "position_max": 0.0010000000000047748,
+          "position_sum": 0.02900000000013847,
+          "position_count": 89,
+          "aim_max": 0.0,
+          "mismatches": {},
+          "tick_offsets": [
+            -1,
+            0
+          ]
+        },
+        "drift": {
+          "samples": 1779,
+          "apart": 0,
+          "mean": 0.0,
+          "largest": 0.0
+        },
+        "client_corrections": 16,
+        "early_exits": {
+          "host": null,
+          "client": null
+        }
+      },
+      "early_exits": {
+        "host": null,
+        "client": null
+      },
+      "archive_index": "build/m0/load/xbox-capacity-1/archive-index.json",
+      "cleanup": {
+        "removed_bytes": 1963237376,
+        "archived_files": 91
+      },
+      "desktop_gate_checks": {
+        "host_simulation_tick_ms_p99": {
+          "observed": 0.8536999999932959,
+          "limit": 25,
+          "pass": true
+        },
+        "host_network_tick_ms_p99": {
+          "observed": 0.8675000000266664,
+          "limit": 5,
+          "pass": true
+        },
+        "host_payload_mean": {
+          "observed": 28300.149204359914,
+          "limit": 262144,
+          "pass": true
+        },
+        "host_payload_p95_second": {
+          "observed": 33550,
+          "limit": 262144,
+          "pass": true
+        },
+        "host_private_commit_delta": {
+          "observed": 6868992,
+          "limit": 33554432,
+          "pass": true
+        },
+        "client_simulation_tick_ms_p99": {
+          "observed": 0.8571000000756612,
+          "limit": 25,
+          "pass": true
+        },
+        "client_network_tick_ms_p99": {
+          "observed": 0.13520000004518806,
+          "limit": 5,
+          "pass": true
+        },
+        "client_payload_mean": {
+          "observed": 4236.009650657446,
+          "limit": 262144,
+          "pass": true
+        },
+        "client_payload_p95_second": {
+          "observed": 4580,
+          "limit": 262144,
+          "pass": true
+        },
+        "client_private_commit_delta": {
+          "observed": 7397376,
+          "limit": 33554432,
+          "pass": true
+        },
+        "snapshot_construction_max_ms": {
+          "observed": 12.096000000042295,
+          "limit": 5,
+          "pass": false
+        },
+        "snapshot_offered_bytes_max": {
+          "observed": 954504,
+          "limit": 2097152,
+          "pass": true
+        },
+        "initial_count_receipt_ms": {
+          "observed": 589.7670000000517,
+          "limit": 1000,
+          "pass": true
+        },
+        "pool_contiguous_headroom": {
+          "observed": 3.0040740966796875e-05,
+          "minimum": 0.2,
+          "pass": false
+        },
+        "client_create_failures": {
+          "observed": 0.0,
+          "limit": 0,
+          "pass": true
+        },
+        "event_overflows": {
+          "observed": 0,
+          "limit": 0,
+          "pass": true
+        },
+        "pending_inventory_at_first_ready": {
+          "observed": 0.0,
+          "limit": 0,
+          "pass": true
+        }
+      }
+    },
+    {
+      "case": "xbox-capacity-2",
+      "family": "xbox",
+      "classification": "final_instrumentation",
+      "binary_sha256": "e36a563d8a0d939ff8b4abe89fc2d98b67e032d167c9caad8d8d3a7cfdd185fd",
+      "content": {
+        "a30.map": {
+          "bytes": 152610816,
+          "sha256": "4875fa105e6c517589a796cfdcc7fcaa07e98df13d14e601bfc9eb1eab7e30b5"
+        },
+        "carousel.map": {
+          "bytes": 20215808,
+          "sha256": "1c6353df6e4530437841b09775e62fa067caa46bb0e40f4579bbf2276991a38e"
+        },
+        "ui.map": {
+          "bytes": 14145536,
+          "sha256": "35e3e560478d85178749be310ad13d6d6ecde618d32675261a3554592333a833"
+        }
+      },
+      "seconds_requested": 60,
+      "seconds_measured": 56.84139099999993,
+      "receive_delay_ms_per_peer": 0,
+      "loss_setting_percent": 0,
+      "requested_extra": 8000,
+      "template_kind": "weapon",
+      "creation": {
+        "requested": 8000.0,
+        "created": 7099.0,
+        "failed": 1.0,
+        "tag_index": -397867307.0,
+        "type_mask": 4.0,
+        "fixture_ms": 522.713000000067
+      },
+      "initial_snapshot": {
+        "host_counts": {
+          "time": 1357.743604,
+          "kind": "snapshot_counts",
+          "v": [
+            1.0,
+            7206.0,
+            20.0,
+            7667.0,
+            7667.0,
+            1459162075.0
+          ]
+        },
+        "client_counts": {
+          "time": 1358.336356,
+          "kind": "received_counts",
+          "v": [
+            34.0,
+            7206.0,
+            20.0,
+            7667.0,
+            7667.0,
+            1459162075.0
+          ]
+        },
+        "count_and_identity_tag_fingerprint_agree": true,
+        "begin_to_received_counts_ms": 592.7130000000034
+      },
+      "snapshots": [
+        {
+          "host_tick": 1.0,
+          "host_construction_ms": 13.772000000017215,
+          "offered_message_bytes": 954504,
+          "serialized_object_entries": 7206,
+          "host_begin_to_client_usable_ms": null,
+          "client_pending_inventories_at_usable": null
+        }
+      ],
+      "pending_inventories_at_first_ready": 0.0,
+      "host_pool_initial": [
+        {
+          "time": 1357.2206,
+          "kind": "pool_counts",
+          "v": [
+            1.0,
+            568.0,
+            217.0,
+            0.04872465133666992,
+            8388608.0,
+            0.0
+          ]
+        },
+        {
+          "time": 1357.74351,
+          "kind": "pool_counts",
+          "v": [
+            1.0,
+            7667.0,
+            217.0,
+            0.9999284744262695,
+            8388608.0,
+            0.0
+          ]
+        },
+        {
+          "time": 1357.743629,
+          "kind": "pool_counts",
+          "v": [
+            1.0,
+            7667.0,
+            217.0,
+            0.9999284744262695,
+            8388608.0,
+            0.0
+          ]
+        }
+      ],
+      "host_pool_unavailable_contiguous_fraction_max": 0.9999284744262695,
+      "host_active_objects_max": 218.0,
+      "steady_networked_objects_range": [
+        7206.0,
+        7213.0
+      ],
+      "simulation_tick_ms": {
+        "host": {
+          "count": 1709,
+          "mean": 0.4086327676996624,
+          "max": 3.920799999832525,
+          "p50": 0.4125000000385626,
+          "p95": 0.6038000001353794,
+          "p99": 0.8593999998538493
+        },
+        "client": {
+          "count": 1706,
+          "mean": 0.3990023446652893,
+          "max": 1.7136999999820546,
+          "p50": 0.4310999997869658,
+          "p95": 0.5697999999938475,
+          "p99": 0.7242000001497217
+        }
+      },
+      "network_tick_ms": {
+        "host": {
+          "count": 1709,
+          "mean": 0.4055586892909352,
+          "max": 2.526199999920209,
+          "p50": 0.37350000002334127,
+          "p95": 0.6329000000278029,
+          "p99": 0.7763000000977627
+        },
+        "client": {
+          "count": 1705,
+          "mean": 0.06280785923844369,
+          "max": 0.41650000002846355,
+          "p50": 0.05209999994804093,
+          "p95": 0.09990000012294331,
+          "p99": 0.13119999994160025
+        }
+      },
+      "host_object_network_ms": {
+        "count": 1709,
+        "mean": 0.19875119953091225,
+        "max": 0.9062999999969179,
+        "p50": 0.1807999999527965,
+        "p95": 0.3283999999439402,
+        "p99": 0.3902999999354506
+      },
+      "payload": {
+        "host": {
+          "sent": {
+            "bytes": 1607681,
+            "bytes_per_second": 28283.63225664203,
+            "complete_one_second_windows_bytes": {
+              "count": 56,
+              "mean": 28305.928571428572,
+              "max": 40871,
+              "p50": 27366,
+              "p95": 33590,
+              "p99": 40871
+            },
+            "successful_calls": 1894,
+            "udp_bytes": 1604260
+          },
+          "received": {
+            "bytes": 240704,
+            "bytes_per_second": 4234.660619054876,
+            "complete_one_second_windows_bytes": {
+              "count": 56,
+              "mean": 4239.303571428572,
+              "max": 4580,
+              "p50": 4100,
+              "p95": 4580,
+              "p99": 4580
+            },
+            "successful_calls": 2300,
+            "udp_bytes": 240704
+          }
+        },
+        "client": {
+          "sent": {
+            "bytes": 240827,
+            "bytes_per_second": 4236.824535134974,
+            "complete_one_second_windows_bytes": {
+              "count": 56,
+              "mean": 4239.303571428572,
+              "max": 4580,
+              "p50": 4100,
+              "p95": 4580,
+              "p99": 4580
+            },
+            "successful_calls": 2301,
+            "udp_bytes": 0
+          },
+          "received": {
+            "bytes": 1607681,
+            "bytes_per_second": 28283.63225664203,
+            "complete_one_second_windows_bytes": {
+              "count": 56,
+              "mean": 28305.928571428572,
+              "max": 40871,
+              "p50": 27366,
+              "p95": 33590,
+              "p99": 40871
+            },
+            "successful_calls": 1894,
+            "udp_bytes": 0
+          }
+        }
+      },
+      "memory_whole_session": {
+        "host": {
+          "working_bytes": {
+            "count": 82,
+            "mean": 211614045.65853658,
+            "max": 222302208,
+            "p50": 221741056,
+            "p95": 222302208,
+            "p99": 222302208
+          },
+          "private_bytes": {
+            "count": 82,
+            "mean": 450616394.9268293,
+            "max": 454414336,
+            "p50": 454172672,
+            "p95": 454414336,
+            "p99": 454414336
+          }
+        },
+        "client": {
+          "working_bytes": {
+            "count": 82,
+            "mean": 209653610.14634147,
+            "max": 220123136,
+            "p50": 219721728,
+            "p95": 220123136,
+            "p99": 220123136
+          },
+          "private_bytes": {
+            "count": 82,
+            "mean": 446191915.70731705,
+            "max": 454115328,
+            "p50": 453955584,
+            "p95": 454115328,
+            "p99": 454115328
+          }
+        }
+      },
+      "inventory_queue_peak": 0.0,
+      "client_create_failure_counter_max": 0.0,
+      "event_queue_peak": 8.0,
+      "event_overflow_observations": 0,
+      "correction_max_per_tick_world_units": {
+        "count": 1706,
+        "mean": 0.0,
+        "max": 0.0,
+        "p50": 0.0,
+        "p95": 0.0,
+        "p99": 0.0
+      },
+      "comparison": {
+        "divergences": [],
+        "problems": [],
+        "figures": {
+          "seconds": 60,
+          "position_max": 0.0010000000000047748,
+          "position_sum": 0.02900000000013847,
+          "position_count": 89,
+          "aim_max": 0.0,
+          "mismatches": {},
+          "tick_offsets": [
+            -1,
+            0,
+            1
+          ]
+        },
+        "drift": {
+          "samples": 1788,
+          "apart": 0,
+          "mean": 0.0,
+          "largest": 0.0
+        },
+        "client_corrections": 16,
+        "early_exits": {
+          "host": null,
+          "client": null
+        }
+      },
+      "early_exits": {
+        "host": null,
+        "client": null
+      },
+      "archive_index": "build/m0/load/xbox-capacity-2/archive-index.json",
+      "cleanup": {
+        "removed_bytes": 1963237376,
+        "archived_files": 91
+      },
+      "desktop_gate_checks": {
+        "host_simulation_tick_ms_p99": {
+          "observed": 0.8593999998538493,
+          "limit": 25,
+          "pass": true
+        },
+        "host_network_tick_ms_p99": {
+          "observed": 0.7763000000977627,
+          "limit": 5,
+          "pass": true
+        },
+        "host_payload_mean": {
+          "observed": 28283.63225664203,
+          "limit": 262144,
+          "pass": true
+        },
+        "host_payload_p95_second": {
+          "observed": 33590,
+          "limit": 262144,
+          "pass": true
+        },
+        "host_private_commit_delta": {
+          "observed": 6868992,
+          "limit": 33554432,
+          "pass": true
+        },
+        "client_simulation_tick_ms_p99": {
+          "observed": 0.7242000001497217,
+          "limit": 25,
+          "pass": true
+        },
+        "client_network_tick_ms_p99": {
+          "observed": 0.13119999994160025,
+          "limit": 5,
+          "pass": true
+        },
+        "client_payload_mean": {
+          "observed": 4236.824535134974,
+          "limit": 262144,
+          "pass": true
+        },
+        "client_payload_p95_second": {
+          "observed": 4580,
+          "limit": 262144,
+          "pass": true
+        },
+        "client_private_commit_delta": {
+          "observed": 6934528,
+          "limit": 33554432,
+          "pass": true
+        },
+        "snapshot_construction_max_ms": {
+          "observed": 13.772000000017215,
+          "limit": 5,
+          "pass": false
+        },
+        "snapshot_offered_bytes_max": {
+          "observed": 954504,
+          "limit": 2097152,
+          "pass": true
+        },
+        "initial_count_receipt_ms": {
+          "observed": 592.7130000000034,
+          "limit": 1000,
+          "pass": true
+        },
+        "pool_contiguous_headroom": {
+          "observed": 7.152557373046875e-05,
+          "minimum": 0.2,
+          "pass": false
+        },
+        "client_create_failures": {
+          "observed": 0.0,
+          "limit": 0,
+          "pass": true
+        },
+        "event_overflows": {
+          "observed": 0,
+          "limit": 0,
+          "pass": true
+        },
+        "pending_inventory_at_first_ready": {
+          "observed": 0.0,
+          "limit": 0,
+          "pass": true
+        }
+      }
+    },
+    {
+      "case": "xbox-capacity-delay",
+      "family": "xbox",
+      "classification": "final_instrumentation",
+      "binary_sha256": "e36a563d8a0d939ff8b4abe89fc2d98b67e032d167c9caad8d8d3a7cfdd185fd",
+      "content": {
+        "a30.map": {
+          "bytes": 152610816,
+          "sha256": "4875fa105e6c517589a796cfdcc7fcaa07e98df13d14e601bfc9eb1eab7e30b5"
+        },
+        "carousel.map": {
+          "bytes": 20215808,
+          "sha256": "1c6353df6e4530437841b09775e62fa067caa46bb0e40f4579bbf2276991a38e"
+        },
+        "ui.map": {
+          "bytes": 14145536,
+          "sha256": "35e3e560478d85178749be310ad13d6d6ecde618d32675261a3554592333a833"
+        }
+      },
+      "seconds_requested": 60,
+      "seconds_measured": 55.77177700000016,
+      "receive_delay_ms_per_peer": 50,
+      "loss_setting_percent": 5,
+      "requested_extra": 8000,
+      "template_kind": "weapon",
+      "creation": {
+        "requested": 8000.0,
+        "created": 7099.0,
+        "failed": 1.0,
+        "tag_index": -397867307.0,
+        "type_mask": 4.0,
+        "fixture_ms": 546.3406000001214
+      },
+      "initial_snapshot": {
+        "host_counts": {
+          "time": 1530.148869,
+          "kind": "snapshot_counts",
+          "v": [
+            3.0,
+            7206.0,
+            20.0,
+            7667.0,
+            7667.0,
+            4111129233.0
+          ]
+        },
+        "client_counts": {
+          "time": 1530.780484,
+          "kind": "received_counts",
+          "v": [
+            37.0,
+            7206.0,
+            20.0,
+            7667.0,
+            7667.0,
+            4111129233.0
+          ]
+        },
+        "count_and_identity_tag_fingerprint_agree": true,
+        "begin_to_received_counts_ms": 630.9049999999843
+      },
+      "snapshots": [
+        {
+          "host_tick": 3.0,
+          "host_construction_ms": 7.9700000001139415,
+          "offered_message_bytes": 954504,
+          "serialized_object_entries": 7206,
+          "host_begin_to_client_usable_ms": null,
+          "client_pending_inventories_at_usable": null
+        }
+      ],
+      "pending_inventories_at_first_ready": 0.0,
+      "host_pool_initial": [
+        {
+          "time": 1529.602237,
+          "kind": "pool_counts",
+          "v": [
+            3.0,
+            568.0,
+            217.0,
+            0.048779964447021484,
+            8388608.0,
+            0.0
+          ]
+        },
+        {
+          "time": 1530.148776,
+          "kind": "pool_counts",
+          "v": [
+            3.0,
+            7667.0,
+            217.0,
+            0.9999837875366211,
+            8388608.0,
+            0.0
+          ]
+        },
+        {
+          "time": 1530.148894,
+          "kind": "pool_counts",
+          "v": [
+            3.0,
+            7667.0,
+            217.0,
+            0.9999837875366211,
+            8388608.0,
+            0.0
+          ]
+        }
+      ],
+      "host_pool_unavailable_contiguous_fraction_max": 0.9999837875366211,
+      "host_active_objects_max": 218.0,
+      "steady_networked_objects_range": [
+        7206.0,
+        7212.0
+      ],
+      "simulation_tick_ms": {
+        "host": {
+          "count": 1677,
+          "mean": 0.4772971377445656,
+          "max": 2.9928000001291366,
+          "p50": 0.47150000000328873,
+          "p95": 0.6357999998272135,
+          "p99": 0.9050999999544729
+        },
+        "client": {
+          "count": 1679,
+          "mean": 0.48047683144692094,
+          "max": 1.7841999999745894,
+          "p50": 0.4862999999204476,
+          "p95": 0.5955000001449662,
+          "p99": 0.7737000000815897
+        }
+      },
+      "network_tick_ms": {
+        "host": {
+          "count": 1677,
+          "mean": 0.45535014907768817,
+          "max": 2.181600000085382,
+          "p50": 0.4427999999734311,
+          "p95": 0.6421000000500499,
+          "p99": 0.8394000001317181
+        },
+        "client": {
+          "count": 1678,
+          "mean": 0.06743128724571086,
+          "max": 0.4122000000279513,
+          "p50": 0.0582000000122207,
+          "p95": 0.10180000003856549,
+          "p99": 0.13370000010581862
+        }
+      },
+      "host_object_network_ms": {
+        "count": 1677,
+        "mean": 0.22805134168275557,
+        "max": 1.234199999998964,
+        "p50": 0.21949999995740654,
+        "p95": 0.3320999999232299,
+        "p99": 0.453599999900689
+      },
+      "payload": {
+        "host": {
+          "sent": {
+            "bytes": 1577548,
+            "bytes_per_second": 28285.77615520473,
+            "complete_one_second_windows_bytes": {
+              "count": 55,
+              "mean": 28308.418181818182,
+              "max": 39450,
+              "p50": 27245,
+              "p95": 33566,
+              "p99": 39450
+            },
+            "successful_calls": 1860,
+            "udp_bytes": 1574268
+          },
+          "received": {
+            "bytes": 236837,
+            "bytes_per_second": 4246.53853148698,
+            "complete_one_second_windows_bytes": {
+              "count": 55,
+              "mean": 4248.654545454546,
+              "max": 4858,
+              "p50": 4100,
+              "p95": 4719,
+              "p99": 4858
+            },
+            "successful_calls": 2263,
+            "udp_bytes": 236837
+          }
+        },
+        "client": {
+          "sent": {
+            "bytes": 236837,
+            "bytes_per_second": 4246.53853148698,
+            "complete_one_second_windows_bytes": {
+              "count": 55,
+              "mean": 4248.654545454546,
+              "max": 4858,
+              "p50": 4100,
+              "p95": 4719,
+              "p99": 4858
+            },
+            "successful_calls": 2263,
+            "udp_bytes": 0
+          },
+          "received": {
+            "bytes": 1577548,
+            "bytes_per_second": 28285.77615520473,
+            "complete_one_second_windows_bytes": {
+              "count": 55,
+              "mean": 28308.418181818182,
+              "max": 39450,
+              "p50": 27245,
+              "p95": 33566,
+              "p99": 39450
+            },
+            "successful_calls": 1860,
+            "udp_bytes": 0
+          }
+        }
+      },
+      "memory_whole_session": {
+        "host": {
+          "working_bytes": {
+            "count": 77,
+            "mean": 215100376.1038961,
+            "max": 228339712,
+            "p50": 224788480,
+            "p95": 228143104,
+            "p99": 228339712
+          },
+          "private_bytes": {
+            "count": 77,
+            "mean": 457312016.6233766,
+            "max": 461037568,
+            "p50": 460873728,
+            "p95": 461037568,
+            "p99": 461037568
+          }
+        },
+        "client": {
+          "working_bytes": {
+            "count": 77,
+            "mean": 213514053.8181818,
+            "max": 225738752,
+            "p50": 223420416,
+            "p95": 225607680,
+            "p99": 225738752
+          },
+          "private_bytes": {
+            "count": 77,
+            "mean": 452772265.5584416,
+            "max": 460951552,
+            "p50": 460705792,
+            "p95": 460951552,
+            "p99": 460951552
+          }
+        }
+      },
+      "inventory_queue_peak": 0.0,
+      "client_create_failure_counter_max": 0.0,
+      "event_queue_peak": 8.0,
+      "event_overflow_observations": 0,
+      "correction_max_per_tick_world_units": {
+        "count": 1679,
+        "mean": 0.0,
+        "max": 0.0,
+        "p50": 0.0,
+        "p95": 0.0,
+        "p99": 0.0
+      },
+      "comparison": {
+        "divergences": [],
+        "problems": [],
+        "figures": {
+          "seconds": 60,
+          "position_max": 0.0,
+          "position_sum": 0.0,
+          "position_count": 89,
+          "aim_max": 0.0,
+          "mismatches": {},
+          "tick_offsets": [
+            -2,
+            0
+          ]
+        },
+        "drift": {
+          "samples": 1610,
+          "apart": 0,
+          "mean": 0.0,
+          "largest": 0.0
+        },
+        "client_corrections": 5,
+        "early_exits": {
+          "host": null,
+          "client": null
+        }
+      },
+      "early_exits": {
+        "host": null,
+        "client": null
+      },
+      "archive_index": "build/m0/load/xbox-capacity-delay/archive-index.json",
+      "cleanup": {
+        "removed_bytes": 1963237376,
+        "archived_files": 91
+      },
+      "desktop_gate_checks": {
+        "host_simulation_tick_ms_p99": {
+          "observed": 0.9050999999544729,
+          "limit": 25,
+          "pass": true
+        },
+        "host_network_tick_ms_p99": {
+          "observed": 0.8394000001317181,
+          "limit": 5,
+          "pass": true
+        },
+        "host_payload_mean": {
+          "observed": 28285.77615520473,
+          "limit": 262144,
+          "pass": true
+        },
+        "host_payload_p95_second": {
+          "observed": 33566,
+          "limit": 262144,
+          "pass": true
+        },
+        "host_private_commit_delta": {
+          "observed": 13492224,
+          "limit": 33554432,
+          "pass": true
+        },
+        "client_simulation_tick_ms_p99": {
+          "observed": 0.7737000000815897,
+          "limit": 25,
+          "pass": true
+        },
+        "client_network_tick_ms_p99": {
+          "observed": 0.13370000010581862,
+          "limit": 5,
+          "pass": true
+        },
+        "client_payload_mean": {
+          "observed": 4246.53853148698,
+          "limit": 262144,
+          "pass": true
+        },
+        "client_payload_p95_second": {
+          "observed": 4719,
+          "limit": 262144,
+          "pass": true
+        },
+        "client_private_commit_delta": {
+          "observed": 13770752,
+          "limit": 33554432,
+          "pass": true
+        },
+        "snapshot_construction_max_ms": {
+          "observed": 7.9700000001139415,
+          "limit": 5,
+          "pass": false
+        },
+        "snapshot_offered_bytes_max": {
+          "observed": 954504,
+          "limit": 2097152,
+          "pass": true
+        },
+        "initial_count_receipt_ms": {
+          "observed": 630.9049999999843,
+          "limit": 1500,
+          "pass": true
+        },
+        "pool_contiguous_headroom": {
+          "observed": 1.621246337890625e-05,
+          "minimum": 0.2,
+          "pass": false
+        },
+        "client_create_failures": {
+          "observed": 0.0,
+          "limit": 0,
+          "pass": true
+        },
+        "event_overflows": {
+          "observed": 0,
+          "limit": 0,
+          "pass": true
+        },
+        "pending_inventory_at_first_ready": {
+          "observed": 0.0,
+          "limit": 0,
+          "pass": true
+        }
+      }
+    },
+    {
+      "case": "xbox-control",
+      "family": "xbox",
+      "classification": "final_instrumentation",
+      "binary_sha256": "e36a563d8a0d939ff8b4abe89fc2d98b67e032d167c9caad8d8d3a7cfdd185fd",
+      "content": {
+        "a30.map": {
+          "bytes": 152610816,
+          "sha256": "4875fa105e6c517589a796cfdcc7fcaa07e98df13d14e601bfc9eb1eab7e30b5"
+        },
+        "carousel.map": {
+          "bytes": 20215808,
+          "sha256": "1c6353df6e4530437841b09775e62fa067caa46bb0e40f4579bbf2276991a38e"
+        },
+        "ui.map": {
+          "bytes": 14145536,
+          "sha256": "35e3e560478d85178749be310ad13d6d6ecde618d32675261a3554592333a833"
+        }
+      },
+      "seconds_requested": 60,
+      "seconds_measured": 57.30463499999996,
+      "receive_delay_ms_per_peer": 0,
+      "loss_setting_percent": 0,
+      "requested_extra": 0,
+      "template_kind": "weapon",
+      "creation": {
+        "requested": 0.0,
+        "created": 0.0,
+        "failed": 0.0,
+        "tag_index": -397867307.0,
+        "type_mask": 4.0,
+        "fixture_ms": 9.999996564147295e-05
+      },
+      "initial_snapshot": {
+        "host_counts": {
+          "time": 676.168849,
+          "kind": "snapshot_counts",
+          "v": [
+            1.0,
+            107.0,
+            20.0,
+            568.0,
+            589.0,
+            260911288.0
+          ]
+        },
+        "client_counts": {
+          "time": 676.170735,
+          "kind": "received_counts",
+          "v": [
+            1.0,
+            107.0,
+            20.0,
+            568.0,
+            589.0,
+            260911288.0
+          ]
+        },
+        "count_and_identity_tag_fingerprint_agree": true,
+        "begin_to_received_counts_ms": 1.8590000000813234
+      },
+      "snapshots": [
+        {
+          "host_tick": 1.0,
+          "host_construction_ms": 0.2160000000230866,
+          "offered_message_bytes": 14592,
+          "serialized_object_entries": 107,
+          "host_begin_to_client_usable_ms": 1.8770000000358777,
+          "client_pending_inventories_at_usable": 0.0
+        }
+      ],
+      "pending_inventories_at_first_ready": 0.0,
+      "host_pool_initial": [
+        {
+          "time": 676.168781,
+          "kind": "pool_counts",
+          "v": [
+            1.0,
+            568.0,
+            217.0,
+            0.048766136169433594,
+            8388608.0,
+            0.0
+          ]
+        },
+        {
+          "time": 676.16883,
+          "kind": "pool_counts",
+          "v": [
+            1.0,
+            568.0,
+            217.0,
+            0.048766136169433594,
+            8388608.0,
+            0.0
+          ]
+        },
+        {
+          "time": 676.168863,
+          "kind": "pool_counts",
+          "v": [
+            1.0,
+            568.0,
+            217.0,
+            0.048766136169433594,
+            8388608.0,
+            0.0
+          ]
+        }
+      ],
+      "host_pool_unavailable_contiguous_fraction_max": 0.05150556564331055,
+      "host_active_objects_max": 218.0,
+      "steady_networked_objects_range": [
+        107.0,
+        114.0
+      ],
+      "simulation_tick_ms": {
+        "host": {
+          "count": 1723,
+          "mean": 0.23171183981448784,
+          "max": 3.4127000000125918,
+          "p50": 0.2184999999599313,
+          "p95": 0.3308999999944717,
+          "p99": 0.4199999999627835
+        },
+        "client": {
+          "count": 1726,
+          "mean": 0.1977505214357168,
+          "max": 0.8634999999230786,
+          "p50": 0.189900000009402,
+          "p95": 0.27439999996659026,
+          "p99": 0.36170000009860814
+        }
+      },
+      "network_tick_ms": {
+        "host": {
+          "count": 1723,
+          "mean": 0.10603017991833863,
+          "max": 0.8245000000215441,
+          "p50": 0.10789999998905841,
+          "p95": 0.15640000003713794,
+          "p99": 0.2103000000488464
+        },
+        "client": {
+          "count": 1725,
+          "mean": 0.06281895652163244,
+          "max": 9.919400000057976,
+          "p50": 0.05340000006981427,
+          "p95": 0.07649999997738632,
+          "p99": 0.11849999998503336
+        }
+      },
+      "host_object_network_ms": {
+        "count": 1723,
+        "mean": 0.011065118980307341,
+        "max": 0.09290000002692977,
+        "p50": 0.010800000040944724,
+        "p95": 0.01680000002579618,
+        "p99": 0.021000000060666935
+      },
+      "payload": {
+        "host": {
+          "sent": {
+            "bytes": 1619972,
+            "bytes_per_second": 28269.475933316757,
+            "complete_one_second_windows_bytes": {
+              "count": 57,
+              "mean": 28294.175438596492,
+              "max": 38698,
+              "p50": 27650,
+              "p95": 33614,
+              "p99": 38698
+            },
+            "successful_calls": 1911,
+            "udp_bytes": 1616527
+          },
+          "received": {
+            "bytes": 243711,
+            "bytes_per_second": 4252.902055828471,
+            "complete_one_second_windows_bytes": {
+              "count": 57,
+              "mean": 4256.315789473684,
+              "max": 4858,
+              "p50": 4100,
+              "p95": 4699,
+              "p99": 4858
+            },
+            "successful_calls": 2325,
+            "udp_bytes": 243711
+          }
+        },
+        "client": {
+          "sent": {
+            "bytes": 243834,
+            "bytes_per_second": 4255.0484790628225,
+            "complete_one_second_windows_bytes": {
+              "count": 57,
+              "mean": 4256.315789473684,
+              "max": 4858,
+              "p50": 4100,
+              "p95": 4699,
+              "p99": 4858
+            },
+            "successful_calls": 2326,
+            "udp_bytes": 0
+          },
+          "received": {
+            "bytes": 1619972,
+            "bytes_per_second": 28269.475933316757,
+            "complete_one_second_windows_bytes": {
+              "count": 57,
+              "mean": 28294.175438596492,
+              "max": 38698,
+              "p50": 27650,
+              "p95": 33614,
+              "p99": 38698
+            },
+            "successful_calls": 1911,
+            "udp_bytes": 0
+          }
+        }
+      },
+      "memory_whole_session": {
+        "host": {
+          "working_bytes": {
+            "count": 80,
+            "mean": 206560972.8,
+            "max": 215543808,
+            "p50": 214966272,
+            "p95": 215543808,
+            "p99": 215543808
+          },
+          "private_bytes": {
+            "count": 80,
+            "mean": 445430016.0,
+            "max": 447545344,
+            "p50": 447303680,
+            "p95": 447545344,
+            "p99": 447545344
+          }
+        },
+        "client": {
+          "working_bytes": {
+            "count": 80,
+            "mean": 197965260.8,
+            "max": 205221888,
+            "p50": 204697600,
+            "p95": 205185024,
+            "p99": 205221888
+          },
+          "private_bytes": {
+            "count": 80,
+            "mean": 440545894.4,
+            "max": 447180800,
+            "p50": 446705664,
+            "p95": 446947328,
+            "p99": 447180800
+          }
+        }
+      },
+      "inventory_queue_peak": 0.0,
+      "client_create_failure_counter_max": 0.0,
+      "event_queue_peak": 8.0,
+      "event_overflow_observations": 0,
+      "correction_max_per_tick_world_units": {
+        "count": 1726,
+        "mean": 0.0,
+        "max": 0.0,
+        "p50": 0.0,
+        "p95": 0.0,
+        "p99": 0.0
+      },
+      "comparison": {
+        "divergences": [],
+        "problems": [],
+        "figures": {
+          "seconds": 60,
+          "position_max": 0.0010000000000047748,
+          "position_sum": 0.02900000000013847,
+          "position_count": 89,
+          "aim_max": 0.0,
+          "mismatches": {},
+          "tick_offsets": [
+            -2,
+            0
+          ]
+        },
+        "drift": {
+          "samples": 1781,
+          "apart": 0,
+          "mean": 0.0,
+          "largest": 0.0
+        },
+        "client_corrections": 0,
+        "early_exits": {
+          "host": null,
+          "client": null
+        }
+      },
+      "early_exits": {
+        "host": null,
+        "client": null
+      },
+      "archive_index": "build/m0/load/xbox-control/archive-index.json",
+      "cleanup": {
+        "removed_bytes": 1963237376,
+        "archived_files": 91
+      },
+      "desktop_gate_checks": {
+        "host_simulation_tick_ms_p99": {
+          "observed": 0.4199999999627835,
+          "limit": 25,
+          "pass": true
+        },
+        "host_network_tick_ms_p99": {
+          "observed": 0.2103000000488464,
+          "limit": 5,
+          "pass": true
+        },
+        "host_payload_mean": {
+          "observed": 28269.475933316757,
+          "limit": 262144,
+          "pass": true
+        },
+        "host_payload_p95_second": {
+          "observed": 33614,
+          "limit": 262144,
+          "pass": true
+        },
+        "host_private_commit_delta": {
+          "observed": 0,
+          "limit": 33554432,
+          "pass": true
+        },
+        "client_simulation_tick_ms_p99": {
+          "observed": 0.36170000009860814,
+          "limit": 25,
+          "pass": true
+        },
+        "client_network_tick_ms_p99": {
+          "observed": 0.11849999998503336,
+          "limit": 5,
+          "pass": true
+        },
+        "client_payload_mean": {
+          "observed": 4255.0484790628225,
+          "limit": 262144,
+          "pass": true
+        },
+        "client_payload_p95_second": {
+          "observed": 4699,
+          "limit": 262144,
+          "pass": true
+        },
+        "client_private_commit_delta": {
+          "observed": 0,
+          "limit": 33554432,
+          "pass": true
+        },
+        "snapshot_construction_max_ms": {
+          "observed": 0.2160000000230866,
+          "limit": 5,
+          "pass": true
+        },
+        "snapshot_offered_bytes_max": {
+          "observed": 14592,
+          "limit": 2097152,
+          "pass": true
+        },
+        "initial_count_receipt_ms": {
+          "observed": 1.8590000000813234,
+          "limit": 1000,
+          "pass": true
+        },
+        "pool_contiguous_headroom": {
+          "observed": 0.9484944343566895,
+          "minimum": 0.2,
+          "pass": true
+        },
+        "client_create_failures": {
+          "observed": 0.0,
+          "limit": 0,
+          "pass": true
+        },
+        "event_overflows": {
+          "observed": 0,
+          "limit": 0,
+          "pass": true
+        },
+        "pending_inventory_at_first_ready": {
+          "observed": 0.0,
+          "limit": 0,
+          "pass": true
+        }
+      }
+    }
+  ],
+  "scope": "M0 investigation only; no M1, implementation rewrite or publication",
+  "blocked": [
+    "Linux runtime: no runner",
+    "Android runtime: no device/emulator",
+    "Android build: previously recorded Windows shell/CMake failure"
+  ],
+  "unqualified": [
+    "complete persistent state",
+    "browser high-load runtime",
+    "public internet performance",
+    "active AI/combat capacity",
+    "rendered performance",
+    "full world memory ownership",
+    "multi-machine scaling",
+    "soak and repeated transitions"
+  ]
+}

@@ -205,3 +205,8 @@ operating budgets, ordinary campaign-menu entry, multi-local-player network
 rosters, broad audiovisual coverage, natural completion/next-round play and
 newer-testing runtime coverage remain open. Linux and Android runtime remain
 explicitly blocked. M0 is not signed off; this continuation starts no M1 work.
+
+The subsequent [real-engine snapshot load report](coop_m0_load.md) adds
+Windows slot/memory saturation measurements and versioned desktop budgets.
+It updates that portion of the evidence without closing the remaining
+full-state, platform or operating-envelope qualifications.

@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "status": "Frozen M0 desktop comparison gates and proposed rewrite targets; not a universal operating envelope or M1 authorization",
+  "scope": "Two native Windows x86 peers on the recorded i7-14700K, null renderer, opening campaign fixtures, same diagnostic logging and content",
+  "simulation_tick_p99_ms": 25,
+  "network_tick_p99_ms": 5,
+  "single_snapshot_construction_call_ms": 5,
+  "initial_object_count_receipt_p0_ms": 1000,
+  "initial_object_count_receipt_50ms_receive_delay_ms": 1500,
+  "offered_object_inventory_snapshot_bytes": 2097152,
+  "steady_sent_payload_mean_bytes_per_second_per_peer": 262144,
+  "steady_sent_payload_p95_complete_second_bytes_per_peer": 262144,
+  "private_commit_increase_over_same_map_control_bytes_per_process": 33554432,
+  "minimum_contiguous_object_pool_headroom_fraction": 0.2,
+  "client_object_creation_failures": 0,
+  "pending_inventories_at_object_ready": 0,
+  "event_queue_overflows": 0,
+  "limits": [
+    "Separate simulation and network percentiles do not establish a combined frame percentile or full-frame 30 Hz qualification.",
+    "The five-millisecond snapshot-call target is intentionally below observed saturation results; failures are retained, not waived.",
+    "Initial object receipt is not complete persistent-state readiness or map/content loading.",
+    "The byte ceiling covers this object/inventory snapshot, not a complete future world snapshot or transport buffering.",
+    "Process memory delta includes non-network allocations and does not prove leak freedom or incremental network ownership.",
+    "Saturation fixtures intentionally exercise allocation failure and violate the playable pool-headroom target.",
+    "No low-end, Linux, Android, browser, rendered-frame, active AI/combat or multi-machine capacity claim follows."
+  ]
+}

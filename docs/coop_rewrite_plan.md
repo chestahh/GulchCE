@@ -227,6 +227,11 @@ behavior changes. Unsupported cases and historical quirks are named, not hidden.
 **Evidence:** Inventory, baseline revisions/configs, scenario manifest, logs,
 performance distributions and a runnable comparison/fault-injection plan.
 
+The [M0 Windows load measurements and desktop gates](coop_m0_load.md) now
+record real-engine snapshot saturation and local numeric targets. Their
+explicit platform, active-workload and complete-state limitations keep the
+full M0 gate open. They do not authorize M1 or change the capacity contracts.
+
 ### M1 — Refactor only what the replacement needs
 
 **Work:** In co-op-owned port code, introduce narrow interfaces for state
