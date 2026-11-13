@@ -1,0 +1,616 @@
+{
+  "m0b-ce-trace": {
+    "measured": true,
+    "window_qpc_seconds": [
+      21974.168427,
+      22031.128899
+    ],
+    "seconds": 56.960471999998845,
+    "comparison": {
+      "divergences": [],
+      "problems": [],
+      "figures": {
+        "seconds": 59,
+        "position_max": 0.17864489917150936,
+        "position_sum": 4.442216945942757,
+        "position_count": 80,
+        "aim_max": 1,
+        "mismatches": {},
+        "tick_offsets": [
+          0
+        ]
+      },
+      "drift": {
+        "samples": 731,
+        "apart": 25,
+        "mean": 1.615184678522572e-05,
+        "largest": 0.000654
+      },
+      "client_corrections": 375,
+      "early_exits": {
+        "host": null,
+        "client": null
+      }
+    },
+    "payload": {
+      "host": {
+        "sent": {
+          "bytes": 6806615,
+          "bytes_per_second": 119497.16638584276,
+          "complete_one_second_windows_bytes": {
+            "count": 56,
+            "mean": 119759.25,
+            "max": 161654,
+            "p50": 119834,
+            "p95": 147494,
+            "p99": 161654
+          },
+          "successful_calls": 6783,
+          "udp_bytes": 6788115
+        },
+        "received": {
+          "bytes": 188649,
+          "bytes_per_second": 3311.92831407724,
+          "complete_one_second_windows_bytes": {
+            "count": 56,
+            "mean": 3299.1071428571427,
+            "max": 4416,
+            "p50": 2690,
+            "p95": 4100,
+            "p99": 4416
+          },
+          "successful_calls": 2303,
+          "udp_bytes": 188313
+        }
+      },
+      "client": {
+        "sent": {
+          "bytes": 188649,
+          "bytes_per_second": 3311.92831407724,
+          "complete_one_second_windows_bytes": {
+            "count": 56,
+            "mean": 3299.1071428571427,
+            "max": 4416,
+            "p50": 2690,
+            "p95": 4100,
+            "p99": 4416
+          },
+          "successful_calls": 2303,
+          "udp_bytes": 0
+        },
+        "received": {
+          "bytes": 6806615,
+          "bytes_per_second": 119497.16638584276,
+          "complete_one_second_windows_bytes": {
+            "count": 56,
+            "mean": 119759.25,
+            "max": 161654,
+            "p50": 119834,
+            "p95": 147494,
+            "p99": 161654
+          },
+          "successful_calls": 6767,
+          "udp_bytes": 0
+        }
+      }
+    },
+    "binary_sha256": "527b0650084e00636709c4d1250e581700ffe81a227a6b3795852eefd4f4ff0b",
+    "peer_binary_sha256": {
+      "host": "527b0650084e00636709c4d1250e581700ffe81a227a6b3795852eefd4f4ff0b",
+      "client": "527b0650084e00636709c4d1250e581700ffe81a227a6b3795852eefd4f4ff0b"
+    },
+    "client_network_writes_world_units_by_kind": {
+      "0": {
+        "all": {
+          "count": 3291,
+          "mean": 0.04447175192032571,
+          "max": 1.6345385094987346,
+          "p50": 0.03174791752864673,
+          "p95": 0.11104834459090256,
+          "p99": 0.22797504624579978
+        },
+        "nonzero": {
+          "count": 3253,
+          "mean": 0.04499124979089822,
+          "max": 1.6345385094987346,
+          "p50": 0.03240117072696841,
+          "p95": 0.11129140343024088,
+          "p99": 0.22797504624579978
+        }
+      }
+    },
+    "client_state_write_max_per_observed_tick_world_units": {
+      "count": 1709,
+      "mean": 0.05418579667076842,
+      "max": 1.6345385094987346,
+      "p50": 0.04221932356445677,
+      "p95": 0.13831883992991065,
+      "p99": 0.3253372707279068
+    },
+    "inventory_queue_peak": 0.0,
+    "create_failure_counter_max": 0.0,
+    "event_queue_peak": 4.0,
+    "event_overflow_observations": 0,
+    "snapshots": [
+      {
+        "host_tick": 1.0,
+        "host_construction_ms": 2.2539999990840442,
+        "offered_message_bytes": 25988,
+        "serialized_object_entries": 163,
+        "host_begin_to_client_usable_ms": 4.1049999999813735,
+        "client_pending_inventories_at_usable": 0.0
+      }
+    ]
+  },
+  "m0b-late-loss-trace": {
+    "measured": true,
+    "window_qpc_seconds": [
+      22265.743214,
+      22326.47082
+    ],
+    "seconds": 60.72760600000038,
+    "comparison": {
+      "divergences": [],
+      "problems": [],
+      "figures": {
+        "seconds": 66,
+        "position_max": 0.43601146773910177,
+        "position_sum": 19.194737593540097,
+        "position_count": 130,
+        "aim_max": 1,
+        "mismatches": {
+          "alive": 2,
+          "grenades": 3
+        },
+        "tick_offsets": [
+          -2,
+          0
+        ]
+      },
+      "drift": {
+        "samples": 615,
+        "apart": 230,
+        "mean": 0.00038661951219512187,
+        "largest": 0.013336
+      },
+      "client_corrections": 0,
+      "early_exits": {
+        "host": null,
+        "client": null
+      }
+    },
+    "payload": {
+      "host": {
+        "sent": {
+          "bytes": 1692808,
+          "bytes_per_second": 27875.427857307423,
+          "complete_one_second_windows_bytes": {
+            "count": 60,
+            "mean": 27852.366666666665,
+            "max": 33089,
+            "p50": 27737,
+            "p95": 30413,
+            "p99": 33089
+          },
+          "successful_calls": 1960,
+          "udp_bytes": 1688300
+        },
+        "received": {
+          "bytes": 251665,
+          "bytes_per_second": 4144.16138847954,
+          "complete_one_second_windows_bytes": {
+            "count": 60,
+            "mean": 4148.866666666667,
+            "max": 5356,
+            "p50": 4100,
+            "p95": 4340,
+            "p99": 5356
+          },
+          "successful_calls": 2459,
+          "udp_bytes": 249589
+        }
+      },
+      "client": {
+        "sent": {
+          "bytes": 251788,
+          "bytes_per_second": 4146.186826465684,
+          "complete_one_second_windows_bytes": {
+            "count": 60,
+            "mean": 4148.866666666667,
+            "max": 5356,
+            "p50": 4100,
+            "p95": 4340,
+            "p99": 5356
+          },
+          "successful_calls": 2460,
+          "udp_bytes": 0
+        },
+        "received": {
+          "bytes": 1692808,
+          "bytes_per_second": 27875.427857307423,
+          "complete_one_second_windows_bytes": {
+            "count": 60,
+            "mean": 27852.366666666665,
+            "max": 33089,
+            "p50": 27737,
+            "p95": 30413,
+            "p99": 33089
+          },
+          "successful_calls": 1958,
+          "udp_bytes": 0
+        }
+      }
+    },
+    "binary_sha256": "527b0650084e00636709c4d1250e581700ffe81a227a6b3795852eefd4f4ff0b",
+    "peer_binary_sha256": {
+      "host": "527b0650084e00636709c4d1250e581700ffe81a227a6b3795852eefd4f4ff0b",
+      "client": "527b0650084e00636709c4d1250e581700ffe81a227a6b3795852eefd4f4ff0b"
+    },
+    "client_network_writes_world_units_by_kind": {
+      "0": {
+        "all": {
+          "count": 128,
+          "mean": 0.028356702631261478,
+          "max": 0.05362532210438261,
+          "p50": 0.026566609214231904,
+          "p95": 0.03762277953533332,
+          "p99": 0.04905634534042767
+        },
+        "nonzero": {
+          "count": 128,
+          "mean": 0.028356702631261478,
+          "max": 0.05362532210438261,
+          "p50": 0.026566609214231904,
+          "p95": 0.03762277953533332,
+          "p99": 0.04905634534042767
+        }
+      }
+    },
+    "client_state_write_max_per_observed_tick_world_units": {
+      "count": 1822,
+      "mean": 0.0018028286829687831,
+      "max": 0.05362532210438261,
+      "p50": 0.0,
+      "p95": 0.02546313653722423,
+      "p99": 0.03135236681927024
+    },
+    "inventory_queue_peak": 0.0,
+    "create_failure_counter_max": 0.0,
+    "event_queue_peak": 11.0,
+    "event_overflow_observations": 0,
+    "snapshots": [
+      {
+        "host_tick": 487.0,
+        "host_construction_ms": 0.14899999951012433,
+        "offered_message_bytes": 14460,
+        "serialized_object_entries": 106,
+        "host_begin_to_client_usable_ms": 53.263999998307554,
+        "client_pending_inventories_at_usable": 0.0
+      }
+    ]
+  },
+  "m0b-mcc-trace": {
+    "measured": true,
+    "window_qpc_seconds": [
+      22120.636973,
+      22177.25762
+    ],
+    "seconds": 56.620646999999735,
+    "comparison": {
+      "divergences": [],
+      "problems": [],
+      "figures": {
+        "seconds": 60,
+        "position_max": 0.07404052944164884,
+        "position_sum": 1.5162877260692047,
+        "position_count": 102,
+        "aim_max": 1,
+        "mismatches": {
+          "grenades": 1
+        },
+        "tick_offsets": [
+          0
+        ]
+      },
+      "drift": {
+        "samples": 1797,
+        "apart": 53,
+        "mean": 0.007187481357818585,
+        "largest": 12.882087
+      },
+      "client_corrections": 157,
+      "early_exits": {
+        "host": null,
+        "client": null
+      }
+    },
+    "payload": {
+      "host": {
+        "sent": {
+          "bytes": 7550174,
+          "bytes_per_second": 133346.65709489395,
+          "complete_one_second_windows_bytes": {
+            "count": 56,
+            "mean": 133362.125,
+            "max": 153818,
+            "p50": 130927,
+            "p95": 150566,
+            "p99": 153818
+          },
+          "successful_calls": 7764,
+          "udp_bytes": 7544457
+        },
+        "received": {
+          "bytes": 234080,
+          "bytes_per_second": 4134.180946395775,
+          "complete_one_second_windows_bytes": {
+            "count": 56,
+            "mean": 4136.285714285715,
+            "max": 4580,
+            "p50": 4100,
+            "p95": 4560,
+            "p99": 4580
+          },
+          "successful_calls": 2310,
+          "udp_bytes": 231488
+        }
+      },
+      "client": {
+        "sent": {
+          "bytes": 234080,
+          "bytes_per_second": 4134.180946395775,
+          "complete_one_second_windows_bytes": {
+            "count": 56,
+            "mean": 4136.285714285715,
+            "max": 4580,
+            "p50": 4100,
+            "p95": 4560,
+            "p99": 4580
+          },
+          "successful_calls": 2310,
+          "udp_bytes": 0
+        },
+        "received": {
+          "bytes": 7550174,
+          "bytes_per_second": 133346.65709489395,
+          "complete_one_second_windows_bytes": {
+            "count": 56,
+            "mean": 133362.125,
+            "max": 153818,
+            "p50": 130927,
+            "p95": 150566,
+            "p99": 153818
+          },
+          "successful_calls": 7758,
+          "udp_bytes": 0
+        }
+      }
+    },
+    "binary_sha256": "527b0650084e00636709c4d1250e581700ffe81a227a6b3795852eefd4f4ff0b",
+    "peer_binary_sha256": {
+      "host": "527b0650084e00636709c4d1250e581700ffe81a227a6b3795852eefd4f4ff0b",
+      "client": "527b0650084e00636709c4d1250e581700ffe81a227a6b3795852eefd4f4ff0b"
+    },
+    "client_network_writes_world_units_by_kind": {
+      "0": {
+        "all": {
+          "count": 1317,
+          "mean": 0.03435414215218128,
+          "max": 12.882086406996118,
+          "p50": 0.025020156448776962,
+          "p95": 0.06970080215704284,
+          "p99": 0.10847560236453893
+        },
+        "nonzero": {
+          "count": 980,
+          "mean": 0.04616776042288035,
+          "max": 12.882086406996118,
+          "p50": 0.02726431207030671,
+          "p95": 0.07722098036154378,
+          "p99": 0.1298382068586219
+        }
+      }
+    },
+    "client_state_write_max_per_observed_tick_world_units": {
+      "count": 1699,
+      "mean": 0.02288153630615874,
+      "max": 12.882086406996118,
+      "p50": 0.0,
+      "p95": 0.06395482952796,
+      "p99": 0.09790080615307771
+    },
+    "inventory_queue_peak": 0.0,
+    "create_failure_counter_max": 0.0,
+    "event_queue_peak": 5.0,
+    "event_overflow_observations": 0,
+    "snapshots": [
+      {
+        "host_tick": 16.0,
+        "host_construction_ms": 4.1139999993902165,
+        "offered_message_bytes": 30388,
+        "serialized_object_entries": 188,
+        "host_begin_to_client_usable_ms": 6.31000000066706,
+        "client_pending_inventories_at_usable": 0.0
+      }
+    ]
+  },
+  "m0b-xbox-recovery-trace": {
+    "measured": true,
+    "window_qpc_seconds": [
+      21860.985772,
+      21923.482928
+    ],
+    "seconds": 62.49715600000127,
+    "comparison": {
+      "divergences": [],
+      "problems": [],
+      "figures": {
+        "seconds": 65,
+        "position_max": 0.07325298628724092,
+        "position_sum": 2.4520400347585567,
+        "position_count": 119,
+        "aim_max": 1,
+        "mismatches": {
+          "grenades": 3
+        },
+        "tick_offsets": [
+          0
+        ]
+      },
+      "drift": {
+        "samples": 1947,
+        "apart": 78,
+        "mean": 5.563841807909605e-05,
+        "largest": 0.033013
+      },
+      "client_corrections": 20,
+      "early_exits": {
+        "host": null,
+        "client": null
+      }
+    },
+    "payload": {
+      "host": {
+        "sent": {
+          "bytes": 1736536,
+          "bytes_per_second": 27785.84036687949,
+          "complete_one_second_windows_bytes": {
+            "count": 62,
+            "mean": 27786.3064516129,
+            "max": 43059,
+            "p50": 27697,
+            "p95": 28061,
+            "p99": 43059
+          },
+          "successful_calls": 2099,
+          "udp_bytes": 1717958
+        },
+        "received": {
+          "bytes": 259045,
+          "bytes_per_second": 4144.908609921302,
+          "complete_one_second_windows_bytes": {
+            "count": 62,
+            "mean": 4146.903225806452,
+            "max": 5423,
+            "p50": 4100,
+            "p95": 4436,
+            "p99": 5423
+          },
+          "successful_calls": 2537,
+          "udp_bytes": 255517
+        }
+      },
+      "client": {
+        "sent": {
+          "bytes": 259045,
+          "bytes_per_second": 4144.908609921302,
+          "complete_one_second_windows_bytes": {
+            "count": 62,
+            "mean": 4146.903225806452,
+            "max": 5300,
+            "p50": 4100,
+            "p95": 4436,
+            "p99": 5300
+          },
+          "successful_calls": 2537,
+          "udp_bytes": 0
+        },
+        "received": {
+          "bytes": 1736536,
+          "bytes_per_second": 27785.84036687949,
+          "complete_one_second_windows_bytes": {
+            "count": 62,
+            "mean": 27786.3064516129,
+            "max": 43059,
+            "p50": 27697,
+            "p95": 28061,
+            "p99": 43059
+          },
+          "successful_calls": 2083,
+          "udp_bytes": 0
+        }
+      }
+    },
+    "binary_sha256": "527b0650084e00636709c4d1250e581700ffe81a227a6b3795852eefd4f4ff0b",
+    "peer_binary_sha256": {
+      "host": "527b0650084e00636709c4d1250e581700ffe81a227a6b3795852eefd4f4ff0b",
+      "client": "527b0650084e00636709c4d1250e581700ffe81a227a6b3795852eefd4f4ff0b"
+    },
+    "client_network_writes_world_units_by_kind": {
+      "0": {
+        "all": {
+          "count": 176,
+          "mean": 0.007486075540163489,
+          "max": 0.04217876736238947,
+          "p50": 0.0,
+          "p95": 0.03467548084973598,
+          "p99": 0.04031340341204892
+        },
+        "nonzero": {
+          "count": 47,
+          "mean": 0.02803296372486753,
+          "max": 0.04217876736238947,
+          "p50": 0.025659673941921635,
+          "p95": 0.03816564217524754,
+          "p99": 0.04217876736238947
+        }
+      },
+      "1": {
+        "all": {
+          "count": 89,
+          "mean": 0.008156607446427528,
+          "max": 0.6624513153453678,
+          "p50": 0.0,
+          "p95": 0.0078125,
+          "p99": 0.6624513153453678
+        },
+        "nonzero": {
+          "count": 11,
+          "mean": 0.06599436933927728,
+          "max": 0.6624513153453678,
+          "p50": 0.0077667311273025294,
+          "p95": 0.6624513153453678,
+          "p99": 0.6624513153453678
+        }
+      }
+    },
+    "client_state_write_max_per_observed_tick_world_units": {
+      "count": 1875,
+      "mean": 0.0007026929573700128,
+      "max": 0.04217876736238947,
+      "p50": 0.0,
+      "p95": 0.0,
+      "p99": 0.02574251646092981
+    },
+    "inventory_queue_peak": 0.0,
+    "create_failure_counter_max": 0.0,
+    "event_queue_peak": 11.0,
+    "event_overflow_observations": 0,
+    "snapshots": [
+      {
+        "host_tick": 1.0,
+        "host_construction_ms": 0.2630000017234124,
+        "offered_message_bytes": 14592,
+        "serialized_object_entries": 107,
+        "host_begin_to_client_usable_ms": 1.3870000002498273,
+        "client_pending_inventories_at_usable": 0.0
+      },
+      {
+        "host_tick": 100.0,
+        "host_construction_ms": 0.15800000255694613,
+        "offered_message_bytes": 14592,
+        "serialized_object_entries": 107,
+        "host_begin_to_client_usable_ms": 1.5730000013718382,
+        "client_pending_inventories_at_usable": 0.0
+      },
+      {
+        "host_tick": 1152.0,
+        "host_construction_ms": 0.10399999882793054,
+        "offered_message_bytes": 13664,
+        "serialized_object_entries": 99,
+        "host_begin_to_client_usable_ms": 1.2439999991329387,
+        "client_pending_inventories_at_usable": 0.0
+      }
+    ]
+  }
+}

@@ -194,8 +194,10 @@ its full gate is rerun with every domain through M10 and at M11/M12.
 
 **Recorded work (12 November 2026):** See the [M0 inventory and baseline](coop_m0.md),
 [source index](coop_m0_inventory.md) and [numerical results](coop_m0_results.json).
-The available Windows baseline and source audit are recorded; the full exit
-gate remains open for the explicitly listed measurement/platform gaps.
+The [12–13 November follow-up](coop_m0_followup.md) adds ordinary two-peer
+measurements, web builds and browser/native admission checks, a testing-delta
+audit and stronger negative progression evidence. The full exit gate remains
+open for the named qualification, capacity and platform gaps.
 No M1 implementation is authorized by this status entry.
 
 **Work:** Build a state-and-action ledger from every message kind, producer,

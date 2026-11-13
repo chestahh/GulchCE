@@ -1,5 +1,11 @@
 # M0: network co-op inventory and baseline
 
+**Follow-up:** The [12–13 November measurement and qualification report](coop_m0_followup.md)
+adds payload/snapshot/correction captures, web and browser interoperability,
+revision-delta tests and stronger progression evidence. It updates the open
+items below; this original report retains its historical run results. M0's
+full exit gate remains open and M1 remains unstarted.
+
 Investigation dated 12 November 2026. Baseline: `a8ac6e6b6`, whose game code
 is GulchCE testing `887d9ac9d`; the intervening commits contain investigation
 and planning only. Branch: `investigate-coop-rewrite`, local and unpublished.

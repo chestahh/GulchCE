@@ -45,6 +45,7 @@ def memory(process):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--binary', type=Path, required=True)
+    parser.add_argument('--client-binary', type=Path, help='Optional uninstrumented peer for diagnostic compatibility checks')
     parser.add_argument('--maps', type=Path, required=True)
     parser.add_argument('--profile', type=Path, required=True, help='Existing blam.sav; copied only')
     parser.add_argument('--output', type=Path, required=True)
@@ -61,6 +62,11 @@ def main():
     parser.add_argument('--cues', default='')
     parser.add_argument('--record-profile', action='store_true')
     parser.add_argument('--events', action='store_true', help='Existing scripted hit/kill/vehicle/pickup controls')
+    parser.add_argument('--selected-profile', action='store_true', help='Write copied-profile directory metadata; fast setup alone does not activate it')
+    parser.add_argument('--activate-profile', action='store_true', help='Activate the private profile in the generated M0 fixture build only')
+    parser.add_argument('--fresh-profile', action='store_true', help='Create a new private profile through the existing engine API in the M0 fixture build')
+    parser.add_argument('--start-next-lobby', action='store_true', help='Request one next lobby Start in the generated M0 fixture build only')
+    parser.add_argument('--input', choices=['bot', 'look', 'none'], default='bot')
     args = parser.parse_args()
     if os.name != 'nt':
         parser.error('This observer uses Windows process/memory APIs')
@@ -76,8 +82,9 @@ def main():
         for index, role in enumerate(('host', 'client')):
             folder = root / role
             (folder / 'maps').mkdir(parents=True)
-            shutil.copy2(binary, folder / 'halo.exe')
-            shutil.copy2(binary.parent / 'SDL3.dll', folder / 'SDL3.dll')
+            peer_binary = args.client_binary.resolve() if index and args.client_binary else binary
+            shutil.copy2(peer_binary, folder / 'halo.exe')
+            shutil.copy2(peer_binary.parent / 'SDL3.dll', folder / 'SDL3.dll')
             names = ['ui.map', 'carousel.map']
             if args.family == 'xbox':
                 names.append(args.level.split('\\')[-1] + '.map')
@@ -108,8 +115,27 @@ def main():
             profile = folder / 'saves' / 'u' / 'UDATA' / args.profile.parent.name
             profile.mkdir(parents=True)
             shutil.copy2(args.profile, profile / 'blam.sav')
+            metadata = args.profile.parent / 'SaveMeta.xbx'
+            if metadata.is_file():
+                shutil.copy2(metadata, profile / metadata.name)
+            manifest['profile_fixture'] = {'profile_sha256': digest(args.profile),
+                'metadata_sha256': digest(metadata) if metadata.is_file() else None}
+            if args.selected_profile or args.activate_profile:
+                directory = f'u:\\UDATA\\{args.profile.parent.name}\\'.encode('ascii')
+                if len(directory) >= 256:
+                    raise ValueError('Profile directory exceeds the engine record')
+                (folder / 'saves/z').mkdir(parents=True, exist_ok=True)
+                (folder / 'saves/z/lastprof.txt').write_bytes(directory.ljust(256, b'\0'))
             (folder / 'config.toml').write_text('[display]\nfullscreen=false\n')
             env = {key: value for key, value in os.environ.items() if not key.startswith('HALO_')}
+            for key in ('M0_ACTIVATE_PROFILE', 'M0_START_NEXT_LOBBY', 'M0_FRESH_PROFILE'):
+                env.pop(key, None)
+            if args.activate_profile or args.fresh_profile:
+                env['M0_ACTIVATE_PROFILE'] = '1'
+            if args.fresh_profile:
+                env['M0_FRESH_PROFILE'] = '1'
+            if args.start_next_lobby and not index:
+                env['M0_START_NEXT_LOBBY'] = '1'
             env.update(SDL_VIDEO_DRIVER='dummy', SDL_AUDIO_DRIVER='dummy', HALO_NULL_RENDERER='1',
                        HALO_HIDDEN_WINDOW='1', HALO_NO_AUDIO='1', HALO_NET_ONLINE='0',
                        HALO_NET_PUBLIC_LOBBY='0', HALO_NET_ALLOW_UPNP='0', HALO_MAX_FPS='30',
@@ -120,7 +146,8 @@ def main():
                        HALO_NET_BROADCAST=f'127.0.0.{237-index}', HALO_DATA_ROOT=str(folder),
                        HALO_SAVE_ROOT=str(folder / 'saves'), HALO_UPDATE_ANSWER='never',
                        HALO_UPDATE_AUTO='0', HALO_DISCORD_APPLICATION='',
-                       HALO_SESSION_COMPATIBILITY='opence_crossplay', HALO_TEST_INPUT=f'bot:{1+index}',
+                       HALO_SESSION_COMPATIBILITY='opence_crossplay',
+                       HALO_TEST_INPUT=f'{args.input}:{1+index}' if args.input != 'none' else '',
                        HALO_EXIT_AFTER=str(args.seconds + args.late + 150),
                        HALO_NETWORK_LATENCY=str(args.latency), HALO_NETWORK_LOSS=str(args.loss),
                        HALO_NETWORK_TEST_CUE_PLAYERS='2', HALO_NETWORK_TEST_CUES=args.cues if not index else '',
@@ -135,8 +162,8 @@ def main():
             process = subprocess.Popen([str(folder / 'halo.exe')], cwd=folder, env=env,
                                        creationflags=subprocess.CREATE_NO_WINDOW)
             jobs.append((role, folder, process))
-            manifest['peers'][role] = {'pid': process.pid, 'environment': {
-                key: value for key, value in env.items() if key.startswith(('HALO_', 'SDL_'))}}
+            manifest['peers'][role] = {'pid': process.pid, 'binary_sha256': digest(peer_binary), 'environment': {
+                key: value for key, value in env.items() if key.startswith(('HALO_', 'SDL_', 'M0_'))}}
         deadline = time.monotonic() + args.seconds + 75
         ready_since = None
         while time.monotonic() < deadline:
