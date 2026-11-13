@@ -1,0 +1,2906 @@
+{
+  "date": "2026-11-13",
+  "source_revision": "e52993ad4ca1aafea3ae7fa4269eb041c799fd8a",
+  "configuration": "Windows release portable PGO-off LTO-off; generated-only controls/faults",
+  "binary_sha256": "9fb4a9a109a6a917d90d2f49098b0cd5c8029900d26da4ff1639a9301aa8d476",
+  "generated_files": {
+    "port/windows/src/win32_net.c": {
+      "source_sha256": "3b5f5441175b72ddb778009beeb327d1c89775c74e0ca49c4c00f3eb4d48e76c",
+      "copy_sha256": "e366d47baef09bd3cbecbb7c8d0c81042e74556fd85c24a1c628dba1a320c203"
+    },
+    "port/linux/game/network_objects.c": {
+      "source_sha256": "4892f109c784213c56e61f2b75b9b07b9d65c9d3500f3d7a14889f28025ee552",
+      "copy_sha256": "10f526c444660f79cbb1d5203c64726542ea732a0cccf6249470dcdbba5abb17"
+    },
+    "port/linux/game/network_distributed.c": {
+      "source_sha256": "11bf034c6ce01014073a1efe305a47bc9f7d69059d233fec42837f3ea7f80c8a",
+      "copy_sha256": "37f91029504b93480f50a469f398f488113ce6b14750a614e488ebc57681a0f1"
+    },
+    "port/linux/game/network_coop.c": {
+      "source_sha256": "a19a999cd8866307d6ea69c6e32b86d4454bd4d39f5bf66267f63a74bf0266e3",
+      "copy_sha256": "daf7e4cf893d22a47c2625c9cae1050c2136d00afcc60d86d793b2df86c19f9e"
+    },
+    "port/linux/game/network_test.c": {
+      "source_sha256": "d97c0f5569c0db474d9719d587e3956bec57b586567c04bcbb21e38011cadf4d",
+      "copy_sha256": "a1f67863b4b9e905459cfed18d9eb8bb87211fe62dfae8d1705e8e8baea88f5c"
+    },
+    "source/interface/hud_messaging.c": {
+      "source_sha256": "7d3ad62a2d766c2315556fb46730a72b8f5d6b6c73058ac52ccaced812712973",
+      "copy_sha256": "be29d8486bc0cf63826bdb0d2532e1e7cc2e10383bc69c63a5deea99e505a1ec"
+    },
+    "source/interface/hud_nav_points.c": {
+      "source_sha256": "6fa800eb47b1a0cad318754392f89a2b6c68b69b084061d4c7ff2cc44434cf13",
+      "copy_sha256": "d2bdcb9821aff1f57aac09987fe2d6169c11ba9fa1f3e9d004e61ad353729e8c"
+    },
+    "source/objects/objects.c": {
+      "source_sha256": "2a2cf825a75bb7f6180a74f0d422785491fa83b93f56bacc8f23239b17a0221f",
+      "copy_sha256": "6faa9f571d1d5285db96ee5b746ccb48dbc5cb965df171ea8f146a10969c1613"
+    }
+  },
+  "content": {
+    "a30.map": {
+      "bytes": 152610816,
+      "sha256": "4875fa105e6c517589a796cfdcc7fcaa07e98df13d14e601bfc9eb1eab7e30b5"
+    },
+    "carousel.map": {
+      "bytes": 20215808,
+      "sha256": "1c6353df6e4530437841b09775e62fa067caa46bb0e40f4579bbf2276991a38e"
+    },
+    "ui.map": {
+      "bytes": 14145536,
+      "sha256": "35e3e560478d85178749be310ad13d6d6ecde618d32675261a3554592333a833"
+    },
+    "ce/b30.map": {
+      "bytes": 201578087,
+      "sha256": "baec59d37cf8d3f017dd3ac0d61fb431087490eeb1c469b2071ae2aec66ca24a"
+    },
+    "bitmaps.map": {
+      "bytes": 123547749,
+      "sha256": "317658e0ebd4aa189bac68e994fe0b515928f44d17b62ba676d8850aa329dd3d"
+    },
+    "sounds.map": {
+      "bytes": 41718640,
+      "sha256": "81658a8d9b127b2771558a35e664ec3f1a2b370f271fe957426d945001ceb5d2"
+    },
+    "loc.map": {
+      "bytes": 391996,
+      "sha256": "1321e17b5a86be84b1930b6eb2e7fdfe9285275d5d54cbe3d4a3635e2bf04041"
+    },
+    "mcc/a10.map": {
+      "bytes": 407040369,
+      "sha256": "3f7eaaaf27358591a1a1ae7ed99e3fdf9a826af4a4fa5ef1dd4757538ae0fed2"
+    }
+  },
+  "runs": [
+    {
+      "case": "xbox-cross-control",
+      "complete_sequence": true,
+      "early_exits": {
+        "host": null,
+        "client": null
+      },
+      "discarded_final_captures": {
+        "host": [],
+        "client": []
+      },
+      "trailing_gate_half_pair": null,
+      "allocations": [
+        {
+          "time": 12604.840238,
+          "kind": "identity_new",
+          "v": [
+            1002.0,
+            0.0,
+            -456523765.0,
+            -437058433.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "time": 12610.85465,
+          "kind": "identity_new",
+          "v": [
+            1182.0,
+            1.0,
+            -456458229.0,
+            -320795795.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "time": 12637.855174,
+          "kind": "identity_new",
+          "v": [
+            1992.0,
+            2.0,
+            -456458229.0,
+            -320795795.0,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "additions": [
+        {
+          "time": 12604.840243,
+          "kind": "identity_add",
+          "v": [
+            1002.0,
+            0.0,
+            -457768376.0,
+            -456523765.0,
+            1.0,
+            0.0
+          ]
+        }
+      ],
+      "reverts": [
+        {
+          "time": 12613.87382,
+          "kind": "identity_revert",
+          "v": [
+            1272.0,
+            180.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "time": 12640.875307,
+          "kind": "identity_revert",
+          "v": [
+            2082.0,
+            990.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "fault_events": [
+        {
+          "time": 12604.869863,
+          "kind": "fault_target",
+          "v": [
+            1002.0,
+            -456523765.0,
+            -457768376.0,
+            -437058433.0,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "original": -456523765.0,
+      "slot": 11,
+      "units": [
+        -457768376.0,
+        -456851447.0
+      ],
+      "definitions": [
+        -437058433.0,
+        -320795795.0
+      ],
+      "replacements": [
+        {
+          "time": 12610.854656,
+          "kind": "cross_replacement",
+          "v": [
+            1182.0,
+            1.0,
+            -456523765.0,
+            -456458229.0,
+            0.0,
+            -320795795.0
+          ]
+        },
+        {
+          "time": 12637.85518,
+          "kind": "cross_replacement",
+          "v": [
+            1992.0,
+            2.0,
+            -456523765.0,
+            -456458229.0,
+            0.0,
+            -320795795.0
+          ]
+        }
+      ],
+      "save": {
+        "time": 12607.854282,
+        "kind": "checkpoint_saved",
+        "v": [
+          1092.0,
+          1.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "later_saves": [],
+      "mutations_observed": {
+        "changed": {
+          "host": {
+            "same_slot_new_generation": true,
+            "saved_weapon": true,
+            "replacement_biped": true,
+            "saved_inventory": true,
+            "changed_empty_inventory": true,
+            "saved_primary_rounds": true,
+            "post_save_absence_at_save": true
+          },
+          "client": {
+            "same_slot_new_generation": true,
+            "saved_weapon": true,
+            "replacement_biped": true,
+            "saved_inventory": true,
+            "changed_empty_inventory": true,
+            "saved_primary_rounds": true,
+            "post_save_absence_at_save": true
+          }
+        },
+        "changed_again": {
+          "host": {
+            "same_slot_new_generation": true,
+            "saved_weapon": true,
+            "replacement_biped": true,
+            "saved_inventory": true,
+            "changed_empty_inventory": true,
+            "saved_primary_rounds": true,
+            "post_save_absence_at_save": true
+          },
+          "client": {
+            "same_slot_new_generation": true,
+            "saved_weapon": true,
+            "replacement_biped": true,
+            "saved_inventory": true,
+            "changed_empty_inventory": true,
+            "saved_primary_rounds": true,
+            "post_save_absence_at_save": true
+          }
+        }
+      },
+      "recovery_windows": {
+        "1": {
+          "ended_at_later_save": false,
+          "client_gate": {
+            "samples": 719,
+            "ready_samples": 719,
+            "ready_with_incomplete_state": 0,
+            "ready_missing_target": 0,
+            "ready_wrong_inventory": 0,
+            "ready_while_objects_unsynchronized": 0,
+            "maximum_pending_inventories": 0.0,
+            "first_ready_incomplete_after_revert_seconds": null,
+            "last_ready_incomplete_after_revert_seconds": null,
+            "first_complete_after_revert_seconds": 0.028952999999091844,
+            "incorrect_samples_after_first_complete": 0
+          },
+          "peers": {
+            "host": {
+              "samples": 24,
+              "wrong_saved_value_samples": {
+                "slot_contents": 0,
+                "post_save_presence": 0,
+                "inventories": 0,
+                "all_tracked_inventory_references": 0,
+                "owners": 0,
+                "primary_magazines": 0
+              },
+              "tail_samples": 6,
+              "tail_span_seconds": 4.99992199999906,
+              "tail_wrong_saved_value_samples": {
+                "slot_contents": 0,
+                "post_save_presence": 0,
+                "inventories": 0,
+                "all_tracked_inventory_references": 0,
+                "owners": 0,
+                "primary_magazines": 0
+              },
+              "tail_unresolved_references": 0
+            },
+            "client": {
+              "samples": 24,
+              "wrong_saved_value_samples": {
+                "slot_contents": 0,
+                "post_save_presence": 0,
+                "inventories": 0,
+                "all_tracked_inventory_references": 0,
+                "owners": 0,
+                "primary_magazines": 0
+              },
+              "tail_samples": 6,
+              "tail_span_seconds": 4.999894000000495,
+              "tail_wrong_saved_value_samples": {
+                "slot_contents": 0,
+                "post_save_presence": 0,
+                "inventories": 0,
+                "all_tracked_inventory_references": 0,
+                "owners": 0,
+                "primary_magazines": 0
+              },
+              "tail_unresolved_references": 0
+            }
+          }
+        },
+        "2": {
+          "ended_at_later_save": false,
+          "client_gate": {
+            "samples": 1583,
+            "ready_samples": 1583,
+            "ready_with_incomplete_state": 0,
+            "ready_missing_target": 0,
+            "ready_wrong_inventory": 0,
+            "ready_while_objects_unsynchronized": 0,
+            "maximum_pending_inventories": 0.0,
+            "first_ready_incomplete_after_revert_seconds": null,
+            "last_ready_incomplete_after_revert_seconds": null,
+            "first_complete_after_revert_seconds": 0.027849000000060187,
+            "incorrect_samples_after_first_complete": 0
+          },
+          "peers": {
+            "host": {
+              "samples": 54,
+              "wrong_saved_value_samples": {
+                "slot_contents": 0,
+                "post_save_presence": 0,
+                "inventories": 0,
+                "all_tracked_inventory_references": 0,
+                "owners": 0,
+                "primary_magazines": 0
+              },
+              "tail_samples": 5,
+              "tail_span_seconds": 3.999982999999702,
+              "tail_wrong_saved_value_samples": {
+                "slot_contents": 0,
+                "post_save_presence": 0,
+                "inventories": 0,
+                "all_tracked_inventory_references": 0,
+                "owners": 0,
+                "primary_magazines": 0
+              },
+              "tail_unresolved_references": 0
+            },
+            "client": {
+              "samples": 53,
+              "wrong_saved_value_samples": {
+                "slot_contents": 0,
+                "post_save_presence": 0,
+                "inventories": 0,
+                "all_tracked_inventory_references": 0,
+                "owners": 0,
+                "primary_magazines": 0
+              },
+              "tail_samples": 6,
+              "tail_span_seconds": 4.9999060000009194,
+              "tail_wrong_saved_value_samples": {
+                "slot_contents": 0,
+                "post_save_presence": 0,
+                "inventories": 0,
+                "all_tracked_inventory_references": 0,
+                "owners": 0,
+                "primary_magazines": 0
+              },
+              "tail_unresolved_references": 0
+            }
+          }
+        }
+      },
+      "epoch_sequence_valid": true,
+      "fault_observations_complete": true,
+      "sample_skew_within_1_1_seconds": true,
+      "mode": "control",
+      "unchanged_net_compare": {
+        "problems": [],
+        "divergences": []
+      },
+      "evidence": {
+        "folder": "build/m0/recovery-faults/xbox-cross-control",
+        "archive_sha256": "ee428c36f4853febff025a2618a825c11e37b1a55c5001e16262e413f40ad345",
+        "manifest_sha256": "9ceaf49bf924d933819a2884ce71bdd3989e2b5d5e17006620730f8efef6a81f",
+        "full_reduction_sha256": "78fdddc3fa63dfd6c0fba549e06566187d9f5cda8d1f6a95ba4841b359d46fc0"
+      },
+      "sample_checks": {
+        "saved": {
+          "skew_seconds": 0.3667800000002899,
+          "epochs": {
+            "host": [
+              1.0,
+              0.0
+            ],
+            "client": [
+              1.0,
+              1.0
+            ]
+          },
+          "reference_failures": {
+            "host": [],
+            "client": []
+          },
+          "peer_disagreement": {}
+        },
+        "changed": {
+          "skew_seconds": 0.01481199999943783,
+          "epochs": {
+            "host": [
+              1.0,
+              0.0
+            ],
+            "client": [
+              1.0,
+              1.0
+            ]
+          },
+          "reference_failures": {
+            "host": [],
+            "client": []
+          },
+          "peer_disagreement": {}
+        },
+        "restored": {
+          "skew_seconds": 0.014208000000508036,
+          "epochs": {
+            "host": [
+              2.0,
+              0.0
+            ],
+            "client": [
+              2.0,
+              1.0
+            ]
+          },
+          "reference_failures": {
+            "host": [],
+            "client": []
+          },
+          "peer_disagreement": {}
+        },
+        "changed_again": {
+          "skew_seconds": 0.014145999999527703,
+          "epochs": {
+            "host": [
+              2.0,
+              0.0
+            ],
+            "client": [
+              2.0,
+              1.0
+            ]
+          },
+          "reference_failures": {
+            "host": [],
+            "client": []
+          },
+          "peer_disagreement": {}
+        },
+        "restored_again": {
+          "skew_seconds": 0.38547600000129023,
+          "epochs": {
+            "host": [
+              3.0,
+              0.0
+            ],
+            "client": [
+              3.0,
+              1.0
+            ]
+          },
+          "reference_failures": {
+            "host": [],
+            "client": []
+          },
+          "peer_disagreement": {}
+        }
+      }
+    },
+    {
+      "case": "xbox-cross-faults",
+      "complete_sequence": true,
+      "early_exits": {
+        "host": null,
+        "client": null
+      },
+      "discarded_final_captures": {
+        "host": [],
+        "client": []
+      },
+      "trailing_gate_half_pair": null,
+      "allocations": [
+        {
+          "time": 12745.156416,
+          "kind": "identity_new",
+          "v": [
+            1003.0,
+            0.0,
+            -456523765.0,
+            -437058433.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "time": 12751.167683,
+          "kind": "identity_new",
+          "v": [
+            1183.0,
+            1.0,
+            -456458229.0,
+            -320795795.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "time": 12778.168292,
+          "kind": "identity_new",
+          "v": [
+            1993.0,
+            2.0,
+            -456458229.0,
+            -320795795.0,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "additions": [
+        {
+          "time": 12745.156421,
+          "kind": "identity_add",
+          "v": [
+            1003.0,
+            0.0,
+            -457768376.0,
+            -456523765.0,
+            1.0,
+            0.0
+          ]
+        }
+      ],
+      "reverts": [
+        {
+          "time": 12754.186337,
+          "kind": "identity_revert",
+          "v": [
+            1273.0,
+            180.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "time": 12781.186477,
+          "kind": "identity_revert",
+          "v": [
+            2083.0,
+            990.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "fault_events": [
+        {
+          "time": 12745.16075,
+          "kind": "fault_target",
+          "v": [
+            1001.0,
+            -456523765.0,
+            -457768376.0,
+            -437058433.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "time": 12754.186732,
+          "kind": "allocation_refused",
+          "v": [
+            1272.0,
+            -456523765.0,
+            2.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "time": 12754.186757,
+          "kind": "create_failed",
+          "v": [
+            1272.0,
+            -1.0,
+            330.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "time": 12781.187556,
+          "kind": "dependency_held",
+          "v": [
+            2082.0,
+            -456523765.0,
+            3.0,
+            2262.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "time": 12787.172874,
+          "kind": "dependency_released",
+          "v": [
+            2262.0,
+            -456523765.0,
+            3.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "original": -456523765.0,
+      "slot": 11,
+      "units": [
+        -457768376.0,
+        -456851447.0
+      ],
+      "definitions": [
+        -437058433.0,
+        -320795795.0
+      ],
+      "replacements": [
+        {
+          "time": 12751.167689,
+          "kind": "cross_replacement",
+          "v": [
+            1183.0,
+            1.0,
+            -456523765.0,
+            -456458229.0,
+            0.0,
+            -320795795.0
+          ]
+        },
+        {
+          "time": 12778.168298,
+          "kind": "cross_replacement",
+          "v": [
+            1993.0,
+            2.0,
+            -456523765.0,
+            -456458229.0,
+            0.0,
+            -320795795.0
+          ]
+        }
+      ],
+      "save": {
+        "time": 12748.167271,
+        "kind": "checkpoint_saved",
+        "v": [
+          1093.0,
+          1.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "later_saves": [],
+      "mutations_observed": {
+        "changed": {
+          "host": {
+            "same_slot_new_generation": true,
+            "saved_weapon": true,
+            "replacement_biped": true,
+            "saved_inventory": true,
+            "changed_empty_inventory": true,
+            "saved_primary_rounds": true,
+            "post_save_absence_at_save": true
+          },
+          "client": {
+            "same_slot_new_generation": true,
+            "saved_weapon": true,
+            "replacement_biped": true,
+            "saved_inventory": true,
+            "changed_empty_inventory": true,
+            "saved_primary_rounds": true,
+            "post_save_absence_at_save": true
+          }
+        },
+        "changed_again": {
+          "host": {
+            "same_slot_new_generation": true,
+            "saved_weapon": true,
+            "replacement_biped": true,
+            "saved_inventory": true,
+            "changed_empty_inventory": true,
+            "saved_primary_rounds": true,
+            "post_save_absence_at_save": true
+          },
+          "client": {
+            "same_slot_new_generation": true,
+            "saved_weapon": true,
+            "replacement_biped": true,
+            "saved_inventory": true,
+            "changed_empty_inventory": true,
+            "saved_primary_rounds": true,
+            "post_save_absence_at_save": true
+          }
+        }
+      },
+      "recovery_windows": {
+        "1": {
+          "ended_at_later_save": false,
+          "client_gate": {
+            "samples": 719,
+            "ready_samples": 719,
+            "ready_with_incomplete_state": 0,
+            "ready_missing_target": 0,
+            "ready_wrong_inventory": 0,
+            "ready_while_objects_unsynchronized": 330,
+            "maximum_pending_inventories": 0.0,
+            "first_ready_incomplete_after_revert_seconds": null,
+            "last_ready_incomplete_after_revert_seconds": null,
+            "first_complete_after_revert_seconds": 0.020153000001300825,
+            "incorrect_samples_after_first_complete": 0
+          },
+          "peers": {
+            "host": {
+              "samples": 24,
+              "wrong_saved_value_samples": {
+                "slot_contents": 0,
+                "post_save_presence": 0,
+                "inventories": 0,
+                "all_tracked_inventory_references": 0,
+                "owners": 0,
+                "primary_magazines": 0
+              },
+              "tail_samples": 6,
+              "tail_span_seconds": 4.9998669999986305,
+              "tail_wrong_saved_value_samples": {
+                "slot_contents": 0,
+                "post_save_presence": 0,
+                "inventories": 0,
+                "all_tracked_inventory_references": 0,
+                "owners": 0,
+                "primary_magazines": 0
+              },
+              "tail_unresolved_references": 0
+            },
+            "client": {
+              "samples": 24,
+              "wrong_saved_value_samples": {
+                "slot_contents": 0,
+                "post_save_presence": 0,
+                "inventories": 0,
+                "all_tracked_inventory_references": 0,
+                "owners": 0,
+                "primary_magazines": 0
+              },
+              "tail_samples": 5,
+              "tail_span_seconds": 4.00017299999854,
+              "tail_wrong_saved_value_samples": {
+                "slot_contents": 0,
+                "post_save_presence": 0,
+                "inventories": 0,
+                "all_tracked_inventory_references": 0,
+                "owners": 0,
+                "primary_magazines": 0
+              },
+              "tail_unresolved_references": 0
+            }
+          }
+        },
+        "2": {
+          "ended_at_later_save": false,
+          "client_gate": {
+            "samples": 1590,
+            "ready_samples": 1590,
+            "ready_with_incomplete_state": 179,
+            "ready_missing_target": 179,
+            "ready_wrong_inventory": 179,
+            "ready_while_objects_unsynchronized": 0,
+            "maximum_pending_inventories": 1.0,
+            "first_ready_incomplete_after_revert_seconds": 0.01961699999992561,
+            "last_ready_incomplete_after_revert_seconds": 5.95336800000041,
+            "first_complete_after_revert_seconds": 5.986445000000458,
+            "incorrect_samples_after_first_complete": 0
+          },
+          "peers": {
+            "host": {
+              "samples": 54,
+              "wrong_saved_value_samples": {
+                "slot_contents": 0,
+                "post_save_presence": 0,
+                "inventories": 0,
+                "all_tracked_inventory_references": 0,
+                "owners": 0,
+                "primary_magazines": 0
+              },
+              "tail_samples": 5,
+              "tail_span_seconds": 4.0000399999989895,
+              "tail_wrong_saved_value_samples": {
+                "slot_contents": 0,
+                "post_save_presence": 0,
+                "inventories": 0,
+                "all_tracked_inventory_references": 0,
+                "owners": 0,
+                "primary_magazines": 0
+              },
+              "tail_unresolved_references": 0
+            },
+            "client": {
+              "samples": 53,
+              "wrong_saved_value_samples": {
+                "slot_contents": 6,
+                "post_save_presence": 0,
+                "inventories": 6,
+                "all_tracked_inventory_references": 6,
+                "owners": 6,
+                "primary_magazines": 6
+              },
+              "tail_samples": 5,
+              "tail_span_seconds": 3.99982700000146,
+              "tail_wrong_saved_value_samples": {
+                "slot_contents": 0,
+                "post_save_presence": 0,
+                "inventories": 0,
+                "all_tracked_inventory_references": 0,
+                "owners": 0,
+                "primary_magazines": 0
+              },
+              "tail_unresolved_references": 0
+            }
+          }
+        }
+      },
+      "epoch_sequence_valid": true,
+      "fault_observations_complete": true,
+      "sample_skew_within_1_1_seconds": true,
+      "mode": "faults",
+      "unchanged_net_compare": {
+        "problems": [],
+        "divergences": [
+          {
+            "player": 0,
+            "field": "weapons",
+            "tick": 2100,
+            "detail": "host ['47f'] client []",
+            "seconds": 3
+          }
+        ]
+      },
+      "evidence": {
+        "folder": "build/m0/recovery-faults/xbox-cross-faults",
+        "archive_sha256": "bb204d78748caf6c98f288674f92c47876e7196f79a015ebe510896bf93cb612",
+        "manifest_sha256": "62e58fd9a6b8fb22b6168b264d668cb61cc6e597bcdf4628c49121f9017d5e49",
+        "full_reduction_sha256": "82070dfe8f57e4911943c8c4ebdc033763477cd10701f4ae60c49784549e5dce"
+      },
+      "sample_checks": {
+        "saved": {
+          "skew_seconds": 0.3802990000003774,
+          "epochs": {
+            "host": [
+              1.0,
+              0.0
+            ],
+            "client": [
+              1.0,
+              1.0
+            ]
+          },
+          "reference_failures": {
+            "host": [],
+            "client": []
+          },
+          "peer_disagreement": {}
+        },
+        "changed": {
+          "skew_seconds": 0.038570000000618165,
+          "epochs": {
+            "host": [
+              1.0,
+              0.0
+            ],
+            "client": [
+              1.0,
+              1.0
+            ]
+          },
+          "reference_failures": {
+            "host": [],
+            "client": []
+          },
+          "peer_disagreement": {}
+        },
+        "restored": {
+          "skew_seconds": 0.03818099999989499,
+          "epochs": {
+            "host": [
+              2.0,
+              0.0
+            ],
+            "client": [
+              2.0,
+              1.0
+            ]
+          },
+          "reference_failures": {
+            "host": [],
+            "client": []
+          },
+          "peer_disagreement": {}
+        },
+        "changed_again": {
+          "skew_seconds": 0.03802499999983411,
+          "epochs": {
+            "host": [
+              2.0,
+              0.0
+            ],
+            "client": [
+              2.0,
+              1.0
+            ]
+          },
+          "reference_failures": {
+            "host": [],
+            "client": []
+          },
+          "peer_disagreement": {}
+        },
+        "restored_again": {
+          "skew_seconds": 0.3947019999995973,
+          "epochs": {
+            "host": [
+              3.0,
+              0.0
+            ],
+            "client": [
+              3.0,
+              1.0
+            ]
+          },
+          "reference_failures": {
+            "host": [],
+            "client": []
+          },
+          "peer_disagreement": {}
+        }
+      }
+    },
+    {
+      "case": "ce-cross-control",
+      "complete_sequence": true,
+      "early_exits": {
+        "host": null,
+        "client": null
+      },
+      "discarded_final_captures": {
+        "host": [],
+        "client": []
+      },
+      "trailing_gate_half_pair": null,
+      "allocations": [
+        {
+          "time": 12906.223315,
+          "kind": "identity_new",
+          "v": [
+            1204.0,
+            0.0,
+            -305986602.0,
+            -370669452.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "time": 12912.245524,
+          "kind": "identity_new",
+          "v": [
+            1384.0,
+            1.0,
+            -280951850.0,
+            -492175050.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "time": 12939.24788,
+          "kind": "identity_new",
+          "v": [
+            2194.0,
+            2.0,
+            -190643242.0,
+            -492175050.0,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "additions": [
+        {
+          "time": 12906.223326,
+          "kind": "identity_add",
+          "v": [
+            1204.0,
+            0.0,
+            -431881261.0,
+            -305986602.0,
+            1.0,
+            0.0
+          ]
+        }
+      ],
+      "reverts": [
+        {
+          "time": 12915.2743,
+          "kind": "identity_revert",
+          "v": [
+            1474.0,
+            180.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "time": 12942.279669,
+          "kind": "identity_revert",
+          "v": [
+            2284.0,
+            990.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "fault_events": [
+        {
+          "time": 12906.228704,
+          "kind": "fault_target",
+          "v": [
+            1204.0,
+            -305986602.0,
+            -431881261.0,
+            -370669452.0,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "original": -305986602.0,
+      "slot": 982,
+      "units": [
+        -431881261.0,
+        -306380787.0
+      ],
+      "definitions": [
+        -370669452.0,
+        -492175050.0
+      ],
+      "replacements": [
+        {
+          "time": 12912.245529,
+          "kind": "cross_replacement",
+          "v": [
+            1384.0,
+            1.0,
+            -305986602.0,
+            -280951850.0,
+            0.0,
+            -492175050.0
+          ]
+        },
+        {
+          "time": 12939.247885,
+          "kind": "cross_replacement",
+          "v": [
+            2194.0,
+            2.0,
+            -305986602.0,
+            -190643242.0,
+            0.0,
+            -492175050.0
+          ]
+        }
+      ],
+      "save": {
+        "time": 12909.243026,
+        "kind": "checkpoint_saved",
+        "v": [
+          1294.0,
+          1.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "later_saves": [],
+      "mutations_observed": {
+        "changed": {
+          "host": {
+            "same_slot_new_generation": true,
+            "saved_weapon": true,
+            "replacement_biped": true,
+            "saved_inventory": true,
+            "changed_empty_inventory": true,
+            "saved_primary_rounds": true,
+            "post_save_absence_at_save": true
+          },
+          "client": {
+            "same_slot_new_generation": true,
+            "saved_weapon": true,
+            "replacement_biped": true,
+            "saved_inventory": true,
+            "changed_empty_inventory": true,
+            "saved_primary_rounds": true,
+            "post_save_absence_at_save": true
+          }
+        },
+        "changed_again": {
+          "host": {
+            "same_slot_new_generation": true,
+            "saved_weapon": true,
+            "replacement_biped": true,
+            "saved_inventory": true,
+            "changed_empty_inventory": true,
+            "saved_primary_rounds": true,
+            "post_save_absence_at_save": true
+          },
+          "client": {
+            "same_slot_new_generation": true,
+            "saved_weapon": true,
+            "replacement_biped": true,
+            "saved_inventory": true,
+            "changed_empty_inventory": true,
+            "saved_primary_rounds": true,
+            "post_save_absence_at_save": true
+          }
+        }
+      },
+      "recovery_windows": {
+        "1": {
+          "ended_at_later_save": false,
+          "client_gate": {
+            "samples": 719,
+            "ready_samples": 719,
+            "ready_with_incomplete_state": 0,
+            "ready_missing_target": 0,
+            "ready_wrong_inventory": 0,
+            "ready_while_objects_unsynchronized": 0,
+            "maximum_pending_inventories": 0.0,
+            "first_ready_incomplete_after_revert_seconds": null,
+            "last_ready_incomplete_after_revert_seconds": null,
+            "first_complete_after_revert_seconds": 0.017140000001745648,
+            "incorrect_samples_after_first_complete": 0
+          },
+          "peers": {
+            "host": {
+              "samples": 24,
+              "wrong_saved_value_samples": {
+                "slot_contents": 0,
+                "post_save_presence": 0,
+                "inventories": 0,
+                "all_tracked_inventory_references": 0,
+                "owners": 0,
+                "primary_magazines": 0
+              },
+              "tail_samples": 6,
+              "tail_span_seconds": 4.999631000000591,
+              "tail_wrong_saved_value_samples": {
+                "slot_contents": 0,
+                "post_save_presence": 0,
+                "inventories": 0,
+                "all_tracked_inventory_references": 0,
+                "owners": 0,
+                "primary_magazines": 0
+              },
+              "tail_unresolved_references": 0
+            },
+            "client": {
+              "samples": 24,
+              "wrong_saved_value_samples": {
+                "slot_contents": 0,
+                "post_save_presence": 0,
+                "inventories": 0,
+                "all_tracked_inventory_references": 0,
+                "owners": 0,
+                "primary_magazines": 0
+              },
+              "tail_samples": 5,
+              "tail_span_seconds": 3.999655999999959,
+              "tail_wrong_saved_value_samples": {
+                "slot_contents": 0,
+                "post_save_presence": 0,
+                "inventories": 0,
+                "all_tracked_inventory_references": 0,
+                "owners": 0,
+                "primary_magazines": 0
+              },
+              "tail_unresolved_references": 0
+            }
+          }
+        },
+        "2": {
+          "ended_at_later_save": false,
+          "client_gate": {
+            "samples": 1364,
+            "ready_samples": 1364,
+            "ready_with_incomplete_state": 0,
+            "ready_missing_target": 0,
+            "ready_wrong_inventory": 0,
+            "ready_while_objects_unsynchronized": 0,
+            "maximum_pending_inventories": 0.0,
+            "first_ready_incomplete_after_revert_seconds": null,
+            "last_ready_incomplete_after_revert_seconds": null,
+            "first_complete_after_revert_seconds": 0.012701999999990221,
+            "incorrect_samples_after_first_complete": 0
+          },
+          "peers": {
+            "host": {
+              "samples": 46,
+              "wrong_saved_value_samples": {
+                "slot_contents": 0,
+                "post_save_presence": 0,
+                "inventories": 0,
+                "all_tracked_inventory_references": 0,
+                "owners": 0,
+                "primary_magazines": 0
+              },
+              "tail_samples": 5,
+              "tail_span_seconds": 4.000208999999813,
+              "tail_wrong_saved_value_samples": {
+                "slot_contents": 0,
+                "post_save_presence": 0,
+                "inventories": 0,
+                "all_tracked_inventory_references": 0,
+                "owners": 0,
+                "primary_magazines": 0
+              },
+              "tail_unresolved_references": 0
+            },
+            "client": {
+              "samples": 45,
+              "wrong_saved_value_samples": {
+                "slot_contents": 0,
+                "post_save_presence": 0,
+                "inventories": 0,
+                "all_tracked_inventory_references": 0,
+                "owners": 0,
+                "primary_magazines": 0
+              },
+              "tail_samples": 5,
+              "tail_span_seconds": 4.001463999999032,
+              "tail_wrong_saved_value_samples": {
+                "slot_contents": 0,
+                "post_save_presence": 0,
+                "inventories": 0,
+                "all_tracked_inventory_references": 0,
+                "owners": 0,
+                "primary_magazines": 0
+              },
+              "tail_unresolved_references": 0
+            }
+          }
+        }
+      },
+      "epoch_sequence_valid": true,
+      "fault_observations_complete": true,
+      "sample_skew_within_1_1_seconds": true,
+      "mode": "control",
+      "unchanged_net_compare": {
+        "problems": [],
+        "divergences": []
+      },
+      "evidence": {
+        "folder": "build/m0/recovery-faults/ce-cross-control",
+        "archive_sha256": "96e13d2062f62c63f03671a84a3b2217edda218ea87b6b127cb7b41e4b56b937",
+        "manifest_sha256": "1b146a256ea2b0ae05834b78bfdbdb28c6d69952bd366a89a1f2ae273a557a25",
+        "full_reduction_sha256": "9278d79e47d5720b5b421f40cf95941786f2de10d995550b77878a43a24206a2"
+      },
+      "sample_checks": {
+        "saved": {
+          "skew_seconds": 0.12766000000010536,
+          "epochs": {
+            "host": [
+              1.0,
+              0.0
+            ],
+            "client": [
+              1.0,
+              1.0
+            ]
+          },
+          "reference_failures": {
+            "host": [],
+            "client": []
+          },
+          "peer_disagreement": {}
+        },
+        "changed": {
+          "skew_seconds": 0.019441000000369968,
+          "epochs": {
+            "host": [
+              1.0,
+              0.0
+            ],
+            "client": [
+              1.0,
+              1.0
+            ]
+          },
+          "reference_failures": {
+            "host": [],
+            "client": []
+          },
+          "peer_disagreement": {}
+        },
+        "restored": {
+          "skew_seconds": 0.02032599999984086,
+          "epochs": {
+            "host": [
+              2.0,
+              0.0
+            ],
+            "client": [
+              2.0,
+              1.0
+            ]
+          },
+          "reference_failures": {
+            "host": [],
+            "client": []
+          },
+          "peer_disagreement": {}
+        },
+        "changed_again": {
+          "skew_seconds": 0.021593000001303153,
+          "epochs": {
+            "host": [
+              2.0,
+              0.0
+            ],
+            "client": [
+              2.0,
+              1.0
+            ]
+          },
+          "reference_failures": {
+            "host": [],
+            "client": []
+          },
+          "peer_disagreement": {}
+        },
+        "restored_again": {
+          "skew_seconds": 0.15749499999947147,
+          "epochs": {
+            "host": [
+              3.0,
+              0.0
+            ],
+            "client": [
+              3.0,
+              1.0
+            ]
+          },
+          "reference_failures": {
+            "host": [],
+            "client": []
+          },
+          "peer_disagreement": {}
+        }
+      }
+    },
+    {
+      "case": "ce-cross-faults",
+      "complete_sequence": true,
+      "early_exits": {
+        "host": null,
+        "client": null
+      },
+      "discarded_final_captures": {
+        "host": [],
+        "client": []
+      },
+      "trailing_gate_half_pair": null,
+      "allocations": [
+        {
+          "time": 13056.919736,
+          "kind": "identity_new",
+          "v": [
+            1204.0,
+            0.0,
+            -311884874.0,
+            -370669452.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "time": 13062.943494,
+          "kind": "identity_new",
+          "v": [
+            1384.0,
+            1.0,
+            -285736010.0,
+            -492175050.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "time": 13089.942554,
+          "kind": "identity_new",
+          "v": [
+            2194.0,
+            2.0,
+            -246611018.0,
+            -492175050.0,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "additions": [
+        {
+          "time": 13056.919741,
+          "kind": "identity_add",
+          "v": [
+            1204.0,
+            0.0,
+            -431881261.0,
+            -311884874.0,
+            1.0,
+            0.0
+          ]
+        }
+      ],
+      "reverts": [
+        {
+          "time": 13065.972543,
+          "kind": "identity_revert",
+          "v": [
+            1474.0,
+            180.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "time": 13092.972673,
+          "kind": "identity_revert",
+          "v": [
+            2284.0,
+            990.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "fault_events": [
+        {
+          "time": 13056.923969,
+          "kind": "fault_target",
+          "v": [
+            1204.0,
+            -311884874.0,
+            -431881261.0,
+            -370669452.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "time": 13065.97294,
+          "kind": "allocation_refused",
+          "v": [
+            1475.0,
+            -311884874.0,
+            2.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "time": 13065.972971,
+          "kind": "create_failed",
+          "v": [
+            1475.0,
+            -1.0,
+            330.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "time": 13092.972954,
+          "kind": "dependency_held",
+          "v": [
+            2285.0,
+            -311884874.0,
+            3.0,
+            2465.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "time": 13098.953309,
+          "kind": "dependency_released",
+          "v": [
+            2465.0,
+            -311884874.0,
+            3.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "original": -311884874.0,
+      "slot": 950,
+      "units": [
+        -431881261.0,
+        -312344563.0
+      ],
+      "definitions": [
+        -370669452.0,
+        -492175050.0
+      ],
+      "replacements": [
+        {
+          "time": 13062.943499,
+          "kind": "cross_replacement",
+          "v": [
+            1384.0,
+            1.0,
+            -311884874.0,
+            -285736010.0,
+            0.0,
+            -492175050.0
+          ]
+        },
+        {
+          "time": 13089.942559,
+          "kind": "cross_replacement",
+          "v": [
+            2194.0,
+            2.0,
+            -311884874.0,
+            -246611018.0,
+            0.0,
+            -492175050.0
+          ]
+        }
+      ],
+      "save": {
+        "time": 13059.940099,
+        "kind": "checkpoint_saved",
+        "v": [
+          1294.0,
+          1.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "later_saves": [],
+      "mutations_observed": {
+        "changed": {
+          "host": {
+            "same_slot_new_generation": true,
+            "saved_weapon": true,
+            "replacement_biped": true,
+            "saved_inventory": true,
+            "changed_empty_inventory": true,
+            "saved_primary_rounds": true,
+            "post_save_absence_at_save": true
+          },
+          "client": {
+            "same_slot_new_generation": true,
+            "saved_weapon": true,
+            "replacement_biped": true,
+            "saved_inventory": true,
+            "changed_empty_inventory": true,
+            "saved_primary_rounds": true,
+            "post_save_absence_at_save": true
+          }
+        },
+        "changed_again": {
+          "host": {
+            "same_slot_new_generation": true,
+            "saved_weapon": true,
+            "replacement_biped": true,
+            "saved_inventory": true,
+            "changed_empty_inventory": true,
+            "saved_primary_rounds": true,
+            "post_save_absence_at_save": true
+          },
+          "client": {
+            "same_slot_new_generation": true,
+            "saved_weapon": true,
+            "replacement_biped": true,
+            "saved_inventory": true,
+            "changed_empty_inventory": true,
+            "saved_primary_rounds": true,
+            "post_save_absence_at_save": true
+          }
+        }
+      },
+      "recovery_windows": {
+        "1": {
+          "ended_at_later_save": false,
+          "client_gate": {
+            "samples": 719,
+            "ready_samples": 719,
+            "ready_with_incomplete_state": 0,
+            "ready_missing_target": 0,
+            "ready_wrong_inventory": 0,
+            "ready_while_objects_unsynchronized": 330,
+            "maximum_pending_inventories": 0.0,
+            "first_ready_incomplete_after_revert_seconds": null,
+            "last_ready_incomplete_after_revert_seconds": null,
+            "first_complete_after_revert_seconds": 0.013504000000466476,
+            "incorrect_samples_after_first_complete": 0
+          },
+          "peers": {
+            "host": {
+              "samples": 24,
+              "wrong_saved_value_samples": {
+                "slot_contents": 0,
+                "post_save_presence": 0,
+                "inventories": 0,
+                "all_tracked_inventory_references": 0,
+                "owners": 0,
+                "primary_magazines": 0
+              },
+              "tail_samples": 5,
+              "tail_span_seconds": 4.00050100000044,
+              "tail_wrong_saved_value_samples": {
+                "slot_contents": 0,
+                "post_save_presence": 0,
+                "inventories": 0,
+                "all_tracked_inventory_references": 0,
+                "owners": 0,
+                "primary_magazines": 0
+              },
+              "tail_unresolved_references": 0
+            },
+            "client": {
+              "samples": 24,
+              "wrong_saved_value_samples": {
+                "slot_contents": 0,
+                "post_save_presence": 0,
+                "inventories": 0,
+                "all_tracked_inventory_references": 0,
+                "owners": 0,
+                "primary_magazines": 0
+              },
+              "tail_samples": 6,
+              "tail_span_seconds": 4.99962400000004,
+              "tail_wrong_saved_value_samples": {
+                "slot_contents": 0,
+                "post_save_presence": 0,
+                "inventories": 0,
+                "all_tracked_inventory_references": 0,
+                "owners": 0,
+                "primary_magazines": 0
+              },
+              "tail_unresolved_references": 0
+            }
+          }
+        },
+        "2": {
+          "ended_at_later_save": false,
+          "client_gate": {
+            "samples": 1250,
+            "ready_samples": 1250,
+            "ready_with_incomplete_state": 179,
+            "ready_missing_target": 179,
+            "ready_wrong_inventory": 179,
+            "ready_while_objects_unsynchronized": 0,
+            "maximum_pending_inventories": 1.0,
+            "first_ready_incomplete_after_revert_seconds": 0.013129999999364372,
+            "last_ready_incomplete_after_revert_seconds": 5.946910000000571,
+            "first_complete_after_revert_seconds": 5.980698999999731,
+            "incorrect_samples_after_first_complete": 0
+          },
+          "peers": {
+            "host": {
+              "samples": 42,
+              "wrong_saved_value_samples": {
+                "slot_contents": 0,
+                "post_save_presence": 0,
+                "inventories": 0,
+                "all_tracked_inventory_references": 0,
+                "owners": 0,
+                "primary_magazines": 0
+              },
+              "tail_samples": 5,
+              "tail_span_seconds": 4.00019599999905,
+              "tail_wrong_saved_value_samples": {
+                "slot_contents": 0,
+                "post_save_presence": 0,
+                "inventories": 0,
+                "all_tracked_inventory_references": 0,
+                "owners": 0,
+                "primary_magazines": 0
+              },
+              "tail_unresolved_references": 0
+            },
+            "client": {
+              "samples": 41,
+              "wrong_saved_value_samples": {
+                "slot_contents": 6,
+                "post_save_presence": 0,
+                "inventories": 6,
+                "all_tracked_inventory_references": 6,
+                "owners": 6,
+                "primary_magazines": 6
+              },
+              "tail_samples": 6,
+              "tail_span_seconds": 4.999042000001282,
+              "tail_wrong_saved_value_samples": {
+                "slot_contents": 0,
+                "post_save_presence": 0,
+                "inventories": 0,
+                "all_tracked_inventory_references": 0,
+                "owners": 0,
+                "primary_magazines": 0
+              },
+              "tail_unresolved_references": 0
+            }
+          }
+        }
+      },
+      "epoch_sequence_valid": true,
+      "fault_observations_complete": true,
+      "sample_skew_within_1_1_seconds": true,
+      "mode": "faults",
+      "unchanged_net_compare": {
+        "problems": [],
+        "divergences": [
+          {
+            "player": 0,
+            "field": "weapons",
+            "tick": 2310,
+            "detail": "host ['874'] client []",
+            "seconds": 3
+          }
+        ]
+      },
+      "evidence": {
+        "folder": "build/m0/recovery-faults/ce-cross-faults",
+        "archive_sha256": "4b961be958ccb8f0774a41e44c660ce87d47903f86a9defd41b8b514c4ae96d8",
+        "manifest_sha256": "ff1cc1a0028c18058aa0074da4f7a91ee4bbd1c044f5f48bc19f263eef66f03a",
+        "full_reduction_sha256": "d21656d260b02bc789f52aa2973c9ba1a9a02dcbbfb246c1c96d40d34ea711e8"
+      },
+      "sample_checks": {
+        "saved": {
+          "skew_seconds": 0.13000900000042748,
+          "epochs": {
+            "host": [
+              1.0,
+              0.0
+            ],
+            "client": [
+              1.0,
+              1.0
+            ]
+          },
+          "reference_failures": {
+            "host": [],
+            "client": []
+          },
+          "peer_disagreement": {}
+        },
+        "changed": {
+          "skew_seconds": 0.0232800000012503,
+          "epochs": {
+            "host": [
+              1.0,
+              0.0
+            ],
+            "client": [
+              1.0,
+              1.0
+            ]
+          },
+          "reference_failures": {
+            "host": [],
+            "client": []
+          },
+          "peer_disagreement": {}
+        },
+        "restored": {
+          "skew_seconds": 0.02394100000128674,
+          "epochs": {
+            "host": [
+              2.0,
+              0.0
+            ],
+            "client": [
+              2.0,
+              1.0
+            ]
+          },
+          "reference_failures": {
+            "host": [],
+            "client": []
+          },
+          "peer_disagreement": {}
+        },
+        "changed_again": {
+          "skew_seconds": 0.022743999999875086,
+          "epochs": {
+            "host": [
+              2.0,
+              0.0
+            ],
+            "client": [
+              2.0,
+              1.0
+            ]
+          },
+          "reference_failures": {
+            "host": [],
+            "client": []
+          },
+          "peer_disagreement": {}
+        },
+        "restored_again": {
+          "skew_seconds": 0.15689100000054168,
+          "epochs": {
+            "host": [
+              3.0,
+              0.0
+            ],
+            "client": [
+              3.0,
+              1.0
+            ]
+          },
+          "reference_failures": {
+            "host": [],
+            "client": []
+          },
+          "peer_disagreement": {}
+        }
+      }
+    },
+    {
+      "case": "mcc-cross-control",
+      "complete_sequence": true,
+      "early_exits": {
+        "host": null,
+        "client": null
+      },
+      "discarded_final_captures": {
+        "host": [],
+        "client": []
+      },
+      "trailing_gate_half_pair": null,
+      "allocations": [
+        {
+          "time": 13189.459125,
+          "kind": "identity_new",
+          "v": [
+            622.0,
+            0.0,
+            -456326754.0,
+            -307491784.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "time": 13195.482489,
+          "kind": "identity_new",
+          "v": [
+            802.0,
+            1.0,
+            -456261218.0,
+            -355071646.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "time": 13222.483208,
+          "kind": "identity_new",
+          "v": [
+            1612.0,
+            2.0,
+            -456261218.0,
+            -355071646.0,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "additions": [
+        {
+          "time": 13189.45913,
+          "kind": "identity_add",
+          "v": [
+            622.0,
+            0.0,
+            -456785321.0,
+            -456326754.0,
+            1.0,
+            0.0
+          ]
+        }
+      ],
+      "reverts": [
+        {
+          "time": 13198.50651,
+          "kind": "identity_revert",
+          "v": [
+            892.0,
+            180.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "time": 13225.50842,
+          "kind": "identity_revert",
+          "v": [
+            1702.0,
+            990.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "fault_events": [
+        {
+          "time": 13189.484168,
+          "kind": "fault_target",
+          "v": [
+            622.0,
+            -456326754.0,
+            -456785321.0,
+            -307491784.0,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "original": -456326754.0,
+      "slot": 414,
+      "units": [
+        -456785321.0,
+        -456523775.0
+      ],
+      "definitions": [
+        -307491784.0,
+        -355071646.0
+      ],
+      "replacements": [
+        {
+          "time": 13195.482494,
+          "kind": "cross_replacement",
+          "v": [
+            802.0,
+            1.0,
+            -456326754.0,
+            -456261218.0,
+            0.0,
+            -355071646.0
+          ]
+        },
+        {
+          "time": 13222.483212,
+          "kind": "cross_replacement",
+          "v": [
+            1612.0,
+            2.0,
+            -456326754.0,
+            -456261218.0,
+            0.0,
+            -355071646.0
+          ]
+        }
+      ],
+      "save": {
+        "time": 13192.481968,
+        "kind": "checkpoint_saved",
+        "v": [
+          712.0,
+          1.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "later_saves": [
+        {
+          "time": 13264.903149,
+          "kind": "checkpoint_saved",
+          "v": [
+            2884.0,
+            1.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "mutations_observed": {
+        "changed": {
+          "host": {
+            "same_slot_new_generation": true,
+            "saved_weapon": true,
+            "replacement_biped": true,
+            "saved_inventory": true,
+            "changed_empty_inventory": true,
+            "saved_primary_rounds": true,
+            "post_save_absence_at_save": true
+          },
+          "client": {
+            "same_slot_new_generation": true,
+            "saved_weapon": true,
+            "replacement_biped": true,
+            "saved_inventory": true,
+            "changed_empty_inventory": true,
+            "saved_primary_rounds": true,
+            "post_save_absence_at_save": true
+          }
+        },
+        "changed_again": {
+          "host": {
+            "same_slot_new_generation": true,
+            "saved_weapon": true,
+            "replacement_biped": true,
+            "saved_inventory": true,
+            "changed_empty_inventory": true,
+            "saved_primary_rounds": true,
+            "post_save_absence_at_save": true
+          },
+          "client": {
+            "same_slot_new_generation": true,
+            "saved_weapon": true,
+            "replacement_biped": true,
+            "saved_inventory": true,
+            "changed_empty_inventory": true,
+            "saved_primary_rounds": true,
+            "post_save_absence_at_save": true
+          }
+        }
+      },
+      "recovery_windows": {
+        "1": {
+          "ended_at_later_save": false,
+          "client_gate": {
+            "samples": 719,
+            "ready_samples": 719,
+            "ready_with_incomplete_state": 0,
+            "ready_missing_target": 0,
+            "ready_wrong_inventory": 0,
+            "ready_while_objects_unsynchronized": 0,
+            "maximum_pending_inventories": 0.0,
+            "first_ready_incomplete_after_revert_seconds": null,
+            "last_ready_incomplete_after_revert_seconds": null,
+            "first_complete_after_revert_seconds": 0.011100000001533772,
+            "incorrect_samples_after_first_complete": 0
+          },
+          "peers": {
+            "host": {
+              "samples": 24,
+              "wrong_saved_value_samples": {
+                "slot_contents": 0,
+                "post_save_presence": 0,
+                "inventories": 0,
+                "all_tracked_inventory_references": 0,
+                "owners": 0,
+                "primary_magazines": 0
+              },
+              "tail_samples": 6,
+              "tail_span_seconds": 4.999723000000813,
+              "tail_wrong_saved_value_samples": {
+                "slot_contents": 0,
+                "post_save_presence": 0,
+                "inventories": 0,
+                "all_tracked_inventory_references": 0,
+                "owners": 0,
+                "primary_magazines": 0
+              },
+              "tail_unresolved_references": 0
+            },
+            "client": {
+              "samples": 24,
+              "wrong_saved_value_samples": {
+                "slot_contents": 0,
+                "post_save_presence": 0,
+                "inventories": 0,
+                "all_tracked_inventory_references": 0,
+                "owners": 0,
+                "primary_magazines": 0
+              },
+              "tail_samples": 5,
+              "tail_span_seconds": 4.000029000000723,
+              "tail_wrong_saved_value_samples": {
+                "slot_contents": 0,
+                "post_save_presence": 0,
+                "inventories": 0,
+                "all_tracked_inventory_references": 0,
+                "owners": 0,
+                "primary_magazines": 0
+              },
+              "tail_unresolved_references": 0
+            }
+          }
+        },
+        "2": {
+          "ended_at_later_save": true,
+          "client_gate": {
+            "samples": 1182,
+            "ready_samples": 1182,
+            "ready_with_incomplete_state": 0,
+            "ready_missing_target": 0,
+            "ready_wrong_inventory": 0,
+            "ready_while_objects_unsynchronized": 0,
+            "maximum_pending_inventories": 0.0,
+            "first_ready_incomplete_after_revert_seconds": null,
+            "last_ready_incomplete_after_revert_seconds": null,
+            "first_complete_after_revert_seconds": 0.008975000000646105,
+            "incorrect_samples_after_first_complete": 0
+          },
+          "peers": {
+            "host": {
+              "samples": 41,
+              "wrong_saved_value_samples": {
+                "slot_contents": 0,
+                "post_save_presence": 0,
+                "inventories": 0,
+                "all_tracked_inventory_references": 0,
+                "owners": 0,
+                "primary_magazines": 0
+              },
+              "tail_samples": 5,
+              "tail_span_seconds": 4.000609999999142,
+              "tail_wrong_saved_value_samples": {
+                "slot_contents": 0,
+                "post_save_presence": 0,
+                "inventories": 0,
+                "all_tracked_inventory_references": 0,
+                "owners": 0,
+                "primary_magazines": 0
+              },
+              "tail_unresolved_references": 0
+            },
+            "client": {
+              "samples": 40,
+              "wrong_saved_value_samples": {
+                "slot_contents": 0,
+                "post_save_presence": 0,
+                "inventories": 0,
+                "all_tracked_inventory_references": 0,
+                "owners": 0,
+                "primary_magazines": 0
+              },
+              "tail_samples": 5,
+              "tail_span_seconds": 4.00005500000043,
+              "tail_wrong_saved_value_samples": {
+                "slot_contents": 0,
+                "post_save_presence": 0,
+                "inventories": 0,
+                "all_tracked_inventory_references": 0,
+                "owners": 0,
+                "primary_magazines": 0
+              },
+              "tail_unresolved_references": 0
+            }
+          }
+        }
+      },
+      "epoch_sequence_valid": true,
+      "fault_observations_complete": true,
+      "sample_skew_within_1_1_seconds": true,
+      "mode": "control",
+      "unchanged_net_compare": {
+        "problems": [],
+        "divergences": []
+      },
+      "evidence": {
+        "folder": "build/m0/recovery-faults/mcc-cross-control",
+        "archive_sha256": "fabf0e3d1ca9543066a2306927ec280ec09d22e9f7fe5f162eaee287f08e8a29",
+        "manifest_sha256": "49b9636f329f20cbbbf30977dc1e83c5f7b8849806b7908c038a68b4086c275c",
+        "full_reduction_sha256": "a7191b9cb34c7d2598e0ec649821e7230123f9abd5b14fbb8521dced3851db32"
+      },
+      "sample_checks": {
+        "saved": {
+          "skew_seconds": 0.29088400000000547,
+          "epochs": {
+            "host": [
+              1.0,
+              0.0
+            ],
+            "client": [
+              1.0,
+              1.0
+            ]
+          },
+          "reference_failures": {
+            "host": [],
+            "client": []
+          },
+          "peer_disagreement": {}
+        },
+        "changed": {
+          "skew_seconds": 0.0020429999985935865,
+          "epochs": {
+            "host": [
+              1.0,
+              0.0
+            ],
+            "client": [
+              1.0,
+              1.0
+            ]
+          },
+          "reference_failures": {
+            "host": [],
+            "client": []
+          },
+          "peer_disagreement": {}
+        },
+        "restored": {
+          "skew_seconds": 0.0015550000007351628,
+          "epochs": {
+            "host": [
+              2.0,
+              0.0
+            ],
+            "client": [
+              2.0,
+              1.0
+            ]
+          },
+          "reference_failures": {
+            "host": [],
+            "client": []
+          },
+          "peer_disagreement": {}
+        },
+        "changed_again": {
+          "skew_seconds": 0.0010220000003755558,
+          "epochs": {
+            "host": [
+              2.0,
+              0.0
+            ],
+            "client": [
+              2.0,
+              1.0
+            ]
+          },
+          "reference_failures": {
+            "host": [],
+            "client": []
+          },
+          "peer_disagreement": {}
+        },
+        "restored_again": {
+          "skew_seconds": 0.2673370000011346,
+          "epochs": {
+            "host": [
+              3.0,
+              0.0
+            ],
+            "client": [
+              3.0,
+              1.0
+            ]
+          },
+          "reference_failures": {
+            "host": [],
+            "client": []
+          },
+          "peer_disagreement": {}
+        }
+      }
+    },
+    {
+      "case": "mcc-cross-faults",
+      "complete_sequence": true,
+      "early_exits": {
+        "host": null,
+        "client": null
+      },
+      "discarded_final_captures": {
+        "host": [],
+        "client": []
+      },
+      "trailing_gate_half_pair": null,
+      "allocations": [
+        {
+          "time": 13345.724043,
+          "kind": "identity_new",
+          "v": [
+            622.0,
+            0.0,
+            -456326754.0,
+            -307491784.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "time": 13351.745771,
+          "kind": "identity_new",
+          "v": [
+            802.0,
+            1.0,
+            -456261218.0,
+            -355071646.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "time": 13378.74576,
+          "kind": "identity_new",
+          "v": [
+            1612.0,
+            2.0,
+            -456261218.0,
+            -355071646.0,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "additions": [
+        {
+          "time": 13345.724048,
+          "kind": "identity_add",
+          "v": [
+            622.0,
+            0.0,
+            -456785321.0,
+            -456326754.0,
+            1.0,
+            0.0
+          ]
+        }
+      ],
+      "reverts": [
+        {
+          "time": 13354.769264,
+          "kind": "identity_revert",
+          "v": [
+            892.0,
+            180.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "time": 13381.768806,
+          "kind": "identity_revert",
+          "v": [
+            1702.0,
+            990.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "fault_events": [
+        {
+          "time": 13345.753092,
+          "kind": "fault_target",
+          "v": [
+            622.0,
+            -456326754.0,
+            -456785321.0,
+            -307491784.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "time": 13354.769496,
+          "kind": "allocation_refused",
+          "v": [
+            892.0,
+            -456326754.0,
+            2.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "time": 13354.769525,
+          "kind": "create_failed",
+          "v": [
+            892.0,
+            -1.0,
+            330.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "time": 13381.768916,
+          "kind": "dependency_held",
+          "v": [
+            1702.0,
+            -456326754.0,
+            3.0,
+            1882.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "time": 13387.752643,
+          "kind": "dependency_released",
+          "v": [
+            1882.0,
+            -456326754.0,
+            3.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "original": -456326754.0,
+      "slot": 414,
+      "units": [
+        -456785321.0,
+        -456523775.0
+      ],
+      "definitions": [
+        -307491784.0,
+        -355071646.0
+      ],
+      "replacements": [
+        {
+          "time": 13351.745775,
+          "kind": "cross_replacement",
+          "v": [
+            802.0,
+            1.0,
+            -456326754.0,
+            -456261218.0,
+            0.0,
+            -355071646.0
+          ]
+        },
+        {
+          "time": 13378.745765,
+          "kind": "cross_replacement",
+          "v": [
+            1612.0,
+            2.0,
+            -456326754.0,
+            -456261218.0,
+            0.0,
+            -355071646.0
+          ]
+        }
+      ],
+      "save": {
+        "time": 13348.7443,
+        "kind": "checkpoint_saved",
+        "v": [
+          712.0,
+          1.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "later_saves": [
+        {
+          "time": 13421.15203,
+          "kind": "checkpoint_saved",
+          "v": [
+            2884.0,
+            1.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "mutations_observed": {
+        "changed": {
+          "host": {
+            "same_slot_new_generation": true,
+            "saved_weapon": true,
+            "replacement_biped": true,
+            "saved_inventory": true,
+            "changed_empty_inventory": true,
+            "saved_primary_rounds": true,
+            "post_save_absence_at_save": true
+          },
+          "client": {
+            "same_slot_new_generation": true,
+            "saved_weapon": true,
+            "replacement_biped": true,
+            "saved_inventory": true,
+            "changed_empty_inventory": true,
+            "saved_primary_rounds": true,
+            "post_save_absence_at_save": true
+          }
+        },
+        "changed_again": {
+          "host": {
+            "same_slot_new_generation": true,
+            "saved_weapon": true,
+            "replacement_biped": true,
+            "saved_inventory": true,
+            "changed_empty_inventory": true,
+            "saved_primary_rounds": true,
+            "post_save_absence_at_save": true
+          },
+          "client": {
+            "same_slot_new_generation": true,
+            "saved_weapon": true,
+            "replacement_biped": true,
+            "saved_inventory": true,
+            "changed_empty_inventory": true,
+            "saved_primary_rounds": true,
+            "post_save_absence_at_save": true
+          }
+        }
+      },
+      "recovery_windows": {
+        "1": {
+          "ended_at_later_save": false,
+          "client_gate": {
+            "samples": 719,
+            "ready_samples": 719,
+            "ready_with_incomplete_state": 0,
+            "ready_missing_target": 0,
+            "ready_wrong_inventory": 0,
+            "ready_while_objects_unsynchronized": 330,
+            "maximum_pending_inventories": 0.0,
+            "first_ready_incomplete_after_revert_seconds": null,
+            "last_ready_incomplete_after_revert_seconds": null,
+            "first_complete_after_revert_seconds": 0.01680299999861745,
+            "incorrect_samples_after_first_complete": 0
+          },
+          "peers": {
+            "host": {
+              "samples": 24,
+              "wrong_saved_value_samples": {
+                "slot_contents": 0,
+                "post_save_presence": 0,
+                "inventories": 0,
+                "all_tracked_inventory_references": 0,
+                "owners": 0,
+                "primary_magazines": 0
+              },
+              "tail_samples": 5,
+              "tail_span_seconds": 4.000328000000081,
+              "tail_wrong_saved_value_samples": {
+                "slot_contents": 0,
+                "post_save_presence": 0,
+                "inventories": 0,
+                "all_tracked_inventory_references": 0,
+                "owners": 0,
+                "primary_magazines": 0
+              },
+              "tail_unresolved_references": 0
+            },
+            "client": {
+              "samples": 24,
+              "wrong_saved_value_samples": {
+                "slot_contents": 0,
+                "post_save_presence": 0,
+                "inventories": 0,
+                "all_tracked_inventory_references": 0,
+                "owners": 0,
+                "primary_magazines": 0
+              },
+              "tail_samples": 5,
+              "tail_span_seconds": 4.0000010000003385,
+              "tail_wrong_saved_value_samples": {
+                "slot_contents": 0,
+                "post_save_presence": 0,
+                "inventories": 0,
+                "all_tracked_inventory_references": 0,
+                "owners": 0,
+                "primary_magazines": 0
+              },
+              "tail_unresolved_references": 0
+            }
+          }
+        },
+        "2": {
+          "ended_at_later_save": true,
+          "client_gate": {
+            "samples": 1181,
+            "ready_samples": 1181,
+            "ready_with_incomplete_state": 179,
+            "ready_missing_target": 179,
+            "ready_wrong_inventory": 179,
+            "ready_while_objects_unsynchronized": 0,
+            "maximum_pending_inventories": 1.0,
+            "first_ready_incomplete_after_revert_seconds": 0.017320000000836444,
+            "last_ready_incomplete_after_revert_seconds": 5.950565999999526,
+            "first_complete_after_revert_seconds": 5.983883000000787,
+            "incorrect_samples_after_first_complete": 0
+          },
+          "peers": {
+            "host": {
+              "samples": 41,
+              "wrong_saved_value_samples": {
+                "slot_contents": 0,
+                "post_save_presence": 0,
+                "inventories": 0,
+                "all_tracked_inventory_references": 0,
+                "owners": 0,
+                "primary_magazines": 0
+              },
+              "tail_samples": 5,
+              "tail_span_seconds": 3.999954999999318,
+              "tail_wrong_saved_value_samples": {
+                "slot_contents": 0,
+                "post_save_presence": 0,
+                "inventories": 0,
+                "all_tracked_inventory_references": 0,
+                "owners": 0,
+                "primary_magazines": 0
+              },
+              "tail_unresolved_references": 0
+            },
+            "client": {
+              "samples": 40,
+              "wrong_saved_value_samples": {
+                "slot_contents": 6,
+                "post_save_presence": 0,
+                "inventories": 6,
+                "all_tracked_inventory_references": 6,
+                "owners": 6,
+                "primary_magazines": 6
+              },
+              "tail_samples": 5,
+              "tail_span_seconds": 4.000057999999626,
+              "tail_wrong_saved_value_samples": {
+                "slot_contents": 0,
+                "post_save_presence": 0,
+                "inventories": 0,
+                "all_tracked_inventory_references": 0,
+                "owners": 0,
+                "primary_magazines": 0
+              },
+              "tail_unresolved_references": 0
+            }
+          }
+        }
+      },
+      "epoch_sequence_valid": true,
+      "fault_observations_complete": true,
+      "sample_skew_within_1_1_seconds": true,
+      "mode": "faults",
+      "unchanged_net_compare": {
+        "problems": [],
+        "divergences": [
+          {
+            "player": 0,
+            "field": "weapons",
+            "tick": 1710,
+            "detail": "host ['c38'] client []",
+            "seconds": 3
+          }
+        ]
+      },
+      "evidence": {
+        "folder": "build/m0/recovery-faults/mcc-cross-faults",
+        "archive_sha256": "3bbdbd63002527d117b61583b8019cba52271bd39193ce98658f8e691a04c7d0",
+        "manifest_sha256": "0b1cc00f92e93dec4c445d92cad393d425bd98657574f2d38bd2407204e671f8",
+        "full_reduction_sha256": "0acc536feb43f45905669e0ea86a96a8b6304acdcabdf3de83be510c2a08a78a"
+      },
+      "sample_checks": {
+        "saved": {
+          "skew_seconds": 0.29581899999902816,
+          "epochs": {
+            "host": [
+              1.0,
+              0.0
+            ],
+            "client": [
+              1.0,
+              1.0
+            ]
+          },
+          "reference_failures": {
+            "host": [],
+            "client": []
+          },
+          "peer_disagreement": {}
+        },
+        "changed": {
+          "skew_seconds": 0.007048999999824446,
+          "epochs": {
+            "host": [
+              1.0,
+              0.0
+            ],
+            "client": [
+              1.0,
+              1.0
+            ]
+          },
+          "reference_failures": {
+            "host": [],
+            "client": []
+          },
+          "peer_disagreement": {}
+        },
+        "restored": {
+          "skew_seconds": 0.006703000000925385,
+          "epochs": {
+            "host": [
+              2.0,
+              0.0
+            ],
+            "client": [
+              2.0,
+              1.0
+            ]
+          },
+          "reference_failures": {
+            "host": [],
+            "client": []
+          },
+          "peer_disagreement": {}
+        },
+        "changed_again": {
+          "skew_seconds": 0.006631000000197673,
+          "epochs": {
+            "host": [
+              2.0,
+              0.0
+            ],
+            "client": [
+              2.0,
+              1.0
+            ]
+          },
+          "reference_failures": {
+            "host": [],
+            "client": []
+          },
+          "peer_disagreement": {}
+        },
+        "restored_again": {
+          "skew_seconds": 0.27310399999987567,
+          "epochs": {
+            "host": [
+              3.0,
+              0.0
+            ],
+            "client": [
+              3.0,
+              1.0
+            ]
+          },
+          "reference_failures": {
+            "host": [],
+            "client": []
+          },
+          "peer_disagreement": {}
+        }
+      }
+    }
+  ],
+  "pilots": [
+    {
+      "case": "xbox-control",
+      "qualified": false,
+      "binary_sha256": "c917694a7157bb9dbf92642838287559610fafb5542eb1e911b1017c7ff5d422",
+      "reason": "Unnamed scenery not sent through ordinary object replication; first pilot also lacked shared diagnostic metadata.",
+      "manifest_sha256": "2a0472cba977a4003ba864206cae140ad0151eb9fccf149f3a469754a773c6aa",
+      "archive_sha256": "f3b3094f63c87c6fff6b1dad4aebdcdbce30941d16fb258143e67afc2fdc4692",
+      "build_archive_sha256": "0f3e25e17ad3132d8d230108673f0971021e54949e22cd627ab420f3f6265c5f",
+      "build_archive_bytes": 24968404
+    },
+    {
+      "case": "xbox-control-v2",
+      "qualified": false,
+      "binary_sha256": "f7691dc46df56dba26cb92deec4e12bab9f6bfd915e13830b55ba56d5df1f07c",
+      "reason": "Unnamed scenery not sent through ordinary object replication; first pilot also lacked shared diagnostic metadata.",
+      "manifest_sha256": "a777448ef32cb28593f0ee9c8080acb186f95582f00c5ce94f27df34ee2a2c82",
+      "archive_sha256": "46fe594c7de6ebdecd7285158e94fbd8d9591417a2cbfa330ff31c938f19566d",
+      "build_archive_sha256": "6d0926f5f23390731180711e29abe9f2a1318bd38d22bc12ee35cd74c2f1064a",
+      "build_archive_bytes": 24969515
+    }
+  ],
+  "status": "M0 open; all 19 domains retained; M1 unstarted; unpublished",
+  "platforms": {
+    "Windows": "Hidden native two-peer loopback; null renderer; audio off",
+    "Linux_runtime": "blocked: no runner",
+    "Android_runtime": "blocked: no device/emulator",
+    "Android_build": "earlier Windows shell/CMake blocker separate",
+    "browser_recovery": "unqualified by this native pass"
+  },
+  "profile_source": {
+    "profile_sha256": "7836a51dfec5f336f6fbe1b2a81a90a40793b7e09b7dc605250841961867901d",
+    "metadata_sha256": "686c9489b9807951a83cb2c609ab5dfe826ed1e36204dd123767a3e18571607e"
+  },
+  "focused_tests": {
+    "tests": "178",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0"
+  },
+  "unchanged_diagnostic_modes": {
+    "recovery": 7,
+    "recovery-domains": 7,
+    "recovery-timing": 7,
+    "recovery-identity": 7,
+    "recovery-faults": 8
+  },
+  "archived_pilot_builds": [
+    {
+      "path": "C:\\Users\\matty\\.codex\\worktrees\\coop-rewrite-feasibility\\GulchCE\\build\\m0\\recovery-faults\\pilot-build",
+      "raw_bytes": 63401802,
+      "archive_bytes": 24968404
+    },
+    {
+      "path": "C:\\Users\\matty\\.codex\\worktrees\\coop-rewrite-feasibility\\GulchCE\\build\\m0\\recovery-faults\\pilot2-build",
+      "raw_bytes": 63402685,
+      "archive_bytes": 24969515
+    }
+  ],
+  "cleanup": {
+    "private_fixture_bytes_removed": 17582381988,
+    "archived_files": 744,
+    "archived_raw_bytes": 708982896,
+    "archive_bytes": 89449987,
+    "temporary_build_test_bytes_removed": 241973409,
+    "retained_pass_bytes": 213967195,
+    "retained_all_m0_bytes": 2408870835
+  }
+}

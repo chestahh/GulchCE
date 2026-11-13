@@ -7,6 +7,11 @@ Only diagnostic tools and evidence change. No production implementation,
 protocol, defaults, original maps or original saves change. M0 remains open;
 M1 and publication remain unstarted.
 
+The later [cross-type and reconstruction-fault pass](coop_m0_recovery_faults.md)
+extends the bounded identity evidence to weapon-to-biped reuse, one refused
+allocation and a delayed inventory dependency. The results below remain the
+original weapon-to-weapon baseline; broader failures remain unqualified.
+
 Linux runtime remains **blocked: no runner**. Android runtime remains
 **blocked: no device/emulator**, with the earlier Android build blocker
 separate. This pass uses hidden Windows native loopback peers, null rendering

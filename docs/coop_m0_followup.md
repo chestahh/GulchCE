@@ -375,7 +375,12 @@ The [identity/ownership continuation](coop_m0_recovery_identity.md) adds actual
 normal-allocator weapon-slot reuse with different generations, definitions
 and player owners. It checks original identity restoration and post-save
 absence independently of readiness, including the first sampled ready state
-in each new epoch. Cross-type reuse and unobserved dependencies remain open.
+in each new epoch.
+The [cross-type and reconstruction-fault continuation](coop_m0_recovery_faults.md)
+extends this to weapon-to-biped slot reuse and controlled allocation refusal
+and delayed inventory dependencies. It separates eventual saved-state repair
+from premature client readiness. Other type pairs, natural exhaustion and
+broader dependency failures remain open.
 
 | Gate | Current disposition |
 | --- | --- |
