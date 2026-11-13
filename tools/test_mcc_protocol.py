@@ -2,8 +2,7 @@
 
 The AGPL-3.0-or-later baseline fixture comes unchanged from OpenCommunityEdition/OpenCE
 c507cb26b6ea7e89c7669fb7c911e27b80d5d779, port/linux/network_format.txt.
-Keep this historical fixture unchanged. This branch adds automatic MCC sharing to its
-version-42 engine under version 32739; older agreements are refused.
+Keep this historical fixture unchanged. This branch includes the complete OpenCE protocol-44 agreement; older versions are refused.
 """
 from pathlib import Path
 import re
@@ -36,7 +35,7 @@ def test_audited_changes_from_opence_41_contract():
     }
     assert {key: actual.get(key) for key in expected if actual.get(key) != expected[key]} == changed
     limits = (ROOT / "port/linux/include/halo_port_limits.h").read_text()
-    assert re.search(r"#define HALO_PORT_NETWORK_VERSION 32739\b", limits)
+    assert re.search(r"#define HALO_PORT_NETWORK_VERSION 44\b", limits)
     # All fields of the transmitted prefix match upstream, including names,
     # types and order. The Windows build also asserts the actual ABI offsets.
     header = (ROOT / "source/networking/network_game_manager.h").read_text()
@@ -68,7 +67,7 @@ typedef unsigned short word;
 #define MAXIMUM_MACHINE_NAME_LENGTH 16
 #define JOIN_GAME_TOKEN_LENGTH 16
 #define NETWORK_GAME_MESSAGE_VERSION 1
-#define HALO_PORT_NETWORK_VERSION 32739
+#define HALO_PORT_NETWORK_VERSION 44
 #define csmemcmp memcmp
 #define csmemcpy memcpy
 #define CHECK(x) do {if(!(x)){fprintf(stderr,"line %d: %s\n",__LINE__,#x);return 1;}} while(0)

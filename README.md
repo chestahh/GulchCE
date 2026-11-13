@@ -36,5 +36,6 @@ spaces. Run `sv_reload` and refresh the page in pregame to discover copied maps.
 See [MCC installation and sharing](docs/mcc_maps.md) and the
 [dedicated-server guide](docs/dedicated_server.md).
 
-This branch uses network version **32739** for the updated sharing agreement.
-It retains its older engine and does not claim OpenCE protocol-44 crossplay.
+This branch includes current OpenCE main and the complete MCC fixes from PR #658.
+It uses OpenCE network version **44**, including the preceding shared-engine
+agreement, so fork maintainers can update to the same protocol.

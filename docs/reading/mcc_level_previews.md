@@ -64,25 +64,25 @@ folder, saved mission identity or network map name is renamed.
 
 1. [menu_functions.c](../../port/linux/game/menu_functions.c):
    `mcc_map_description_show` and `lobby_map_show` supply MCC display indices.
-2. [mcc_manifest.c](../../port/linux/src/mcc_manifest.c):
+2. [mcc_manifest.c](https://github.com/chestahh/GulchCE/blob/1131d624b5c4e1f6e4d12174c4929452acf65285/port/linux/src/mcc_manifest.c):
    `mcc_manifest_package_root` follows the actual existing MCC path mapping.
-3. [mcc_menu_metadata.c](../../port/linux/src/mcc_menu_metadata.c):
+3. [mcc_menu_metadata.c](https://github.com/chestahh/GulchCE/blob/1131d624b5c4e1f6e4d12174c4929452acf65285/port/linux/src/mcc_menu_metadata.c):
    `mcc_menu_metadata_load` reads the explicit map list and
    `mcc_menu_metadata_find` refuses ambiguous basenames. The catalog reads each
    package/family once per scan for its labels.
-4. [mcc_preview_image.c](../../port/linux/src/mcc_preview_image.c):
+4. [mcc_preview_image.c](https://github.com/chestahh/GulchCE/blob/1131d624b5c4e1f6e4d12174c4929452acf65285/port/linux/src/mcc_preview_image.c):
    `mcc_preview_image_load` uses that metadata; `mcc_preview_png` decodes
    bounded PNG bytes. `mcc_preview_image_free` releases the platform allocation
    in its allocating module, rather than through the game's debug allocator.
-5. [posix_mcc_preview.c](../../port/linux/src/posix_mcc_preview.c):
+5. [posix_mcc_preview.c](https://github.com/chestahh/GulchCE/blob/1131d624b5c4e1f6e4d12174c4929452acf65285/port/linux/src/posix_mcc_preview.c):
    `posix_mcc_preview_read` performs bounded, regular-file reads below the
    selected root, rejecting relative-path escapes, devices and linked child
    paths. POSIX uses held directory descriptors; Windows checks reparse points
    and the opened file's final path. This file runs in the Android host through
    the generated `posix.h` guest bridge.
-6. [mcc_menu_preview.c](../../port/linux/game/mcc_menu_preview.c):
+6. [mcc_menu_preview.c](https://github.com/chestahh/GulchCE/blob/1131d624b5c4e1f6e4d12174c4929452acf65285/port/linux/game/mcc_menu_preview.c):
    `mcc_menu_preview_draw` owns texture caching, centered cropping and clipping.
-7. [mcc_menu_text.c](../../port/linux/game/mcc_menu_text.c):
+7. [mcc_menu_text.c](https://github.com/chestahh/GulchCE/blob/1131d624b5c4e1f6e4d12174c4929452acf65285/port/linux/game/mcc_menu_text.c):
    `mcc_menu_text_draw` measures package text in the active font, wraps it at
    word boundaries and breaks oversized words. It uses the existing small font
    when necessary and an ellipsis when the fixed panel still cannot fit it.
@@ -99,15 +99,15 @@ dedicated MCC folder fields. Neither hook repurposes the Xbox/CE providers.
 ## Stock campaign and multiplayer flow
 
 The stock selector offers separate MCC singleplayer and multiplayer categories.
-Campaigns require `game.mcc_campaigns = true`. Package folders open into mission
-lists; Back leaves the difficulty step, then the package, then the selector.
+Campaigns require `game.mcc_campaigns = true` (the default). Package folders open
+into mission lists; Back leaves the difficulty step, then the package, then the selector.
 The host selects a mission and difficulty through the existing hosting flow.
 The MCC catalog owns these identities; no MCC mission becomes an Xbox level index.
 The same generated menu and callbacks run on native and browser builds.
 
 ## MCC completion badges
 
-[mcc_progress.c](../../port/linux/game/mcc_progress.c) stores completion in
+[mcc_progress.c](https://github.com/chestahh/GulchCE/blob/1131d624b5c4e1f6e4d12174c4929452acf65285/port/linux/game/mcc_progress.c) stores completion in
 `mcc_completed.dat` beside each player's native profile. Records identify the
 full `mcc_maps\\package\\mission` path, so equally named missions in different
 packages and different profiles do not share awards. Normal, Heroic and Legendary
@@ -153,19 +153,20 @@ network downloads, execute code, or change MCC redistribution/map-sharing policy
 The decoder was independently implemented against the
 [PNG specification](https://www.w3.org/TR/png-3/).
 
-[test_mcc_previews.py](../../tools/test_mcc_previews.py) executes the real
+[test_mcc_previews.py](https://github.com/chestahh/GulchCE/blob/1db929c5e34101a45f644436e031016b5584c7bf/tools/test_mcc_previews.py) executes the real
 decoder and file reader with generated assets, including all five PNG filters,
 malformed files, path/link escapes, metadata fallback and local precedence.
-[test_mcc_preview_menu.py](../../tools/test_mcc_preview_menu.py) exercises the
+[test_mcc_preview_menu.py](https://github.com/chestahh/GulchCE/blob/1db929c5e34101a45f644436e031016b5584c7bf/tools/test_mcc_preview_menu.py) exercises the
 real presentation against deterministic font/GPU services, checking bounds,
 cache eviction/reset, wrapping and unaffected Xbox/CE indices. The
-[Android importer tests](../../tools/tests/MccPackageImporterTest.java) verify
-that folder and ZIP imports retain metadata and image bytes. CI runs preview
-reader checks on Windows and Linux, including Linux address/undefined-behavior
-sanitizers. These automated checks do not replace rendered menu inspection or
+[Android importer tests](https://github.com/chestahh/GulchCE/blob/1db929c5e34101a45f644436e031016b5584c7bf/tools/tests/MccPackageImporterTest.java) verify
+that folder and ZIP imports retain metadata and image bytes. The full source archive
+ran preview reader checks on Windows and Linux, including Linux
+address/undefined-behavior sanitizers. These tests are archived coverage;
+they are not part of the focused testing-based contribution. These automated checks do not replace rendered menu inspection or
 Android device testing.
 
-[test_mcc_progress.py](../../tools/test_mcc_progress.py) executes journal reads
+[test_mcc_progress.py](https://github.com/chestahh/GulchCE/blob/1db929c5e34101a45f644436e031016b5584c7bf/tools/test_mcc_progress.py) executes journal reads
 and writes, profile/mission isolation, duplicate awards, corruption, capacity
 and profile-rename copying. The existing MCC lifecycle test checks that awards
 are gated by MCC campaign activation and host/local authority.

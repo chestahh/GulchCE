@@ -32,7 +32,7 @@ an MCC-only adapter could not repair Xbox or CE console continuations.
 | --- | --- | --- |
 | 1 | [hs_compile.c](../../source/hs/hs_compile.c): `hs_compile_expression`, `hs_parse_string` | Where does a command's source text live, and how does a string node refer to it? |
 | 2 | [hs_runtime.c](../../source/hs/hs_runtime.c): `hs_runtime_evaluate`, `hs_thread_main`, `hs_runtime_update`; [hs.c](../../source/hs/hs.c): `hs_node_gc` | Which thread retains the expression, and when can its temporary nodes be collected? |
-| 3 | [hs_console_state.h](../../port/linux/game/hs_console_state.h), then [hs_console_state.inl](../../port/linux/game/hs_console_state.inl): `hs_console_source_acquire`, `hs_console_sources_mark`, `hs_console_source_finish` | What prevents a new command from reusing live text? |
+| 3 | [hs_console_state.h](https://github.com/chestahh/GulchCE/blob/1131d624b5c4e1f6e4d12174c4929452acf65285/port/linux/game/hs_console_state.h), then [hs_console_state.inl](https://github.com/chestahh/GulchCE/blob/1131d624b5c4e1f6e4d12174c4929452acf65285/port/linux/game/hs_console_state.inl): `hs_console_source_acquire`, `hs_console_sources_mark`, `hs_console_source_finish` | What prevents a new command from reusing live text? |
 | 4 | [game_state.c](../../source/saved%20games/game_state.c): `game_state_save`, `game_state_save_core`; `hs_console_state_capture` in the console module | What is captured before either kind of save is written? |
 | 5 | `game_state_image_accept`; `hs_console_state_validate`, `hs_console_saved_threads`, `hs_console_saved_graph`, `hs_console_state_restore` | What is checked before saved bytes become live, and how are the original syntax handles restored? |
 | 6 | `hs_runtime_initialize`, `hs_runtime_initialize_for_new_map`, `hs_runtime_dispose_from_old_map` | Who allocates the state and clears it when the map changes? |
@@ -98,7 +98,7 @@ The source pool and snapshot reset during map initialization and old-map
 disposal. Native threads keep their inline stacks; MCC threads keep the
 MCC-owned enlarged storage selected by `mcc_hs_threads_activate` and bounded
 by `mcc_hs_stack_end` in
-[mcc_script_threads.inl](../../port/linux/game/mcc_script_threads.inl).
+[mcc_script_threads.inl](https://github.com/chestahh/GulchCE/blob/1131d624b5c4e1f6e4d12174c4929452acf65285/port/linux/game/mcc_script_threads.inl).
 The generic fix neither transfers that ownership nor combines the map
 loading paths.
 
@@ -129,7 +129,7 @@ downloaded-map restrictions. `hs_console_syntax_node_valid` applies console
 permissions to saved console expressions. This does not grant authored
 Xbox or CE scripts access to console-only commands, or bypass MCC's
 separate function validation.
-In [mcc_scripts.c](../../port/linux/game/mcc_scripts.c),
+In [mcc_scripts.c](https://github.com/chestahh/GulchCE/blob/1131d624b5c4e1f6e4d12174c4929452acf65285/port/linux/game/mcc_scripts.c),
 `mcc_script_call_arguments_valid` checks that grammar for temporary console
 nodes. The map wrapper, `mcc_script_call_valid`, still requires the
 permanent-node bit before delegating to it.
@@ -144,10 +144,10 @@ in [NETCODE.md](../../port/linux/NETCODE.md).
 
 ## Evidence and limits
 
-[test_hs_console_state.py](../../tools/harness/tests/test_hs_console_state.py)
+[test_hs_console_state.py](https://github.com/chestahh/GulchCE/blob/1131d624b5c4e1f6e4d12174c4929452acf65285/tools/harness/tests/test_hs_console_state.py)
 extracts the actual compiler ownership path, allocator, interpreter,
 collector, checkpoint support and validation functions. Its fixture in
-[hs_console_state.c](../../tools/harness/tests/hs_console_state.c) supplies a
+[hs_console_state.c](https://github.com/chestahh/GulchCE/blob/1131d624b5c4e1f6e4d12174c4929452acf65285/tools/harness/tests/hs_console_state.c) supplies a
 small fake world. Cases cover collection and reuse, concurrent text,
 global references, capacity limits, malformed saved references, inactive
 permanent nodes and deliberate faults that the tests must detect.
@@ -156,7 +156,5 @@ These controls do not establish a complete game session or cross-platform
 compatibility. Required runtime checks include replay on Xbox, CE and
 affected MCC maps, ordinary checkpoint/revert, same-build cross-process
 core loading, old-layout refusal and map-family transitions. Platform
-builds and native/browser networking need separate validation. Actual runs,
-binary identities and remaining limits belong to the
-[refactor validation record](../mcc_refactor_validation.md); this walkthrough
+builds and native/browser networking need separate testing; this walkthrough
 does not claim those checks have all passed.

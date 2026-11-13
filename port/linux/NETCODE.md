@@ -47,6 +47,19 @@ with ideas from VALORANT's netcode articles, keeping the 30 Hz tick:
     host's is once that stops, or if they drift apart while it moves;
   - which named objects exist, so scripted creates and deletes match.
 
+  The scripts' looping sounds (music, ambience, a cutscene's music and
+  dialogue) are resent every two seconds, so a machine that joins hears
+  them. The resends of one that plays once (a fake impulse looping sound)
+  say how many milliseconds ago the host started it (the event's `target`),
+  and a machine that starts it from a resend starts it there
+  (`coop_sound_sync.c`): a start sound that has played out is skipped, the
+  part playing starts at the permutation and block that time falls in, and a
+  sound that has played out does not start. Each machine still picks its own
+  pitches and permutations. A start with no time (`NONE`: the scripts' own
+  start, and every start from a host built before this) plays from the
+  beginning, and a client built before this ignores the time, so neither
+  needs a new network version.
+
   Script actions naming player0 also reach the players beyond player1.
   They use the same reverse datum order as the script's `(players)` list,
   skipping players without units, so a scripted BSP transition does not
@@ -169,7 +182,8 @@ lockstep netcode was removed, set to play it): it tells the player why.
 
 ## OpenCE network agreement
 
-This branch uses network version 32739 for Xbox, Custom Edition and MCC sessions.
+OpenCE network version 42 replaced version 41 for Xbox, Custom Edition and MCC sessions;
+version 44 (below, "Versions") replaces it.
 Advertisements and ordinary join requests carry this one version; mismatched
 versions are rejected before admission. There is no separate MCC capability
 envelope or optional shoulder-camera protocol. Retired fork message IDs 101 and
@@ -190,8 +204,10 @@ Small client-clock deficits recover through bounded actual simulation ticks.
 Scripted player poses carry five signed-16-bit direction vectors (30 bytes) for
 desired facing/aim/look and current aim/look, plus suspension in the unit flags.
 The host sends this extension when input is inhibited or a unit is suspended.
-Clients validate the entire extension; normal input keeps local prediction and
-omits the vectors. Matching position does not suppress orientation correction.
+Clients validate the entire extension (a pose that is not unit vectors is
+left out, the unit's other state and the message's other units kept); normal
+input keeps local prediction and omits the vectors. Matching position does
+not suppress orientation correction.
 
 Version 42 also requires initialized three-point boat controls and the corrected
 shared console-syntax/checkpoint lifetime. MCC snapshots include extra grenades,
@@ -367,10 +383,81 @@ game's flags also tell its clients whether the host is a dedicated server
 (`_network_game_cooperative_dedicated_bit`: its loading zones then ask for
 most of the living players).
 
-Version 32739 on GET-YOUR-MCC-HERE adds automatic MCC package offers under
-Map Sharing and lets receivers satisfy omitted base resources with validated
-local files. It retains this branch's older engine agreement, without OpenCE's
-complete version-43 changes, and therefore cannot join OpenCE version 44.
+OpenCE network version 42 adds MCC package identity, admission and host-only
+sharing to the shared agreement. Join requests carry this version explicitly;
+settings carry a zero MCC identity for Xbox/CE. Checkpoint epochs, recovery,
+scripted poses and shared boat/console fixes require matching peers.
+
+Then version 43 changes what the machines simulate and send: on an MCC map a
+vector damage impulse follows the damage's direction (`mcc_damage.c`), and on
+every map a vehicle on its side (`vehicle_is_flipped`: its up below 0.2)
+throws its riders, as the retail game does, not only one upside down. Chat
+lines carry `_chat_line_host_bit`, and the chat settings the host's machine
+(`_chat_config_host_machine_bit`, `network_chat.c`), so every machine draws
+the host's name white; a co-op cutscene's sound event carries in `target` the
+milliseconds the host has played of it, so a machine that joins during it
+starts it there (`coop_sound_sync.c`). A host now waits for a machine's MCC
+conversion (message 106) out of that machine's allowance: holding a round's
+start beyond the ordinary wait spends it, time not holding earns it back at a
+third of the rate, up to the round's limit (`mcc_load_network.h`), so a
+machine that pulses without converting cannot hold every round's start. A
+version 42 build computes MCC impulses the other way, and its scripted poses'
+validation drops the message's other units with a bad pose.
+
+Version 43 also carries a rider standing on a vehicle: the deck part of a unit's
+state and the host's riding decision for the game, made at its start and
+kept until the map ends, a co-op flag of the game's settings
+(`_network_game_cooperative_vehicle_riding_bit`, bit 3;
+`port/linux/game/vehicle_riding.c`).
+It also carries a rider's cabin: its enclosure verdict while it stands as
+well as in the air. It ships with the rest of version 43, which no released
+build has.
+The deck part's verdict bits (1 open, 2 enclosed, 0 unknown) are sent in
+every window tick, riding included. Riding, they carry the standing cabin
+verdict (its grace counted by the sender: the host for its broadcast, a
+client for its own riders' predictions); in a protected jump,
+its raw sample; in a shallow jump, the air verdict as before. Bit 3 of the
+flags (the part stays 28 bytes) says that a verdict in the air is cabin
+evidence, a protected jump's sample or the host's word for it, rather than
+that legacy one. A client takes the host's verdict for the cabin of its own
+player and of every other rider, whatever its own samples say.
+
+The host takes a rider's word in its vehicle's frame and checks it there; a
+client places riders on its own copy of the deck. The host takes the words of
+the players riding in a second pass, after the vehicles of the tick have moved
+(the first takes those on foot), so a word naming a place on the deck is
+checked against the deck where it now is.
+For a round trip and a jitter after the host's copy or the client's changed
+between riding and not (a take-off or a landing the two disagree about), a
+word within `debug.riding_transition_leash` (0.25 world units, host only) of
+where the host's copy stands is taken as the place it names in the world
+rather than as a deck place: a position allowance during the disagreement,
+never a speed. A vehicle's netcode writes (the host's snaps, a client's corrections)
+carry its riders along but are recorded apart from its motion, in a
+correction each vehicle keeps, so they never count as the deck's speed. A
+vehicle a client follows (the host's word is its place, not its updates) is
+measured by the time elapsed since the rider's last tick, and a change of the
+vehicle's role (simulated or followed) takes no correction across it.
+None of this adds a byte: the cabin bit (bit 3 of the flags) is the only change to the deck part,
+which stays 28 bytes, and the version stays 43.
+
+Message 107 carries the host's riding rules: the map's choice (its boolean
+`vehicle_riding` global or startup call; none when the map makes none) and
+the host's latched `debug.riding_` values (damage speed, teleport step, moved
+alone, air grip, look carry, enclosure grace ticks; not the transition
+leash, which only the host uses). The host sends it reliably to every client
+at each map start, again when either changes, and to a late joiner at its
+ready. A client prefers the choice to the cooperative bit and takes the
+values over its own config (clamped as its own latch clamps them) until the
+next game; before the message it keeps its own. The values are the latched
+ones, so a config change on the host waits for the next map; a co-op host's
+revert or saved-game load reads the config again, and the new values are
+sent again then. It ships with
+the rest of version 43, which stays 43.
+
+Version 44 unifies MCC offers under Map Sharing and lets a receiver satisfy
+omitted base resources with its own validated local files. Message layouts
+are unchanged; the changed sharing agreement requires matching peers.
 
 `port/linux/network_format.txt` records the wire format of the current
 version (`tools/network_format.py`): `test_linux_port.py` fails when the
@@ -484,6 +571,12 @@ the host's lines, its own too, so every machine shows them in one order,
 and takes them (and the chat settings below) only over the host's
 connection's stream: a datagram from the host's address could be anyone's.
 Each local player's view shows the lines that player hears.
+A person on the machine running the game has their name drawn white, on
+that machine and on each client. The host marks the line (the next flag
+after the notice). Other names keep their team's colors, and the words
+stay pale blue. The line is still 68 bytes. A client whose host does not
+mark the line still draws white for a person on the machine the chat
+settings name, or on the first machine.
 The host's own `/mute <player> [minutes]` and `/unmute <player>` are
 commands, not lines: it keeps a mute by the player's name (in ASCII,
 matched in either case, as the host keeps names apart) and its minutes by
@@ -741,7 +834,7 @@ its name alone beside it, has its name given back as the map lists find it.
 
 MCC supports host-only delivery for eligible local and Workshop packages.
 It uses MCC-owned messages **103** (request) and **104** (response),
-separate from CE sharing 83-86. Every map family uses network version **32739**.
+separate from CE sharing 83-86. Every map family uses network version **44** for automatic sharing and local base dependencies.
 The shared settings record includes two 32-byte MCC digests, zero for Xbox/CE:
 the gameplay/resource identity and the required-JSON identity. The distributed
 header is 12 bytes, including its checkpoint epoch.
@@ -833,7 +926,7 @@ or invalid override reports its file error instead of trying base alternatives.
 Each distinct combination still requires the full gameplay SHA-256. An unchanged
 failed exact path is not hashed again after discovery rescans; changed files or
 required metadata permit a fresh check. These are local work and diagnostic
-changes, with no change to message layouts, fingerprint framing or this branch's version 32739.
+changes, with no change to message layouts, fingerprint framing or version 44.
 
 After admission, synchronous MCC conversion has a separate bounded progress
 contract in `mcc_load_network.c` and `mcc_load_network_game.c`. Reliable message
@@ -876,9 +969,7 @@ already published survives a subsequent admission failure.
 Implementation lives in `mcc_share.c`, `mcc_share_package.c`,
 `mcc_share_session.c`, `mcc_share_stage.c` and the MCC metadata helpers.
 Managed-copy receipts and the removal UI preserve separate ownership of
-downloaded snapshots. Native platform, transport, real-map and follow-on-mission
-checks and their limits are recorded in
-[Milestone 13](../../docs/mcc_refactor_validation.md#milestone-13-implementation-evidence).
+downloaded snapshots.
 Browser publication uses an owned OPFS journal and commit record instead of a
 directory rename; see [browser storage](../../docs/reading/browser_imports.md).
 Browser gameplay, downloads and persistence have their own Milestone 14

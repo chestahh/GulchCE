@@ -19,18 +19,18 @@ Xbox base/menu data must already be imported. CE and MCC imports do not
 replace it. A supported desktop browser must provide OPFS and Web Locks,
 which coordinate access between tabs of the same origin. The launcher's
 existing browser checks include that requirement. Imports do not change
-the default-off `game.mcc_campaigns` setting.
+the default-on `game.mcc_campaigns` setting.
 
 | Read | Follow |
 | --- | --- |
 | [Launcher](../../port/web/site/app.js) | `mapImport`, `beginStorageTask`, `play`: UI ownership, existing import guards and startup recovery. |
-| [CE importer](../../port/web/site/ce-import-worker.js) | `plan`: flat CE names, version 609, resource headers and OpenSauce rejection. |
-| [MCC importer](../../port/web/site/mcc-import-worker.js) | `plan`, `parseJson`, `png`: package layout, campaign/MP metadata, raw JSON identity and optional previews. |
-| [Import primitives](../../port/web/site/map-import-files.js) | `chosen`, `path`, `cacheHeader`, `resourceHeader`: bounded reads and portable names, without Xbox format policy. |
-| [Browser storage](../../port/web/site/map-import-storage.js) | `importPlan`, `begin`, `finish`, `recover`, `startGame`: owned journals, publication and cross-tab locks. |
-| [Storage worker](../../port/web/site/map-storage-worker.js) | Dispatch page/game requests to the Worker where synchronous OPFS handles are available. |
-| [C bridge](../../port/web/src/web_mcc_storage.c) and [JS bridge](../../port/web/src/web_mcc_library.js) | `web_mcc_share_io`, `web_mcc_package_visible`, asynchronous mailbox results and bounded waits. |
-| [MCC staging](../../port/linux/game/mcc_share_stage.c) | Browser direct staging alongside unchanged native directory publication. |
+| [CE importer](https://github.com/chestahh/GulchCE/blob/1131d624b5c4e1f6e4d12174c4929452acf65285/port/web/site/ce-import-worker.js) | `plan`: flat CE names, version 609, resource headers and OpenSauce rejection. |
+| [MCC importer](https://github.com/chestahh/GulchCE/blob/1131d624b5c4e1f6e4d12174c4929452acf65285/port/web/site/mcc-import-worker.js) | `plan`, `parseJson`, `png`: package layout, campaign/MP metadata, raw JSON identity and optional previews. |
+| [Import primitives](https://github.com/chestahh/GulchCE/blob/1131d624b5c4e1f6e4d12174c4929452acf65285/port/web/site/map-import-files.js) | `chosen`, `path`, `cacheHeader`, `resourceHeader`: bounded reads and portable names, without Xbox format policy. |
+| [Browser storage](https://github.com/chestahh/GulchCE/blob/1131d624b5c4e1f6e4d12174c4929452acf65285/port/web/site/map-import-storage.js) | `importPlan`, `begin`, `finish`, `recover`, `startGame`: owned journals, publication and cross-tab locks. |
+| [Storage worker](https://github.com/chestahh/GulchCE/blob/1131d624b5c4e1f6e4d12174c4929452acf65285/port/web/site/map-storage-worker.js) | Dispatch page/game requests to the Worker where synchronous OPFS handles are available. |
+| [C bridge](https://github.com/chestahh/GulchCE/blob/1131d624b5c4e1f6e4d12174c4929452acf65285/port/web/src/web_mcc_storage.c) and [JS bridge](https://github.com/chestahh/GulchCE/blob/1131d624b5c4e1f6e4d12174c4929452acf65285/port/web/src/web_mcc_library.js) | `web_mcc_share_io`, `web_mcc_package_visible`, asynchronous mailbox results and bounded waits. |
+| [MCC staging](https://github.com/chestahh/GulchCE/blob/1131d624b5c4e1f6e4d12174c4929452acf65285/port/linux/game/mcc_share_stage.c) | Browser direct staging alongside unchanged native directory publication. |
 
 The page's small additive guards also cover existing Xbox import, mod changes
 and Xbox-data deletion. Their worker implementations, formats, directories
@@ -157,18 +157,14 @@ their validated case; manual import names are normalized once.
 
 The automated import, storage and launcher tests execute the production JS
 with synthetic headers and fault-injected OPFS/Web Locks interfaces.
-[Real browser import checks](../../port/web/tests/map_import.mjs) additionally
+[Real browser import checks](https://github.com/chestahh/GulchCE/blob/1db929c5e34101a45f644436e031016b5584c7bf/port/web/tests/map_import.mjs) additionally
 select real files and use the actual Chromium/Firefox workers and OPFS:
 map/JSON SHA preservation, campaign metadata, invalid-preview placeholders,
 no overwrite, reload persistence, cancellation and concurrent shared games.
-[WasmFS staging checks](../../port/web/tests/mcc_storage.mjs) exercise the real
+[WasmFS staging checks](https://github.com/chestahh/GulchCE/blob/1131d624b5c4e1f6e4d12174c4929452acf65285/port/web/tests/mcc_storage.mjs) exercise the real
 C stage, bridge, flush failures and crash/uncertain-outcome recovery in both
 browsers. Their synthetic bytes are not playable maps.
 
-At this implementation phase those component and browser storage checks
-passed; final combined MCC/CE/Xbox gameplay and networking validation remains
-a separate Milestone 14 gate. Consult the
-[validation ledger](../mcc_refactor_validation.md) for current runtime evidence,
-tested revisions and limits. An imported map or successful storage transaction
+The repository includes the focused storage tests. An imported map or successful storage transaction
 does not prove rendering, simulation, campaign progression or cross-platform
 network compatibility.

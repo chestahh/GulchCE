@@ -628,6 +628,8 @@ symbols in this file:
 struct widget_instance;
 
 #include "cseries.h"
+#include "keyboard_glyphs.h" /* port: port/linux/game/keyboard_glyphs.c; HUD prompts only */
+#include "menu_button_glyphs.h" /* port: port/linux/game/menu_button_glyphs.c */
 #include "errors.h"
 #include "bitmaps/bitmap_group.h"
 #include "bitmaps/bitmaps.h"
@@ -3047,10 +3049,8 @@ void ui_widgets_close_all_for_local_player(
 				dispose_widget_stack(&widget_globals.widget_stack[widget_index]);
 		}
 	}
-	{
-
-		mcc_ui_settings_close(local_player_index);
-	}
+	/* port: and MCC's pause menu's settings (mcc_ui.c) */
+	mcc_ui_settings_close(local_player_index);
 
 	return;
 }
@@ -3490,17 +3490,14 @@ static void event_handler_dispatch(
 		/* port: not from a widget its function deleted (it went back:
 		menu_functions.c's profile_save_changes), which the Xbox's opened
 		from regardless */
-		/* MCC New Game can synchronously close every widget. Finish the event
-		with its deletion result before any navigation can reuse that tree. */
+		/* port: MCC's New Game can close every widget at once. The event ends
+		with that deletion, before anything can open from the deleted tree */
+		if (TEST_FLAG(handler->flags, _event_handler_open_widget_bit) &&
+			!widget_deleted && handler->widget_tag.index != NONE &&
+			mcc_ui_new_game(widget, &widget_deleted))
 		{
-
-			if (TEST_FLAG(handler->flags, _event_handler_open_widget_bit) &&
-				!widget_deleted && handler->widget_tag.index != NONE &&
-				mcc_ui_new_game(widget, &widget_deleted))
-			{
-				*calling_widget_deleted = widget_deleted;
-				return;
-			}
+			*calling_widget_deleted = widget_deleted;
+			return;
 		}
 		if (TEST_FLAG(handler->flags, _event_handler_open_widget_bit) &&
 			!widget_deleted &&
@@ -4210,6 +4207,7 @@ static void render_state_bitmap(
 	if (bitmap && _texture_cache_bitmap_get_hardware_format(
 		(struct bitmap_data *)bitmap, FALSE, TRUE))
 	{
+		/* port: an MCC map's icon is drawn as its HUD's are (mcc_hud_draw.c) */
 		if (mcc_hud_icon_draw(bitmap_group_index, bitmap, clip, cursor_bounds, color, icon, TRUE))
 			return;
 		/* port: the sprite from a high-res texture, if it has one */
@@ -4290,6 +4288,13 @@ void draw_string_and_hack_in_icons(
 			short icon_index;
 
 			current = icon_spec + wcslen(icon_names[icon_type]);
+			/* port: HUD/scoreboard callers pass TRUE; menu styling has its own opt-in. */
+			if (ignore_icon_color && keyboard_hud_inline(icon_type, &cursor_bounds))
+				continue;
+			/* port: optional PC-menu artwork preserves the literal button meaning. */
+			if (!ignore_icon_color && menu_button_glyph_inline(icon_type,
+				local_player_index_for_draw_string_and_hack_in_icons, &cursor_bounds))
+				continue;
 			remapped_icon_type = remap_sticks_for_local_player(
 				icon_type,
 				local_player_index_for_draw_string_and_hack_in_icons);
@@ -5370,6 +5375,11 @@ static boolean ui_widget_port_text_wrap(
 	return fits;
 }
 
+/* port: port/linux/game/menu_functions.c; optional centered PC join legends. */
+boolean menu_functions_glyph_text(struct widget_instance *widget, rectangle2d const *bounds);
+/* port: MCC-owned keyboard legend identities, with native controller fallback. */
+short menu_functions_glyph_button(struct widget_instance *widget, short native);
+
 static void widget_instance_render_text_box(
 	struct widget_instance *widget,
 	struct ui_widget_definition *definition,
@@ -5559,6 +5569,9 @@ static void widget_instance_render_text_box(
 	 * frontend. The MCC module owns formatting and clips to this text box. */
 	if (mcc_menu_text_draw(widget->definition_tag_index, widget->parameters.text_box.string_list_index,
 		*text, font_index, justification, &color, &bounds, &clip))
+		return;
+	/* port: the feature may center the identified PC join line as one unit. */
+	if (menu_functions_glyph_text(widget, &bounds))
 		return;
 	if (string_has_icons_to_draw(*text))
 		draw_string_and_hack_in_icons(&bounds, &clip, NULL, 0, *text, FALSE);
@@ -7185,6 +7198,9 @@ static void ui_widgets_process_mouse(
 	return;
 }
 
+/* port: port/linux/game/menu_functions.c; optional PC legend spacing. */
+short menu_functions_glyph_offset(struct widget_instance *widget);
+
 static void widget_instance_render_recursive(
 	struct widget_instance *widget,
 	rectangle2d *clip_rect,
@@ -7211,6 +7227,8 @@ static void widget_instance_render_recursive(
 		use_nifty_plasma_fx = TRUE;
 	}
 	offset.x += widget->horizontal_offset;
+	/* port: move the complete PC legend group, including its mouse target. */
+	offset.x += menu_functions_glyph_offset(widget);
 	offset.y += widget->vertical_offset;
 	for (input_index = 0;
 		input_index < definition->game_data_inputs.count;
@@ -7335,8 +7353,6 @@ static void widget_instance_render_recursive(
 			boolean shown = TRUE;
 			boolean stretched = custom_edition_picture &&
 				custom_edition_maps_campaign_level(widget->animation.current_frame_index) == NONE;
-			/* port: modern art follows its responsive bounds; inherited map and
-			 * gametype previews retain their native padded-bitmap texel placement. */
 
 			/* port: MCC art fits and clips to this style's authored thumbnail
 			 * rectangle; only the MCC module decodes or owns its texture. */
@@ -7352,7 +7368,10 @@ static void widget_instance_render_recursive(
 				texels.y1 = (short)((long)(bounds.y1 - bounds.y0) * bitmap->height / frame_height);
 				shown = bounds.x1 > bounds.x0 && bounds.y1 > bounds.y0;
 			}
-			if (shown)
+			/* port: retain native drawing unless a recognized PC-menu legend is replaced. */
+			if (shown && !menu_button_glyph_draw(menu_functions_glyph_button(widget, ui_mouse_key_button(widget)),
+				widget->local_player_index >= 0 && widget->local_player_index < 4 ?
+				widget->local_player_index : 0, &bounds, clip, color))
 			{
 				draw_bitmap_in_rect(
 					bitmap,

@@ -49,7 +49,9 @@ DRIVER = r'''
 #include <stdlib.h>
 #include <string.h>
 void platform_translate_path(const char *in,char *out,unsigned long size) {
- (void)in; snprintf(out,size,"%s",getenv("TEST_MAP_FILE"));
+ char *last; (void)in; snprintf(out,size,"%s",getenv("TEST_MAP_FILE"));
+ for(last=out;*last;last++)if(*last=='\\')*last='/';
+ last=strrchr(out,'/'); if(last)*last=0;
 }
 int steam_workshop_package_folder(const char *id,char *out,unsigned long size) {
  const char *p=getenv("TEST_STEAM_FOLDER"); (void)id;
