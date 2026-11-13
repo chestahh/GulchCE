@@ -1,0 +1,511 @@
+{
+  "date": "2026-11-13",
+  "revision": "9584b417d823d618a2c84eedc73861f1067b81a1",
+  "production_changes": false,
+  "m0_signed_off": false,
+  "m1_started": false,
+  "blocked_runtime": [
+    "Linux: no runner",
+    "Android: no device"
+  ],
+  "readiness": {
+    "revision": "9584b417d823d618a2c84eedc73861f1067b81a1",
+    "generated_sha256": {
+      "config.inc": "6d8653b7f45750fa8e165eaa73d36adbc874914e336fa997ebbc03206deccccd",
+      "types.inc": "4d9c53c2c5af910c912bc1a58f9ccbea6a158d5940264505750a6802ca8581e1",
+      "data.inc": "f8d86b444c5c64e31edb780ec6e4eb1abe886fc6263f3f2888a4f5d999041aa5",
+      "engine.inc": "147f9dd1baaff512aaf0d4d62f78625c121108fc32c662c293c3ebd26c3fde69",
+      "under_test.inc": "944e2a6636ddf72ec817627ea10413ede4735468473d305de15b4f9b6ebae9f6",
+      "ready.c": "a88a21e4886cae03a519434f66aeb3761496d7e4df45ce50bb68c11154c0d13f"
+    },
+    "desired_behavior": "A readiness claim must distinguish ordered receipt from successful persistent-state reconstruction.",
+    "cases": [
+      {
+        "case": "m0-complete",
+        "exit_code": 0,
+        "output": "ready=1 objects_synchronized=1 object_present=1 pending_inventories=0 producers=6\n"
+      },
+      {
+        "case": "m0-allocation",
+        "exit_code": 0,
+        "output": "ready=1 objects_synchronized=0 object_present=0 pending_inventories=0 producers=6\n"
+      },
+      {
+        "case": "m0-inventory",
+        "exit_code": 0,
+        "output": "ready=1 objects_synchronized=1 object_present=1 pending_inventories=1 producers=6\n"
+      }
+    ]
+  },
+  "reliable_stream": {
+    "revision": "9584b417d823d618a2c84eedc73861f1067b81a1",
+    "source_sha256": "aa0d8b326795c0516a70e3b5229ad5c275fc9bcb23f19b12ceec57a29acebd3e",
+    "inputs_sha256": {
+      "tools/investigations/coop_m0_stream.py": "3b2891c84b43eb6008fc120cc5feae3be1b96295e4309e1728e295e2f4664c08",
+      "tools/investigations/coop_m0_stream.c": "3a8a7b6cad59880c4fb47c48f3433531cfff6efa5a9a9e1ff5be35e30593a249",
+      "port/third_party/kcp/ikcp.c": "8654038a70d1bbe605aa94f066554ffb30bf28580a58769970221de3ba5027f0",
+      "port/third_party/kcp/ikcp.h": "d67a0e67ba5701f1e882894b4415c4d3ad3d7d9f7231dd2ca68c6037c5217933"
+    },
+    "extracted_functions": [
+      "kcp_output",
+      "stream_new",
+      "stream_free",
+      "stream_message",
+      "stream_local_closed",
+      "stream_flush_pending",
+      "stream_update",
+      "stream_readable"
+    ],
+    "cases": [
+      {
+        "case": "normal",
+        "seed": 1,
+        "exit_code": 0,
+        "stderr": "",
+        "observations": {
+          "case": "normal",
+          "bytes": 1609776,
+          "virtual_ms": 1990,
+          "emitted": 1789,
+          "delivered": 1789,
+          "dropped": 0,
+          "duplicates": 0,
+          "reordered": 0,
+          "relay_peak": 19,
+          "pending_peak": 0,
+          "waiting_peak": 32,
+          "receive_peak": 0,
+          "heartbeats": 20,
+          "stall_heartbeats": 19,
+          "blocked_writes": 0
+        }
+      },
+      {
+        "case": "normal",
+        "seed": 42,
+        "exit_code": 0,
+        "stderr": "",
+        "observations": {
+          "case": "normal",
+          "bytes": 1609776,
+          "virtual_ms": 1990,
+          "emitted": 1789,
+          "delivered": 1789,
+          "dropped": 0,
+          "duplicates": 0,
+          "reordered": 0,
+          "relay_peak": 19,
+          "pending_peak": 0,
+          "waiting_peak": 32,
+          "receive_peak": 0,
+          "heartbeats": 20,
+          "stall_heartbeats": 19,
+          "blocked_writes": 0
+        }
+      },
+      {
+        "case": "normal",
+        "seed": 8675309,
+        "exit_code": 0,
+        "stderr": "",
+        "observations": {
+          "case": "normal",
+          "bytes": 1609776,
+          "virtual_ms": 1990,
+          "emitted": 1789,
+          "delivered": 1789,
+          "dropped": 0,
+          "duplicates": 0,
+          "reordered": 0,
+          "relay_peak": 19,
+          "pending_peak": 0,
+          "waiting_peak": 32,
+          "receive_peak": 0,
+          "heartbeats": 20,
+          "stall_heartbeats": 19,
+          "blocked_writes": 0
+        }
+      },
+      {
+        "case": "impaired",
+        "seed": 1,
+        "exit_code": 0,
+        "stderr": "",
+        "observations": {
+          "case": "impaired",
+          "bytes": 1609776,
+          "virtual_ms": 3320,
+          "emitted": 2877,
+          "delivered": 2799,
+          "dropped": 278,
+          "duplicates": 201,
+          "reordered": 1778,
+          "relay_peak": 125,
+          "pending_peak": 0,
+          "waiting_peak": 128,
+          "receive_peak": 217,
+          "heartbeats": 33,
+          "stall_heartbeats": 20,
+          "blocked_writes": 0
+        }
+      },
+      {
+        "case": "impaired",
+        "seed": 42,
+        "exit_code": 0,
+        "stderr": "",
+        "observations": {
+          "case": "impaired",
+          "bytes": 1609776,
+          "virtual_ms": 2690,
+          "emitted": 2904,
+          "delivered": 2820,
+          "dropped": 279,
+          "duplicates": 202,
+          "reordered": 1769,
+          "relay_peak": 139,
+          "pending_peak": 0,
+          "waiting_peak": 128,
+          "receive_peak": 234,
+          "heartbeats": 27,
+          "stall_heartbeats": 20,
+          "blocked_writes": 0
+        }
+      },
+      {
+        "case": "impaired",
+        "seed": 8675309,
+        "exit_code": 0,
+        "stderr": "",
+        "observations": {
+          "case": "impaired",
+          "bytes": 1609776,
+          "virtual_ms": 2700,
+          "emitted": 2888,
+          "delivered": 2793,
+          "dropped": 285,
+          "duplicates": 193,
+          "reordered": 1800,
+          "relay_peak": 119,
+          "pending_peak": 0,
+          "waiting_peak": 128,
+          "receive_peak": 188,
+          "heartbeats": 27,
+          "stall_heartbeats": 20,
+          "blocked_writes": 0
+        }
+      },
+      {
+        "case": "wire-stall",
+        "seed": 1,
+        "exit_code": 0,
+        "stderr": "",
+        "observations": {
+          "case": "wire-stall",
+          "bytes": 1609776,
+          "virtual_ms": 3870,
+          "emitted": 2759,
+          "delivered": 2759,
+          "dropped": 0,
+          "duplicates": 0,
+          "reordered": 13,
+          "relay_peak": 1043,
+          "pending_peak": 0,
+          "waiting_peak": 128,
+          "receive_peak": 96,
+          "heartbeats": 39,
+          "stall_heartbeats": 20,
+          "blocked_writes": 0
+        }
+      },
+      {
+        "case": "wire-stall",
+        "seed": 42,
+        "exit_code": 0,
+        "stderr": "",
+        "observations": {
+          "case": "wire-stall",
+          "bytes": 1609776,
+          "virtual_ms": 3870,
+          "emitted": 2759,
+          "delivered": 2759,
+          "dropped": 0,
+          "duplicates": 0,
+          "reordered": 13,
+          "relay_peak": 1043,
+          "pending_peak": 0,
+          "waiting_peak": 128,
+          "receive_peak": 96,
+          "heartbeats": 39,
+          "stall_heartbeats": 20,
+          "blocked_writes": 0
+        }
+      },
+      {
+        "case": "wire-stall",
+        "seed": 8675309,
+        "exit_code": 0,
+        "stderr": "",
+        "observations": {
+          "case": "wire-stall",
+          "bytes": 1609776,
+          "virtual_ms": 3870,
+          "emitted": 2759,
+          "delivered": 2759,
+          "dropped": 0,
+          "duplicates": 0,
+          "reordered": 13,
+          "relay_peak": 1043,
+          "pending_peak": 0,
+          "waiting_peak": 128,
+          "receive_peak": 96,
+          "heartbeats": 39,
+          "stall_heartbeats": 20,
+          "blocked_writes": 0
+        }
+      },
+      {
+        "case": "sink-stall",
+        "seed": 1,
+        "exit_code": 0,
+        "stderr": "",
+        "observations": {
+          "case": "sink-stall",
+          "bytes": 1609776,
+          "virtual_ms": 3610,
+          "emitted": 1790,
+          "delivered": 1790,
+          "dropped": 0,
+          "duplicates": 0,
+          "reordered": 0,
+          "relay_peak": 64,
+          "pending_peak": 16384,
+          "waiting_peak": 128,
+          "receive_peak": 256,
+          "heartbeats": 37,
+          "stall_heartbeats": 20,
+          "blocked_writes": 200
+        }
+      },
+      {
+        "case": "sink-stall",
+        "seed": 42,
+        "exit_code": 0,
+        "stderr": "",
+        "observations": {
+          "case": "sink-stall",
+          "bytes": 1609776,
+          "virtual_ms": 3610,
+          "emitted": 1790,
+          "delivered": 1790,
+          "dropped": 0,
+          "duplicates": 0,
+          "reordered": 0,
+          "relay_peak": 64,
+          "pending_peak": 16384,
+          "waiting_peak": 128,
+          "receive_peak": 256,
+          "heartbeats": 37,
+          "stall_heartbeats": 20,
+          "blocked_writes": 200
+        }
+      },
+      {
+        "case": "sink-stall",
+        "seed": 8675309,
+        "exit_code": 0,
+        "stderr": "",
+        "observations": {
+          "case": "sink-stall",
+          "bytes": 1609776,
+          "virtual_ms": 3610,
+          "emitted": 1790,
+          "delivered": 1790,
+          "dropped": 0,
+          "duplicates": 0,
+          "reordered": 0,
+          "relay_peak": 64,
+          "pending_peak": 16384,
+          "waiting_peak": 128,
+          "receive_peak": 256,
+          "heartbeats": 37,
+          "stall_heartbeats": 20,
+          "blocked_writes": 200
+        }
+      },
+      {
+        "case": "combined",
+        "seed": 1,
+        "exit_code": 0,
+        "stderr": "",
+        "observations": {
+          "case": "combined",
+          "bytes": 1609776,
+          "virtual_ms": 6540,
+          "emitted": 3446,
+          "delivered": 3343,
+          "dropped": 338,
+          "duplicates": 238,
+          "reordered": 2336,
+          "relay_peak": 584,
+          "pending_peak": 16384,
+          "waiting_peak": 128,
+          "receive_peak": 301,
+          "heartbeats": 65,
+          "stall_heartbeats": 20,
+          "blocked_writes": 199
+        }
+      },
+      {
+        "case": "combined",
+        "seed": 42,
+        "exit_code": 0,
+        "stderr": "",
+        "observations": {
+          "case": "combined",
+          "bytes": 1609776,
+          "virtual_ms": 6430,
+          "emitted": 3377,
+          "delivered": 3287,
+          "dropped": 320,
+          "duplicates": 233,
+          "reordered": 2328,
+          "relay_peak": 593,
+          "pending_peak": 16384,
+          "waiting_peak": 128,
+          "receive_peak": 383,
+          "heartbeats": 64,
+          "stall_heartbeats": 20,
+          "blocked_writes": 199
+        }
+      },
+      {
+        "case": "combined",
+        "seed": 8675309,
+        "exit_code": 0,
+        "stderr": "",
+        "observations": {
+          "case": "combined",
+          "bytes": 1609776,
+          "virtual_ms": 8290,
+          "emitted": 3432,
+          "delivered": 3321,
+          "dropped": 338,
+          "duplicates": 229,
+          "reordered": 2302,
+          "relay_peak": 576,
+          "pending_peak": 16384,
+          "waiting_peak": 128,
+          "receive_peak": 272,
+          "heartbeats": 83,
+          "stall_heartbeats": 20,
+          "blocked_writes": 199
+        }
+      }
+    ],
+    "limits": "Virtual clock, synthetic payload, pre-opened streams; no crypto/admission, game TCP, WebRTC or full co-op qualification.",
+    "negative_controls": [
+      {
+        "name": "payload",
+        "exit_code": 1,
+        "expected_reason": "exact ordered payload",
+        "detected": true,
+        "stderr": "C:\\Users\\matty\\.codex\\worktrees\\coop-rewrite-feasibility\\GulchCE\\tools\\investigations\\coop_m0_stream.c:72: exact ordered payload\n"
+      },
+      {
+        "name": "backpressure",
+        "exit_code": 1,
+        "expected_reason": "production backpressure bounds",
+        "detected": true,
+        "stderr": "C:\\Users\\matty\\.codex\\worktrees\\coop-rewrite-feasibility\\GulchCE\\tools\\investigations\\coop_m0_stream.c:166: production backpressure bounds\n"
+      }
+    ]
+  },
+  "adjacent_regressions": {
+    "passed": 80,
+    "log": "build/m0/recovery-stream-regressions.log"
+  },
+  "local_roster": [
+    {
+      "session": "local-events-isolated",
+      "binary_sha256": "0d7b48d697dd9867a40b1c7b2bc47f51b0c0d65e19fe8719a10b33e9c4426015",
+      "exit_before_cleanup": null,
+      "same_machine_two_players": true,
+      "both_living_samples": 42,
+      "inspected_capture": "host/captures/frame02400.bmp",
+      "content": [
+        {
+          "destination": "maps/ui.map",
+          "sha256": "35e3e560478d85178749be310ad13d6d6ecde618d32675261a3554592333a833"
+        },
+        {
+          "destination": "maps/carousel.map",
+          "sha256": "1c6353df6e4530437841b09775e62fa067caa46bb0e40f4579bbf2276991a38e"
+        },
+        {
+          "destination": "maps/a30.map",
+          "sha256": "4875fa105e6c517589a796cfdcc7fcaa07e98df13d14e601bfc9eb1eab7e30b5"
+        }
+      ],
+      "limits": "Short local-test-route baseline; no independent input, full campaign, audio or multi-machine multi-local-player qualification."
+    },
+    {
+      "session": "local-ce",
+      "binary_sha256": "0d7b48d697dd9867a40b1c7b2bc47f51b0c0d65e19fe8719a10b33e9c4426015",
+      "exit_before_cleanup": null,
+      "same_machine_two_players": true,
+      "both_living_samples": 27,
+      "inspected_capture": "host/captures/frame02100.bmp",
+      "content": [
+        {
+          "destination": "maps/ui.map",
+          "sha256": "35e3e560478d85178749be310ad13d6d6ecde618d32675261a3554592333a833"
+        },
+        {
+          "destination": "maps/carousel.map",
+          "sha256": "1c6353df6e4530437841b09775e62fa067caa46bb0e40f4579bbf2276991a38e"
+        },
+        {
+          "destination": "custom_maps/b30.map",
+          "sha256": "baec59d37cf8d3f017dd3ac0d61fb431087490eeb1c469b2071ae2aec66ca24a"
+        },
+        {
+          "destination": "custom_maps/bitmaps.map",
+          "sha256": "317658e0ebd4aa189bac68e994fe0b515928f44d17b62ba676d8850aa329dd3d"
+        },
+        {
+          "destination": "custom_maps/sounds.map",
+          "sha256": "81658a8d9b127b2771558a35e664ec3f1a2b370f271fe957426d945001ceb5d2"
+        },
+        {
+          "destination": "custom_maps/loc.map",
+          "sha256": "1321e17b5a86be84b1930b6eb2e7fdfe9285275d5d54cbe3d4a3635e2bf04041"
+        }
+      ],
+      "limits": "Short local-test-route baseline; no independent input, full campaign, audio or multi-machine multi-local-player qualification."
+    },
+    {
+      "session": "local-mcc",
+      "binary_sha256": "0d7b48d697dd9867a40b1c7b2bc47f51b0c0d65e19fe8719a10b33e9c4426015",
+      "exit_before_cleanup": null,
+      "same_machine_two_players": true,
+      "both_living_samples": 45,
+      "inspected_capture": "host/captures/frame02100.bmp",
+      "content": [
+        {
+          "destination": "maps/ui.map",
+          "sha256": "35e3e560478d85178749be310ad13d6d6ecde618d32675261a3554592333a833"
+        },
+        {
+          "destination": "maps/carousel.map",
+          "sha256": "1c6353df6e4530437841b09775e62fa067caa46bb0e40f4579bbf2276991a38e"
+        },
+        {
+          "destination": "mcc_maps/a10.map",
+          "sha256": "3f7eaaaf27358591a1a1ae7ed99e3fdf9a826af4a4fa5ef1dd4757538ae0fed2"
+        }
+      ],
+      "limits": "Short local-test-route baseline; no independent input, full campaign, audio or multi-machine multi-local-player qualification."
+    }
+  ]
+}

@@ -198,6 +198,9 @@ The [12–13 November follow-up](coop_m0_followup.md) adds ordinary two-peer
 measurements, web builds and browser/native admission checks, a testing-delta
 audit and stronger negative progression evidence. The full exit gate remains
 open for the named qualification, capacity and platform gaps.
+The [readiness/transport/roster continuation](coop_m0_readiness_transport.md)
+adds incomplete-reconstruction probes, native reliable-stream fault checks
+and short two-local-player Xbox/CE/MCC split-screen observations.
 No M1 implementation is authorized by this status entry.
 
 **Work:** Build a state-and-action ledger from every message kind, producer,
