@@ -16,6 +16,7 @@ SRC = ROOT / "port/linux/src"
 DRIVER = r'''
 #include "steam_workshop.h"
 #include "mcc_manifest.h"
+#include "mcc_local_package.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -222,6 +223,7 @@ static void make_directories(char const *path) {(void)path;}
     result = subprocess.run([compiler, *flags, "-std=gnu11", "-Wall", "-Wextra", "-Werror", "-I", str(SRC), str(work / "driver.c"),
                              str(SRC / "steam_workshop.c"), str(files), str(SRC / "server_json.c"),
                              str(SRC / "mcc_manifest.c"),
+                             str(SRC / "mcc_local_package.c"), str(SRC / "posix_mcc_share.c"),
                              *([str(registry)] if windows else []),
                              *(["-ladvapi32"] if windows and not mock_registry else []),
                              "-o", str(exe)], capture_output=True, text=True)
@@ -614,6 +616,44 @@ def make_campaign(folder, names=("z10", "a10")):
         make_map(folder / "maps", name)
 
 
+@pytest.mark.parametrize("package", ["35530909", "My Mod Name"])
+def test_local_workshop_layout_and_manual_precedence(tool, tmp_path, package):
+    local = tmp_path / "mcc_maps" / package
+    make_campaign(local)
+    (local / "halo1/maps").mkdir(parents=True)
+    (local / "halo1/maps/bitmaps.map").write_bytes(b"authored")
+    def translated(leaf):
+        fields, _ = run(tool, "translate", f"d:\\mcc_maps\\{package}\\{leaf}",
+                        data_root=tmp_path, enabled=False)
+        return Path(fields["path"])
+    assert translated("z10.map") == local / "maps/z10.map"
+    assert translated("bitmaps.map") == local / "halo1/maps/bitmaps.map"
+    fields, rows = run(tool, "manifest-level", f"mcc_maps\\{package}\\z10",
+                       data_root=tmp_path, enabled=False)
+    assert fields["title"] == "Example campaign"
+    assert rows["mission"] == ["z10|Mission z10", "a10|Mission a10"]
+    (local / "maps/bitmaps.map").write_bytes(b"beside levels")
+    assert translated("bitmaps.map") == local / "maps/bitmaps.map"
+    for leaf in ("z10.map", "bitmaps.map"):
+        (local / leaf).write_bytes(b"invalid direct override still wins")
+        assert translated(leaf) == local / leaf
+    # Nested directory links must not introduce files from another package.
+    (local / "z10.map").unlink()
+    shutil.rmtree(local / "maps")
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    (outside / "z10.map").write_bytes(b"outside")
+    try:
+        (local / "maps").symlink_to(outside, target_is_directory=True)
+    except OSError:
+        if sys.platform != "win32":
+            raise
+        result = subprocess.run(["cmd", "/c", "mklink", "/J", str(local / "maps"), str(outside)],
+                                capture_output=True, text=True)
+        assert result.returncode == 0, result.stdout + result.stderr
+    assert translated("z10.map") == local / "z10.map"
+
+
 def test_campaign_discovery_and_explicit_order(tool, tmp_path, monkeypatch):
     folder = tmp_path / "steamapps/workshop/content/976730/111"
     make_campaign(folder)
@@ -756,3 +796,38 @@ def test_shared_discovery_checks_other_steam_libraries_and_types_independently(t
     assert Path(run(tool, "translate", "mcc_maps/222/bitmaps.map", **args)[0]["path"]) == package.parent / "222/Maps/bitmaps.map"
     for folder in ("maps", "custom_maps"):
         assert Path(run(tool, "translate", folder + "/sounds.map", **args)[0]["path"]) == data / folder / "sounds.map"
+
+
+@pytest.mark.parametrize("kind", ["Default", "default", "DEFAULT", "dEfAuLt"])
+def test_campaign_kind_case_does_not_hide_other_missions(tool, tmp_path, monkeypatch, kind):
+    root = tmp_path / "steamapps/workshop/content/976730/111"
+    make_campaign(root)
+    path = root / "campaign/a10.json"
+    data = json.loads(path.read_text()); data["CampaignMapKind"] = kind
+    path.write_text(json.dumps(data)); original = path.read_bytes()
+    monkeypatch.setenv("TEST_MCC_CAMPAIGNS", "1")
+    fields, rows = run(tool, "manifest", root)
+    assert fields["result"] == "1" and fields["count"] == "2"
+    assert [row.split("|")[0] for row in rows["mission"]] == ["z10", "a10"]
+    fields, rows = run(tool, "scan", setting=str(tmp_path))
+    assert fields["count"] == "2"
+    assert [row.split("|")[2] for row in rows["map"]] == ["z10", "a10"]
+    assert path.read_bytes() == original
+    monkeypatch.delenv("TEST_MCC_CAMPAIGNS")
+    assert run(tool, "scan", setting=str(tmp_path))[0]["count"] == "0"
+
+
+@pytest.mark.parametrize("kind", ["Hub", "hub", "Flashback", "", " Default", "Default ", "Default/", 0, True, None, [], {}])
+def test_campaign_kind_refusal_is_reported(tool, tmp_path, kind):
+    root = tmp_path / "steamapps/workshop/content/976730/111"
+    make_campaign(root)
+    path = root / "campaign/a10.json"
+    data = json.loads(path.read_text()); data["CampaignMapKind"] = kind
+    path.write_text(json.dumps(data))
+    fields, _ = run(tool, "manifest", root)
+    assert fields["result"] == "-1" and fields["count"] == "0"
+    env = dict(os.environ, TEST_STEAM_SETTING=str(tmp_path), TEST_MCC_CAMPAIGNS="1", HOME=str(tmp_path / "none"),
+               XDG_DATA_HOME="", STEAM_COMPAT_CLIENT_INSTALL_PATH="")
+    result = subprocess.run([str(tool), "scan"], env=env, capture_output=True, text=True, timeout=20)
+    assert result.returncode == 0 and "count=0" in result.stdout
+    assert "111" in result.stderr and "Unsupported campaign mission kind" in result.stderr
