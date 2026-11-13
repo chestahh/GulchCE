@@ -79,6 +79,12 @@ int main(int argc, char **argv) {
     objects[1].biped.elevator_object_index = 2; objects[1].object.position.z = 10;
     own->time = 100; own->unit_index = 1; own->position.z = 13.2f; own->elevator_index = 2;
     now = 100 + delay;
+    if (!strcmp(case_name,"scripted")) {
+        s.scripted_pose=TRUE;s.position.z=14;
+        distributed_correct_own_unit(&p,1,&s);
+        CHECK(objects[1].object.position.z==14,"scripted pose incorrectly reused input prediction");
+        return 0;
+    }
     if (strstr(case_name,"-up")) {own->position.z=10; s.position.z=13.2f;}
     if (!strcmp(case_name,"jump")) objects[1].biped.flags = FLAG(_biped_airborne_bit);
     if (!strcmp(case_name,"walk-off")) objects[1].biped.elevator_ticks = 59;
