@@ -1,0 +1,1589 @@
+{
+  "date": "2026-11-13",
+  "source_revision": "c752401326c6b72aa42e042511ad51a480a329e4",
+  "configuration": "Windows release portable PGO-off LTO-off; generated-only diagnostics",
+  "binary_sha256": "f8b1a864f43930e2986efaf72e9cec780272a2819ce55666600ca024691e1d3d",
+  "generated_files": {
+    "port/windows/src/win32_net.c": {
+      "source_sha256": "3b5f5441175b72ddb778009beeb327d1c89775c74e0ca49c4c00f3eb4d48e76c",
+      "copy_sha256": "7e09e05f2cf83d9bbc5890089df5bcaeba79e7952dc78b8b248ed72c36491b6b"
+    },
+    "port/linux/game/network_objects.c": {
+      "source_sha256": "4892f109c784213c56e61f2b75b9b07b9d65c9d3500f3d7a14889f28025ee552",
+      "copy_sha256": "be7ef3361860d14d37070fc35c42eb6ffb33d5b430f2f6c4d8ec759dc9ebf33e"
+    },
+    "port/linux/game/network_distributed.c": {
+      "source_sha256": "11bf034c6ce01014073a1efe305a47bc9f7d69059d233fec42837f3ea7f80c8a",
+      "copy_sha256": "53e2f068b318d84362d437184e3acecefde8e0ff3a9900011610ee88751b2b59"
+    },
+    "port/linux/game/network_coop.c": {
+      "source_sha256": "a19a999cd8866307d6ea69c6e32b86d4454bd4d39f5bf66267f63a74bf0266e3",
+      "copy_sha256": "216029350bd72995b30cd5c32337abb69d7ecd3b20dad04239570f35b11e246a"
+    },
+    "port/linux/game/network_test.c": {
+      "source_sha256": "d97c0f5569c0db474d9719d587e3956bec57b586567c04bcbb21e38011cadf4d",
+      "copy_sha256": "a1f67863b4b9e905459cfed18d9eb8bb87211fe62dfae8d1705e8e8baea88f5c"
+    },
+    "source/interface/hud_messaging.c": {
+      "source_sha256": "7d3ad62a2d766c2315556fb46730a72b8f5d6b6c73058ac52ccaced812712973",
+      "copy_sha256": "be29d8486bc0cf63826bdb0d2532e1e7cc2e10383bc69c63a5deea99e505a1ec"
+    },
+    "source/interface/hud_nav_points.c": {
+      "source_sha256": "6fa800eb47b1a0cad318754392f89a2b6c68b69b084061d4c7ff2cc44434cf13",
+      "copy_sha256": "d2bdcb9821aff1f57aac09987fe2d6169c11ba9fa1f3e9d004e61ad353729e8c"
+    }
+  },
+  "content": {
+    "a30.map": {
+      "bytes": 152610816,
+      "sha256": "4875fa105e6c517589a796cfdcc7fcaa07e98df13d14e601bfc9eb1eab7e30b5"
+    },
+    "carousel.map": {
+      "bytes": 20215808,
+      "sha256": "1c6353df6e4530437841b09775e62fa067caa46bb0e40f4579bbf2276991a38e"
+    },
+    "ui.map": {
+      "bytes": 14145536,
+      "sha256": "35e3e560478d85178749be310ad13d6d6ecde618d32675261a3554592333a833"
+    },
+    "ce/b30.map": {
+      "bytes": 201578087,
+      "sha256": "baec59d37cf8d3f017dd3ac0d61fb431087490eeb1c469b2071ae2aec66ca24a"
+    },
+    "bitmaps.map": {
+      "bytes": 123547749,
+      "sha256": "317658e0ebd4aa189bac68e994fe0b515928f44d17b62ba676d8850aa329dd3d"
+    },
+    "sounds.map": {
+      "bytes": 41718640,
+      "sha256": "81658a8d9b127b2771558a35e664ec3f1a2b370f271fe957426d945001ceb5d2"
+    },
+    "loc.map": {
+      "bytes": 391996,
+      "sha256": "1321e17b5a86be84b1930b6eb2e7fdfe9285275d5d54cbe3d4a3635e2bf04041"
+    },
+    "mcc/a10.map": {
+      "bytes": 407040369,
+      "sha256": "3f7eaaaf27358591a1a1ae7ed99e3fdf9a826af4a4fa5ef1dd4757538ae0fed2"
+    }
+  },
+  "runs": [
+    {
+      "case": "xbox-running",
+      "complete_sequence": true,
+      "early_exits": {
+        "host": null,
+        "client": null
+      },
+      "discarded_final_captures": {
+        "host": [],
+        "client": []
+      },
+      "weapons": [
+        [
+          -457768376.0,
+          -457571765.0,
+          0.0
+        ],
+        [
+          -456851447.0,
+          -456654833.0,
+          0.0
+        ]
+      ],
+      "save": {
+        "time": 9875.074215,
+        "kind": "timing_saved",
+        "v": [
+          1093.0,
+          510.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "later_saves": [],
+      "reverts": [
+        {
+          "time": 9881.101269,
+          "kind": "timing_revert",
+          "v": [
+            1273.0,
+            180.0,
+            330.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "time": 9890.101974,
+          "kind": "timing_revert",
+          "v": [
+            1543.0,
+            450.0,
+            60.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "samples": {
+        "saved": {
+          "skew_seconds": 0.39448300000003655,
+          "host": {
+            "tick": 1093.0,
+            "timer": {
+              "enabled": 1.0,
+              "paused": 0.0,
+              "remaining": 510.0,
+              "expired": false,
+              "storage_ticks": 600.0,
+              "reference_tick": 1003.0,
+              "expiry_tick": 1603.0,
+              "formula_valid": true
+            },
+            "ammunition": [
+              {
+                "held": true,
+                "counts": [
+                  [
+                    20.0,
+                    20.0
+                  ]
+                ]
+              },
+              {
+                "held": true,
+                "counts": [
+                  [
+                    20.0,
+                    20.0
+                  ]
+                ]
+              }
+            ],
+            "epoch": [
+              1.0,
+              0.0
+            ],
+            "reference_failures": []
+          },
+          "client": {
+            "tick": 1080.0,
+            "timer": {
+              "enabled": 1.0,
+              "paused": 0.0,
+              "remaining": 523.0,
+              "expired": false,
+              "storage_ticks": 600.0,
+              "reference_tick": 1003.0,
+              "expiry_tick": 1603.0,
+              "formula_valid": true
+            },
+            "ammunition": [
+              {
+                "held": true,
+                "counts": [
+                  [
+                    20.0,
+                    20.0
+                  ]
+                ]
+              },
+              {
+                "held": true,
+                "counts": [
+                  [
+                    20.0,
+                    20.0
+                  ]
+                ]
+              }
+            ],
+            "epoch": [
+              1.0,
+              1.0
+            ],
+            "reference_failures": []
+          }
+        },
+        "changed": {
+          "skew_seconds": 0.014547999999194872,
+          "host": {
+            "tick": 1260.0,
+            "timer": {
+              "enabled": 1.0,
+              "paused": 0.0,
+              "remaining": 1423.0,
+              "expired": false,
+              "storage_ticks": 1500.0,
+              "reference_tick": 1183.0,
+              "expiry_tick": 2683.0,
+              "formula_valid": true
+            },
+            "ammunition": [
+              {
+                "held": true,
+                "counts": [
+                  [
+                    4.0,
+                    4.0
+                  ]
+                ]
+              },
+              {
+                "held": true,
+                "counts": [
+                  [
+                    4.0,
+                    4.0
+                  ]
+                ]
+              }
+            ],
+            "epoch": [
+              1.0,
+              0.0
+            ],
+            "reference_failures": []
+          },
+          "client": {
+            "tick": 1260.0,
+            "timer": {
+              "enabled": 1.0,
+              "paused": 0.0,
+              "remaining": 1423.0,
+              "expired": false,
+              "storage_ticks": 1500.0,
+              "reference_tick": 1183.0,
+              "expiry_tick": 2683.0,
+              "formula_valid": true
+            },
+            "ammunition": [
+              {
+                "held": true,
+                "counts": [
+                  [
+                    4.0,
+                    4.0
+                  ]
+                ]
+              },
+              {
+                "held": true,
+                "counts": [
+                  [
+                    4.0,
+                    4.0
+                  ]
+                ]
+              }
+            ],
+            "epoch": [
+              1.0,
+              1.0
+            ],
+            "reference_failures": []
+          }
+        },
+        "restored": {
+          "skew_seconds": 0.41918299999997544,
+          "host": {
+            "tick": 1453.0,
+            "timer": {
+              "enabled": 1.0,
+              "paused": 0.0,
+              "remaining": 150.0,
+              "expired": false,
+              "storage_ticks": 600.0,
+              "reference_tick": 1003.0,
+              "expiry_tick": 1603.0,
+              "formula_valid": true
+            },
+            "ammunition": [
+              {
+                "held": true,
+                "counts": [
+                  [
+                    20.0,
+                    20.0
+                  ]
+                ]
+              },
+              {
+                "held": true,
+                "counts": [
+                  [
+                    20.0,
+                    20.0
+                  ]
+                ]
+              }
+            ],
+            "epoch": [
+              2.0,
+              0.0
+            ],
+            "reference_failures": []
+          },
+          "client": {
+            "tick": 1440.0,
+            "timer": {
+              "enabled": 1.0,
+              "paused": 0.0,
+              "remaining": 163.0,
+              "expired": false,
+              "storage_ticks": 600.0,
+              "reference_tick": 1003.0,
+              "expiry_tick": 1603.0,
+              "formula_valid": true
+            },
+            "ammunition": [
+              {
+                "held": true,
+                "counts": [
+                  [
+                    20.0,
+                    20.0
+                  ]
+                ]
+              },
+              {
+                "held": true,
+                "counts": [
+                  [
+                    20.0,
+                    20.0
+                  ]
+                ]
+              }
+            ],
+            "epoch": [
+              2.0,
+              1.0
+            ],
+            "reference_failures": []
+          }
+        },
+        "restored_again": {
+          "skew_seconds": 0.41962899999998626,
+          "host": {
+            "tick": 1633.0,
+            "timer": {
+              "enabled": 1.0,
+              "paused": 0.0,
+              "remaining": 150.0,
+              "expired": false,
+              "storage_ticks": 150.0,
+              "reference_tick": 1633.0,
+              "expiry_tick": 1783.0,
+              "formula_valid": true
+            },
+            "ammunition": [
+              {
+                "held": true,
+                "counts": [
+                  [
+                    20.0,
+                    20.0
+                  ]
+                ]
+              },
+              {
+                "held": true,
+                "counts": [
+                  [
+                    20.0,
+                    20.0
+                  ]
+                ]
+              }
+            ],
+            "epoch": [
+              3.0,
+              0.0
+            ],
+            "reference_failures": []
+          },
+          "client": {
+            "tick": 1620.0,
+            "timer": {
+              "enabled": 1.0,
+              "paused": 0.0,
+              "remaining": 163.0,
+              "expired": false,
+              "storage_ticks": 150.0,
+              "reference_tick": 1633.0,
+              "expiry_tick": 1783.0,
+              "formula_valid": true
+            },
+            "ammunition": [
+              {
+                "held": true,
+                "counts": [
+                  [
+                    20.0,
+                    20.0
+                  ]
+                ]
+              },
+              {
+                "held": true,
+                "counts": [
+                  [
+                    20.0,
+                    20.0
+                  ]
+                ]
+              }
+            ],
+            "epoch": [
+              3.0,
+              1.0
+            ],
+            "reference_failures": []
+          }
+        }
+      },
+      "mutations_observed": {
+        "two_held_magazines_saved_at_20": true,
+        "two_held_magazines_changed_to_4": true,
+        "running_timer_saved": true,
+        "timer_changed": true
+      },
+      "recovery_windows": {
+        "1": {
+          "expected_expiry_tick": 1783.0,
+          "clock_shift_ticks": 180.0,
+          "ended_at_later_save": false,
+          "peers": {
+            "host": {
+              "samples": 9,
+              "duration_seconds": 6.432640999999421,
+              "active_expiry_errors_ticks": [
+                -180.0
+              ],
+              "expired_samples": 0,
+              "timer_formula_failures": 0,
+              "timer_mode_failures": 0,
+              "wrong_ammunition_samples": 0,
+              "unresolved_references": 0,
+              "epochs": [
+                2.0
+              ],
+              "ready_samples": null,
+              "first_nonpositive_sample": null
+            },
+            "client": {
+              "samples": 7,
+              "duration_seconds": 5.999541000001045,
+              "active_expiry_errors_ticks": [
+                -180.0
+              ],
+              "expired_samples": 0,
+              "timer_formula_failures": 0,
+              "timer_mode_failures": 0,
+              "wrong_ammunition_samples": 0,
+              "unresolved_references": 0,
+              "epochs": [
+                2.0
+              ],
+              "ready_samples": 7,
+              "first_nonpositive_sample": null
+            }
+          }
+        },
+        "2": {
+          "expected_expiry_tick": 2053.0,
+          "clock_shift_ticks": 450.0,
+          "ended_at_later_save": false,
+          "peers": {
+            "host": {
+              "samples": 39,
+              "duration_seconds": 37.00002999999924,
+              "active_expiry_errors_ticks": [
+                -270.0
+              ],
+              "expired_samples": 32,
+              "timer_formula_failures": 0,
+              "timer_mode_failures": 0,
+              "wrong_ammunition_samples": 0,
+              "unresolved_references": 0,
+              "epochs": [
+                3.0
+              ],
+              "ready_samples": null,
+              "first_nonpositive_sample": {
+                "tick": 1800.0,
+                "actual_remaining": -1.0,
+                "expected_remaining": 253.0
+              }
+            },
+            "client": {
+              "samples": 38,
+              "duration_seconds": 36.99957199999881,
+              "active_expiry_errors_ticks": [
+                -270.0
+              ],
+              "expired_samples": 32,
+              "timer_formula_failures": 0,
+              "timer_mode_failures": 0,
+              "wrong_ammunition_samples": 0,
+              "unresolved_references": 0,
+              "epochs": [
+                3.0
+              ],
+              "ready_samples": 38,
+              "first_nonpositive_sample": {
+                "tick": 1800.0,
+                "actual_remaining": -1.0,
+                "expected_remaining": 253.0
+              }
+            }
+          }
+        }
+      },
+      "epoch_sequence_valid": true,
+      "sample_skew_within_1_1_seconds": true,
+      "unchanged_net_compare": {
+        "problems": [],
+        "divergences": []
+      },
+      "evidence": {
+        "folder": "build/m0/recovery-timing/xbox-running",
+        "archive_sha256": "c665c0962b3637264ca28ea06ec32850c28f0b8f0b9f4c760958b104af34b9bf",
+        "manifest_sha256": "65bf7acce0cb38f8595ef607782ac4c63e81145993bb0afba3d2e8c8a6c48c5a",
+        "full_reduction_sha256": "702c95a3cd7d4469e132d503957210e6f75874bd49a040237147fac66dc4f44e"
+      }
+    },
+    {
+      "case": "ce-running",
+      "complete_sequence": true,
+      "early_exits": {
+        "host": null,
+        "client": null
+      },
+      "discarded_final_captures": {
+        "host": [],
+        "client": []
+      },
+      "weapons": [
+        [
+          -431881261.0,
+          -431684650.0,
+          0.0
+        ],
+        [
+          -301662195.0,
+          -301464623.0,
+          0.0
+        ]
+      ],
+      "save": {
+        "time": 10024.312216,
+        "kind": "timing_saved",
+        "v": [
+          1294.0,
+          510.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "later_saves": [],
+      "reverts": [
+        {
+          "time": 10030.34738,
+          "kind": "timing_revert",
+          "v": [
+            1474.0,
+            180.0,
+            330.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "time": 10039.343556,
+          "kind": "timing_revert",
+          "v": [
+            1744.0,
+            450.0,
+            60.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "samples": {
+        "saved": {
+          "skew_seconds": 0.14784399999916786,
+          "host": {
+            "tick": 1294.0,
+            "timer": {
+              "enabled": 1.0,
+              "paused": 0.0,
+              "remaining": 510.0,
+              "expired": false,
+              "storage_ticks": 600.0,
+              "reference_tick": 1204.0,
+              "expiry_tick": 1804.0,
+              "formula_valid": true
+            },
+            "ammunition": [
+              {
+                "held": true,
+                "counts": [
+                  [
+                    20.0,
+                    20.0
+                  ]
+                ]
+              },
+              {
+                "held": true,
+                "counts": [
+                  [
+                    20.0,
+                    20.0
+                  ]
+                ]
+              }
+            ],
+            "epoch": [
+              1.0,
+              0.0
+            ],
+            "reference_failures": []
+          },
+          "client": {
+            "tick": 1290.0,
+            "timer": {
+              "enabled": 1.0,
+              "paused": 0.0,
+              "remaining": 514.0,
+              "expired": false,
+              "storage_ticks": 600.0,
+              "reference_tick": 1204.0,
+              "expiry_tick": 1804.0,
+              "formula_valid": true
+            },
+            "ammunition": [
+              {
+                "held": true,
+                "counts": [
+                  [
+                    20.0,
+                    20.0
+                  ]
+                ]
+              },
+              {
+                "held": true,
+                "counts": [
+                  [
+                    20.0,
+                    20.0
+                  ]
+                ]
+              }
+            ],
+            "epoch": [
+              1.0,
+              1.0
+            ],
+            "reference_failures": []
+          }
+        },
+        "changed": {
+          "skew_seconds": 0.07745299999987765,
+          "host": {
+            "tick": 1470.0,
+            "timer": {
+              "enabled": 1.0,
+              "paused": 0.0,
+              "remaining": 1414.0,
+              "expired": false,
+              "storage_ticks": 1500.0,
+              "reference_tick": 1384.0,
+              "expiry_tick": 2884.0,
+              "formula_valid": true
+            },
+            "ammunition": [
+              {
+                "held": true,
+                "counts": [
+                  [
+                    4.0,
+                    4.0
+                  ]
+                ]
+              },
+              {
+                "held": true,
+                "counts": [
+                  [
+                    4.0,
+                    4.0
+                  ]
+                ]
+              }
+            ],
+            "epoch": [
+              1.0,
+              0.0
+            ],
+            "reference_failures": []
+          },
+          "client": {
+            "tick": 1470.0,
+            "timer": {
+              "enabled": 1.0,
+              "paused": 0.0,
+              "remaining": 1414.0,
+              "expired": false,
+              "storage_ticks": 1500.0,
+              "reference_tick": 1384.0,
+              "expiry_tick": 2884.0,
+              "formula_valid": true
+            },
+            "ammunition": [
+              {
+                "held": true,
+                "counts": [
+                  [
+                    4.0,
+                    4.0
+                  ]
+                ]
+              },
+              {
+                "held": true,
+                "counts": [
+                  [
+                    4.0,
+                    4.0
+                  ]
+                ]
+              }
+            ],
+            "epoch": [
+              1.0,
+              1.0
+            ],
+            "reference_failures": []
+          }
+        },
+        "restored": {
+          "skew_seconds": 0.21084200000041164,
+          "host": {
+            "tick": 1654.0,
+            "timer": {
+              "enabled": 1.0,
+              "paused": 0.0,
+              "remaining": 150.0,
+              "expired": false,
+              "storage_ticks": 600.0,
+              "reference_tick": 1204.0,
+              "expiry_tick": 1804.0,
+              "formula_valid": true
+            },
+            "ammunition": [
+              {
+                "held": true,
+                "counts": [
+                  [
+                    20.0,
+                    20.0
+                  ]
+                ]
+              },
+              {
+                "held": true,
+                "counts": [
+                  [
+                    20.0,
+                    20.0
+                  ]
+                ]
+              }
+            ],
+            "epoch": [
+              2.0,
+              0.0
+            ],
+            "reference_failures": []
+          },
+          "client": {
+            "tick": 1650.0,
+            "timer": {
+              "enabled": 1.0,
+              "paused": 0.0,
+              "remaining": 154.0,
+              "expired": false,
+              "storage_ticks": 600.0,
+              "reference_tick": 1204.0,
+              "expiry_tick": 1804.0,
+              "formula_valid": true
+            },
+            "ammunition": [
+              {
+                "held": true,
+                "counts": [
+                  [
+                    20.0,
+                    20.0
+                  ]
+                ]
+              },
+              {
+                "held": true,
+                "counts": [
+                  [
+                    20.0,
+                    20.0
+                  ]
+                ]
+              }
+            ],
+            "epoch": [
+              2.0,
+              1.0
+            ],
+            "reference_failures": []
+          }
+        },
+        "restored_again": {
+          "skew_seconds": 0.21175899999980174,
+          "host": {
+            "tick": 1834.0,
+            "timer": {
+              "enabled": 1.0,
+              "paused": 0.0,
+              "remaining": 150.0,
+              "expired": false,
+              "storage_ticks": 150.0,
+              "reference_tick": 1834.0,
+              "expiry_tick": 1984.0,
+              "formula_valid": true
+            },
+            "ammunition": [
+              {
+                "held": true,
+                "counts": [
+                  [
+                    20.0,
+                    20.0
+                  ]
+                ]
+              },
+              {
+                "held": true,
+                "counts": [
+                  [
+                    20.0,
+                    20.0
+                  ]
+                ]
+              }
+            ],
+            "epoch": [
+              3.0,
+              0.0
+            ],
+            "reference_failures": []
+          },
+          "client": {
+            "tick": 1830.0,
+            "timer": {
+              "enabled": 1.0,
+              "paused": 0.0,
+              "remaining": 154.0,
+              "expired": false,
+              "storage_ticks": 150.0,
+              "reference_tick": 1834.0,
+              "expiry_tick": 1984.0,
+              "formula_valid": true
+            },
+            "ammunition": [
+              {
+                "held": true,
+                "counts": [
+                  [
+                    20.0,
+                    20.0
+                  ]
+                ]
+              },
+              {
+                "held": true,
+                "counts": [
+                  [
+                    20.0,
+                    20.0
+                  ]
+                ]
+              }
+            ],
+            "epoch": [
+              3.0,
+              1.0
+            ],
+            "reference_failures": []
+          }
+        }
+      },
+      "mutations_observed": {
+        "two_held_magazines_saved_at_20": true,
+        "two_held_magazines_changed_to_4": true,
+        "running_timer_saved": true,
+        "timer_changed": true
+      },
+      "recovery_windows": {
+        "1": {
+          "expected_expiry_tick": 1984.0,
+          "clock_shift_ticks": 180.0,
+          "ended_at_later_save": false,
+          "peers": {
+            "host": {
+              "samples": 9,
+              "duration_seconds": 6.133191999999326,
+              "active_expiry_errors_ticks": [
+                -180.0
+              ],
+              "expired_samples": 0,
+              "timer_formula_failures": 0,
+              "timer_mode_failures": 0,
+              "wrong_ammunition_samples": 0,
+              "unresolved_references": 0,
+              "epochs": [
+                2.0
+              ],
+              "ready_samples": null,
+              "first_nonpositive_sample": null
+            },
+            "client": {
+              "samples": 7,
+              "duration_seconds": 6.000416000000769,
+              "active_expiry_errors_ticks": [
+                -180.0
+              ],
+              "expired_samples": 0,
+              "timer_formula_failures": 0,
+              "timer_mode_failures": 0,
+              "wrong_ammunition_samples": 0,
+              "unresolved_references": 0,
+              "epochs": [
+                2.0
+              ],
+              "ready_samples": 7,
+              "first_nonpositive_sample": null
+            }
+          }
+        },
+        "2": {
+          "expected_expiry_tick": 2254.0,
+          "clock_shift_ticks": 450.0,
+          "ended_at_later_save": false,
+          "peers": {
+            "host": {
+              "samples": 32,
+              "duration_seconds": 29.99899000000005,
+              "active_expiry_errors_ticks": [
+                -270.0
+              ],
+              "expired_samples": 25,
+              "timer_formula_failures": 0,
+              "timer_mode_failures": 0,
+              "wrong_ammunition_samples": 0,
+              "unresolved_references": 0,
+              "epochs": [
+                3.0
+              ],
+              "ready_samples": null,
+              "first_nonpositive_sample": {
+                "tick": 2010.0,
+                "actual_remaining": -1.0,
+                "expected_remaining": 244.0
+              }
+            },
+            "client": {
+              "samples": 31,
+              "duration_seconds": 30.003585999998904,
+              "active_expiry_errors_ticks": [
+                -270.0
+              ],
+              "expired_samples": 25,
+              "timer_formula_failures": 0,
+              "timer_mode_failures": 0,
+              "wrong_ammunition_samples": 0,
+              "unresolved_references": 0,
+              "epochs": [
+                3.0
+              ],
+              "ready_samples": 31,
+              "first_nonpositive_sample": {
+                "tick": 2010.0,
+                "actual_remaining": -1.0,
+                "expected_remaining": 244.0
+              }
+            }
+          }
+        }
+      },
+      "epoch_sequence_valid": true,
+      "sample_skew_within_1_1_seconds": true,
+      "unchanged_net_compare": {
+        "problems": [],
+        "divergences": []
+      },
+      "evidence": {
+        "folder": "build/m0/recovery-timing/ce-running",
+        "archive_sha256": "009a2e8236f45ab72943541f6ee16b0e818baa0dc4366d967636ff5368f25390",
+        "manifest_sha256": "7d88aa09e405a3b422707eadf859c23cafcaa2cc5e7b015ab74f6d30f32024aa",
+        "full_reduction_sha256": "3756d3a946a7904873f3d7040a314da2c197cbb6bac3cc9453443f16e8f6c4e3"
+      }
+    },
+    {
+      "case": "mcc-running",
+      "complete_sequence": true,
+      "early_exits": {
+        "host": null,
+        "client": null
+      },
+      "discarded_final_captures": {
+        "host": [],
+        "client": []
+      },
+      "weapons": [
+        [
+          -456785321.0,
+          -456719784.0,
+          0.0
+        ],
+        [
+          -456523775.0,
+          -456457826.0,
+          0.0
+        ]
+      ],
+      "save": {
+        "time": 10140.679307,
+        "kind": "timing_saved",
+        "v": [
+          712.0,
+          510.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "later_saves": [
+        {
+          "time": 10195.0935,
+          "kind": "timing_saved",
+          "v": [
+            2344.0,
+            -1.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "reverts": [
+        {
+          "time": 10146.712988,
+          "kind": "timing_revert",
+          "v": [
+            892.0,
+            180.0,
+            330.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "time": 10155.721879,
+          "kind": "timing_revert",
+          "v": [
+            1162.0,
+            450.0,
+            60.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "samples": {
+        "saved": {
+          "skew_seconds": 0.3039229999994859,
+          "host": {
+            "tick": 712.0,
+            "timer": {
+              "enabled": 1.0,
+              "paused": 0.0,
+              "remaining": 510.0,
+              "expired": false,
+              "storage_ticks": 600.0,
+              "reference_tick": 622.0,
+              "expiry_tick": 1222.0,
+              "formula_valid": true
+            },
+            "ammunition": [
+              {
+                "held": true,
+                "counts": [
+                  [
+                    20.0,
+                    20.0
+                  ]
+                ]
+              },
+              {
+                "held": true,
+                "counts": [
+                  [
+                    20.0,
+                    20.0
+                  ]
+                ]
+              }
+            ],
+            "epoch": [
+              1.0,
+              0.0
+            ],
+            "reference_failures": []
+          },
+          "client": {
+            "tick": 720.0,
+            "timer": {
+              "enabled": 1.0,
+              "paused": 0.0,
+              "remaining": 502.0,
+              "expired": false,
+              "storage_ticks": 600.0,
+              "reference_tick": 622.0,
+              "expiry_tick": 1222.0,
+              "formula_valid": true
+            },
+            "ammunition": [
+              {
+                "held": true,
+                "counts": [
+                  [
+                    20.0,
+                    20.0
+                  ]
+                ]
+              },
+              {
+                "held": true,
+                "counts": [
+                  [
+                    20.0,
+                    20.0
+                  ]
+                ]
+              }
+            ],
+            "epoch": [
+              1.0,
+              1.0
+            ],
+            "reference_failures": []
+          }
+        },
+        "changed": {
+          "skew_seconds": 0.012218999998367508,
+          "host": {
+            "tick": 870.0,
+            "timer": {
+              "enabled": 1.0,
+              "paused": 0.0,
+              "remaining": 1432.0,
+              "expired": false,
+              "storage_ticks": 1500.0,
+              "reference_tick": 802.0,
+              "expiry_tick": 2302.0,
+              "formula_valid": true
+            },
+            "ammunition": [
+              {
+                "held": true,
+                "counts": [
+                  [
+                    4.0,
+                    4.0
+                  ]
+                ]
+              },
+              {
+                "held": true,
+                "counts": [
+                  [
+                    4.0,
+                    4.0
+                  ]
+                ]
+              }
+            ],
+            "epoch": [
+              1.0,
+              0.0
+            ],
+            "reference_failures": []
+          },
+          "client": {
+            "tick": 870.0,
+            "timer": {
+              "enabled": 1.0,
+              "paused": 0.0,
+              "remaining": 1432.0,
+              "expired": false,
+              "storage_ticks": 1500.0,
+              "reference_tick": 802.0,
+              "expiry_tick": 2302.0,
+              "formula_valid": true
+            },
+            "ammunition": [
+              {
+                "held": true,
+                "counts": [
+                  [
+                    4.0,
+                    4.0
+                  ]
+                ]
+              },
+              {
+                "held": true,
+                "counts": [
+                  [
+                    4.0,
+                    4.0
+                  ]
+                ]
+              }
+            ],
+            "epoch": [
+              1.0,
+              1.0
+            ],
+            "reference_failures": []
+          }
+        },
+        "restored": {
+          "skew_seconds": 0.2780370000000403,
+          "host": {
+            "tick": 1072.0,
+            "timer": {
+              "enabled": 1.0,
+              "paused": 0.0,
+              "remaining": 150.0,
+              "expired": false,
+              "storage_ticks": 600.0,
+              "reference_tick": 622.0,
+              "expiry_tick": 1222.0,
+              "formula_valid": true
+            },
+            "ammunition": [
+              {
+                "held": true,
+                "counts": [
+                  [
+                    20.0,
+                    20.0
+                  ]
+                ]
+              },
+              {
+                "held": true,
+                "counts": [
+                  [
+                    20.0,
+                    20.0
+                  ]
+                ]
+              }
+            ],
+            "epoch": [
+              2.0,
+              0.0
+            ],
+            "reference_failures": []
+          },
+          "client": {
+            "tick": 1080.0,
+            "timer": {
+              "enabled": 1.0,
+              "paused": 0.0,
+              "remaining": 142.0,
+              "expired": false,
+              "storage_ticks": 150.0,
+              "reference_tick": 1072.0,
+              "expiry_tick": 1222.0,
+              "formula_valid": true
+            },
+            "ammunition": [
+              {
+                "held": true,
+                "counts": [
+                  [
+                    20.0,
+                    20.0
+                  ]
+                ]
+              },
+              {
+                "held": true,
+                "counts": [
+                  [
+                    20.0,
+                    20.0
+                  ]
+                ]
+              }
+            ],
+            "epoch": [
+              2.0,
+              1.0
+            ],
+            "reference_failures": []
+          }
+        },
+        "restored_again": {
+          "skew_seconds": 0.28121399999872665,
+          "host": {
+            "tick": 1252.0,
+            "timer": {
+              "enabled": 1.0,
+              "paused": 0.0,
+              "remaining": 152.0,
+              "expired": false,
+              "storage_ticks": 150.0,
+              "reference_tick": 1254.0,
+              "expiry_tick": 1404.0,
+              "formula_valid": true
+            },
+            "ammunition": [
+              {
+                "held": true,
+                "counts": [
+                  [
+                    20.0,
+                    20.0
+                  ]
+                ]
+              },
+              {
+                "held": true,
+                "counts": [
+                  [
+                    20.0,
+                    20.0
+                  ]
+                ]
+              }
+            ],
+            "epoch": [
+              3.0,
+              0.0
+            ],
+            "reference_failures": []
+          },
+          "client": {
+            "tick": 1260.0,
+            "timer": {
+              "enabled": 1.0,
+              "paused": 0.0,
+              "remaining": 144.0,
+              "expired": false,
+              "storage_ticks": 150.0,
+              "reference_tick": 1254.0,
+              "expiry_tick": 1404.0,
+              "formula_valid": true
+            },
+            "ammunition": [
+              {
+                "held": true,
+                "counts": [
+                  [
+                    20.0,
+                    20.0
+                  ]
+                ]
+              },
+              {
+                "held": true,
+                "counts": [
+                  [
+                    20.0,
+                    20.0
+                  ]
+                ]
+              }
+            ],
+            "epoch": [
+              3.0,
+              1.0
+            ],
+            "reference_failures": []
+          }
+        }
+      },
+      "mutations_observed": {
+        "two_held_magazines_saved_at_20": true,
+        "two_held_magazines_changed_to_4": true,
+        "running_timer_saved": true,
+        "timer_changed": true
+      },
+      "recovery_windows": {
+        "1": {
+          "expected_expiry_tick": 1402.0,
+          "clock_shift_ticks": 180.0,
+          "ended_at_later_save": false,
+          "peers": {
+            "host": {
+              "samples": 9,
+              "duration_seconds": 6.734381000000212,
+              "active_expiry_errors_ticks": [
+                -180.0
+              ],
+              "expired_samples": 0,
+              "timer_formula_failures": 0,
+              "timer_mode_failures": 0,
+              "wrong_ammunition_samples": 0,
+              "unresolved_references": 0,
+              "epochs": [
+                2.0
+              ],
+              "ready_samples": null,
+              "first_nonpositive_sample": null
+            },
+            "client": {
+              "samples": 7,
+              "duration_seconds": 5.999943000000712,
+              "active_expiry_errors_ticks": [
+                -180.0
+              ],
+              "expired_samples": 0,
+              "timer_formula_failures": 0,
+              "timer_mode_failures": 0,
+              "wrong_ammunition_samples": 0,
+              "unresolved_references": 0,
+              "epochs": [
+                2.0
+              ],
+              "ready_samples": 7,
+              "first_nonpositive_sample": null
+            }
+          }
+        },
+        "2": {
+          "expected_expiry_tick": 1672.0,
+          "clock_shift_ticks": 450.0,
+          "ended_at_later_save": true,
+          "peers": {
+            "host": {
+              "samples": 39,
+              "duration_seconds": 36.99923200000012,
+              "active_expiry_errors_ticks": [
+                -268.0
+              ],
+              "expired_samples": 32,
+              "timer_formula_failures": 0,
+              "timer_mode_failures": 0,
+              "wrong_ammunition_samples": 0,
+              "unresolved_references": 0,
+              "epochs": [
+                3.0
+              ],
+              "ready_samples": null,
+              "first_nonpositive_sample": {
+                "tick": 1410.0,
+                "actual_remaining": -1.0,
+                "expected_remaining": 262.0
+              }
+            },
+            "client": {
+              "samples": 38,
+              "duration_seconds": 36.99976600000082,
+              "active_expiry_errors_ticks": [
+                -268.0
+              ],
+              "expired_samples": 32,
+              "timer_formula_failures": 0,
+              "timer_mode_failures": 0,
+              "wrong_ammunition_samples": 0,
+              "unresolved_references": 0,
+              "epochs": [
+                3.0
+              ],
+              "ready_samples": 38,
+              "first_nonpositive_sample": {
+                "tick": 1410.0,
+                "actual_remaining": -1.0,
+                "expected_remaining": 262.0
+              }
+            }
+          }
+        }
+      },
+      "epoch_sequence_valid": true,
+      "sample_skew_within_1_1_seconds": true,
+      "unchanged_net_compare": {
+        "problems": [],
+        "divergences": []
+      },
+      "evidence": {
+        "folder": "build/m0/recovery-timing/mcc-running",
+        "archive_sha256": "854272a6aa84a4b13e072c8e5da9b03360396fb022b1486d4006cb43c3f33f1d",
+        "manifest_sha256": "87042b031984f7fdd021cd95239cc90212cca813abccd7a6a722f11aea7677f2",
+        "full_reduction_sha256": "092627abf90858d7fce5f1e44301d4fbc214a15135d34f4c1d621c45d9de7222"
+      }
+    }
+  ],
+  "status": "M0 open; original 19-domain scope retained; M1 unstarted; unpublished",
+  "platforms": {
+    "Windows": "Hidden native two-peer loopback, null rendering, audio off",
+    "Linux_runtime": "blocked: no runner",
+    "Android_runtime": "blocked: no device/emulator",
+    "Android_build": "earlier Windows shell/CMake blocker separate",
+    "browser_recovery": "unqualified by this native pass"
+  },
+  "profile_source": {
+    "profile_sha256": "7836a51dfec5f336f6fbe1b2a81a90a40793b7e09b7dc605250841961867901d",
+    "metadata_sha256": "686c9489b9807951a83cb2c609ab5dfe826ed1e36204dd123767a3e18571607e"
+  },
+  "focused_tests": {
+    "tests": "166",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0"
+  },
+  "unchanged_diagnostic_modes": {
+    "recovery": 7,
+    "recovery-domains": 7
+  },
+  "cleanup": {
+    "private_fixture_bytes_removed": 6827893202,
+    "archived_files": 278,
+    "archived_raw_bytes": 238288038,
+    "archive_bytes": 27404564,
+    "temporary_build_test_bytes_removed": 247104356,
+    "retained_pass_bytes": 94420988,
+    "retained_all_m0_bytes": 2099988127
+  }
+}

@@ -72,7 +72,7 @@ void m0_recovery_nav(void)
 '''
 
 
-def instrument(relative, original, domains=False):
+def instrument(relative, original, domains=False, timing=False):
     name = Path(relative).stem
     if name in ('hud_messaging', 'hud_nav_points'):
         return trace.HEADER.replace('TRACE_NAME', name) + original + (HUD if name == 'hud_messaging' else NAV)
@@ -91,19 +91,31 @@ def instrument(relative, original, domains=False):
             '\t{\n\t\tm0_emit("fault_drop_objective", game_time_get(), events[index].number, events[index].value, 0, 0, 0);\n\t\tcontinue;\n\t}\n'
             '\tclient_apply_event(&events[index]);')
         text += '\n' + Path(__file__).with_suffix('.c').read_text()
-        if domains:
+        if domains or timing:
             text = trace.once(text, 'static void m0_recovery_capture(void);',
                               'static void m0_domains_capture(void);\nstatic void m0_domains_fixture(void);\nstatic void m0_recovery_capture(void);')
             text = trace.once(text, '\tm0_recovery_epoch();', '\tm0_domains_capture();\n\tm0_recovery_epoch();')
             text = trace.once(text, '\tif (!getenv("M0_RECOVERY") || !coop_host()) return;',
                               '\tif (getenv("M0_RECOVERY_DOMAINS")) { m0_domains_fixture(); return; }\n\tif (!getenv("M0_RECOVERY") || !coop_host()) return;')
-            text += '\n' + Path(__file__).with_name('coop_m0_recovery_domains.c').read_text()
+            extra = Path(__file__).with_name('coop_m0_recovery_domains.c').read_text()
+            if timing:
+                # Only the observer is needed; keep the existing domain fixture
+                # and its artifacts unchanged.
+                extra = extra.split('static long m0_domains_create(', 1)[0]
+                extra += Path(__file__).with_name('coop_m0_recovery_timing.c').read_text()
+                text = trace.once(text, '\tm0_emit("checkpoint_saved", game_time_get(), coop_host(), 0, 0, 0, 0);',
+                    '\tm0_emit("checkpoint_saved", game_time_get(), coop_host(), 0, 0, 0, 0);\n'
+                    '\tm0_emit("timing_saved", game_time_get(), scripted_hud_get_timer_ticks(), 0, 0, 0, 0);')
+                text = trace.once(text, '\tnetwork_distributed_reverted();',
+                    '\tnetwork_distributed_reverted();\n'
+                    '\tm0_emit("timing_revert", game_time_get(), ticks, scripted_hud_get_timer_ticks(), 0, 0, 0);')
+            text += '\n' + extra
     elif name == 'network_distributed':
         text += '\nvoid m0_recovery_epoch(void)\n{\n\tm0_emit("epoch", game_time_get(), distributed_checkpoint_epoch, distributed_checkpoint_ready(), 0, 0, 0);\n}\n'
     return text
 
 
-def generate(domains=False):
+def generate(domains=False, timing=False):
     OUTPUT.mkdir(parents=True, exist_ok=True)
     manifest = {'revision': subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=trace.ROOT, text=True).strip(), 'files': {}}
     paths = ['port/windows/src/win32_net.c', 'port/linux/game/network_objects.c',
@@ -113,25 +125,27 @@ def generate(domains=False):
         source = trace.ROOT / relative
         original = source.read_bytes()
         target = OUTPUT / source.name
-        target.write_text(instrument(relative, original.decode('utf8').replace('\r\n', '\n'), domains), encoding='utf8')
+        target.write_text(instrument(relative, original.decode('utf8').replace('\r\n', '\n'), domains, timing), encoding='utf8')
         manifest['files'][relative] = {'source_sha256': hashlib.sha256(original).hexdigest(),
             'copy': str(target), 'copy_sha256': hashlib.sha256(target.read_bytes()).hexdigest()}
     (OUTPUT / 'manifest.json').write_text(json.dumps(manifest, indent=2) + '\n')
-    mode = ' --domains' if domains else ''
+    mode = ' --timing' if timing else (' --domains' if domains else '')
     (OUTPUT / 'compile.cmd').write_text(f'@echo off\n"{sys.executable}" "{Path(__file__).resolve()}"{mode} compile %*\n')
     print(OUTPUT / 'compile.cmd')
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--domains', action='store_true', help='Additional persistent-state mutations; separate build artifacts')
+    modes = parser.add_mutually_exclusive_group()
+    modes.add_argument('--domains', action='store_true', help='Additional persistent-state mutations; separate build artifacts')
+    modes.add_argument('--timing', action='store_true', help='Running timer and held ammunition; separate build artifacts')
     parser.add_argument('arguments', nargs=argparse.REMAINDER)
     args = parser.parse_args()
-    if args.domains:
-        OUTPUT = trace.ROOT / 'build/m0/recovery-domains/generated'
+    if args.domains or args.timing:
+        OUTPUT = trace.ROOT / ('build/m0/recovery-timing/generated' if args.timing else 'build/m0/recovery-domains/generated')
         trace.OUTPUT = OUTPUT
     if args.arguments:
         if args.arguments[0] != 'compile':
             parser.error('Expected compile or no positional arguments')
         sys.exit(trace.compile_source(args.arguments[1:]))
-    generate(args.domains)
+    generate(args.domains, args.timing)

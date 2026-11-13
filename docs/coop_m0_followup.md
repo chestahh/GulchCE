@@ -367,13 +367,17 @@ The [domain-mutation continuation](coop_m0_recovery_domains.md) adds controlled
 object/inventory/attachment and MCC state transitions. It records attachment
 loss after restore and distinguishes pre-existing scale/ammunition mismatches
 from recovery regressions.
+The [running-timer and held-ammunition continuation](coop_m0_recovery_timing.md)
+adds two-player non-default primary magazine recovery and measures countdown
+loss independently of peer agreement, including warning-state and expiry
+semantics. These bounded observations do not replace the full recovery ledger.
 
 | Gate | Current disposition |
 | --- | --- |
 | Full-system inventory and validation routes | Recorded in the existing 19-domain ledger and generated index; scope retained. |
 | Ordinary two-peer payload, object snapshot and correction observations | Added for Xbox, CE, MCC and delayed/lossy joining/revert. Coverage limits are explicit above. |
 | Empty/near-capacity snapshots | Real-function reconstruction checked at the production slot limit. Real-engine Windows initial snapshots now measured at stock slot/byte-pool saturation on Xbox, CE and MCC, plus inventory-heavy units. Large active AI/combat, full-state readiness and cross-platform capacity remain unqualified. |
-| Full persistent-state ready oracle and independent reliable faults | Complete oracle remains open. Actual Xbox/CE/MCC save/change/revert captures reproduce wrong objective/navigation and lost attachments on ready clients, plus wrong vitality maxima on both peers. Bounded object presence/absence, inventory, timer/allegiance and non-default MCC fields now have runtime mutations. Failed construction and pending inventory also reproduce early gameplay readiness. Native stream component passed real-loopback reorder/loss/duplicate and independent wire/reader stalls. Remaining full-state domains and end-to-end transport faults stay unqualified. |
+| Full persistent-state ready oracle and independent reliable faults | Complete oracle remains open. Actual Xbox/CE/MCC save/change/revert captures reproduce wrong objective/navigation and lost attachments on ready clients, plus wrong vitality maxima and running countdown loss on both peers. Bounded object presence/absence, inventory including held primary ammunition, paused/running timer, allegiance and non-default MCC fields now have runtime mutations. Failed construction and pending inventory also reproduce early gameplay readiness. Native stream component passed real-loopback reorder/loss/duplicate and independent wire/reader stalls. Remaining full-state domains and end-to-end transport faults stay unqualified. |
 | Final numeric operating budgets | Desktop reference observations and versioned comparison/design gates are recorded, including failures for synchronous snapshot work and CE traffic. Full-world memory ownership, sustained active workloads, transport/platform-specific and low-end/mobile budgets remain open; desktop results are not universal ceilings. |
 | Mission progression/profile ownership | Ordinary host-menu completion, wrong profile award, profile reload and postgame cancellation reproduced. Natural completion, next-round play and full roster/profile ownership remain open. |
 | Platform/preservation matrix | Linux and Android runtime explicitly blocked: no runner/device available. Android build remains blocked separately. Short rendered family transitions, failed-load baseline and two-local-player Xbox/CE/MCC split-screen entry checked. Ordinary local campaign-menu entry, multi-local-player network rosters and broad rendered/audio behavior remain unqualified. |

@@ -1,5 +1,9 @@
 # M0: recovery of changed objects, inventory and persistent domains
 
+**Continuation:** The [running-timer and held-ammunition pass](coop_m0_recovery_timing.md)
+addresses those two specific gaps below. This report retains its earlier
+fixture results and limits; the complete recovery gate remains open.
+
 Local investigation on `investigate-coop-rewrite`, beginning at `6e5297729`
 on 13 November 2026. This extends the [first recovery pass](coop_m0_recovery.md)
 and retains its [full 19-domain scope](coop_m0_recovery.md#full-system-recovery-coverage).
