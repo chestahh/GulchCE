@@ -1,4 +1,4 @@
-"""Shared OpenCE protocol 43 and host admission regression checks.
+"""Network 44 keeps OpenCE 43 message layouts; sharing admission changes.
 
 The unchanged AGPL-3.0-or-later fixture comes from OpenCommunityEdition/OpenCE
 14ff64cd8, port/linux/network_format.txt. Camera extensions are separately
@@ -13,13 +13,13 @@ import network_format
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def test_shared_opence_43_contract():
+def test_network_44_preserves_opence_43_layouts():
     lines = (ROOT / "tools/fixtures/opence_network_43.txt").read_text().splitlines()
     assert lines[0] == "version 43"
     expected = {f"{kind} {name}": value for kind, name, value in
                 (line.split(" ", 2) for line in lines[1:])}
     assert network_format.items() == expected
-    assert network_format.version() == 43
+    assert network_format.version() == 44
 
 
 def test_shared_protocol_preserves_host_admission(tmp_path):
@@ -44,7 +44,7 @@ typedef unsigned short word;
 #define MAXIMUM_MACHINE_NAME_LENGTH 16
 #define JOIN_GAME_TOKEN_LENGTH 16
 #define NETWORK_GAME_MESSAGE_VERSION 1
-#define HALO_PORT_NETWORK_VERSION 43
+#define HALO_PORT_NETWORK_VERSION 44
 #define csmemcmp memcmp
 #define csmemcpy memcpy
 #define CHECK(x) do {if(!(x)){fprintf(stderr,"line %d: %s\n",__LINE__,#x);return 1;}} while(0)

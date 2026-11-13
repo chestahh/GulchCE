@@ -79,7 +79,6 @@ def value_caption(value):
     return value.rstrip() + "..."
 
 SHORT_LABELS = {
-    "network.mcc_map_share": "SHARE MCC MAPS",
     "display.plasma_prong_lighting": "PLASMA PRONGS",
     "display.widescreen_loading": "WIDE LOADING",
     "input.mouse_sensitivity": "HORIZONTAL SENS.", "input.mouse_vertical_sensitivity": "VERTICAL SENS.",

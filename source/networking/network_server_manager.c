@@ -4752,19 +4752,6 @@ void network_game_server_port_set_cooperative_friendly_fire(
 		network_event("network_game_server_port_set_cooperative_friendly_fire() failed to send updated game settings to clients");
 }
 
-/* port: update the authoritative pregame record, including late joiners. */
-void network_game_server_port_set_camera_policy(short policy)
-{
-	struct network_game_server *server = global_network_game_server_get();
-	if (!server || server->state != _network_game_server_state_pregame ||
-		!third_person_session_active() || policy < _third_person_player_choice || policy > _third_person_forced_off)
-		return;
-	server->game.cooperative_flags = (server->game.cooperative_flags & ~THIRD_PERSON_POLICY_MASK) |
-		(policy << THIRD_PERSON_POLICY_SHIFT);
-	if (!network_game_server_send_game_data_pregame(server))
-		network_event("failed to send updated camera policy to clients");
-}
-
 void network_game_server_port_set_cooperative_player_collisions(
 	boolean player_collisions)
 {

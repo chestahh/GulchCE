@@ -23,6 +23,7 @@ boolean mcc_maps_workshop_title(char const *id,char *title,unsigned size){
 #define CHECK(x) do{if(!(x)){fprintf(stderr,"line %d: %s\n",__LINE__,#x);return 1;}}while(0)
 int main(void) {
  struct mcc_workshop_item item,back;char name[128],text[256],folder[64],title[MCC_WORKSHOP_TITLE_SIZE];
+ unsigned position,value;
  /* the sidecar: id, optional title; nothing else is an id */
  CHECK(mcc_workshop_parse_sidecar("2899609719\r\nBetter Creek\r\n",&item));
  CHECK(!strcmp(item.id,"2899609719") && !strcmp(item.title,"Better Creek"));
@@ -54,6 +55,11 @@ int main(void) {
  memset(item.id,'7',20);item.id[20]=0;memset(item.title,'T',39);item.title[39]=0;
  mcc_workshop_wire_pack(name,&item);
  CHECK(mcc_workshop_wire_unpack(name,&back) && !strcmp(back.id,item.id) && strlen(back.title)==39);
+ /* Every non-digit byte is rejected at every ID position before URL dispatch. */
+ for(position=0;position<20;position++)for(value=1;value<256;value++) {
+  mcc_workshop_wire_pack(name,&item);name[67+position]=(char)value;
+  CHECK(mcc_workshop_wire_unpack(name,&back)==(value>='0'&&value<='9'));
+ }
  /* no id: the tail is cleared, and unpack finds nothing */
  memset(&item,0,sizeof(item));memset(name+64,0x55,64);
  mcc_workshop_wire_pack(name,&item);

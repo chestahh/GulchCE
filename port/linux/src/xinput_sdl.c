@@ -1760,6 +1760,7 @@ DWORD WINAPI XInputGetState(HANDLE device, PXINPUT_STATE state)
 		short aiming_deflection;
 
 		platform_input_read(&input, TRUE);
+		keys_held_over_switch(&input);
 		if (input.focused)
 		{
 			unsigned int mouse = 0;
@@ -1768,7 +1769,6 @@ DWORD WINAPI XInputGetState(HANDLE device, PXINPUT_STATE state)
 			if (input.mouse_dx || input.mouse_dy || input.mouse_wheel) mouse |= 0x100;
 			keyboard_prompt_keys(input.keys, sizeof(input.keys), mouse);
 		}
-		keys_held_over_switch(&input);
 		if (input.focused) frontend_input_keys(input.keys, sizeof(input.keys));
 		camera_scroll_capture(&input);
 		mouse_poll(&input);

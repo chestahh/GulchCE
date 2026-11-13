@@ -458,6 +458,11 @@ SCREENS["video_settings/shoulder_camera"] = {
     "rows": [
         ("CAMERA MOTION:", "display.third_person_smooth", [("SMOOTH", "true"), ("SHARP", "false")],
          "Smooth eases recovery and shoulder changes.\nSharp moves immediately; collision stays active.", None),
+        ("SMOOTH CROSSHAIR:", "display.third_person_crosshair_smooth", ON_OFF,
+         "Reduce crosshair jitter in shoulder view.\nDoes not change aim or weapon accuracy.", None),
+        ("CROSSHAIR SIZE:", "display.third_person_crosshair_size",
+         [(f"{n}%", f"{n / 100:.2f}") for n in [75, 80, 85, 90, 95, 100]],
+         "Shoulder crosshair size. Default 100%.\nDoes not change aim or weapon accuracy.", None),
         ("LEFT SHOULDER:", "display.third_person_left_shoulder", ON_OFF,
          "Off uses the right shoulder. B swaps in game.\nRemap it under Controls Setup > Camera.", None),
         ("DISTANCE:", "display.third_person_distance",
@@ -551,8 +556,6 @@ SCREENS["network_setup/map_sharing"] = {
                    ("MCC DOWNLOADS:", "network_setup/mcc_downloads",
                     "Storage and removal of copies received from hosts.\nOriginal packages and saves are kept.")],
     "rows": [
-        ("SHARE MCC PACKAGES:", "network.mcc_map_share", ON_OFF,
-         "Host only: offer explicitly approved MCC packages.\nOff by default; configure mcc_share.txt first.", None),
         ("DOWNLOAD MAPS:", "network.map_download", ON_OFF,
          "Allow shared map downloads. CE uses players; MCC\nuses the host and asks before downloading.",
          None),
@@ -1725,7 +1728,7 @@ def _session_options(base: str, host: str) -> list:
     rows, extra = [], []
     for key, label, values in [
         ("session_compatibility", "SESSION COMPATIBILITY:", "CROSSPLAY|GULCHCE ONLY"),
-        ("camera_policy", "CAMERA POLICY:", "PLAYER CHOICE|FORCED ON|FORCED OFF"),
+        ("camera_policy", "CAMERA POLICY:", "PLAYER CHOICE|FORCED OFF"),
     ]:
         extra += _widget(f"{base}/op_{key}", [("width", 512), ("height", 28),
             ("flags", "pass_unhandled_to_focused_child"), ("bitmap", "bitmaps/option_bkds"), ("color", "#FF2896FF")],
@@ -1749,7 +1752,6 @@ def _session_options(base: str, host: str) -> list:
         "Compatible GulchCE hosts and clients only.\\nEnables GulchCE session features, including third person.",
         "Compatibility is locked for this session.\\nClose the lobby to choose another mode.",
         "Each player chooses first or third person.\\nTheir camera toggle remains available.",
-        "Everyone uses third person on foot. Scoping and\\ntight spaces still use first person.",
         "Third person is disabled for everyone.\\nNormal vehicle and cinematic cameras remain.",
         "Players join by this invite link. Enter copies it.\\nLAN games use the server browser instead.",
     ])
@@ -2001,9 +2003,9 @@ COOP_SETUP_SCREENS = [
 # its rows: menu_functions.c's gametype_options give their settings' values)
 MAP_SHARE_UPLOADS = (256, 512, 1024, 2048, 4096, 8192, 16384, 20480)
 MAP_SHARE_SETUP = ("map_share_options", "MAP SHARING",
-                   "Sending players who join without the game's\\nCustom Edition map the map, and how fast.", [
+                   "Sharing Custom Edition maps and MCC packages\\nwith joining players, and how fast.", [
     ("map_share", "SHARE MAPS:", ["ON", "OFF"], [
-        "Players who join without the map download it\\nfrom you and the other players.",
+        "Share CE maps and MCC packages automatically.\\nMCC base resources must be installed locally.",
         "Players who join without the map cannot play.",
     ]),
     ("map_share_upload", "UPLOAD LIMIT:", [f"{kb} KB/S" if kb < 1024 else f"{kb // 1024} MB/S"
@@ -2806,7 +2808,8 @@ def _mcc_download() -> list:
                      f'<child widget="{base}/description" x="40" y="80"/>',
                      f'<child widget="{base}/download" x="150" y="300"/>',
                      f'<child widget="{base}/workshop" x="150" y="340"/>',
-                     f'<child widget="{base}/cancel" x="150" y="380"/>',
+                     f'<child widget="{base}/browser" x="150" y="380"/>',
+                     f'<child widget="{base}/cancel" x="150" y="420"/>',
                      f'<child widget="{base}/title" x="40" y="24"/>'])
     lines += _widget(f"{base}/title", [("type", "text"), ("width", 560), ("height", 40),
                      ("text", "MCC HOST DOWNLOAD"), ("font", "ui\\large_ui"), ("color", "#FF2896FF")], [])
@@ -2814,7 +2817,8 @@ def _mcc_download() -> list:
                      ("width", 560), ("height", 200), ("font", "ui\\small_ui"),
                      ("color", "#FFFFFFFF")], ['<data input="port mcc share text"/>'])
     for name, text, action in [("download", "DOWNLOAD FROM HOST", "download"),
-                               ("workshop", "VISIT WORKSHOP PAGE", "workshop"),
+                               ("workshop", "OPEN IN STEAM", "workshop"),
+                               ("browser", "OPEN IN BROWSER", "browser"),
                                ("cancel", "CANCEL", "cancel")]:
         lines += _widget(f"{base}/{name}", [("type", "text"), ("width", 340), ("height", 32),
                          ("text", text), ("font", "ui\\large_ui"), ("color", "#FF2896FF"),

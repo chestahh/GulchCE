@@ -320,7 +320,7 @@ has finished. Browser UPnP remains disabled, with a no-op cancellation stub.
 
 ## GulchCE compatibility and teardown
 
-Crossplay uses upstream OpenCE protocol 43 for Xbox, Custom Edition and MCC
+Crossplay uses network protocol 44 for Xbox, Custom Edition and MCC
 maps. Map-vote messages remain IDs 94-95; checkpoint recovery is 96; MCC owns
 its upstream gameplay, sharing, admission and loading message IDs. MCC content
 identity and loading checks remain active, but there is no GulchCE-specific MCC
@@ -330,7 +330,9 @@ After decoding an ordinary join, the host checks its appended shared version
 before token, ban and player-slot admission. The
 [join codec test](../../tools/test_join_protocol.py) checks that old and truncated
 requests cannot omit this field. `test_mcc_protocol.py` pins the complete
-upstream protocol 43 manifest and exercises host admission. MCC-only gameplay
+upstream protocol 43 message layouts, requires version 44 and exercises host admission.
+Version 44 changes automatic MCC sharing and local base-resource admission;
+version 43 peers cannot join, even when the menu mode is named Crossplay. MCC-only gameplay
 messages must still not execute on Xbox or CE maps; map-family isolation is
 independent of protocol compatibility.
 
@@ -338,10 +340,15 @@ For dedicated hosting, start at [dedicated_server.md](../dedicated_server.md),
 then read `server_director.c` for rotation and session ownership and
 `server_commands.c` for administration. These upstream paths retain the same
 ordinary host authority and admission checks.
+Explicit `mcc_maps` entries use `mcc_server_resolve` in
+[`mcc_server.c`](../../port/linux/game/mcc_server.c) for canonical paths and
+version-13 headers. `mcc_server_maps_each` supplies MCC catalog rows. The
+rotation parser and director add dispatch only; Xbox/CE resolution and the
+existing MCC co-op selector keep their own lifecycle.
 
 The Session Options selector chooses Crossplay (`opence_crossplay`) or GulchCE
 Only (`gulchce_third_person`). Crossplay disables multiplayer shoulder-camera
-behavior. GulchCE Only uses camera protocol 32744, an additional shoulder relay
+behavior. GulchCE Only uses camera protocol 32746, an additional shoulder relay
 byte and a mandatory kind 102 join envelope around the ordinary join. It is the
 same contract for all map families. Forced Off remains a camera session and
 does not relax admission.

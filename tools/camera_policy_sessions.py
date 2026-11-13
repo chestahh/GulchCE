@@ -102,15 +102,15 @@ def main():
     results = []
     for name, policy, preferences, coop, late in (
         ("choice", "player_choice", (0, 1), False, False),
-        ("on", "forced_on", (0, 0), False, False),
+        ("both", "player_choice", (1, 1), False, False),
         ("off", "forced_off", (1, 1), False, False),
-        ("late", "forced_on", (0, 0), False, True),
-        ("coop", "forced_on", (0, 0), True, False),
+        ("late", "player_choice", (1, 1), False, True),
+        ("coop", "player_choice", (1, 1), True, False),
     ):
         print("Starting " + name, flush=True)
         results += run_case(args.binary.resolve(), args.maps.resolve(), args.output.resolve(), name, policy, preferences, coop, late, args.combat, saves=args.saves)
     if args.combat:
-        results += run_case(args.binary.resolve(), args.maps.resolve(), args.output.resolve(), "latency", "forced_on", (0, 0), combat=True, latency=100, saves=args.saves)
+        results += run_case(args.binary.resolve(), args.maps.resolve(), args.output.resolve(), "latency", "player_choice", (1, 1), combat=True, latency=100, saves=args.saves)
     (args.output / "results.json").write_text(json.dumps(results, indent=2))
     return 0 if len(results) == (12 if args.combat else 10) and all(row["passed"] for row in results) else 1
 

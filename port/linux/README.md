@@ -528,6 +528,8 @@ the setting for one start of the game. It has priority over the file.
 | `display.show_fps` | `false` | `HALO_SHOW_FPS=1` sets `true` | `true`: the frame rate at the bottom right of a game, counted over half a second and green from 30 frames each second, red below. The game's own counter, which the Xbox version's `display_framerate` console variable showed. Refer to "Frame rate". |
 | `display.direct_camera` | `true` | `HALO_DIRECT_CAMERA` | `true`: in first person, on foot, the view points where the player aims in each frame, not where the last tick left it. Refer to "Frame rate". |
 | `display.third_person` | `false` | `HALO_THIRD_PERSON` | Right-shoulder view on foot. Toggle in Settings > Video Setup > FOV And Viewmodels, then select OK; no restart needed. Zoom, vehicles, death and cinematics use their stock cameras. Unscoping restores the shoulder view immediately at its unscoped FOV, subject to camera collision. Free look must be released and pressed again after scoping or another forced camera change. The reticle shows the nominal aim point; it traces the weapon offset and muzzle-to-target path, including nearby cover and the fully charged secondary muzzle. It does not predict spread, gravity, homing or target movement. Camera collision pulls the view in near walls, with gradual recovery. In offline and network games, aimed shoulder shots originate at the world weapon muzzle and converge on the aim point, with checks for cover between eye, firing origin and muzzle. Alternating firing effects select their authored trigger muzzle. Targets behind the barrel never turn shots backwards. This changes close-range shot geometry. Network peers replicate the firing perspective and solve the same muzzle and cover checks. Third person uses the stock FOV; returning to first person restores `display.fov`. |
+| `display.third_person_crosshair_smooth` | `true` | `HALO_THIRD_PERSON_CROSSHAIR_SMOOTH` | Match the shoulder crosshair preview to the rendered camera and retain fractional placement. No extra screen-position easing; firing direction and accuracy are unchanged. Set Smooth Crosshair in FOV And Viewmodels > Shoulder Camera. |
+| `display.third_person_crosshair_size` | `1.0` | `HALO_THIRD_PERSON_CROSSHAIR_SIZE` | Shoulder crosshair scale, 0.75-1.0 (75-100%). Independent of smoothing; 100% preserves normal size. First-person and scope HUDs retain their existing size. |
 | `display.third_person_smooth` | `true` | `HALO_THIRD_PERSON_SMOOTH` | Smooth recovery and shoulder changes, with frame-rate-independent settling and bounded damping for small vertical steps; false selects Sharp. Free-look return finishes in 0.25 seconds in Smooth and immediately in Sharp. Collision-forced first person requires 0.10 seconds of continuous clearance before recovery in either mode. Set Camera Motion in FOV And Viewmodels > Shoulder Camera. Collision remains enabled in either mode. |
 | `display.third_person_left_shoulder` | `false` | `HALO_THIRD_PERSON_LEFT_SHOULDER` | Use the left shoulder. Press B to swap during play, or choose the shoulder in FOV And Viewmodels > Shoulder Camera. |
 | `display.third_person_distance` | `0.85` | `HALO_THIRD_PERSON_DISTANCE` | Distance behind the eye, 0.3�2.0 world units. |
@@ -654,8 +656,8 @@ the setting for one start of the game. It has priority over the file.
 | `game.workshop_maps` | `false` | `HALO_WORKSHOP_MAPS` | Discover installed Halo CE Steam Workshop maps on desktop. Local MCC packages take precedence. Android and web use local packages. |
 | `game.mcc_collections` | `false` | `HALO_MCC_COLLECTIONS` | Group MCC packages by the bundled Workshop collection list, including imported packages identified by a sidecar. Reopen the map list after changing this. |
 | `game.mcc_campaigns` | `false` | `HALO_MCC_CAMPAIGNS` | Use explicit MCC campaign metadata for discovery, mission titles, authored ordering and progression. In co-op only the host chooses the next mission. Reopen the map list after changing this. |
-| `network.session_compatibility` | `"opence_crossplay"` | `HALO_SESSION_COMPATIBILITY` | Host mode: CROSSPLAY uses OpenCE protocol 43 for Xbox, Custom Edition and MCC maps, with multiplayer third-person disabled. GULCHCE ONLY (`gulchce_third_person`) enables the camera policy and requires GulchCE camera protocol 32744. Fixed when the lobby opens. |
-| `network.camera_policy` | `"player_choice"` | `HALO_CAMERA_POLICY` | Host rule for new matches: Create Game > Server Setup > Session Options > CAMERA POLICY offers PLAYER CHOICE, FORCED ON and FORCED OFF. Applies to local matches, LAN/system link, internet multiplayer and co-op, including late joiners. Forced On retains scoping, collision and stock vehicle/death/cinematic overrides. Locked matches block N and show CONTROLLED BY HOST in Video Setup; personal preferences return after leaving. The policy stays fixed during play and carries across rounds and co-op levels. Available in GulchCE-only sessions (camera protocol 32744); Crossplay forces this feature off. |
+| `network.session_compatibility` | `"opence_crossplay"` | `HALO_SESSION_COMPATIBILITY` | Host mode: CROSSPLAY uses network protocol 44 for Xbox, Custom Edition and MCC maps, with multiplayer third-person disabled. GULCHCE ONLY (`gulchce_third_person`) enables the camera policy and requires GulchCE camera protocol 32746. Fixed when the lobby opens. |
+| `network.camera_policy` | `"player_choice"` | `HALO_CAMERA_POLICY` | Host rule for new matches: Create Game > Server Setup > Session Options > CAMERA POLICY offers PLAYER CHOICE and FORCED OFF. Applies to local matches, LAN/system link, internet multiplayer and co-op, including late joiners. Locked matches block N and show CONTROLLED BY HOST in Video Setup; personal preferences return after leaving. The policy stays fixed during play and carries across rounds and co-op levels. Available in GulchCE-only sessions (camera protocol 32746); Crossplay forces this feature off. |
 | `network.address` | `""` | `HALO_NET_ADDRESS` | The IPv4 address of this machine for system link. Refer to "Play on one computer". |
 | `network.broadcast` | `""` | `HALO_NET_BROADCAST` | IPv4 addresses, with commas between them, that get the broadcasts of the game. Empty: 255.255.255.255. |
 | `network.online` | `true` | `HALO_NET_ONLINE` | `true`: internet play. `false`: system link on the local network only. |
@@ -688,13 +690,11 @@ the setting for one start of the game. It has priority over the file.
 | `network.fire_origins` | `true` | `HALO_NET_FIRE_ORIGINS` | Host: whether a client's reported hit that the shooter's camera had no line of sight to may still count from where the client says its player's shots leave, when that is not the camera (distributed message 93: a VR build's weapon hand, which may be past a corner the camera is behind). The hand must be within 0.4 world units of the camera, no more than 0.05 behind the eye along the line to the target, 0.2 to its side and 0.1 above it, with the line from the eye to it clear; the host logs how many hits counted only that way. `false`: from the camera and vehicles' guns only (`network_damage.c`). |
 | `network.vehicle_riding` | `false` | `HALO_NET_VEHICLE_RIDING` | Host: with `true`, a player standing on a moving vehicle is carried by it, turns with it, lands back on it after a jump and keeps its motion when stepping or jumping off; the vehicle it stands on does not hurt it. The base setting (co-op's options in Server Setup write it). In multiplayer (online, system link, split screen) the gametype's VEHICLE RIDING rule under Vehicle Options, saved with the gametype, overrides it; a gametype without the rule is off, whatever this setting says (stock gametypes and older saved ones have none). A co-op rotation entry's `riding` rule overrides it for that entry. Changes count from the next map; clients use the host's decision, including when joining mid-map, and its `debug.riding_` values. Film playback and the editor never ride. Saved games of builds before this setting are not offered or loaded. No row in the Settings menu. A map can choose for itself, winning over the base setting, the gametype and the dedicated override until the next map: with `(global boolean vehicle_riding true)` (or `false`; its value at the map's start counts, a later `set` does not), or with `(vehicle_riding true)` or `(vehicle_riding false)` in a startup script, which counts only on the map's first tick and wins over the global. The old `game.vehicle_riding` name is not read. |
 | `network.block_mouse_aim_assist` | `false` | `HALO_NET_BLOCK_MOUSE_AIM_ASSIST` | Host: Player Options > Aim Assist, Allowed or Block M+KB. Block overrides optional mouse magnetism while mouse/keyboard aims, including on the host, without changing the saved preference. Controllers and touch retain their existing behavior; bullet autoaim is unchanged. |
-| `network.map_share` | `true` | `HALO_NET_MAP_SHARE` | When you host: send a player who joins without the game's Custom Edition map the map, and the resource maps that it needs and that the player does not have. SHARE MAPS in Server Setup > Map Sharing writes its choice here. Refer to "Map sharing". |
-| `network.mcc_map_share` | `false` | `HALO_NET_MCC_MAP_SHARE` | SHARE MCC PACKAGES in Settings > Network Setup > Map Sharing. Host-only, explicit-list sharing of eligible local or Workshop packages; requires a gameplay fingerprint and maker in `mcc_share.txt`. Includes used package resources and recognized metadata/previews. The joiner needs Download Maps enabled and must accept the offer. See "MCC package sharing" for implementation status and limits. |
+| `network.map_share` | `true` | `HALO_NET_MAP_SHARE` | When you host: automatically offer CE maps and MCC packages. MCC base resources stay local to each machine; players consent before an MCC download. SHARE MAPS in Server Setup > Map Sharing writes its choice here. Refer to "Map sharing". |
 | `network.map_share_upload` | `1024` | `HALO_NET_MAP_SHARE_UPLOAD` | When you host: the most kilobytes per second that the game sends of maps (`16` to `20480`, 20 MB/s). UPLOAD LIMIT in Server Setup > Map Sharing writes its choice here. |
 | `network.map_seed` | `true` | `HALO_NET_MAP_SEED` | When you play in the game of another machine: help send its map to players who join without it. HELP SEND MAPS in Settings > Network Setup > Map Sharing. |
 | `network.map_seed_upload` | `256` | `HALO_NET_MAP_SEED_UPLOAD` | When you play in the game of another machine: the most kilobytes per second that the game sends of maps to other players (`16` to `10240`, 10 MB/s). UPLOAD LIMIT in Settings > Network Setup > Map Sharing. |
 | `network.map_download` | `true` | `HALO_NET_MAP_DOWNLOAD` | DOWNLOAD MAPS in Settings > Network Setup > Map Sharing. CE downloads from players as before; MCC permits a host offer and asks before transferring files. Off: CE leaves a missing-map game; MCC offers manual/Workshop installation and cancellation. |
-| `network.mcc_map_share` | `false` | `HALO_NET_MCC_MAP_SHARE` | SHARE MCC PACKAGES in Settings > Network Setup > Map Sharing. Host-only, explicit-list sharing of eligible local or Workshop packages; requires a gameplay fingerprint and maker in `mcc_share.txt`. Includes used package resources and recognized metadata/previews. The joiner needs Download Maps enabled and must accept the offer. See "MCC package sharing" for implementation status and limits. |
 | `network.coop_public` | `false` | `HALO_NET_COOP_PUBLIC` | `true`: an online co-op game (Create Game > Internet, a SINGLEPLAYER map) starts as PUBLIC. `false`: it starts as PRIVATE. LISTING in co-op's Server Setup writes its choice here. Refer to "Server browser". |
 | `network.coop_team_wipe` | `"auto"` | `HALO_NET_COOP_TEAM_WIPE` | TEAM WIPE in Server Setup > Co-op Options: `"auto"` reverts the checkpoint in a PRIVATE game and only respawns the team in a PUBLIC game (a dedicated server's: `server.public` with internet play). `"revert"` or `"respawn"` overrides visibility; a password does not make a PUBLIC game private. Changed players/machine assignments fall back to position-only respawn with a host diagnostic. A missing checkpoint also uses position-only respawn. Scripted mission failures keep their existing revert behavior. |
 | `network.brokers_file` | `"brokers.txt"` | `HALO_NET_BROKERS_FILE` | The file of the public MQTT brokers that let the machines of an invite find each other, and that carry the listings of the server browser: next to `config.toml`, unless a full path. One `host:port` on each line, up to 4; `#` starts a comment. |
@@ -722,6 +722,8 @@ the setting for one start of the game. It has priority over the file.
 | `server.empty_seconds` | `30` | `HALO_SERVER_EMPTY_SECONDS` | The seconds a game with nobody in it goes on before it ends. `0`: it does not end. A game whose last player leaves ends at once, as the game ends it. |
 | `server.idle_minutes` | `0` | `HALO_SERVER_IDLE_MINUTES` | The minutes a game goes on with no score before it ends. `0`: it does not end. |
 | `server.team_start` | `"one"` | `HALO_SERVER_TEAM_START` | A team game. `"one"`: it starts with the players of one team (the next players to join balance the teams). `"both"`: it waits, saying nothing, for a player on each team. `"skip"`: while one player waits, a team game (not one `sv_map` asked for) gives way to the rotation's next entry without teams, if it has one; checked when the lobby opens and again when its countdown would begin. |
+| `server.team_switch` | `true` | `HALO_SERVER_TEAM_SWITCH` | `true`: a player in a team game changes teams by saying `!switch` (or `!team`) in the chat; the line goes to no one, and everyone is told of the switch. Not in the postgame, co-op or Infection, and with the gametype's auto team balance only to a team with fewer players than theirs (one player bigger than the old at most after). A living player dies as they switch, no one's kill and no suicide scored. Refer to `docs/dedicated_server.md`, "Changing teams". |
+| `server.team_switch_cooldown_seconds` | `30` | `HALO_SERVER_TEAM_SWITCH_COOLDOWN_SECONDS` | The seconds a player waits after a `!switch` before another (`0` to `3600`; `0`: no wait). |
 | `server.motd` | `""` | `HALO_SERVER_MOTD` | A notice each machine sees when it joins (127 characters). Empty: none. |
 | `server.frame_rate` | `60` | `HALO_SERVER_FRAME_RATE` | The frames a second (30 to 120); the game's ticks stay at 30 a second. A server with no other machine runs 10 frames a second. |
 | `server.console`, `server.console_exit_on_eof` | `true`, `false` | `HALO_SERVER_CONSOLE`, `HALO_SERVER_CONSOLE_EXIT_ON_EOF` | `true`: the server takes commands from the standard input; it stops when the standard input ends if `server.console_exit_on_eof` is `true` (a panel can close it), after running the last line, whether or not a line's end ended it. |
@@ -810,7 +812,8 @@ See [MCC maps](../../docs/mcc_maps.md) for supported formats, resources and limi
 [MCC previews](../../docs/reading/mcc_level_previews.md) for menu discovery, and
 [browser imports](../../docs/reading/browser_imports.md) for browser storage.
 
-All map families use OpenCE network version 43. MCC content identity, sharing
+All map families use network version 44 (camera mode 32746); older peers
+cannot join, including OpenCE protocol 43 peers. MCC content identity, sharing
 consent and load-progress checks remain separate from the existing Xbox/CE paths;
 see [the network agreement](NETCODE.md#opence-network-agreement).
 
@@ -1379,13 +1382,14 @@ only invites, not listings.
 
 ### MCC package sharing
 
-MCC delivery is host-only and separate from Custom Edition sharing. The host enables **SHARE MCC PACKAGES** in Settings > Network Setup > Map
-Sharing (`network.mcc_map_share`, off by default; also
-`HALO_NET_MCC_MAP_SHARE`). It must list the exact map/used-resource SHA-256 and
-maker in the data root's `mcc_share.txt`, one line per approved identity:
-`<64 hexadecimal digits> <maker>`. The host log reports an unlisted fingerprint.
-This explicit approval does not come from a package name or a Workshop ID.
-Stock, unclassified, loose and shared-root packages are not offered.
+MCC delivery is host-only and separate from Custom Edition's transfer path.
+The existing **SHARE MAPS** setting in Server Setup > Map Sharing
+(`network.map_share`, on by default) automatically offers validated local and
+Workshop packages. No second toggle or manual approval file is required.
+The obsolete `network.mcc_map_share` setting and its environment variable no
+longer control sharing. An existing `mcc_share.txt` is read only for optional
+maker attribution; missing attribution is shown as "Not provided".
+Loose maps and the `_shared` base-resource folders are not shared packages.
 
 The joiner uses **DOWNLOAD MAPS** (`network.map_download`, on by default).
 Missing or differing content opens an offer showing size and maker; accepting
@@ -1395,12 +1399,22 @@ Workshop page when available, or install matching content manually, or cancel.
 The latest Workshop package may still differ from the host's copy; installation
 must be checked again. The prompt does not infer which version is newer.
 
+On desktop the prompt offers **OPEN IN STEAM** and **OPEN IN BROWSER**.
+The Steam action opens a fixed `CommunityFilePage` URI built from the validated
+numeric item ID. The prompt stays available so the browser action remains a
+fallback if Steam is absent or fails to navigate. Android uses the browser;
+the web build presents a browser-side click dialog. No URL opens merely
+because a host advertises an item, and the ID is not proof of provenance.
+
 The offer includes the current map and its actually used package resources,
 required recognized JSON, eligible referenced PNG previews and attribution
 files. Campaign metadata is obtained upfront; mission binaries/resources are
 obtained as needed. Unrelated resource files are omitted. A package depending
-on root/shared stock resources is refused with a host diagnostic, rather than
-silently redistributing those resources. A local dedicated-server folder needs
+on root/shared base resources can be shared: those files are omitted, and
+joiners use their own matching MCC installation or `mcc_maps/_shared` copies.
+Package resource copies matching locally installed base files are also omitted.
+The complete fingerprint still includes required base contents; missing or
+mismatched local resources prevent joining. A local dedicated-server folder needs
 no invented Workshop metadata or artwork to qualify.
 
 Each accepted download is checked in an exclusively owned staging directory,
@@ -1416,7 +1430,7 @@ The host's limit is `network.map_share_upload` (default 1024 KiB/s); clients do
 not seed MCC downloads. Android requires no Steam for these files, but device
 runtime validation remains a separate requirement. Browser imports and host downloads use origin-private storage with
 transaction recovery and cross-tab locking. See [NETCODE.md](NETCODE.md#mcc-package-sharing)
-for bounds, lifecycle and OpenCE network version **43**.
+for bounds, lifecycle and network version **44**.
 
 ### Map sharing
 

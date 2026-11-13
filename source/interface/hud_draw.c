@@ -402,7 +402,7 @@ static void hud_draw_bitmap_internal(
 	real_vector2d const *xy_scale,
 	real theta,
 	pixel32 color,
-	real reticle_scale);	/* port: (display.fov, view_fov.c) */
+	real reticle_scale, boolean shoulder_reticle); /* port: view_fov.c, third_person.c */
 static void hud_draw_bitmap_with_meter(
 	void *meter_parameters,
 	struct bitmap_data const *bitmap,
@@ -1574,7 +1574,7 @@ static void hud_draw_bitmap_internal(
 	real_vector2d const *xy_scale,
 	real theta,
 	pixel32 color,
-	real reticle_scale)
+	real reticle_scale, boolean shoulder_reticle) /* port: FOV and shoulder presentation */
 {
 	long return_eip = get_return_eip();
 	long stack_buffer[STACK_BUFFER_LENGTH];
@@ -1628,6 +1628,11 @@ static void hud_draw_bitmap_internal(
 				(vertices[vertex_index].position.y - center_y) * reticle_scale;
 		}
 	}
+
+	/* port: optional shoulder-reticle size and subpixel motion stay feature-owned. */
+	if (shoulder_reticle)
+		for (vertex_index = 0; vertex_index < 4; vertex_index++)
+			third_person_reticle_vertex(&vertices[vertex_index].position.x, &vertices[vertex_index].position.y);
 
 	csmemset(&parameters, 0, sizeof(parameters));
 	parameters.map_texture_scale[0].j = 1.0f;
@@ -1702,13 +1707,13 @@ static void hud_draw_bitmap_with_meter(
 			_hud_dont_scale_offset_bit),
 		0.0f,
 		&point);
+	/* port: the crosshairs_draw scope moves only the weapon's reticle */
+	if (is_crosshair_bitmap)
+		passenger_camera_reticle_offset(&point);
 	/* port: move every reticle piece to the stock aim point in the shoulder view. */
 	if (is_crosshair_bitmap && absolute_placement->corner == _hud_anchor_center &&
 		!third_person_reticle(&point, render_fov_reticle_scale(render.local_player_index)))
 		return;
-	/* port: the crosshairs_draw scope moves only the weapon's reticle */
-	if (is_crosshair_bitmap)
-		passenger_camera_reticle_offset(&point);
 	hud_calculate_bitmap_bounds(
 		bitmap,
 		absolute_placement->corner,
@@ -1726,7 +1731,8 @@ static void hud_draw_bitmap_with_meter(
 		color,
 		/* port: a reticle at the centre keeps to its aim (view_fov.c) */
 		is_crosshair_bitmap && absolute_placement->corner == _hud_anchor_center ?
-			render_fov_reticle_scale(render.local_player_index) : 1.0f);
+			render_fov_reticle_scale(render.local_player_index) : 1.0f,
+		is_crosshair_bitmap && absolute_placement->corner == _hud_anchor_center);
 
 	match_assert_stack_frame("c:\\halo\\SOURCE\\interface\\hud_draw.c", 814);
 
@@ -1893,7 +1899,7 @@ void hud_draw_bitmap_direct(
 		&xy_scale,
 		theta,
 		color,
-		1.0f);
+		1.0f, FALSE); /* port: direct HUD draws are not shoulder reticles */
 
 	match_assert_stack_frame("c:\\halo\\SOURCE\\interface\\hud_draw.c", 856);
 

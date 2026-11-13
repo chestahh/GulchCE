@@ -3378,7 +3378,6 @@ boolean ui_widget_port_multiplayer_player(short controller_index, long profile_i
 boolean ui_widget_port_unjoin_player(struct widget_instance *widget, struct event_record *event,
 	boolean *widget_deleted);
 void network_game_server_port_set_settings(wchar_t const *name, long maximum_players);
-void network_game_server_port_set_camera_policy(short policy);
 void network_game_server_port_set_cooperative_friendly_fire(short friendly_fire);
 void network_game_server_port_set_cooperative_player_collisions(boolean player_collisions);
 void network_game_server_port_set_cooperative_ally_friendly_fire(boolean ally_friendly_fire);
@@ -4265,17 +4264,17 @@ static boolean session_options_initialize(struct widget_instance *list)
 	if (!spinner) return FALSE;
 	spinner->parameters.list.selected_index = third_person_session_active();
 	spinner = named(list, "camera_policy_spinner", 0);
-	if (spinner) spinner->parameters.list.selected_index = third_person_session_active() ? third_person_policy() : third_person_host_policy();
+	if (spinner) spinner->parameters.list.selected_index = (third_person_session_active() ? third_person_policy() : third_person_host_policy()) == _third_person_forced_off;
 	return TRUE;
 }
 
 static boolean session_options_update(struct widget_instance *list)
 {
-	static char const *const policies[] = { "player_choice", "forced_on", "forced_off" };
+	static char const *const policies[] = { "player_choice", "forced_off" };
 	struct widget_instance *spinner = named(list, "session_compatibility_spinner", 0);
 	struct widget_instance *help = list->parameters.list.extended_description;
 	char text[TEXT_FIELD_LENGTH];
-	short selected;
+	short selected, policy;
 	if (!spinner) return FALSE;
 	selected = spinner->parameters.list.selected_index != 0;
 	if (selected != third_person_session_active())
@@ -4287,15 +4286,16 @@ static boolean session_options_update(struct widget_instance *list)
 	visible_set(named(list, "op_camera_policy", 0), third_person_session_active());
 	if (third_person_session_active() && (spinner = named(list, "camera_policy_spinner", 0)) != NULL)
 	{
-		selected = (short)PIN(spinner->parameters.list.selected_index, 0, 2);
-		if (selected != third_person_policy())
+		selected = (short)PIN(spinner->parameters.list.selected_index, 0, 1);
+		policy = selected ? _third_person_forced_off : _third_person_player_choice;
+		if (policy != third_person_policy())
 		{
-			network_game_server_port_set_camera_policy(selected);
-			if (selected == third_person_policy()) config_write("network.camera_policy", policies[selected]);
+			third_person_set_match_policy(policy);
+			if (policy == third_person_policy()) config_write("network.camera_policy", policies[selected]);
 		}
-		spinner->parameters.list.selected_index = third_person_policy();
+		spinner->parameters.list.selected_index = third_person_policy() == _third_person_forced_off;
 		if (help && list->focused_child == named(list, "op_camera_policy", 0))
-			help->parameters.text_box.string_list_index = 3 + third_person_policy();
+			help->parameters.text_box.string_list_index = 3 + spinner->parameters.list.selected_index;
 	}
 	if (multiplayer.mode != _multiplayer_mode_host_internet)
 		snprintf(text, sizeof(text), "NONE: A LAN GAME");
@@ -4311,7 +4311,7 @@ static boolean session_options_update(struct widget_instance *list)
 	if ((spinner = named(list, "op_invite", 0)) != NULL)
 	{
 		spinner->vertical_offset = third_person_session_active() ? 133 : 103;
-		if (help && list->focused_child == spinner) help->parameters.text_box.string_list_index = 6;
+		if (help && list->focused_child == spinner) help->parameters.text_box.string_list_index = 5;
 	}
 	return TRUE;
 }
@@ -4354,6 +4354,20 @@ static void wide_to_text(wchar_t const *wide, char *text, short size)
 	for (index = 0; wide[index] && index < size - 1; index++)
 		text[index] = wide[index] < 0x80 ? (char)wide[index] : '?';
 	text[index] = 0;
+}
+
+/* Hidden internet and mode-specific rows must not leave gaps. Moving the
+row also moves its labels, spinners and pointer targets. */
+static void server_settings_layout(struct widget_instance *list)
+{
+	struct widget_instance *row;
+	short y = 49;
+	for (row = list->child; row; row = row->next)
+		if (row->visible && !strncmp(row->name, "op_", 3))
+		{
+			row->vertical_offset = y;
+			y += 28;
+		}
 }
 
 /* "server settings update" */
@@ -4438,6 +4452,7 @@ static void server_settings_update(struct widget_instance *list)
 		if (help && list->focused_child == row)
 			help->parameters.text_box.string_list_index = SERVER_PASSWORD_HELP;
 	}
+	server_settings_layout(list);
 }
 
 static void server_password_done(char const *text)
@@ -4510,9 +4525,8 @@ void ui_widget_port_cooperative_settings_apply(void)
 
 static boolean server_start(void)
 {
-	static char const *const camera_policies[] = { "player_choice", "forced_on", "forced_off" };
 	if (third_person_session_active())
-		config_write("network.camera_policy", camera_policies[third_person_policy()]);
+		config_write("network.camera_policy", third_person_policy() == _third_person_forced_off ? "forced_off" : "player_choice");
 	if (text_field_editing(NULL))
 		text_field_end(TRUE);
 	network_game_server_port_set_settings(multiplayer.game_name,
@@ -8592,8 +8606,8 @@ boolean pc_menu_event_function_invoke(
         else if (!strcmp(name,"port mcc downloads next")) mcc_share_menu_step(1);
         else if (!strcmp(name,"port mcc downloads remove")) mcc_share_menu_remove();
         else if (!strcmp(name,"port mcc share download") || !strcmp(name,"port mcc share workshop") ||
-            !strcmp(name,"port mcc share cancel")) {
-            int action=!strcmp(name,"port mcc share download") ? 0 : !strcmp(name,"port mcc share workshop") ? 1 : 2;
+            !strcmp(name,"port mcc share cancel") || !strcmp(name,"port mcc share browser")) {
+            int action=!strcmp(name,"port mcc share download") ? 0 : !strcmp(name,"port mcc share workshop") ? 1 : !strcmp(name,"port mcc share browser") ? 3 : 2;
             *widget_deleted=TRUE;
             mcc_share_game_prompt_action(action);
             return TRUE;
@@ -8903,19 +8917,27 @@ void pc_menu_game_data_function_invoke(
             remove->visible=mcc_share_menu_can_remove();
             text_set(remove,mcc_share_menu_confirming() ? L"CONFIRM REMOVAL" : L"REMOVE SELECTED");
         }
-        if (widget->parameters.list.selected_index<1 ||
+        if (!widget->focused_child || !widget->focused_child->visible ||
+            widget->parameters.list.selected_index<1 || widget->parameters.list.selected_index>4 ||
             (widget->parameters.list.selected_index==3 && !mcc_share_menu_can_remove()))
-            widget->parameters.list.selected_index=4;
+            focus_row(widget,4);
     }
     else if (!strcmp(name,"port mcc share update")) {
         struct widget_instance *download=named(widget,"download",0);
         struct widget_instance *workshop=named(widget,"workshop",0);
+        struct widget_instance *browser=named(widget,"browser",0);
+        boolean steam=mcc_share_game_has_workshop();
+#if defined(HALO_ANDROID) || defined(HALO_WEB)
+        steam=FALSE;
+#endif
         if (download) download->visible=mcc_share_game_can_download();
-        if (workshop) workshop->visible=mcc_share_game_has_workshop();
+        if (workshop) workshop->visible=steam;
+        if (browser) browser->visible=mcc_share_game_has_workshop();
         if (widget->parameters.list.selected_index<1 ||
             (widget->parameters.list.selected_index==1 && !mcc_share_game_can_download()) ||
-            (widget->parameters.list.selected_index==2 && !mcc_share_game_has_workshop()))
-            widget->parameters.list.selected_index=mcc_share_game_can_download() ? 1 : mcc_share_game_has_workshop() ? 2 : 3;
+            (widget->parameters.list.selected_index==2 && !steam) ||
+            (widget->parameters.list.selected_index==3 && !mcc_share_game_has_workshop()))
+            focus_row(widget,mcc_share_game_can_download() ? 1 : steam ? 2 : mcc_share_game_has_workshop() ? 3 : 4);
     }
 	else if (!strcmp(name, "port mods update"))
 		mods_update(widget);

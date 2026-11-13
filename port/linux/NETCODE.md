@@ -248,11 +248,12 @@ lockstep netcode was removed, set to play it): it tells the player why.
 ## OpenCE network agreement
 
 OpenCE network version 42 replaced version 41 for Xbox, Custom Edition and MCC sessions;
-version 43 (below, "Versions") replaces it.
+version 44 (below, "Versions") replaces it.
 Advertisements and ordinary join requests carry this one version; mismatched
 versions are rejected before admission. There is no separate MCC capability
-envelope or optional shoulder-camera protocol. Retired fork message IDs 101 and
-102 remain unused. The historical version-41 record is retained as a test fixture,
+envelope. GulchCE Only uses the separate camera contract described below;
+Crossplay does not send its envelope or shoulder byte. Retired MCC message ID
+101 remains unused. The historical version-41 record is retained as a test fixture,
 not a crossplay promise.
 
 Every settings transfer sends the complete shared `network_game` record, including
@@ -519,6 +520,10 @@ ones, so a config change on the host waits for the next map; a co-op host's
 revert or saved-game load reads the config again, and the new values are
 sent again then. It ships with
 the rest of version 43, which stays 43.
+
+Version 44 unifies MCC offers under Map Sharing and lets a receiver satisfy
+omitted base resources with its own validated local files. Message layouts
+are unchanged; the changed sharing agreement requires matching peers.
 
 `port/linux/network_format.txt` records the wire format of the current
 version (`tools/network_format.py`): `test_linux_port.py` fails when the
@@ -994,16 +999,16 @@ its name alone beside it, has its name given back as the map lists find it.
 
 MCC supports host-only delivery for eligible local and Workshop packages.
 It uses MCC-owned messages **103** (request) and **104** (response),
-separate from CE sharing 83-86. Every map family uses OpenCE version **43**.
+separate from CE sharing 83-86. Every map family uses network version **44** for automatic sharing and local base dependencies.
 The shared settings record includes two 32-byte MCC digests, zero for Xbox/CE:
 the gameplay/resource identity and the required-JSON identity. The distributed
 header is 12 bytes, including its checkpoint epoch.
 
-- **Permission and admission.** `network.mcc_map_share` defaults off. The host
-  offers only its current map package, classified by its locally maintained
-  `mcc_share.txt`: `<gameplay SHA-256> <maker>`. Unknown content, missing credit,
-  known stock, loose maps and `_shared` are refused. Eligible Workshop and local
-  packages use the same policy. The client requires `network.map_download`
+- **Permission and admission.** The existing `network.map_share` setting
+  enables both CE and MCC sharing. MCC offers only the current validated
+  package automatically; no manual approval list is required. Loose maps and
+  `_shared` are not packages to offer. An existing `mcc_share.txt` may supply
+  optional maker attribution but cannot enable or block sharing. The client requires `network.map_download`
   (existing default on) and explicit acceptance of the size/maker prompt.
   Before acceptance it receives only an offer; it creates no stage and requests
   no file chunks. If either setting is off, the download action is absent.
@@ -1014,6 +1019,13 @@ header is 12 bytes, including its checkpoint epoch.
   survive that deliberate disconnect; it holds no host slot or transfer alive.
   Dismissal, another session or leaving the menu clears it. Live download
   consent still requires the current host's exact content identity.
+- **The game's start.** A machine fetching the package from the host (its
+  download prompt, then the transfer) does not hold the game's start, as a
+  Custom Edition map's downloader does not: the host leaves it and its players
+  out of the start (`network_game_server_hold_map_fetcher_players`) and it
+  joins the game in progress once it has the package. A machine still checking
+  its own copy does hold the start, until its admission ends: told to load
+  before then, it could not.
 - **Messages and bounds.** `MANIFEST` responses carry up to 16 file entries per
   page. The full offer has at most 168 entries, each with kind, a 128-byte path
   buffer, size and SHA-256. Exactly one map is required. `CHUNK` requests up to
@@ -1026,8 +1038,10 @@ header is 12 bytes, including its checkpoint epoch.
 - **Selected files.** `mcc_share_package_build` uses the validated resource
   selection cached by `mcc_validation_resources`; it does not scan arbitrary
   siblings. Only used package `bitmaps.map`/`sounds.map` are eligible, including
-  their resolved Workshop fallback paths. A required root/shared resource
-  refuses the offer with a host diagnostic naming the dependency. Recognized
+  their resolved Workshop fallback paths. Root/shared base resources and
+  package copies matching an installed base are omitted. Joiners must provide
+  matching local dependencies; the complete gameplay fingerprint still covers
+  their contents, and missing or mismatched resources prevent admission. Recognized
   package/campaign/mission JSON and referenced supported PNG previews travel
   with the map; `credits.txt`, `readme.txt`, `license.txt` and a valid bounded
   Workshop sidecar preserve attribution. `ModInfo.json` is parsed metadata,
@@ -1077,6 +1091,14 @@ or completed holds cannot be restarted by replaying `BEGIN` on the same
 connection and host revision. `READY` grants only the existing fifteen-second
 player-add grace; it does not prove that an untrusted client checked its files.
 Actual map loading still fingerprints content independently.
+
+Local validation enumerates distinct usable files only for resource types the
+map references. An explicit package override stays authoritative; an unreadable
+or invalid override reports its file error instead of trying base alternatives.
+Each distinct combination still requires the full gameplay SHA-256. An unchanged
+failed exact path is not hashed again after discovery rescans; changed files or
+required metadata permit a fresh check. These are local work and diagnostic
+changes, with no change to message layouts, fingerprint framing or version 44.
 
 After admission, synchronous MCC conversion has a separate bounded progress
 contract in `mcc_load_network.c` and `mcc_load_network_game.c`. Reliable message
@@ -1477,8 +1499,8 @@ so a legitimate shot from beside cover is not judged only from the head.
 Both the eye-to-muzzle and muzzle-to-impact routes must be clear; weapon
 ownership, rate, target history and damage limits still apply. Scoped, dead,
 seated, Forced Off and ordinary first-person paths do not add this history.
-The camera rules use agreement version 32744. Shared checkpoint recovery
-also applies in Crossplay sessions through upstream protocol 43. Older camera
+The camera rules use agreement version 32746. Shared checkpoint recovery
+also applies in Crossplay sessions through network protocol 44. Older camera
 builds are excluded; camera policy bits leave upstream vehicle riding intact.
 The host independently excludes weapon-authored following cameras from the
 shoulder solver; stale or forged input bits cannot override that priority.
@@ -1561,17 +1583,23 @@ has them and the nearest item: a client that sees a pickup the host does
 not.
 
 The host's Session Compatibility selector defaults to Crossplay
-(`opence_crossplay`). Xbox, Custom Edition and MCC maps all use OpenCE protocol
-43, including its shared checkpoint, loading and content identity messages.
+(`opence_crossplay`). Xbox, Custom Edition and MCC maps all use network protocol
+44, retaining OpenCE 43 checkpoint, loading and content identity message layouts.
 There is no separate MCC capability or join envelope. The optional shoulder
 camera, its input and muzzle behavior remain disabled in Crossplay mode.
-GulchCE Only (`gulchce_third_person`) advertises camera protocol 32744 for every
+GulchCE Only (`gulchce_third_person`) advertises camera protocol 32746 for every
 map family, requires a kind 102 envelope before admission and adds the shoulder
 byte to relayed actions. The envelope's bound is 520 bytes: an eight-byte camera
 header plus at most 512 bytes of ordinary join data, including account-link
-credentials. Its header carries revision 1, camera version 32744 and zero
+credentials. Its header carries revision 1, camera version 32746 and zero
 reserved bytes. Nested envelopes are rejected. Ordinary authorization and
 map-family checks still apply.
+
+Camera version 32746 preserves the packet layout but removes the second
+post-creation repair of MCC shoulder shots: MCC has already checked cover
+before projectile attachments spawn. Camera peers must agree on that simulated
+origin. Crossplay has shoulder shots disabled and remains protocol 44.
+Smooth Crosshair and Crosshair Size are local presentation controls.
 
 Session mode is selected before opening the lobby and locked until disposal,
 including across rounds. The client binds camera permission to the selected
@@ -1702,5 +1730,6 @@ identical builds show, and not caught. Positions agree to 0.04 world units
 on average, 0.24 at most, in every game, perturbed or not: the netcode
 corrects them.
 
-MCC camera-relative projectile rays use upstream agreement 43 (camera mode 32744).
-Xbox/CE agreement versions are unchanged. Firing and preview share `mcc_projectiles.c`.
+MCC camera-relative projectile rays retain the OpenCE 43 simulation rules.
+Automatic sharing now requires agreement 44 (camera mode 32746) across all
+map families. Firing and preview share `mcc_projectiles.c`.

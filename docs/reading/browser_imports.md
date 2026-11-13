@@ -120,7 +120,9 @@ Verification also has a network lifetime. `mcc_share_identity_check` starts
 an owned asynchronous check, allowing the game's main loop to service the
 connection while map/resources are hashed. Its stage redirect is active only
 while opening files and taking snapshots; private readers belong to the
-checker. After publication, `mcc_share_installed_ready` promotes unchanged
+checker. The host's expected SHA-256 also guides selection among fixed local
+base-resource candidates; a different resource location never bypasses the
+content check. After publication, `mcc_share_installed_ready` promotes unchanged
 validated facts and establishes the local binding before successful `DONE`.
 Cleanup closes the checker before removing any owned stage files. The same
 MCC validator serves already-installed joins through a separate bounded

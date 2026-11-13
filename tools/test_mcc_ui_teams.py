@@ -101,6 +101,13 @@ static boolean network_game_server_lobby_is_open(struct network_game_server *s){
 static void network_game_server_clean_player_name(struct network_game_server *s,struct network_player *p,long slot){(void)s;(void)p;(void)slot;}
 static boolean network_game_update_player(struct network_game *g,struct network_player *p){g->players[p->player_list_index]=*p;return TRUE;}
 static boolean network_game_server_send_game_data_pregame(struct network_game_server *s){(void)s;send_count++;return TRUE;}
+/* No dedicated-server moves are pending in this MCC picker fixture.
+ * The separate server_team_switch harness exercises those callbacks. */
+static void server_team_switch_damage(long player,long unit,boolean no_statistics)
+{(void)player;(void)unit;(void)no_statistics;}
+static void server_team_switch_player_killed(long *killer,long *object,long dead,boolean *friendly)
+{(void)killer;(void)object;(void)dead;(void)friendly;}
+static void server_team_switch_player_dead(long dead){(void)dead;}
 /* Native game-engine and Slayer callbacks below run unchanged. */
 static struct {struct {int respawn_time,respawn_time_growth,suicide_penalty,teams;}universal_variant;}global_variant;
 static short game_engine_betrayal_penalty[4];

@@ -148,17 +148,18 @@ Read [`mcc_share_rules.h`](../../port/linux/game/mcc_share_rules.h), then
 `mcc_share_decide` in [`mcc_share_rules.c`](../../port/linux/game/mcc_share_rules.c).
 The policy accepts eligible local and Workshop packages under the same checks.
 It requires host opt-in, portable package/level names, a known gameplay
-fingerprint and a host-established custom-content classification. Loose maps,
-`_shared`, known stock content and unknown classification remain refused.
+fingerprint. The low-level policy also rejects known stock/unknown content;
+the game adapter admits validated package identities and the planner excludes
+base resources. Loose maps and `_shared` remain refused.
 Workshop IDs identify a source; they do not establish permission or content identity.
 
-The classification provider is the host's own `mcc_share.txt`, parsed by
-[`mcc_share_list.c`](../../port/linux/game/mcc_share_list.c): one line contains
-`<64 hexadecimal digits> <maker>`. The digest covers the map and its used
-resources, independent of installation name. Required JSON has a separate
-identity. A matching list entry is the host's explicit approval of those
-content bytes, not a signature from the maker or a substitute for receiver
-validation. A missing maker or an unlisted digest blocks the offer.
+`mcc_share_admit` accepts a locally validated package when the host enables
+`network.map_share`. The planner separately excludes base resources. The
+optional legacy `mcc_share.txt`, parsed by
+[`mcc_share_list.c`](../../port/linux/game/mcc_share_list.c), supplies attribution
+only. Missing maker credit does not block the offer. The gameplay digest covers
+the map and used resources; required JSON has a separate identity. Neither
+an attribution line nor a Workshop ID substitutes for receiver validation.
 
 [`mcc_share_package.c`](../../port/linux/game/mcc_share_package.c) owns file
 selection. `mcc_share_package_build` obtains the actual selected dependencies
@@ -168,12 +169,36 @@ That accessor rechecks the same file stamps as admission; it does not repeat
 map parsing or hash every resource on each request. The selection comes from
 `mcc_resources_check_paths` in
 [`mcc_resource_check.inl`](../../port/linux/game/mcc_resource_check.inl), after
-`mcc_resources_select` validated the map's external references.
+`mcc_resources_select_paths` validated the map's external references.
 A self-contained map sends no unrelated resource siblings. A used package
 resource follows the platform's resolved path, including Workshop `halo1/maps`
-fallbacks. A required root/shared resource refuses the offer with its path in
-the host log; it is never silently copied as package content. An invalid
+fallbacks. Required root/shared files and package copies matching installed
+base files are omitted from transfer. Staged validation reads the joiner's own
+base resources; publication keeps those selected paths while remapping staged
+package paths. The complete snapshot and gameplay fingerprint remain required. An invalid
 present override fails validation rather than falling back to another file.
+
+`base_resources` caches the host's base-copy classification only while all nine
+candidate stamps and the selected paths match. It avoids repeating large byte
+comparisons for each joiner; changed or unreadable candidates prevent reuse.
+`mcc_package_base_resource_path` in
+[`mcc_package.c`](../../port/linux/game/mcc_package.c) supplies the shared candidate
+paths to classification, snapshots and resource selection.
+
+For staged and installed joins, `mcc_validation_check_expect` records the host's
+full SHA-256. The checker enumerates distinct usable files only for referenced
+resource types, keeping present package overrides fixed. It hashes a package
+with both overrides or a self-contained map once, and considers up to nine
+combinations only when both resource types have three distinct choices. An
+unchanged rejected exact path is not hashed again after discovery. For example, an
+older root `sounds.map` can be rejected while the matching multiplayer shared
+copy succeeds. Every attempt still validates external references and hashes the
+complete content. A changed snapshot rejects the job. `mcc_cache_tags_load`
+reopens the successful proof's exact resource paths and verifies the loaded
+fingerprint again. No base-resource bytes or candidate paths are obtained from the host.
+[`test_mcc_resource_selection.py`](../../tools/test_mcc_resource_selection.py)
+covers this selection, staged publication, full-digest mismatch rejection and
+classification-cache invalidation.
 
 ## MCC package sharing between machines
 
@@ -183,8 +208,8 @@ Browser playability and asynchronous admission have separate Milestone 14
 checks; compilation or successful publication alone does not establish play.
 
 For example, a host plays `mcc_maps\solar_flare\m0` and a joiner has another
-version in a local folder of that name. The host enables `network.mcc_map_share`
-and lists its gameplay fingerprint and maker; the client enables the existing
+version in a local folder of that name. The host enables `network.map_share`
+and its validated package is offered automatically; the client enables the existing
 `network.map_download` preference. The original local package stays intact.
 
 1. Read `mcc_identity_accept` and `mcc_identity_update` in
@@ -198,7 +223,7 @@ and lists its gameplay fingerprint and maker; the client enables the existing
    `mcc_share_missing` in [`mcc_share.c`](../../port/linux/game/mcc_share.c)
    requests an offer. Client downloads off means no request: show manual
    installation and, when a valid Workshop ID exists, the Workshop page.
-2. `mcc_share_package_build` applies the local list/policy and builds a bounded
+2. `mcc_share_package_build` applies the host setting and MCC policy and builds a bounded
    offer containing the current map, used package resources, recognized JSON,
    referenced supported PNG previews and permitted attribution text. A local
    map-only folder needs no JSON or thumbnail. `mcc_share_metadata_plan` in
@@ -255,16 +280,15 @@ The wire limits and protocol versions are in
 
 Before a pregame host starts synchronous map loading,
 `mcc_ui_network_download_pending` in
-[`mcc_ui_network.inl`](../../port/linux/game/mcc_ui_network.inl) checks joined
-machines for active MCC offers, transfers, installed-file checks or
-completion-to-admission grace.
-The existing MCC start check holds loading while these are active. The update
-keeps an already running, unpaused countdown at least three seconds from
-expiry, allowing normal networking to service the joiners. It preserves longer,
-stopped and manually paused countdowns. Once download/admission activity ends,
-the ordinary exact-map readiness checks govern starting. This prevents a
-blocking host load from starving an admitted downloader; it does not provide
-network service for a new request arriving after that load has already begun.
+[`mcc_ui_network.inl`](../../port/linux/game/mcc_ui_network.inl) holds the
+start for joined machines checking their local package or completing bounded
+post-install admission. Machines still fetching the package, including those
+at the download prompt, do not hold the start: the inherited start path leaves
+them out and holds their players until they can join the game in progress.
+An active local check keeps a running, unpaused countdown at least three seconds
+from expiry. Longer, stopped and manually paused countdowns remain unchanged.
+After admission, the ordinary exact-map precache checks govern readiness.
+This does not provide network service during the host's synchronous load.
 
 Managed-copy receipt, storage-use display and removal controls use
 [`mcc_share_storage.c`](../../port/linux/game/mcc_share_storage.c) and
@@ -309,9 +333,9 @@ map. Network clients do not choose; hosts use the existing co-op lobby/settings
 transition. `mcc_ui_network_campaign_won` records a one-use request for that
 server, round and next mission, returning the host to the ready lobby with
 the intended selection. A different selection or session teardown cancels
-the request; ordinary same-selection identity validation does not. The download
-barrier described above lets missing clients acquire the next mission before
-the host loads it. No progression cursor survives unload: the current level
+the request; ordinary same-selection identity validation does not. Local package
+checks hold the start as described above; missing clients fetch the next mission
+and join when ready. No progression cursor survives unload: the current level
 and its own package identify the next mission. Standalone and final levels return to
 the menu or lobby. Xbox and CE still use their existing completion code.
 
@@ -571,27 +595,21 @@ ordinary reliable round transition succeeds, an MCC-owned token identifies
 the server, new round and selected mission. The existing pregame UI hook
 consumes it after the current map unloads and opens the ready lobby instead
 of the multiplayer map picker. Its countdown waits for package validation,
-active downloads and ordinary precache readiness. A same-name checksum
-update during validation preserves the token; another selection, session
+local admission and ordinary precache readiness; downloaders can join later.
+A same-name checksum update during validation preserves the token; another selection, session
 disposal or mismatched round invalidates it. Campaign end and a missing next
 mission retain their existing postgame/error handling without automatically
 replaying the last mission. `test_mcc_ui_network.py` exercises the real UI
 dispatcher, including the former paused-map-picker failure;
 `test_mcc_lifecycle.py` covers the campaign completion adapter.
 
-Before any MCC network mission starts, `mcc_ui_network_download_pending`
-holds an already-running countdown at no less than three seconds while a
-joined machine has an active offer, download or the bounded post-install
-admission grace. Normal countdown messages keep those clients connected.
-The direct-start guard enforces the same barrier. A stopped/paused timer is
-left alone, and a longer countdown is never shortened. Once the download
-and admission finish, the normal precache acknowledgment gates the player's
-readiness. This is needed because MCC conversion runs synchronously: starting
-the host while another client waits for content can otherwise leave that
-client without messages long enough to lose its connection. Xbox and CE
-retain their existing start policy; in-game late joining is unchanged.
-This protects downloads already admitted before loading, not a new request
-the host has not received when synchronous conversion begins.
+The pregame admission policy described above also
+applies to campaign follow-ons: joined local package checks hold the countdown,
+while offers and active downloads can finish after the host starts.
+`test_mcc_ui_network.py` covers countdown preservation and local admission;
+[`test_mcc_start_hold.py`](../../tools/harness/tests/test_mcc_start_hold.py)
+covers mixed downloading/checking peers, joined state and the start-sent guard.
+Xbox and CE retain their existing start policy.
 
 Once loading begins, [mcc_load_network.c](../../port/linux/game/mcc_load_network.c)
 and its [game adapter](../../port/linux/game/mcc_load_network_game.c) distinguish
@@ -1023,3 +1041,30 @@ Workshop discovery instead of disappearing without a diagnostic.
 Combat Revolved's credits entry uses `default`. Rejecting that single spelling
 previously hid all eleven missions. Regression fixtures use unrelated package
 names, preserve authored order and original JSON bytes, and retain refusal cases.
+
+## Dedicated MCC discovery and validation
+
+Dedicated rotations dispatch MCC names through
+[mcc_server.c](../../port/linux/game/mcc_server.c), which validates MCC
+headers and enumerates the MCC catalog without changing Xbox or CE resolution.
+`mcc_server_request_rescan` queues `sv_reload` discovery until `mcc_server_update`
+runs in pregame, keeping HTTP reads and active gameplay free of rescans.
+For example, copy `mcc_maps/My Pack/arena.map`, run `sv_reload`, and refresh the
+web page in the lobby. Saving or playing that entry retains the spaces in its
+full MCC path. The HTTP command bridge calls `mcc_server_play_line` to validate
+the MCC namespace and quote that entry as one console argument. Legacy requests
+keep their established validation and command construction.
+With Map Sharing enabled, [mcc_share_package.c](../../port/linux/game/mcc_share_package.c)
+offers eligible packages automatically. Base resources stay local;
+[mcc_share_session.c](../../port/linux/game/mcc_share_session.c) validates
+the receiver's copies before publication. In
+[mcc_resource_check.inl](../../port/linux/game/mcc_resource_check.inl),
+`mcc_resources_candidates` fixes package overrides and enumerates only usable
+base files for referenced resource types. A resource-free map or a package with
+both overrides has one combination. `mcc_validation_check_step` hashes each
+distinct combination against the host's full digest and retains file-change
+checks; unreadable overrides produce a local diagnostic. The resource-selection,
+identity-candidate, sharing and server tests exercise these cases with synthetic
+files; they do not measure slow-device join times. Host downloads use separate
+folders and never replace the player's installed package. See
+[MCC installation and sharing](../mcc_maps.md) for prerequisites and limits.
