@@ -126,6 +126,15 @@ static unsigned char const *mcc_identity_expected(char const *name)
 /* Prepare alongside the map version, before sending its settings. Initial
  * MCC host setup does this before opening the lobby; mcc_ui_network defers
  * early map changes until the host's loopback client has joined. */
+unsigned long system_milliseconds(void);
+
+/* the host's metadata digest and Workshop sidecar last read: for what map,
+when, and whether since its identity was worked out */
+#define MCC_HOST_EXTRAS_MS 2000ul
+static int mcc_host_extras_checked;
+static unsigned long mcc_host_extras_at;
+static char mcc_host_extras_name[64];
+
 int mcc_identity_prepare_host(char const *map)
 {
     struct mcc_precache_snapshot before,after;
@@ -150,7 +159,17 @@ int mcc_identity_prepare_host(char const *map)
         mcc_host_identity.files=after;
         mcc_host_identity.valid=1;
         if (!++mcc_host_revision) ++mcc_host_revision;
+        mcc_host_extras_checked=0;
     }
+    /* The metadata's digest and the Workshop sidecar, read again at most each
+     * MCC_HOST_EXTRAS_MS while the map and its resources are unchanged: a
+     * hosted lobby asks each frame while it waits (mcc_ui_network.inl), and
+     * each read lists mcc_maps and the package's folder and opens its files,
+     * a request to the console's file service each on the Switch: about five
+     * a frame took a waiting Switch host to 10 frames a second. */
+    if (mcc_host_identity.valid && mcc_host_extras_checked && !strcmp(name,mcc_host_extras_name) &&
+        system_milliseconds()-mcc_host_extras_at<MCC_HOST_EXTRAS_MS)
+        return 1;
     if (!mcc_identity_metadata(name,metadata)) {
         mcc_host_identity.valid=0;
         return mcc_identity_error("The host package metadata is invalid.");
@@ -164,6 +183,9 @@ int mcc_identity_prepare_host(char const *map)
         mcc_host_identity.item=item;
         if (!++mcc_host_revision) ++mcc_host_revision;
     }
+    mcc_host_extras_checked=1;
+    mcc_host_extras_at=system_milliseconds();
+    snprintf(mcc_host_extras_name,sizeof(mcc_host_extras_name),"%s",name);
     return 1;
 }
 
