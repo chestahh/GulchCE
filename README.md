@@ -1,12 +1,42 @@
-# GulchCE
+<p align="center">
+  <img width="420" height="420" alt="gulchceopencelogo" src="https://github.com/user-attachments/assets/1787aa2f-3305-4353-8dd4-27d08661f6d4" />
+</p>
 
-A fork of [OpenCE](https://github.com/OpenCommunityEdition/OpenCE), bringing experimental features and Halo 1 MCC map support to **Windows, Linux, Android and web browsers**.
+<h2 align="center">
+  A fork of OpenCE focused on bringing experimental features to OpenCE.
+</h2>
 
-[Download](https://github.com/chestahh/GulchCE/releases) · [Discord](https://discord.gg/pRFGPAMZkD) · [YouTube](https://www.youtube.com/channel/UC9Hn6j6BdKwoyu_hGXdfzvw)
+<p align="center">
+  <a href="https://github.com/chestahh/GulchCE/releases">download the latest release</a> ·
+  <a href="https://discord.gg/pRFGPAMZkD">join the discord</a> ·
+  <a href="https://www.youtube.com/channel/UC9Hn6j6BdKwoyu_hGXdfzvw">check out the youtube</a>
+  <br>
+  <br>
+  forever <strong>compatible</strong>, for <strong>everyone</strong>
+</p>
+<hr>
 
-GulchCE runs the game's code natively on each platform. It is based on the Halo: Combat Evolved Xbox decompilation and includes online co-op, multiplayer, Custom Edition maps, bots, configurable controls and graphics, and several menu styles.
-
-**No game data is included. You need your own copy of Halo: Combat Evolved for the original Xbox to get started.**
+<p align="center">
+GulchCE is a fork of <a href="https://github.com/OpenCommunityEdition/OpenCE">OpenCommunityEdition/OpenCE</a>- the Halo: Combat Evolved decompilation project targeting Linux, 
+Windows, Android and web browsers.
+  <br>
+  <br>
+  <strong>No game data is included. You need your own copy of Halo: Combat Evolved for the original Xbox to get started.</strong>
+</p>
+<hr>
+<h3 align="center">
+GulchCE will always be compatible with OpenCE, so players on both clients can play together.
+</h3>
+<br>
+<p align="center">
+Any fork compatible with OpenCE is also compatible with GulchCE. Crossplay galore!
+</p>
+<br>
+<p align="center">
+  Halo is a trademark of Microsoft. GulchCE is a fan project, not made or endorsed by Microsoft, Bungie, 343 Industries, or Halo Studios, and does not include any game assets or content.
+</p>
+<hr>
+<br>
 
 ## Getting started
 
