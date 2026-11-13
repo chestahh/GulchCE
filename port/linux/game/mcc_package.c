@@ -72,7 +72,8 @@ int mcc_package_map_path(char const *name, char path[128])
     if (mcc_package_staged(canonical)) {
         char const *level=strrchr(canonical,'\\')+1;
         size_t i;
-        int length=sprintf(path,"d:\\%s\\%s.map",mcc_package_staged_folder,level);
+        int length=snprintf(path,128,"d:\\%s\\%s.map",mcc_package_staged_folder,level);
+        if (length<0 || length>=128) return 0;
         for (i=3;i<(size_t)length;i++) if (path[i]=='/') path[i]='\\';
         return 1;
     }
@@ -87,7 +88,7 @@ int mcc_package_resource_path(char const *name, unsigned type, char path[128])
 {
     char canonical[64], *separator;
     size_t i;
-    int staged;
+    int staged,length;
     if (type<1 || type>2 || !mcc_package_name(name,canonical)) return 0;
     staged=mcc_package_staged(canonical);
 #ifdef HALO_WEB
@@ -96,8 +97,8 @@ int mcc_package_resource_path(char const *name, unsigned type, char path[128])
     separator=strrchr(canonical,'\\');
     *separator=0;
     for (i=0;canonical[i];i++) if (canonical[i]=='\\') canonical[i]='/';
-    sprintf(path,"%s/%s.map",staged ? mcc_package_staged_folder : canonical,type==1 ? "bitmaps" : "sounds");
-    return 1;
+    length=snprintf(path,128,"%s/%s.map",staged ? mcc_package_staged_folder : canonical,type==1 ? "bitmaps" : "sounds");
+    return length>0 && length<128;
 }
 
 FILE *mcc_package_resource_open(char const *name,unsigned type,char path[128])
@@ -115,4 +116,35 @@ FILE *mcc_package_resource_open(char const *name,unsigned type,char path[128])
         file=fopen(path,"rb");
     }
     return file;
+}
+
+int mcc_package_base_resource_path(unsigned type,unsigned set,char path[128])
+{
+    static char const *folders[]={"", "_shared/singleplayer/", "_shared/multiplayer/"};
+    if (type<1 || type>2 || set>=MCC_PACKAGE_BASE_SETS) return 0;
+    snprintf(path,128,"mcc_maps/%s%s.map",folders[set],type==1 ? "bitmaps" : "sounds");
+    return 1;
+}
+
+int mcc_package_shared_resource(char const *path,unsigned type)
+{
+    char expected[128];
+    unsigned set;
+    if (!path) return 0;
+    for (set=0;set<MCC_PACKAGE_BASE_SETS;set++)
+        if (mcc_package_base_resource_path(type,set,expected) && !strcmp(path,expected)) return 1;
+    return 0;
+}
+
+int mcc_package_resource_candidate(char const *name,unsigned type,unsigned set,char path[128])
+{
+    FILE *file;
+    if (set>=MCC_PACKAGE_BASE_SETS || !mcc_package_resource_path(name,type,path)) return 0;
+    if (!mcc_package_shared_resource(path,type)) {
+        errno=0;
+        file=fopen(path,"rb");
+        if (file) {fclose(file);return 1;}
+        if (errno!=ENOENT) return 0;
+    }
+    return mcc_package_base_resource_path(type,set,path);
 }

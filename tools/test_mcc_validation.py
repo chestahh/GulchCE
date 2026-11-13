@@ -154,6 +154,7 @@ static int opened,closed,allocated,freed,steps,bad,unreadable,changes;
 static int allocation_failed;
 static void *check_allocate(size_t bytes) {return allocation_failed ? NULL : malloc(bytes);}
 #define malloc check_allocate
+struct mcc_resource_candidates {unsigned count[2],index;char paths[2][3][128];};
 struct mcc_resource_check {int step;};
 int mcc_package_name(char const *name,char *out) {
     if(strncmp(name,"mcc_maps/",9)||strlen(name)>=64)return 0;
@@ -173,6 +174,7 @@ static struct mcc_resource_check *mcc_resources_check_begin(char const *n,
     struct mcc_cache_source const *s,char *r,size_t z) {
     (void)n;(void)s;(void)r;(void)z;allocated++;return calloc(1,sizeof(struct mcc_resource_check));
 }
+#define mcc_resources_check_begin_candidate(n,s,c,r,z) mcc_resources_check_begin(n,s,r,z)
 static int mcc_resources_check_step(struct mcc_resource_check *c,uint32_t *sum,unsigned char *digest) {
     steps++;if(bad)return -1;
     if(++c->step<3)return 0;
@@ -267,7 +269,11 @@ int main(void) {
         assert(mcc_validation_resources("mcc_maps/installed/a",paths));
         assert(!strcmp(paths[1],"mcc_maps/installed/sounds.map"));
         strcpy(proof.resources[1],"mcc_maps/_shared/singleplayer/sounds.map");
-        assert(!mcc_validation_publish("mcc_maps/borrowed/a",&proof));
+        assert(mcc_validation_publish("mcc_maps/borrowed/a",&proof));
+        assert(mcc_validation_resources("mcc_maps/borrowed/a",paths));
+        assert(!strcmp(paths[1],"mcc_maps/_shared/singleplayer/sounds.map"));
+        strcpy(proof.resources[1],"mcc_maps/another/sounds.map");
+        assert(!mcc_validation_publish("mcc_maps/foreign/a",&proof));
         mcc_validation_check_end(stage);
         local=mcc_validation_check_begin("mcc_maps/q/a",NULL);
         local_status=0;while(!local_status)local_status=mcc_validation_check_step(local,&local_proof,NULL,0);
@@ -287,6 +293,11 @@ int main(void) {
 }
 '''
     path = tmp_path / "incremental.c"
+    package = (ROOT / "port/linux/game/mcc_package.c").read_text()
+    helpers = "\n".join(function(package, name) for name in
+                        ("mcc_package_base_resource_path", "mcc_package_shared_resource"))
+    source = source.replace("static struct mcc_precache_snapshot stamps;",
+                            '#include "mcc_package.h"\n' + helpers + "\nstatic struct mcc_precache_snapshot stamps;")
     source = source.replace('assert(!opened&&!steps);', 'assert(!opened&&!steps);worker_enabled='+str(int(threaded))+';')
     path.write_text(source)
     binary = compile_tool(tmp_path, [path])

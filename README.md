@@ -24,3 +24,17 @@ All I ask is that if you do fix anything or add support for unsupported scripts 
 My DMs are open and I will act in a support capacity for those who are eager to get the MCC stuff integrated onto their fork. Just shoot me a message.
 
 Beyond that, enjoy your MCC maps.
+
+
+## MCC package fixes from OpenCE PR #658
+
+Copy intact Workshop folders into `mcc_maps`; local package names and previews
+work without Steam discovery. Map Sharing automatically offers eligible packages,
+while required base resources stay local and are validated before installation.
+Dedicated servers accept MCC rotation entries, including package names with
+spaces. Run `sv_reload` and refresh the page in pregame to discover copied maps.
+See [MCC installation and sharing](docs/mcc_maps.md) and the
+[dedicated-server guide](docs/dedicated_server.md).
+
+This branch uses network version **32739** for the updated sharing agreement.
+It retains its older engine and does not claim OpenCE protocol-44 crossplay.

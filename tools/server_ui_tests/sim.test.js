@@ -46,7 +46,14 @@ test('a change needs the CSRF token; the page sends it', async () => {
 
 test("a player's action names the slot and the player, and a changed slot is refused", async () => {
   const { api } = await signIn(sim.url, 'opence-mod');
-  const players = (await api.call('GET', '/api/players')).data.players;
+  // Listening precedes the simulator's first player-population tick.
+  let players;
+  for (let attempt = 0; attempt < 100; attempt++) {
+    players = (await api.call('GET', '/api/players')).data.players;
+    if (players.length >= 2) break;
+    await settle(10);
+  }
+  assert.ok(players.length >= 2, 'the simulator must populate its players');
   const [first, second] = players;
   const stale = await api.call('POST', `/api/players/${first.slot}/kick`, { name: second.name });
   assert.deepStrictEqual([stale.status, stale.error.code], [409, 'changed']);
