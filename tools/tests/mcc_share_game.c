@@ -103,8 +103,8 @@ static char host_dir[1024],join_dir[1024];
 static unsigned clock_ms=1000;
 static int map_share_on,map_download_on,aborts,errors_shown,accepts,accept_result;
 static char shown[512];
-static int (*host_missing)(char const[128],unsigned char const[32],unsigned char const[32]);
-static int (*join_missing)(char const[128],unsigned char const[32],unsigned char const[32]);
+static int (*host_missing)(char const[128],unsigned char const[32],unsigned char const[32],char const *);
+static int (*join_missing)(char const[128],unsigned char const[32],unsigned char const[32],char const *);
 static unsigned char host_digest[32],host_metadata[32];
 static char snapshot[64],opened_url[128];
 static int role_host,peer_joined=1,prompts,lobby_restores;
@@ -301,8 +301,8 @@ static void find_snapshot(void)
     closedir(dir);
 #endif
 }
-void h_mcc_identity_set_missing(int (*handler)(char const[128],unsigned char const[32],unsigned char const[32])) { host_missing=handler; }
-void j_mcc_identity_set_missing(int (*handler)(char const[128],unsigned char const[32],unsigned char const[32])) { join_missing=handler; }
+void h_mcc_identity_set_missing(int (*handler)(char const[128],unsigned char const[32],unsigned char const[32],char const *)) { host_missing=handler; }
+void j_mcc_identity_set_missing(int (*handler)(char const[128],unsigned char const[32],unsigned char const[32],char const *)) { join_missing=handler; }
 int j_mcc_identity_accept_installed(char const name[128], unsigned char const digest[32],unsigned char const metadata[32],char const *installed)
 {
     (void)name;(void)metadata;
@@ -608,7 +608,7 @@ static void wire_name(char name[128],char const *level)
 static int joiner_asks(char const *level,unsigned char const digest[32])
 {
     char name[128]; wire_name(name,level); memcpy(join_game.mcc_content_sha256,digest,32);
-    memcpy(join_game.mcc_metadata_sha256,host_metadata,32);as_join(); return join_missing(name,digest,host_metadata);
+    memcpy(join_game.mcc_metadata_sha256,host_metadata,32);as_join(); return join_missing(name,digest,host_metadata,"");
 }
 static int workshop_asks(void)
 {
@@ -616,7 +616,7 @@ static int workshop_asks(void)
     wire_name(name,LEVEL); memset(&item,0,sizeof(item)); strcpy(item.id,"2915693904"); strcpy(item.title,"Fixture package");
     mcc_workshop_wire_pack(name,&item); memcpy(join_game.map.name,name,128);
     memcpy(join_game.mcc_content_sha256,host_digest,32);memcpy(join_game.mcc_metadata_sha256,host_metadata,32);
-    as_join(); return join_missing(name,host_digest,host_metadata);
+    as_join(); return join_missing(name,host_digest,host_metadata,"");
 }
 static int write_list(unsigned char const digest[32],char const *maker)
 {
@@ -786,7 +786,7 @@ int main(int argc,char **argv)
         CHECK(!joiner_asks("maps\\bloodgulch",host_digest));
         CHECK(!joiner_asks("custom_maps\\bloodgulch",host_digest));
         CHECK(!joiner_asks("mcc_maps\\loose",host_digest));
-        as_host();wire_name(name,LEVEL);CHECK(!host_missing(name,host_digest,host_metadata));
+        as_host();wire_name(name,LEVEL);CHECK(!host_missing(name,host_digest,host_metadata,""));
         CHECK(to_host_count==0); return 0;
     }
     CASE("consent") {

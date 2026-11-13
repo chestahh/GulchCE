@@ -129,8 +129,8 @@ int mcc_share_metadata_digest(char const *root,int campaign,char const *level,
 }
 static int offers,allow_offer;
 static unsigned char offered_digest[32],offered_metadata[32];
-static int offer(char const name[128],unsigned char const digest[32],unsigned char const metadata[32]){
- (void)name;offers++;memcpy(offered_digest,digest,32);memcpy(offered_metadata,metadata,32);if(allow_offer)mcc_admission_client_finish(0);return allow_offer;
+static int offer(char const name[128],unsigned char const digest[32],unsigned char const metadata[32],char const *reason){
+ (void)name;(void)reason;offers++;memcpy(offered_digest,digest,32);memcpy(offered_metadata,metadata,32);if(allow_offer)mcc_admission_client_finish(0);return allow_offer;
 }
 int mcc_precache_snapshot(char const *s,struct mcc_precache_snapshot *out){
  int i=find(s);memset(out,0,sizeof(*out));if(denied)return 0;
@@ -167,7 +167,7 @@ struct mcc_validation_check *mcc_validation_check_begin(char const *s,char const
 }
 void mcc_validation_check_expect(struct mcc_validation_check *check,unsigned char const digest[32]) {(void)check;(void)digest;}
 int mcc_validation_check_step(struct mcc_validation_check *check,struct mcc_validation_proof *proof,char *reason,size_t size){
- struct mcc_precache_snapshot after;(void)reason;(void)size;
+ struct mcc_precache_snapshot after;if(reason && size)reason[0]=0;
  if(!check->steps++)return 0;
  memset(proof,0,sizeof(*proof));strcpy(proof->name,check->name);proof->checksum=123;
  if(!mcc_content_probe(check->name,proof->digest) || !mcc_precache_snapshot(check->name,&after) ||

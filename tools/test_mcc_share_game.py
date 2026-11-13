@@ -115,7 +115,7 @@ int MoveFileA(char const *from, char const *to);
 int DeleteFileA(char const *path);
 """,
     "mcc_cache.h": "int mcc_level_name(char const *name);\n",
-    "mcc_identity.h": """void mcc_identity_set_missing(int (*handler)(char const name[128], unsigned char const digest[32], unsigned char const metadata[32]));
+    "mcc_identity.h": """void mcc_identity_set_missing(int (*handler)(char const name[128], unsigned char const digest[32], unsigned char const metadata[32],char const *reason));
 int mcc_identity_host_package(char const *level, unsigned char digest[32]);
 int mcc_identity_accept_installed(char const name[128], unsigned char const digest[32], unsigned char const metadata[32],char const *installed);
 unsigned long mcc_identity_host_revision(void);

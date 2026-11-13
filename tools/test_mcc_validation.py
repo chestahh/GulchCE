@@ -154,6 +154,7 @@ static int opened,closed,allocated,freed,steps,bad,unreadable,changes;
 static int allocation_failed;
 static void *check_allocate(size_t bytes) {return allocation_failed ? NULL : malloc(bytes);}
 #define malloc check_allocate
+struct mcc_resource_candidates {unsigned count[2],index;char paths[2][3][128];};
 struct mcc_resource_check {int step;};
 int mcc_package_name(char const *name,char *out) {
     if(strncmp(name,"mcc_maps/",9)||strlen(name)>=64)return 0;

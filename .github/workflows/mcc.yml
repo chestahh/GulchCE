@@ -82,6 +82,7 @@ jobs:
           tools/test_mcc_media.py
           tools/test_mcc_resources.py
           tools/test_mcc_resource_selection.py
+          tools/test_mcc_identity_candidates.py
           tools/test_mcc_validation.py
           tools/test_mcc_share_rules.py
           tools/test_mcc_share.py
