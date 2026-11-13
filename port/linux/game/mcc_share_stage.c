@@ -290,6 +290,11 @@ enum mcc_share_stage_result mcc_share_stage_write(struct mcc_share_stage *stage,
     if (!stage->stream) {
         if (!stage_parents(stage,file->leaf) || !stage_path(path,sizeof(path),stage->stage_dir,file->leaf,stage->io.direct ? "" : ".part") ||
             !stage->io.path_safe(path) || !(stage->stream=fopen(path,"wbx"))) return stage_fail(stage,MCC_SHARE_STAGE_WRITE_FAILED);
+        /* A host's chunks are 3 KB: written through the C library's default
+         * buffer (1 KB in the guest's), each was several writes, and on the
+         * Switch each write is a request to the console's file service: a
+         * download took its frames down to a few a second. */
+        setvbuf(stage->stream,NULL,_IOFBF,0x40000);
         stage->owns_partial=1;
         mcc_sha256_begin(&stage->hash); stage->written=0;
     }
