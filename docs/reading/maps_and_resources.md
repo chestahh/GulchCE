@@ -280,16 +280,15 @@ The wire limits and protocol versions are in
 
 Before a pregame host starts synchronous map loading,
 `mcc_ui_network_download_pending` in
-[`mcc_ui_network.inl`](../../port/linux/game/mcc_ui_network.inl) checks joined
-machines for active MCC offers, transfers, installed-file checks or
-completion-to-admission grace.
-The existing MCC start check holds loading while these are active. The update
-keeps an already running, unpaused countdown at least three seconds from
-expiry, allowing normal networking to service the joiners. It preserves longer,
-stopped and manually paused countdowns. Once download/admission activity ends,
-the ordinary exact-map readiness checks govern starting. This prevents a
-blocking host load from starving an admitted downloader; it does not provide
-network service for a new request arriving after that load has already begun.
+[`mcc_ui_network.inl`](../../port/linux/game/mcc_ui_network.inl) holds the
+start for joined machines checking their local package or completing bounded
+post-install admission. Machines still fetching the package, including those
+at the download prompt, do not hold the start: the inherited start path leaves
+them out and holds their players until they can join the game in progress.
+An active local check keeps a running, unpaused countdown at least three seconds
+from expiry. Longer, stopped and manually paused countdowns remain unchanged.
+After admission, the ordinary exact-map precache checks govern readiness.
+This does not provide network service during the host's synchronous load.
 
 Managed-copy receipt, storage-use display and removal controls use
 [`mcc_share_storage.c`](../../port/linux/game/mcc_share_storage.c) and
@@ -334,9 +333,9 @@ map. Network clients do not choose; hosts use the existing co-op lobby/settings
 transition. `mcc_ui_network_campaign_won` records a one-use request for that
 server, round and next mission, returning the host to the ready lobby with
 the intended selection. A different selection or session teardown cancels
-the request; ordinary same-selection identity validation does not. The download
-barrier described above lets missing clients acquire the next mission before
-the host loads it. No progression cursor survives unload: the current level
+the request; ordinary same-selection identity validation does not. Local package
+checks hold the start as described above; missing clients fetch the next mission
+and join when ready. No progression cursor survives unload: the current level
 and its own package identify the next mission. Standalone and final levels return to
 the menu or lobby. Xbox and CE still use their existing completion code.
 
@@ -596,27 +595,21 @@ ordinary reliable round transition succeeds, an MCC-owned token identifies
 the server, new round and selected mission. The existing pregame UI hook
 consumes it after the current map unloads and opens the ready lobby instead
 of the multiplayer map picker. Its countdown waits for package validation,
-active downloads and ordinary precache readiness. A same-name checksum
-update during validation preserves the token; another selection, session
+local admission and ordinary precache readiness; downloaders can join later.
+A same-name checksum update during validation preserves the token; another selection, session
 disposal or mismatched round invalidates it. Campaign end and a missing next
 mission retain their existing postgame/error handling without automatically
 replaying the last mission. `test_mcc_ui_network.py` exercises the real UI
 dispatcher, including the former paused-map-picker failure;
 `test_mcc_lifecycle.py` covers the campaign completion adapter.
 
-Before any MCC network mission starts, `mcc_ui_network_download_pending`
-holds an already-running countdown at no less than three seconds while a
-joined machine has an active offer, download or the bounded post-install
-admission grace. Normal countdown messages keep those clients connected.
-The direct-start guard enforces the same barrier. A stopped/paused timer is
-left alone, and a longer countdown is never shortened. Once the download
-and admission finish, the normal precache acknowledgment gates the player's
-readiness. This is needed because MCC conversion runs synchronously: starting
-the host while another client waits for content can otherwise leave that
-client without messages long enough to lose its connection. Xbox and CE
-retain their existing start policy; in-game late joining is unchanged.
-This protects downloads already admitted before loading, not a new request
-the host has not received when synchronous conversion begins.
+The pregame admission policy described above also
+applies to campaign follow-ons: joined local package checks hold the countdown,
+while offers and active downloads can finish after the host starts.
+`test_mcc_ui_network.py` covers countdown preservation and local admission;
+[`test_mcc_start_hold.py`](../../tools/harness/tests/test_mcc_start_hold.py)
+covers mixed downloading/checking peers, joined state and the start-sent guard.
+Xbox and CE retain their existing start policy.
 
 Once loading begins, [mcc_load_network.c](../../port/linux/game/mcc_load_network.c)
 and its [game adapter](../../port/linux/game/mcc_load_network_game.c) distinguish

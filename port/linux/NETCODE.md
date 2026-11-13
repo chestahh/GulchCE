@@ -248,7 +248,7 @@ lockstep netcode was removed, set to play it): it tells the player why.
 ## OpenCE network agreement
 
 OpenCE network version 42 replaced version 41 for Xbox, Custom Edition and MCC sessions;
-version 43 (below, "Versions") replaces it.
+version 44 (below, "Versions") replaces it.
 Advertisements and ordinary join requests carry this one version; mismatched
 versions are rejected before admission. There is no separate MCC capability
 envelope. GulchCE Only uses the separate camera contract described below;
@@ -520,6 +520,10 @@ ones, so a config change on the host waits for the next map; a co-op host's
 revert or saved-game load reads the config again, and the new values are
 sent again then. It ships with
 the rest of version 43, which stays 43.
+
+Version 44 unifies MCC offers under Map Sharing and lets a receiver satisfy
+omitted base resources with its own validated local files. Message layouts
+are unchanged; the changed sharing agreement requires matching peers.
 
 `port/linux/network_format.txt` records the wire format of the current
 version (`tools/network_format.py`): `test_linux_port.py` fails when the
@@ -1015,6 +1019,13 @@ header is 12 bytes, including its checkpoint epoch.
   survive that deliberate disconnect; it holds no host slot or transfer alive.
   Dismissal, another session or leaving the menu clears it. Live download
   consent still requires the current host's exact content identity.
+- **The game's start.** A machine fetching the package from the host (its
+  download prompt, then the transfer) does not hold the game's start, as a
+  Custom Edition map's downloader does not: the host leaves it and its players
+  out of the start (`network_game_server_hold_map_fetcher_players`) and it
+  joins the game in progress once it has the package. A machine still checking
+  its own copy does hold the start, until its admission ends: told to load
+  before then, it could not.
 - **Messages and bounds.** `MANIFEST` responses carry up to 16 file entries per
   page. The full offer has at most 168 entries, each with kind, a 128-byte path
   buffer, size and SHA-256. Exactly one map is required. `CHUNK` requests up to

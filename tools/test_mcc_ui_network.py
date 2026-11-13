@@ -332,10 +332,10 @@ int main(int argc,char **argv) {
         network_game_server_begin_game_start_countdown(&server,3000);
       }
       server.countdown_state.timer=1000;
-      download_active[1]=1;download_needs[1]=1;server.client_machines[1].flags=0;
+      download_active[1]=1;download_needs[1]=0;server.client_machines[1].flags=0;
       server.game.players[1].machine_index=NONE;server.game.players[2].machine_index=NONE;
       if(!strcmp(argv[1],"download-campaign"))server.game.players[1].machine_index=1;
-      if(!strcmp(argv[1],"download-admission"))download_needs[1]=0;
+      if(!strcmp(argv[1],"download-initial")||!strcmp(argv[1],"download-campaign")){download_needs[1]=1;expected=0;}
       if(!strcmp(argv[1],"download-off")){download_active[1]=0;download_needs[1]=0;expected=0;}
       if(!strcmp(argv[1],"download-ce")){strcpy(server.game.map.name,"custom_maps\\arena");expected=0;}
       if(!strcmp(argv[1],"download-xbox")){strcpy(server.game.map.name,"levels\\test\\bloodgulch\\bloodgulch");expected=0;}
@@ -346,8 +346,8 @@ int main(int argc,char **argv) {
       if(!strcmp(argv[1],"download-long"))server.countdown_state.timer=30000;
       if(!strcmp(argv[1],"download-paused"))network_game_server_pause_countdown(&server,TRUE);
       if(!strcmp(argv[1],"download-stopped"))server.countdown_state.active=FALSE;
-      /* The real inherited predicate intentionally ignores a playerless
-       * downloader. The MCC barrier must prevent that from starting a load. */
+      /* Downloaders join later through the inherited start path. A joined
+       * machine checking its local package still holds the MCC start. */
       CHECK(network_game_server_have_all_machines_have_precached(&server),91);
       mcc_ui_network_update_map(&server);
       CHECK(!!mcc_ui_network_map_pending(&server)==expected,92);
@@ -563,7 +563,7 @@ def test_pending_validation_preserves_heartbeat(restart_tool, case):
     subprocess.run([str(restart_tool), "heartbeat-"+case], check=True, capture_output=True)
 
 
-def test_without_barrier_playerless_downloader_does_not_hold_start(restart_tool, tmp_path):
+def test_without_barrier_local_package_check_does_not_hold_start(restart_tool, tmp_path):
     source = (restart_tool.parent / "restart.c").read_text()
     source = source.replace(function(source, "mcc_ui_network_download_pending"),
                             "static boolean mcc_ui_network_download_pending(struct network_game_server *s) {return FALSE;}\n")
@@ -576,5 +576,5 @@ def test_without_barrier_playerless_downloader_does_not_hold_start(restart_tool,
         command[1:1] = ["--target=i686-pc-windows-msvc", "-fuse-ld=lld", "-D_CRT_SECURE_NO_WARNINGS"]
     built = subprocess.run(command, capture_output=True, text=True)
     assert built.returncode == 0, built.stderr
-    result = subprocess.run([str(executable), "download-initial"], capture_output=True, text=True)
-    assert result.returncode == 92, "Without the barrier a playerless downloader is omitted from pre-load readiness"
+    result = subprocess.run([str(executable), "download-admission"], capture_output=True, text=True)
+    assert result.returncode == 92, "Without the barrier a playerless local package checker is omitted from pre-load readiness"

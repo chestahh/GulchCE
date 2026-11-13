@@ -142,7 +142,7 @@ Downloaded MCC packages are validated before use, and existing installations are
 
 Run `halo --server` (`halo.exe --server` on Windows). Dedicated servers support Xbox, Custom Edition and MCC maps, including MCC campaign co-op. Use `sv_maps` to list available maps and their paths.
 
-See the [dedicated server guide](docs/dedicated_server.md) for setup, rotations, administration and deployment.
+See the [dedicated server guide](docs/dedicated_server.md) for setup, rotations, administration and deployment. OpenCE also documents [Zenith Hosting](https://zenith.hosting/host/opence) for managed dedicated servers.
 
 ## Customising the game
 
