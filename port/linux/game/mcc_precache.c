@@ -9,17 +9,23 @@
 #include "mcc_validation.h"
 #include "networking/network_game_globals.h"
 #include <xtl.h>
+#include <pthread.h>
 #include <stdio.h>
 #include <string.h>
+
+unsigned long system_milliseconds(void);
 
 static struct {
     char name[64];
     struct mcc_precache_stamp files[MCC_PRECACHE_FILES];
 } mcc_precache;
 
+static void mcc_snapshot_forget(void);
+
 void mcc_cache_precache_clear(void)
 {
     memset(&mcc_precache, 0, sizeof(mcc_precache));
+    mcc_snapshot_forget();
 }
 
 static boolean mcc_precache_file(char const *path, struct mcc_precache_stamp *stamp)
@@ -60,9 +66,50 @@ static boolean mcc_precache_files(char const *name, struct mcc_precache_stamp *f
     return TRUE;
 }
 
+/* A pending MCC selection asks for its package's snapshot several times a
+ * frame (validation lookups, the host's identity, the countdown's hold), and
+ * each is nine stats through the path resolver: 150 folder listings a second
+ * made the lobby crawl on a Switch. One a package each SNAPSHOT_KEPT_MS is
+ * enough to see a file replaced; a validation's own check still compares a
+ * snapshot taken before it with one taken after it. */
+#define SNAPSHOT_KEPT_MS 500
+static pthread_mutex_t mcc_snapshot_lock = PTHREAD_MUTEX_INITIALIZER;
+static struct {
+    char name[64];
+    unsigned long taken;
+    int valid;
+    struct mcc_precache_snapshot snapshot;
+} mcc_snapshot_kept;
+
+static void mcc_snapshot_forget(void)
+{
+    pthread_mutex_lock(&mcc_snapshot_lock);
+    mcc_snapshot_kept.valid = 0;
+    pthread_mutex_unlock(&mcc_snapshot_lock);
+}
+
 int mcc_precache_snapshot(char const *name, struct mcc_precache_snapshot *snapshot)
 {
-    return mcc_precache_files(name, snapshot->files);
+    unsigned long now = system_milliseconds();
+    int ok;
+    pthread_mutex_lock(&mcc_snapshot_lock);
+    if (mcc_snapshot_kept.valid && name && !strcmp(name, mcc_snapshot_kept.name) &&
+        now - mcc_snapshot_kept.taken < SNAPSHOT_KEPT_MS) {
+        *snapshot = mcc_snapshot_kept.snapshot;
+        pthread_mutex_unlock(&mcc_snapshot_lock);
+        return 1;
+    }
+    pthread_mutex_unlock(&mcc_snapshot_lock);
+    ok = mcc_precache_files(name, snapshot->files);
+    pthread_mutex_lock(&mcc_snapshot_lock);
+    mcc_snapshot_kept.valid = ok && name && strlen(name) < sizeof(mcc_snapshot_kept.name);
+    if (mcc_snapshot_kept.valid) {
+        strcpy(mcc_snapshot_kept.name, name);
+        mcc_snapshot_kept.taken = now;
+        mcc_snapshot_kept.snapshot = *snapshot;
+    }
+    pthread_mutex_unlock(&mcc_snapshot_lock);
+    return ok;
 }
 
 boolean mcc_cache_precache_ready(char const *name)
