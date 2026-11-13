@@ -64,6 +64,11 @@ They explain why passing an ordered-object test cannot certify the whole world.
 The complete persistent-state oracle remains open. The expected contract is
 explicit: distinguish transport receipt, successful reconstruction and eventual
 repair; never use receipt alone as evidence that all persistent state agrees.
+The subsequent [real-engine recovery comparison](coop_m0_recovery.md) observes
+saved state, deliberate changes and two reverts independently of the marker.
+It reproduces stale objective/navigation state on ready clients and a retained
+vitality override on both peers. Its coverage table retains all 19 contracts;
+the bounded comparisons do not complete the full-state oracle.
 
 ## Reliable-stream faults over real loopback UDP
 

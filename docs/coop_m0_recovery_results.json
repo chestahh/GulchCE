@@ -1,0 +1,1823 @@
+{
+  "date": "2026-11-13",
+  "source_revision": "360857a5914e7bbb0a9328c5123506a8088fe649",
+  "status": "M0 remains open; M1 unstarted; unpublished",
+  "scope": "Full 19-domain co-op recovery ledger; bounded controlled-field runtime oracle",
+  "configuration": "Windows release portable PGO-off LTO-off generated diagnostic copies",
+  "binary_sha256": "2d7b2362af464b8a09c3bf1ba7e9169d862526183d8a0bb6d589b3a58599b357",
+  "platforms": {
+    "Windows": "Two hidden native peers, Crossplay mode, null renderer, audio disabled",
+    "Linux_runtime": "blocked: no runner",
+    "Android_runtime": "blocked: no device/emulator",
+    "Android_build": "earlier Windows shell/CMake blocker remains separate",
+    "Web_recovery": "not run in this pass; previous interoperability evidence is not full recovery"
+  },
+  "generated_files": {
+    "port/windows/src/win32_net.c": {
+      "source_sha256": "3b5f5441175b72ddb778009beeb327d1c89775c74e0ca49c4c00f3eb4d48e76c",
+      "copy_sha256": "7e09e05f2cf83d9bbc5890089df5bcaeba79e7952dc78b8b248ed72c36491b6b"
+    },
+    "port/linux/game/network_objects.c": {
+      "source_sha256": "4892f109c784213c56e61f2b75b9b07b9d65c9d3500f3d7a14889f28025ee552",
+      "copy_sha256": "be7ef3361860d14d37070fc35c42eb6ffb33d5b430f2f6c4d8ec759dc9ebf33e"
+    },
+    "port/linux/game/network_distributed.c": {
+      "source_sha256": "11bf034c6ce01014073a1efe305a47bc9f7d69059d233fec42837f3ea7f80c8a",
+      "copy_sha256": "53e2f068b318d84362d437184e3acecefde8e0ff3a9900011610ee88751b2b59"
+    },
+    "port/linux/game/network_coop.c": {
+      "source_sha256": "a19a999cd8866307d6ea69c6e32b86d4454bd4d39f5bf66267f63a74bf0266e3",
+      "copy_sha256": "de2fc866e138772432abfb16abf4ef4dc23036a54b0d94be975e0a6141b98f12"
+    },
+    "port/linux/game/network_test.c": {
+      "source_sha256": "d97c0f5569c0db474d9719d587e3956bec57b586567c04bcbb21e38011cadf4d",
+      "copy_sha256": "a1f67863b4b9e905459cfed18d9eb8bb87211fe62dfae8d1705e8e8baea88f5c"
+    },
+    "source/interface/hud_messaging.c": {
+      "source_sha256": "7d3ad62a2d766c2315556fb46730a72b8f5d6b6c73058ac52ccaced812712973",
+      "copy_sha256": "be29d8486bc0cf63826bdb0d2532e1e7cc2e10383bc69c63a5deea99e505a1ec"
+    },
+    "source/interface/hud_nav_points.c": {
+      "source_sha256": "6fa800eb47b1a0cad318754392f89a2b6c68b69b084061d4c7ff2cc44434cf13",
+      "copy_sha256": "d2bdcb9821aff1f57aac09987fe2d6169c11ba9fa1f3e9d004e61ad353729e8c"
+    }
+  },
+  "content": {
+    "a30.map": {
+      "bytes": 152610816,
+      "sha256": "4875fa105e6c517589a796cfdcc7fcaa07e98df13d14e601bfc9eb1eab7e30b5"
+    },
+    "carousel.map": {
+      "bytes": 20215808,
+      "sha256": "1c6353df6e4530437841b09775e62fa067caa46bb0e40f4579bbf2276991a38e"
+    },
+    "ui.map": {
+      "bytes": 14145536,
+      "sha256": "35e3e560478d85178749be310ad13d6d6ecde618d32675261a3554592333a833"
+    },
+    "ce/b30.map": {
+      "bytes": 201578087,
+      "sha256": "baec59d37cf8d3f017dd3ac0d61fb431087490eeb1c469b2071ae2aec66ca24a"
+    },
+    "bitmaps.map": {
+      "bytes": 123547749,
+      "sha256": "317658e0ebd4aa189bac68e994fe0b515928f44d17b62ba676d8850aa329dd3d"
+    },
+    "sounds.map": {
+      "bytes": 41718640,
+      "sha256": "81658a8d9b127b2771558a35e664ec3f1a2b370f271fe957426d945001ceb5d2"
+    },
+    "loc.map": {
+      "bytes": 391996,
+      "sha256": "1321e17b5a86be84b1930b6eb2e7fdfe9285275d5d54cbe3d4a3635e2bf04041"
+    },
+    "mcc/a10.map": {
+      "bytes": 407040369,
+      "sha256": "3f7eaaaf27358591a1a1ae7ed99e3fdf9a826af4a4fa5ef1dd4757538ae0fed2"
+    }
+  },
+  "runs": [
+    {
+      "case": "xbox-pilot",
+      "early_exits": {
+        "host": null,
+        "client": null
+      },
+      "complete_sequence": true,
+      "epoch_sequence_valid": true,
+      "mutations_observed": {
+        "hud_flags": true,
+        "objective": true,
+        "nav": true,
+        "device_group": true,
+        "player_maxima": true
+      },
+      "captures": {
+        "host": 100,
+        "client": 93
+      },
+      "discarded_final_captures": {
+        "host": [],
+        "client": []
+      },
+      "sample_skew_within_1_1_seconds": true,
+      "objective_fault_rows": 0,
+      "recovery_windows": {
+        "first": {
+          "host": {
+            "samples": 8,
+            "duration_seconds": 5.999931000000288,
+            "client_ready_samples": null,
+            "epochs": [
+              2.0
+            ],
+            "wrong_saved_value_samples": {
+              "hud_flags": 0,
+              "objective": 0,
+              "nav": 0,
+              "device_group": 0,
+              "player_maxima": 8,
+              "roster": 0,
+              "player_inventory": 0,
+              "player_seats": 0,
+              "bsp": 0
+            }
+          },
+          "client": {
+            "samples": 7,
+            "duration_seconds": 6.000116999999591,
+            "client_ready_samples": 7,
+            "epochs": [
+              2.0
+            ],
+            "wrong_saved_value_samples": {
+              "hud_flags": 0,
+              "objective": 7,
+              "nav": 7,
+              "device_group": 0,
+              "player_maxima": 7,
+              "roster": 0,
+              "player_inventory": 0,
+              "player_seats": 0,
+              "bsp": 0
+            }
+          }
+        },
+        "second": {
+          "host": {
+            "samples": 41,
+            "duration_seconds": 39.00054700000055,
+            "client_ready_samples": null,
+            "epochs": [
+              3.0
+            ],
+            "wrong_saved_value_samples": {
+              "hud_flags": 0,
+              "objective": 0,
+              "nav": 0,
+              "device_group": 0,
+              "player_maxima": 41,
+              "roster": 0,
+              "player_inventory": 0,
+              "player_seats": 0,
+              "bsp": 0
+            }
+          },
+          "client": {
+            "samples": 40,
+            "duration_seconds": 38.99973599999976,
+            "client_ready_samples": 40,
+            "epochs": [
+              3.0
+            ],
+            "wrong_saved_value_samples": {
+              "hud_flags": 0,
+              "objective": 40,
+              "nav": 40,
+              "device_group": 0,
+              "player_maxima": 40,
+              "roster": 0,
+              "player_inventory": 0,
+              "player_seats": 0,
+              "bsp": 0
+            }
+          }
+        }
+      },
+      "family": "xbox",
+      "level": "levels\\a30\\a30",
+      "receive_delay_ms": 0,
+      "drop_setting_percent": 0,
+      "restoration_failure_fields": {
+        "restored": {
+          "host": [
+            "player_maxima"
+          ],
+          "client": [
+            "objective",
+            "nav",
+            "player_maxima"
+          ]
+        },
+        "restored_again": {
+          "host": [
+            "player_maxima"
+          ],
+          "client": [
+            "objective",
+            "nav",
+            "player_maxima"
+          ]
+        }
+      },
+      "snapshots": {
+        "saved": {
+          "host": {
+            "epoch": 1.0,
+            "ready": 0.0,
+            "objective": 1.0,
+            "navigation_count": 1,
+            "player_maxima": [
+              "1/1"
+            ],
+            "device_group_value": 0.25,
+            "hud_visible": 0.0,
+            "help_visible": 0.0
+          },
+          "client": {
+            "epoch": 1.0,
+            "ready": 1.0,
+            "objective": 1.0,
+            "navigation_count": 1,
+            "player_maxima": [
+              "1/1"
+            ],
+            "device_group_value": 0.25,
+            "hud_visible": 0.0,
+            "help_visible": 0.0
+          }
+        },
+        "changed": {
+          "host": {
+            "epoch": 1.0,
+            "ready": 0.0,
+            "objective": 2.0,
+            "navigation_count": 0,
+            "player_maxima": [
+              "2/3"
+            ],
+            "device_group_value": 0.75,
+            "hud_visible": 1.0,
+            "help_visible": 1.0
+          },
+          "client": {
+            "epoch": 1.0,
+            "ready": 1.0,
+            "objective": 2.0,
+            "navigation_count": 0,
+            "player_maxima": [
+              "2/3"
+            ],
+            "device_group_value": 0.75,
+            "hud_visible": 1.0,
+            "help_visible": 1.0
+          }
+        },
+        "restored": {
+          "host": {
+            "epoch": 2.0,
+            "ready": 0.0,
+            "objective": 1.0,
+            "navigation_count": 1,
+            "player_maxima": [
+              "2/3"
+            ],
+            "device_group_value": 0.25,
+            "hud_visible": 0.0,
+            "help_visible": 0.0
+          },
+          "client": {
+            "epoch": 2.0,
+            "ready": 1.0,
+            "objective": 2.0,
+            "navigation_count": 0,
+            "player_maxima": [
+              "2/3"
+            ],
+            "device_group_value": 0.25,
+            "hud_visible": 0.0,
+            "help_visible": 0.0
+          }
+        },
+        "restored_again": {
+          "host": {
+            "epoch": 3.0,
+            "ready": 0.0,
+            "objective": 1.0,
+            "navigation_count": 1,
+            "player_maxima": [
+              "2/3"
+            ],
+            "device_group_value": 0.25,
+            "hud_visible": 0.0,
+            "help_visible": 0.0
+          },
+          "client": {
+            "epoch": 3.0,
+            "ready": 1.0,
+            "objective": 2.0,
+            "navigation_count": 0,
+            "player_maxima": [
+              "2/3"
+            ],
+            "device_group_value": 0.25,
+            "hud_visible": 0.0,
+            "help_visible": 0.0
+          }
+        }
+      },
+      "reference_failure_counts": {
+        "saved": {
+          "host": 0,
+          "client": 0
+        },
+        "changed": {
+          "host": 0,
+          "client": 0
+        },
+        "restored": {
+          "host": 0,
+          "client": 0
+        },
+        "restored_again": {
+          "host": 0,
+          "client": 0
+        }
+      },
+      "stable_object_observations": {
+        "saved": {
+          "stable_host_objects": 114,
+          "mismatch_count": 4
+        },
+        "changed": {
+          "stable_host_objects": 114,
+          "mismatch_count": 4
+        },
+        "restored": {
+          "stable_host_objects": 114,
+          "mismatch_count": 4
+        },
+        "restored_again": {
+          "stable_host_objects": 114,
+          "mismatch_count": 4
+        }
+      },
+      "preexisting_stable_mismatch_examples": [
+        {
+          "datum": -457113599,
+          "expected": [
+            -457113599.0,
+            -427424494.0,
+            0.0,
+            53.0,
+            -472710812.0
+          ],
+          "actual": [
+            -457113599.0,
+            -427424494.0,
+            0.0,
+            -1.0,
+            -1.0
+          ]
+        },
+        {
+          "datum": -457048061,
+          "expected": [
+            -457048061.0,
+            -426900198.0,
+            0.0,
+            56.0,
+            -472710812.0
+          ],
+          "actual": [
+            -457048061.0,
+            -426900198.0,
+            0.0,
+            -1.0,
+            -1.0
+          ]
+        },
+        {
+          "datum": -456982523,
+          "expected": [
+            -456982523.0,
+            -426900198.0,
+            0.0,
+            58.0,
+            -472710812.0
+          ],
+          "actual": [
+            -456982523.0,
+            -426900198.0,
+            0.0,
+            -1.0,
+            -1.0
+          ]
+        },
+        {
+          "datum": -456916985,
+          "expected": [
+            -456916985.0,
+            -426900198.0,
+            0.0,
+            59.0,
+            -472710812.0
+          ],
+          "actual": [
+            -456916985.0,
+            -426900198.0,
+            0.0,
+            -1.0,
+            -1.0
+          ]
+        }
+      ],
+      "peer_sample_skew_seconds": {
+        "saved": 0.37185300000055577,
+        "changed": 0.04622800000015559,
+        "restored": 0.38785699999971257,
+        "restored_again": 0.387974000000213
+      },
+      "unchanged_net_compare": {
+        "divergences": [],
+        "problems": []
+      },
+      "evidence": {
+        "folder": "build/m0/recovery/xbox-pilot",
+        "archive_sha256": "04cb1e1ca465b1e637457642aadbd55b77dd25012b1b2fe66a1f2366579ccb54",
+        "manifest_sha256": "75fda70b99141081c73939aacda0b125ba98f31d2db76aee2619b8337ecba5bf",
+        "full_reduction_sha256": "f556f39d0495b840c9f1c0e93206c172f880c8c7b1d4c3f622b3a20ebbe08f9d"
+      }
+    },
+    {
+      "case": "ce-baseline",
+      "early_exits": {
+        "host": null,
+        "client": null
+      },
+      "complete_sequence": true,
+      "epoch_sequence_valid": true,
+      "mutations_observed": {
+        "hud_flags": true,
+        "objective": true,
+        "nav": true,
+        "device_group": true,
+        "player_maxima": true
+      },
+      "captures": {
+        "host": 98,
+        "client": 91
+      },
+      "discarded_final_captures": {
+        "host": [],
+        "client": []
+      },
+      "sample_skew_within_1_1_seconds": true,
+      "objective_fault_rows": 0,
+      "recovery_windows": {
+        "first": {
+          "host": {
+            "samples": 8,
+            "duration_seconds": 6.003058000000237,
+            "client_ready_samples": null,
+            "epochs": [
+              2.0
+            ],
+            "wrong_saved_value_samples": {
+              "hud_flags": 0,
+              "objective": 0,
+              "nav": 0,
+              "device_group": 0,
+              "player_maxima": 8,
+              "roster": 0,
+              "player_inventory": 0,
+              "player_seats": 0,
+              "bsp": 0
+            }
+          },
+          "client": {
+            "samples": 7,
+            "duration_seconds": 6.000607999999374,
+            "client_ready_samples": 7,
+            "epochs": [
+              2.0
+            ],
+            "wrong_saved_value_samples": {
+              "hud_flags": 0,
+              "objective": 7,
+              "nav": 7,
+              "device_group": 0,
+              "player_maxima": 7,
+              "roster": 0,
+              "player_inventory": 0,
+              "player_seats": 0,
+              "bsp": 0
+            }
+          }
+        },
+        "second": {
+          "host": {
+            "samples": 32,
+            "duration_seconds": 29.996401000000333,
+            "client_ready_samples": null,
+            "epochs": [
+              3.0
+            ],
+            "wrong_saved_value_samples": {
+              "hud_flags": 0,
+              "objective": 0,
+              "nav": 0,
+              "device_group": 0,
+              "player_maxima": 32,
+              "roster": 0,
+              "player_inventory": 0,
+              "player_seats": 0,
+              "bsp": 0
+            }
+          },
+          "client": {
+            "samples": 31,
+            "duration_seconds": 30.001070000000254,
+            "client_ready_samples": 31,
+            "epochs": [
+              3.0
+            ],
+            "wrong_saved_value_samples": {
+              "hud_flags": 0,
+              "objective": 31,
+              "nav": 31,
+              "device_group": 0,
+              "player_maxima": 31,
+              "roster": 0,
+              "player_inventory": 0,
+              "player_seats": 0,
+              "bsp": 0
+            }
+          }
+        }
+      },
+      "family": "ce",
+      "level": "custom_maps\\b30",
+      "receive_delay_ms": 0,
+      "drop_setting_percent": 0,
+      "restoration_failure_fields": {
+        "restored": {
+          "host": [
+            "player_maxima"
+          ],
+          "client": [
+            "objective",
+            "nav",
+            "player_maxima"
+          ]
+        },
+        "restored_again": {
+          "host": [
+            "player_maxima"
+          ],
+          "client": [
+            "objective",
+            "nav",
+            "player_maxima"
+          ]
+        }
+      },
+      "snapshots": {
+        "saved": {
+          "host": {
+            "epoch": 1.0,
+            "ready": 0.0,
+            "objective": 0.0,
+            "navigation_count": 1,
+            "player_maxima": [
+              "1/1"
+            ],
+            "device_group_value": 0.25,
+            "hud_visible": 0.0,
+            "help_visible": 0.0
+          },
+          "client": {
+            "epoch": 1.0,
+            "ready": 1.0,
+            "objective": 0.0,
+            "navigation_count": 1,
+            "player_maxima": [
+              "1/1"
+            ],
+            "device_group_value": 0.25,
+            "hud_visible": 0.0,
+            "help_visible": 0.0
+          }
+        },
+        "changed": {
+          "host": {
+            "epoch": 1.0,
+            "ready": 0.0,
+            "objective": 1.0,
+            "navigation_count": 0,
+            "player_maxima": [
+              "2/3"
+            ],
+            "device_group_value": 0.75,
+            "hud_visible": 1.0,
+            "help_visible": 1.0
+          },
+          "client": {
+            "epoch": 1.0,
+            "ready": 1.0,
+            "objective": 1.0,
+            "navigation_count": 0,
+            "player_maxima": [
+              "2/3"
+            ],
+            "device_group_value": 0.75,
+            "hud_visible": 1.0,
+            "help_visible": 1.0
+          }
+        },
+        "restored": {
+          "host": {
+            "epoch": 2.0,
+            "ready": 0.0,
+            "objective": 0.0,
+            "navigation_count": 1,
+            "player_maxima": [
+              "2/3"
+            ],
+            "device_group_value": 0.25,
+            "hud_visible": 0.0,
+            "help_visible": 0.0
+          },
+          "client": {
+            "epoch": 2.0,
+            "ready": 1.0,
+            "objective": 1.0,
+            "navigation_count": 0,
+            "player_maxima": [
+              "2/3"
+            ],
+            "device_group_value": 0.25,
+            "hud_visible": 0.0,
+            "help_visible": 0.0
+          }
+        },
+        "restored_again": {
+          "host": {
+            "epoch": 3.0,
+            "ready": 0.0,
+            "objective": 0.0,
+            "navigation_count": 1,
+            "player_maxima": [
+              "2/3"
+            ],
+            "device_group_value": 0.25,
+            "hud_visible": 0.0,
+            "help_visible": 0.0
+          },
+          "client": {
+            "epoch": 3.0,
+            "ready": 1.0,
+            "objective": 1.0,
+            "navigation_count": 0,
+            "player_maxima": [
+              "2/3"
+            ],
+            "device_group_value": 0.25,
+            "hud_visible": 0.0,
+            "help_visible": 0.0
+          }
+        }
+      },
+      "reference_failure_counts": {
+        "saved": {
+          "host": 0,
+          "client": 0
+        },
+        "changed": {
+          "host": 0,
+          "client": 0
+        },
+        "restored": {
+          "host": 0,
+          "client": 0
+        },
+        "restored_again": {
+          "host": 0,
+          "client": 0
+        }
+      },
+      "stable_object_observations": {
+        "saved": {
+          "stable_host_objects": 280,
+          "mismatch_count": 2
+        },
+        "changed": {
+          "stable_host_objects": 278,
+          "mismatch_count": 2
+        },
+        "restored": {
+          "stable_host_objects": 272,
+          "mismatch_count": 2
+        },
+        "restored_again": {
+          "stable_host_objects": 280,
+          "mismatch_count": 2
+        }
+      },
+      "preexisting_stable_mismatch_examples": [
+        {
+          "datum": -431554559,
+          "expected": [
+            -431554559.0,
+            -376305634.0,
+            1.0,
+            4.0,
+            -1.0
+          ],
+          "actual": [
+            -431554559.0,
+            -376305634.0,
+            1.0,
+            -1.0,
+            -1.0
+          ]
+        },
+        {
+          "datum": -431423483,
+          "expected": [
+            -431423483.0,
+            -324728015.0,
+            1.0,
+            5.0,
+            -1.0
+          ],
+          "actual": [
+            -431423483.0,
+            -324728015.0,
+            1.0,
+            -1.0,
+            -1.0
+          ]
+        }
+      ],
+      "peer_sample_skew_seconds": {
+        "saved": 0.17270100000041566,
+        "changed": 0.10170500000003813,
+        "restored": 0.2353110000003653,
+        "restored_again": 0.2420300000003408
+      },
+      "unchanged_net_compare": {
+        "divergences": [],
+        "problems": []
+      },
+      "evidence": {
+        "folder": "build/m0/recovery/ce-baseline",
+        "archive_sha256": "1dcfdf5851da991fa3cf0a8c4751064685b84a131926c192c61a872555bb5370",
+        "manifest_sha256": "575fc62310cd28ecb0aaf83a3798ab3573085218babd9de0f5a56a95de9189b5",
+        "full_reduction_sha256": "4c6bbcb5db9997b8581b2da318f697cfcc234302a084737516a2230b2226b95f"
+      }
+    },
+    {
+      "case": "mcc-baseline",
+      "early_exits": {
+        "host": null,
+        "client": null
+      },
+      "complete_sequence": true,
+      "epoch_sequence_valid": true,
+      "mutations_observed": {
+        "hud_flags": true,
+        "objective": true,
+        "nav": true,
+        "device_group": true,
+        "player_maxima": true
+      },
+      "captures": {
+        "host": 98,
+        "client": 92
+      },
+      "discarded_final_captures": {
+        "host": [
+          {
+            "time": 7464.649666,
+            "kind": "discarded_capture",
+            "v": [
+              2760.0
+            ]
+          }
+        ],
+        "client": []
+      },
+      "sample_skew_within_1_1_seconds": true,
+      "objective_fault_rows": 0,
+      "recovery_windows": {
+        "first": {
+          "host": {
+            "samples": 8,
+            "duration_seconds": 6.000310999999783,
+            "client_ready_samples": null,
+            "epochs": [
+              2.0
+            ],
+            "wrong_saved_value_samples": {
+              "hud_flags": 0,
+              "objective": 0,
+              "nav": 0,
+              "device_group": 0,
+              "player_maxima": 8,
+              "roster": 0,
+              "player_inventory": 0,
+              "player_seats": 0,
+              "bsp": 0
+            }
+          },
+          "client": {
+            "samples": 7,
+            "duration_seconds": 6.000735000000532,
+            "client_ready_samples": 7,
+            "epochs": [
+              2.0
+            ],
+            "wrong_saved_value_samples": {
+              "hud_flags": 0,
+              "objective": 7,
+              "nav": 7,
+              "device_group": 0,
+              "player_maxima": 7,
+              "roster": 0,
+              "player_inventory": 0,
+              "player_seats": 0,
+              "bsp": 0
+            }
+          }
+        },
+        "second": {
+          "host": {
+            "samples": 52,
+            "duration_seconds": 50.012275000000045,
+            "client_ready_samples": null,
+            "epochs": [
+              3.0
+            ],
+            "wrong_saved_value_samples": {
+              "hud_flags": 0,
+              "objective": 0,
+              "nav": 0,
+              "device_group": 0,
+              "player_maxima": 52,
+              "roster": 0,
+              "player_inventory": 0,
+              "player_seats": 0,
+              "bsp": 0
+            }
+          },
+          "client": {
+            "samples": 52,
+            "duration_seconds": 50.999683000000005,
+            "client_ready_samples": 52,
+            "epochs": [
+              3.0
+            ],
+            "wrong_saved_value_samples": {
+              "hud_flags": 0,
+              "objective": 52,
+              "nav": 52,
+              "device_group": 0,
+              "player_maxima": 52,
+              "roster": 0,
+              "player_inventory": 0,
+              "player_seats": 0,
+              "bsp": 0
+            }
+          }
+        }
+      },
+      "family": "mcc",
+      "level": "mcc_maps\\a10",
+      "receive_delay_ms": 0,
+      "drop_setting_percent": 0,
+      "restoration_failure_fields": {
+        "restored": {
+          "host": [
+            "player_maxima"
+          ],
+          "client": [
+            "objective",
+            "nav",
+            "player_maxima"
+          ]
+        },
+        "restored_again": {
+          "host": [
+            "player_maxima"
+          ],
+          "client": [
+            "objective",
+            "nav",
+            "player_maxima"
+          ]
+        }
+      },
+      "snapshots": {
+        "saved": {
+          "host": {
+            "epoch": 1.0,
+            "ready": 0.0,
+            "objective": 0.0,
+            "navigation_count": 1,
+            "player_maxima": [
+              "1/1"
+            ],
+            "device_group_value": 0.25,
+            "hud_visible": 0.0,
+            "help_visible": 0.0
+          },
+          "client": {
+            "epoch": 1.0,
+            "ready": 1.0,
+            "objective": 0.0,
+            "navigation_count": 1,
+            "player_maxima": [
+              "1/1"
+            ],
+            "device_group_value": 0.25,
+            "hud_visible": 0.0,
+            "help_visible": 0.0
+          }
+        },
+        "changed": {
+          "host": {
+            "epoch": 1.0,
+            "ready": 0.0,
+            "objective": 1.0,
+            "navigation_count": 0,
+            "player_maxima": [
+              "2/3"
+            ],
+            "device_group_value": 0.75,
+            "hud_visible": 1.0,
+            "help_visible": 1.0
+          },
+          "client": {
+            "epoch": 1.0,
+            "ready": 1.0,
+            "objective": 1.0,
+            "navigation_count": 0,
+            "player_maxima": [
+              "2/3"
+            ],
+            "device_group_value": 0.75,
+            "hud_visible": 1.0,
+            "help_visible": 1.0
+          }
+        },
+        "restored": {
+          "host": {
+            "epoch": 2.0,
+            "ready": 0.0,
+            "objective": 0.0,
+            "navigation_count": 1,
+            "player_maxima": [
+              "2/3"
+            ],
+            "device_group_value": 0.25,
+            "hud_visible": 0.0,
+            "help_visible": 0.0
+          },
+          "client": {
+            "epoch": 2.0,
+            "ready": 1.0,
+            "objective": 1.0,
+            "navigation_count": 0,
+            "player_maxima": [
+              "2/3"
+            ],
+            "device_group_value": 0.25,
+            "hud_visible": 0.0,
+            "help_visible": 0.0
+          }
+        },
+        "restored_again": {
+          "host": {
+            "epoch": 3.0,
+            "ready": 0.0,
+            "objective": 0.0,
+            "navigation_count": 1,
+            "player_maxima": [
+              "2/3"
+            ],
+            "device_group_value": 0.25,
+            "hud_visible": 0.0,
+            "help_visible": 0.0
+          },
+          "client": {
+            "epoch": 3.0,
+            "ready": 1.0,
+            "objective": 1.0,
+            "navigation_count": 0,
+            "player_maxima": [
+              "2/3"
+            ],
+            "device_group_value": 0.25,
+            "hud_visible": 0.0,
+            "help_visible": 0.0
+          }
+        }
+      },
+      "reference_failure_counts": {
+        "saved": {
+          "host": 0,
+          "client": 0
+        },
+        "changed": {
+          "host": 0,
+          "client": 0
+        },
+        "restored": {
+          "host": 0,
+          "client": 0
+        },
+        "restored_again": {
+          "host": 0,
+          "client": 0
+        }
+      },
+      "stable_object_observations": {
+        "saved": {
+          "stable_host_objects": 189,
+          "mismatch_count": 0
+        },
+        "changed": {
+          "stable_host_objects": 189,
+          "mismatch_count": 0
+        },
+        "restored": {
+          "stable_host_objects": 189,
+          "mismatch_count": 0
+        },
+        "restored_again": {
+          "stable_host_objects": 189,
+          "mismatch_count": 0
+        }
+      },
+      "preexisting_stable_mismatch_examples": [],
+      "peer_sample_skew_seconds": {
+        "saved": 0.29996199999914097,
+        "changed": 0.01404499999989639,
+        "restored": 0.28027899999960937,
+        "restored_again": 0.27865699999983917
+      },
+      "unchanged_net_compare": {
+        "divergences": [],
+        "problems": []
+      },
+      "evidence": {
+        "folder": "build/m0/recovery/mcc-baseline",
+        "archive_sha256": "2c5ba4139f2603c9aef5f21015242ecb812e3ad2cb8079a6fcff08080f914e47",
+        "manifest_sha256": "4ebe0d63d055d17257ca5fcba54c338f254928c43d6740a9e8d541fc24e2f993",
+        "full_reduction_sha256": "f4a66245669c3a5faaa958d4ea3cf3437180b882c0d3c12c84462e6f3d9ae457"
+      }
+    },
+    {
+      "case": "xbox-delay",
+      "early_exits": {
+        "host": null,
+        "client": null
+      },
+      "complete_sequence": true,
+      "epoch_sequence_valid": true,
+      "mutations_observed": {
+        "hud_flags": true,
+        "objective": true,
+        "nav": true,
+        "device_group": true,
+        "player_maxima": true
+      },
+      "captures": {
+        "host": 99,
+        "client": 92
+      },
+      "discarded_final_captures": {
+        "host": [],
+        "client": []
+      },
+      "sample_skew_within_1_1_seconds": true,
+      "objective_fault_rows": 0,
+      "recovery_windows": {
+        "first": {
+          "host": {
+            "samples": 8,
+            "duration_seconds": 6.000149999999849,
+            "client_ready_samples": null,
+            "epochs": [
+              2.0
+            ],
+            "wrong_saved_value_samples": {
+              "hud_flags": 0,
+              "objective": 0,
+              "nav": 0,
+              "device_group": 0,
+              "player_maxima": 8,
+              "roster": 0,
+              "player_inventory": 0,
+              "player_seats": 0,
+              "bsp": 0
+            }
+          },
+          "client": {
+            "samples": 7,
+            "duration_seconds": 5.999855000000025,
+            "client_ready_samples": 7,
+            "epochs": [
+              2.0
+            ],
+            "wrong_saved_value_samples": {
+              "hud_flags": 0,
+              "objective": 7,
+              "nav": 7,
+              "device_group": 0,
+              "player_maxima": 7,
+              "roster": 0,
+              "player_inventory": 0,
+              "player_seats": 0,
+              "bsp": 0
+            }
+          }
+        },
+        "second": {
+          "host": {
+            "samples": 40,
+            "duration_seconds": 38.0001629999997,
+            "client_ready_samples": null,
+            "epochs": [
+              3.0
+            ],
+            "wrong_saved_value_samples": {
+              "hud_flags": 0,
+              "objective": 0,
+              "nav": 0,
+              "device_group": 0,
+              "player_maxima": 40,
+              "roster": 0,
+              "player_inventory": 0,
+              "player_seats": 0,
+              "bsp": 0
+            }
+          },
+          "client": {
+            "samples": 39,
+            "duration_seconds": 38.0003229999993,
+            "client_ready_samples": 39,
+            "epochs": [
+              3.0
+            ],
+            "wrong_saved_value_samples": {
+              "hud_flags": 0,
+              "objective": 39,
+              "nav": 39,
+              "device_group": 0,
+              "player_maxima": 39,
+              "roster": 0,
+              "player_inventory": 0,
+              "player_seats": 0,
+              "bsp": 0
+            }
+          }
+        }
+      },
+      "family": "xbox",
+      "level": "levels\\a30\\a30",
+      "receive_delay_ms": 50,
+      "drop_setting_percent": 5,
+      "restoration_failure_fields": {
+        "restored": {
+          "host": [
+            "player_maxima"
+          ],
+          "client": [
+            "objective",
+            "nav",
+            "player_maxima"
+          ]
+        },
+        "restored_again": {
+          "host": [
+            "player_maxima"
+          ],
+          "client": [
+            "objective",
+            "nav",
+            "player_maxima"
+          ]
+        }
+      },
+      "snapshots": {
+        "saved": {
+          "host": {
+            "epoch": 1.0,
+            "ready": 0.0,
+            "objective": 1.0,
+            "navigation_count": 1,
+            "player_maxima": [
+              "1/1"
+            ],
+            "device_group_value": 0.25,
+            "hud_visible": 0.0,
+            "help_visible": 0.0
+          },
+          "client": {
+            "epoch": 1.0,
+            "ready": 1.0,
+            "objective": 1.0,
+            "navigation_count": 1,
+            "player_maxima": [
+              "1/1"
+            ],
+            "device_group_value": 0.25,
+            "hud_visible": 0.0,
+            "help_visible": 0.0
+          }
+        },
+        "changed": {
+          "host": {
+            "epoch": 1.0,
+            "ready": 0.0,
+            "objective": 2.0,
+            "navigation_count": 0,
+            "player_maxima": [
+              "2/3"
+            ],
+            "device_group_value": 0.75,
+            "hud_visible": 1.0,
+            "help_visible": 1.0
+          },
+          "client": {
+            "epoch": 1.0,
+            "ready": 1.0,
+            "objective": 2.0,
+            "navigation_count": 0,
+            "player_maxima": [
+              "2/3"
+            ],
+            "device_group_value": 0.75,
+            "hud_visible": 1.0,
+            "help_visible": 1.0
+          }
+        },
+        "restored": {
+          "host": {
+            "epoch": 2.0,
+            "ready": 0.0,
+            "objective": 1.0,
+            "navigation_count": 1,
+            "player_maxima": [
+              "2/3"
+            ],
+            "device_group_value": 0.25,
+            "hud_visible": 0.0,
+            "help_visible": 0.0
+          },
+          "client": {
+            "epoch": 2.0,
+            "ready": 1.0,
+            "objective": 2.0,
+            "navigation_count": 0,
+            "player_maxima": [
+              "2/3"
+            ],
+            "device_group_value": 0.25,
+            "hud_visible": 0.0,
+            "help_visible": 0.0
+          }
+        },
+        "restored_again": {
+          "host": {
+            "epoch": 3.0,
+            "ready": 0.0,
+            "objective": 1.0,
+            "navigation_count": 1,
+            "player_maxima": [
+              "2/3"
+            ],
+            "device_group_value": 0.25,
+            "hud_visible": 0.0,
+            "help_visible": 0.0
+          },
+          "client": {
+            "epoch": 3.0,
+            "ready": 1.0,
+            "objective": 2.0,
+            "navigation_count": 0,
+            "player_maxima": [
+              "2/3"
+            ],
+            "device_group_value": 0.25,
+            "hud_visible": 0.0,
+            "help_visible": 0.0
+          }
+        }
+      },
+      "reference_failure_counts": {
+        "saved": {
+          "host": 0,
+          "client": 0
+        },
+        "changed": {
+          "host": 0,
+          "client": 0
+        },
+        "restored": {
+          "host": 0,
+          "client": 0
+        },
+        "restored_again": {
+          "host": 0,
+          "client": 0
+        }
+      },
+      "stable_object_observations": {
+        "saved": {
+          "stable_host_objects": 114,
+          "mismatch_count": 4
+        },
+        "changed": {
+          "stable_host_objects": 114,
+          "mismatch_count": 4
+        },
+        "restored": {
+          "stable_host_objects": 114,
+          "mismatch_count": 4
+        },
+        "restored_again": {
+          "stable_host_objects": 114,
+          "mismatch_count": 4
+        }
+      },
+      "preexisting_stable_mismatch_examples": [
+        {
+          "datum": -457113599,
+          "expected": [
+            -457113599.0,
+            -427424494.0,
+            0.0,
+            53.0,
+            -472710812.0
+          ],
+          "actual": [
+            -457113599.0,
+            -427424494.0,
+            0.0,
+            -1.0,
+            -1.0
+          ]
+        },
+        {
+          "datum": -457048061,
+          "expected": [
+            -457048061.0,
+            -426900198.0,
+            0.0,
+            56.0,
+            -472710812.0
+          ],
+          "actual": [
+            -457048061.0,
+            -426900198.0,
+            0.0,
+            -1.0,
+            -1.0
+          ]
+        },
+        {
+          "datum": -456982523,
+          "expected": [
+            -456982523.0,
+            -426900198.0,
+            0.0,
+            58.0,
+            -472710812.0
+          ],
+          "actual": [
+            -456982523.0,
+            -426900198.0,
+            0.0,
+            -1.0,
+            -1.0
+          ]
+        },
+        {
+          "datum": -456916985,
+          "expected": [
+            -456916985.0,
+            -426900198.0,
+            0.0,
+            59.0,
+            -472710812.0
+          ],
+          "actual": [
+            -456916985.0,
+            -426900198.0,
+            0.0,
+            -1.0,
+            -1.0
+          ]
+        }
+      ],
+      "peer_sample_skew_seconds": {
+        "saved": 0.3371399999996356,
+        "changed": 0.07920399999966321,
+        "restored": 0.3544959999999264,
+        "restored_again": 0.35533399999985704
+      },
+      "unchanged_net_compare": {
+        "divergences": [],
+        "problems": []
+      },
+      "evidence": {
+        "folder": "build/m0/recovery/xbox-delay",
+        "archive_sha256": "e182ebb5e56660e9071ebd95bc66f1e7cfeb2f79806fd79a9a78d08d289ef209",
+        "manifest_sha256": "98853a359a53262bfe6fbf6a9964822c05d2a24868b6d32a5d41fca3b7c90ea3",
+        "full_reduction_sha256": "cfef42302cbed3b83bc81e4fb25b505b185949d5408ae427a3ab762662d9df65"
+      }
+    },
+    {
+      "case": "xbox-objective-fault",
+      "early_exits": {
+        "host": null,
+        "client": null
+      },
+      "complete_sequence": true,
+      "epoch_sequence_valid": true,
+      "mutations_observed": {
+        "hud_flags": true,
+        "objective": true,
+        "nav": true,
+        "device_group": true,
+        "player_maxima": true
+      },
+      "captures": {
+        "host": 100,
+        "client": 93
+      },
+      "discarded_final_captures": {
+        "host": [],
+        "client": []
+      },
+      "sample_skew_within_1_1_seconds": true,
+      "objective_fault_rows": 4,
+      "recovery_windows": {
+        "first": {
+          "host": {
+            "samples": 8,
+            "duration_seconds": 5.999662000000171,
+            "client_ready_samples": null,
+            "epochs": [
+              2.0
+            ],
+            "wrong_saved_value_samples": {
+              "hud_flags": 0,
+              "objective": 0,
+              "nav": 0,
+              "device_group": 0,
+              "player_maxima": 8,
+              "roster": 0,
+              "player_inventory": 0,
+              "player_seats": 0,
+              "bsp": 0
+            }
+          },
+          "client": {
+            "samples": 7,
+            "duration_seconds": 5.999944000000141,
+            "client_ready_samples": 7,
+            "epochs": [
+              2.0
+            ],
+            "wrong_saved_value_samples": {
+              "hud_flags": 0,
+              "objective": 7,
+              "nav": 7,
+              "device_group": 0,
+              "player_maxima": 7,
+              "roster": 0,
+              "player_inventory": 0,
+              "player_seats": 0,
+              "bsp": 0
+            }
+          }
+        },
+        "second": {
+          "host": {
+            "samples": 41,
+            "duration_seconds": 38.99918499999967,
+            "client_ready_samples": null,
+            "epochs": [
+              3.0
+            ],
+            "wrong_saved_value_samples": {
+              "hud_flags": 0,
+              "objective": 0,
+              "nav": 0,
+              "device_group": 0,
+              "player_maxima": 41,
+              "roster": 0,
+              "player_inventory": 0,
+              "player_seats": 0,
+              "bsp": 0
+            }
+          },
+          "client": {
+            "samples": 40,
+            "duration_seconds": 38.99930500000028,
+            "client_ready_samples": 40,
+            "epochs": [
+              3.0
+            ],
+            "wrong_saved_value_samples": {
+              "hud_flags": 0,
+              "objective": 40,
+              "nav": 40,
+              "device_group": 0,
+              "player_maxima": 40,
+              "roster": 0,
+              "player_inventory": 0,
+              "player_seats": 0,
+              "bsp": 0
+            }
+          }
+        }
+      },
+      "family": "xbox",
+      "level": "levels\\a30\\a30",
+      "receive_delay_ms": 0,
+      "drop_setting_percent": 0,
+      "restoration_failure_fields": {
+        "restored": {
+          "host": [
+            "player_maxima"
+          ],
+          "client": [
+            "objective",
+            "nav",
+            "player_maxima"
+          ]
+        },
+        "restored_again": {
+          "host": [
+            "player_maxima"
+          ],
+          "client": [
+            "objective",
+            "nav",
+            "player_maxima"
+          ]
+        }
+      },
+      "snapshots": {
+        "saved": {
+          "host": {
+            "epoch": 1.0,
+            "ready": 0.0,
+            "objective": 1.0,
+            "navigation_count": 1,
+            "player_maxima": [
+              "1/1"
+            ],
+            "device_group_value": 0.25,
+            "hud_visible": 0.0,
+            "help_visible": 0.0
+          },
+          "client": {
+            "epoch": 1.0,
+            "ready": 1.0,
+            "objective": -1.0,
+            "navigation_count": 1,
+            "player_maxima": [
+              "1/1"
+            ],
+            "device_group_value": 0.25,
+            "hud_visible": 0.0,
+            "help_visible": 0.0
+          }
+        },
+        "changed": {
+          "host": {
+            "epoch": 1.0,
+            "ready": 0.0,
+            "objective": 2.0,
+            "navigation_count": 0,
+            "player_maxima": [
+              "2/3"
+            ],
+            "device_group_value": 0.75,
+            "hud_visible": 1.0,
+            "help_visible": 1.0
+          },
+          "client": {
+            "epoch": 1.0,
+            "ready": 1.0,
+            "objective": -1.0,
+            "navigation_count": 0,
+            "player_maxima": [
+              "2/3"
+            ],
+            "device_group_value": 0.75,
+            "hud_visible": 1.0,
+            "help_visible": 1.0
+          }
+        },
+        "restored": {
+          "host": {
+            "epoch": 2.0,
+            "ready": 0.0,
+            "objective": 1.0,
+            "navigation_count": 1,
+            "player_maxima": [
+              "2/3"
+            ],
+            "device_group_value": 0.25,
+            "hud_visible": 0.0,
+            "help_visible": 0.0
+          },
+          "client": {
+            "epoch": 2.0,
+            "ready": 1.0,
+            "objective": -1.0,
+            "navigation_count": 0,
+            "player_maxima": [
+              "2/3"
+            ],
+            "device_group_value": 0.25,
+            "hud_visible": 0.0,
+            "help_visible": 0.0
+          }
+        },
+        "restored_again": {
+          "host": {
+            "epoch": 3.0,
+            "ready": 0.0,
+            "objective": 1.0,
+            "navigation_count": 1,
+            "player_maxima": [
+              "2/3"
+            ],
+            "device_group_value": 0.25,
+            "hud_visible": 0.0,
+            "help_visible": 0.0
+          },
+          "client": {
+            "epoch": 3.0,
+            "ready": 1.0,
+            "objective": -1.0,
+            "navigation_count": 0,
+            "player_maxima": [
+              "2/3"
+            ],
+            "device_group_value": 0.25,
+            "hud_visible": 0.0,
+            "help_visible": 0.0
+          }
+        }
+      },
+      "reference_failure_counts": {
+        "saved": {
+          "host": 0,
+          "client": 0
+        },
+        "changed": {
+          "host": 0,
+          "client": 0
+        },
+        "restored": {
+          "host": 0,
+          "client": 0
+        },
+        "restored_again": {
+          "host": 0,
+          "client": 0
+        }
+      },
+      "stable_object_observations": {
+        "saved": {
+          "stable_host_objects": 114,
+          "mismatch_count": 4
+        },
+        "changed": {
+          "stable_host_objects": 114,
+          "mismatch_count": 4
+        },
+        "restored": {
+          "stable_host_objects": 114,
+          "mismatch_count": 4
+        },
+        "restored_again": {
+          "stable_host_objects": 114,
+          "mismatch_count": 4
+        }
+      },
+      "preexisting_stable_mismatch_examples": [
+        {
+          "datum": -457113599,
+          "expected": [
+            -457113599.0,
+            -427424494.0,
+            0.0,
+            53.0,
+            -472710812.0
+          ],
+          "actual": [
+            -457113599.0,
+            -427424494.0,
+            0.0,
+            -1.0,
+            -1.0
+          ]
+        },
+        {
+          "datum": -457048061,
+          "expected": [
+            -457048061.0,
+            -426900198.0,
+            0.0,
+            56.0,
+            -472710812.0
+          ],
+          "actual": [
+            -457048061.0,
+            -426900198.0,
+            0.0,
+            -1.0,
+            -1.0
+          ]
+        },
+        {
+          "datum": -456982523,
+          "expected": [
+            -456982523.0,
+            -426900198.0,
+            0.0,
+            58.0,
+            -472710812.0
+          ],
+          "actual": [
+            -456982523.0,
+            -426900198.0,
+            0.0,
+            -1.0,
+            -1.0
+          ]
+        },
+        {
+          "datum": -456916985,
+          "expected": [
+            -456916985.0,
+            -426900198.0,
+            0.0,
+            59.0,
+            -472710812.0
+          ],
+          "actual": [
+            -456916985.0,
+            -426900198.0,
+            0.0,
+            -1.0,
+            -1.0
+          ]
+        }
+      ],
+      "peer_sample_skew_seconds": {
+        "saved": 0.38103700000010576,
+        "changed": 0.03711699999985285,
+        "restored": 0.39625599999999395,
+        "restored_again": 0.39741700000013225
+      },
+      "unchanged_net_compare": {
+        "divergences": [],
+        "problems": []
+      },
+      "evidence": {
+        "folder": "build/m0/recovery/xbox-objective-fault",
+        "archive_sha256": "af089bd7977a312fdf7617311c45531418d5caca3c9d7a545b8ea283f8966d25",
+        "manifest_sha256": "1fb73ddd3f37b760de020c03ffdf16ae08089749265666694ee25c8659f8f9cf",
+        "full_reduction_sha256": "64440e9ac5be0c220cbf7819b0a7c016f33576a0b54df9c5d22b80990fb42517"
+      }
+    }
+  ],
+  "cleanup": {
+    "private_map_cache_binary_bytes_removed": 10754379218,
+    "archived_files": 466,
+    "archived_raw_bytes": 369243333,
+    "archive_bytes": 40512289,
+    "temporary_build_bytes_removed": 231577269,
+    "retained_recovery_bytes": 110844461,
+    "retained_all_m0_bytes": 1880518703
+  },
+  "copied_profile_source": {
+    "profile_sha256": "7836a51dfec5f336f6fbe1b2a81a90a40793b7e09b7dc605250841961867901d",
+    "metadata_sha256": "686c9489b9807951a83cb2c609ab5dfe826ed1e36204dd123767a3e18571607e"
+  },
+  "tests": {
+    "tests": "155",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0"
+  },
+  "limits": [
+    "No full-state acceptance: three controlled restoration failures persist.",
+    "Null rendering/audio-off cannot qualify presentation or audio output.",
+    "Stable object mismatches predate reverts and remain unclassified.",
+    "No active AI/combat, changed roster, active vehicle/attachment, or MCC-extra-state qualification.",
+    "Objective application suppression is a generated-only fault, not transport loss.",
+    "No M1, production source/protocol/default changes, branch publication or push."
+  ]
+}

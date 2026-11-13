@@ -359,13 +359,17 @@ stream fault fixture. They do not waive the full-system gate.
 The [real-engine load and budget report](coop_m0_load.md) adds Windows snapshot
 measurements at the actual object-slot and byte-pool boundaries, plus frozen
 desktop comparison gates and explicit target exceedances.
+The [saved-state recovery report](coop_m0_recovery.md) adds actual engine
+save/change/two-revert comparisons, distinguishing saved-state restoration
+from peer agreement and readiness. Its full-system coverage ledger keeps
+unexercised recovery responsibilities explicit.
 
 | Gate | Current disposition |
 | --- | --- |
 | Full-system inventory and validation routes | Recorded in the existing 19-domain ledger and generated index; scope retained. |
 | Ordinary two-peer payload, object snapshot and correction observations | Added for Xbox, CE, MCC and delayed/lossy joining/revert. Coverage limits are explicit above. |
 | Empty/near-capacity snapshots | Real-function reconstruction checked at the production slot limit. Real-engine Windows initial snapshots now measured at stock slot/byte-pool saturation on Xbox, CE and MCC, plus inventory-heavy units. Large active AI/combat, full-state readiness and cross-platform capacity remain unqualified. |
-| Full persistent-state ready oracle and independent reliable faults | Complete oracle remains open; failed construction and pending inventory now reproduce early gameplay readiness. Native stream component passed real-loopback reorder/loss/duplicate and independent wire/reader stalls. End-to-end game faults remain unqualified. |
+| Full persistent-state ready oracle and independent reliable faults | Complete oracle remains open. Actual Xbox/CE/MCC save/change/revert captures reproduce wrong objective/navigation on ready clients and wrong vitality maxima on both peers. Failed construction and pending inventory also reproduce early gameplay readiness. Native stream component passed real-loopback reorder/loss/duplicate and independent wire/reader stalls. Remaining full-state domains and end-to-end transport faults stay unqualified. |
 | Final numeric operating budgets | Desktop reference observations and versioned comparison/design gates are recorded, including failures for synchronous snapshot work and CE traffic. Full-world memory ownership, sustained active workloads, transport/platform-specific and low-end/mobile budgets remain open; desktop results are not universal ceilings. |
 | Mission progression/profile ownership | Ordinary host-menu completion, wrong profile award, profile reload and postgame cancellation reproduced. Natural completion, next-round play and full roster/profile ownership remain open. |
 | Platform/preservation matrix | Linux and Android runtime explicitly blocked: no runner/device available. Android build remains blocked separately. Short rendered family transitions, failed-load baseline and two-local-player Xbox/CE/MCC split-screen entry checked. Ordinary local campaign-menu entry, multi-local-player network rosters and broad rendered/audio behavior remain unqualified. |
