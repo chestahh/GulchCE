@@ -194,6 +194,25 @@ int main(int argc,char **argv)
     initialize(use_mcc,!strcmp(which,"capacity_boundary") ? (use_mcc?32767:19001) :
         !strcmp(which,"long_sleep_reuse") ? 19001 : 16);
     CHECK(sizeof(*hs_console_state)==918568);
+    if(!strncmp(which,"unavailable_",12)) {
+        struct data_array *syntax=hs_syntax_data;
+        char const *message=NULL,*error_source=NULL,*command="original string";
+        memcpy(saved,image,sizeof(image));
+        if(!strcmp(which,"unavailable_null"))hs_syntax_data=NULL;
+        else data_make_invalid(hs_syntax_data);
+        hs_compile_initialize(FALSE);
+        CHECK(hs_compile_expression(15,command,&message,&error_source)==NONE);
+        CHECK(message&&strstr(message,"script storage")&&error_source==command);
+        CHECK(!hs_compile_globals.compiled_source&&!hs_compile_globals.compiled_source_size);
+        CHECK(!memcmp(saved,image,sizeof(image)));
+        hs_compile_dispose();
+        hs_syntax_data=syntax;data_make_valid(syntax);
+        hs_compile_initialize(FALSE);
+        root=hs_compile_expression(15,command,&message,&error_source);CHECK(root!=NONE);
+        hs_runtime_evaluate(root);hs_compile_dispose();
+        now=60;hs_runtime_update();CHECK(!strcmp(last_text,command));
+        return 0;
+    }
     if(!strncmp(which,"compile_",8)) {
         char const *message=NULL,*error_source=NULL;
         hs_compile_initialize(FALSE);

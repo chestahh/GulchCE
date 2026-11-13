@@ -55,7 +55,8 @@ finish, then issue another command and load the saved core. The restored
 command should wait the remainder of its saved delay and print its original
 text again.
 
-`hs_compile_expression` first acquires a source slot. Once compilation
+`hs_compile_expression` first checks that the map's syntax allocator exists
+and is valid, then acquires a source slot. Once compilation
 finishes, `hs_console_source_finish` records its root expression handle.
 While the command sleeps, its outermost stack frame identifies that root,
 so another command must acquire a different slot even if the sleeping
@@ -144,6 +145,13 @@ in [NETCODE.md](../../port/linux/NETCODE.md).
 
 ## Evidence and limits
 
+A failed map load can leave the error screen serving the telnet console
+after `hs_dispose_from_old_map` has cleared the syntax allocator. Commands
+requiring script compilation then fail with a diagnostic before allocating
+text or nodes. This preserves the existing fatal load-error behavior; it
+does not turn the error screen into a recoverable map-selection screen.
+Non-script console handlers retain their existing dispatch paths.
+
 [test_hs_console_state.py](../../tools/harness/tests/test_hs_console_state.py)
 extracts the actual compiler ownership path, allocator, interpreter,
 collector, checkpoint support and validation functions. Its fixture in
@@ -151,6 +159,17 @@ collector, checkpoint support and validation functions. Its fixture in
 small fake world. Cases cover collection and reuse, concurrent text,
 global references, capacity limits, malformed saved references, inactive
 permanent nodes and deliberate faults that the tests must detect.
+Unavailable-allocator cases exercise null and invalid syntax storage, verify
+that refusal leaves console storage untouched, then restore valid storage
+and execute a command in both native and MCC fixture modes.
+
+For the failed-load guard, normal Windows runtime checks covered Xbox A30
+alone and an Xbox → CE → MCC → Xbox sequence before a deliberate missing-map
+request. Live script commands worked before failure; afterward they returned
+the diagnostic without crashing. All 115 console-state cases and Windows/Web
+builds passed. Android compilation stopped in existing Windows build commands;
+Linux/Android runtime was unavailable. These are focused checks, not a complete
+platform or co-op compatibility result.
 
 These controls do not establish a complete game session or cross-platform
 compatibility. Required runtime checks include replay on Xbox, CE and

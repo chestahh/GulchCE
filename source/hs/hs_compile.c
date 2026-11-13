@@ -903,6 +903,15 @@ long hs_compile_expression(
 	long source_offset;
 	long result = NONE;
 
+	/* port: the fatal load-error screen still serves the console after
+	the old map's script storage has been disposed. */
+	if (!hs_syntax_data || !hs_syntax_data->valid)
+	{
+		*error_message = "script storage is unavailable; restart the game after a failed map load.";
+		*error_source = source;
+		return NONE;
+	}
+
 	if (source_size < HS_MAXIMUM_DYNAMIC_SOURCE_DATA_BYTES)
 	{
 		/* port: a later command must not overwrite a sleeping command's

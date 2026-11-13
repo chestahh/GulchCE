@@ -104,6 +104,7 @@ CASES = ["console_gc", "console_reuse", "scenario_gc", "standalone_gc", "console
          "repeat_restore", "reload", "concurrent_text", "global_text", "pool_full", "false_pin",
          "unaligned_value", "discarded_frame", "source_bounds", "capacity_boundary", "compile_text", "compile_failure", "compile_dispose",
          "inactive_permanent", "long_sleep_reuse", "mcc_console_call", "valid_casts"]
+CASES += ["unavailable_null", "unavailable_invalid"]
 CASES += ["invalid_" + name for name in ("signature", "name", "capacity", "count", "actual", "data", "salt",
     "cycle", "string", "string_end", "source_root", "source_owner", "call", "stack", "frame_size", "result", "previous",
     "thread_array", "permanent", "literal_cast", "global_cast", "return_cast", "unparsed",
