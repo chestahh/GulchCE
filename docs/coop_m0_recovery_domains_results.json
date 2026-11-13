@@ -1,0 +1,1711 @@
+{
+  "date": "2026-11-13",
+  "source_revision": "6e52977290b2ccfdd8505ec30cb79ebc8df2bdab",
+  "configuration": "Windows release portable PGO-off LTO-off; generated-only diagnostics",
+  "binary_sha256": "08b822772f7e401429d84835cbd428e5aabc6d9f462eecee8e502d44236d001a",
+  "generated_files": {
+    "port/windows/src/win32_net.c": {
+      "source_sha256": "3b5f5441175b72ddb778009beeb327d1c89775c74e0ca49c4c00f3eb4d48e76c",
+      "copy_sha256": "7e09e05f2cf83d9bbc5890089df5bcaeba79e7952dc78b8b248ed72c36491b6b"
+    },
+    "port/linux/game/network_objects.c": {
+      "source_sha256": "4892f109c784213c56e61f2b75b9b07b9d65c9d3500f3d7a14889f28025ee552",
+      "copy_sha256": "be7ef3361860d14d37070fc35c42eb6ffb33d5b430f2f6c4d8ec759dc9ebf33e"
+    },
+    "port/linux/game/network_distributed.c": {
+      "source_sha256": "11bf034c6ce01014073a1efe305a47bc9f7d69059d233fec42837f3ea7f80c8a",
+      "copy_sha256": "53e2f068b318d84362d437184e3acecefde8e0ff3a9900011610ee88751b2b59"
+    },
+    "port/linux/game/network_coop.c": {
+      "source_sha256": "a19a999cd8866307d6ea69c6e32b86d4454bd4d39f5bf66267f63a74bf0266e3",
+      "copy_sha256": "e6da4040f06bf0a03b3a8615884fa89dbcddbac28dec008e848b42e5ae5805bd"
+    },
+    "port/linux/game/network_test.c": {
+      "source_sha256": "d97c0f5569c0db474d9719d587e3956bec57b586567c04bcbb21e38011cadf4d",
+      "copy_sha256": "a1f67863b4b9e905459cfed18d9eb8bb87211fe62dfae8d1705e8e8baea88f5c"
+    },
+    "source/interface/hud_messaging.c": {
+      "source_sha256": "7d3ad62a2d766c2315556fb46730a72b8f5d6b6c73058ac52ccaced812712973",
+      "copy_sha256": "be29d8486bc0cf63826bdb0d2532e1e7cc2e10383bc69c63a5deea99e505a1ec"
+    },
+    "source/interface/hud_nav_points.c": {
+      "source_sha256": "6fa800eb47b1a0cad318754392f89a2b6c68b69b084061d4c7ff2cc44434cf13",
+      "copy_sha256": "d2bdcb9821aff1f57aac09987fe2d6169c11ba9fa1f3e9d004e61ad353729e8c"
+    }
+  },
+  "content": {
+    "a30.map": {
+      "bytes": 152610816,
+      "sha256": "4875fa105e6c517589a796cfdcc7fcaa07e98df13d14e601bfc9eb1eab7e30b5"
+    },
+    "carousel.map": {
+      "bytes": 20215808,
+      "sha256": "1c6353df6e4530437841b09775e62fa067caa46bb0e40f4579bbf2276991a38e"
+    },
+    "ui.map": {
+      "bytes": 14145536,
+      "sha256": "35e3e560478d85178749be310ad13d6d6ecde618d32675261a3554592333a833"
+    },
+    "ce/b30.map": {
+      "bytes": 201578087,
+      "sha256": "baec59d37cf8d3f017dd3ac0d61fb431087490eeb1c469b2071ae2aec66ca24a"
+    },
+    "bitmaps.map": {
+      "bytes": 123547749,
+      "sha256": "317658e0ebd4aa189bac68e994fe0b515928f44d17b62ba676d8850aa329dd3d"
+    },
+    "sounds.map": {
+      "bytes": 41718640,
+      "sha256": "81658a8d9b127b2771558a35e664ec3f1a2b370f271fe957426d945001ceb5d2"
+    },
+    "loc.map": {
+      "bytes": 391996,
+      "sha256": "1321e17b5a86be84b1930b6eb2e7fdfe9285275d5d54cbe3d4a3635e2bf04041"
+    },
+    "mcc/a10.map": {
+      "bytes": 407040369,
+      "sha256": "3f7eaaaf27358591a1a1ae7ed99e3fdf9a826af4a4fa5ef1dd4757538ae0fed2"
+    }
+  },
+  "runs": [
+    {
+      "case": "xbox-filled",
+      "complete_sequence": true,
+      "early_exits": {
+        "host": null,
+        "client": null
+      },
+      "epoch_sequence_valid": true,
+      "mutations_observed": {
+        "saved_object_deleted": true,
+        "post_save_object_created": true,
+        "attachment_removed": true,
+        "scale_changed": true,
+        "ammunition_changed": true,
+        "inventory_changed": true,
+        "paused_visible_timer_changed": true,
+        "timer_layout_changed": true,
+        "allegiance_changed": true
+      },
+      "discarded_final_captures": {
+        "host": [],
+        "client": []
+      },
+      "empty_inventory_at_save": false,
+      "mcc_grenade_types": 0.0,
+      "recovery_windows": {
+        "first": {
+          "host": {
+            "samples": 8,
+            "duration_seconds": 6.000486999999339,
+            "epochs": [
+              2.0
+            ],
+            "ready_samples": null,
+            "wrong_saved_value_samples": {
+              "presence": 0,
+              "identity": 0,
+              "attachment": 0,
+              "scale": 0,
+              "magazines": 0,
+              "inventory": 0,
+              "timer": 0,
+              "timer_layout": 0,
+              "allegiance": 0,
+              "mcc_state": 0,
+              "mcc_extra_grenades": 0
+            }
+          },
+          "client": {
+            "samples": 7,
+            "duration_seconds": 5.9999339999994845,
+            "epochs": [
+              2.0
+            ],
+            "ready_samples": 7,
+            "wrong_saved_value_samples": {
+              "presence": 0,
+              "identity": 0,
+              "attachment": 7,
+              "scale": 0,
+              "magazines": 7,
+              "inventory": 0,
+              "timer": 0,
+              "timer_layout": 0,
+              "allegiance": 0,
+              "mcc_state": 0,
+              "mcc_extra_grenades": 0
+            }
+          }
+        },
+        "second": {
+          "host": {
+            "samples": 40,
+            "duration_seconds": 38.00057800000104,
+            "epochs": [
+              3.0
+            ],
+            "ready_samples": null,
+            "wrong_saved_value_samples": {
+              "presence": 0,
+              "identity": 0,
+              "attachment": 0,
+              "scale": 0,
+              "magazines": 0,
+              "inventory": 0,
+              "timer": 0,
+              "timer_layout": 0,
+              "allegiance": 0,
+              "mcc_state": 0,
+              "mcc_extra_grenades": 0
+            }
+          },
+          "client": {
+            "samples": 39,
+            "duration_seconds": 37.99996900000042,
+            "epochs": [
+              3.0
+            ],
+            "ready_samples": 39,
+            "wrong_saved_value_samples": {
+              "presence": 0,
+              "identity": 0,
+              "attachment": 39,
+              "scale": 0,
+              "magazines": 39,
+              "inventory": 0,
+              "timer": 0,
+              "timer_layout": 0,
+              "allegiance": 0,
+              "mcc_state": 0,
+              "mcc_extra_grenades": 0
+            }
+          }
+        }
+      },
+      "family": "xbox",
+      "level": "levels\\a30\\a30",
+      "fixture_ids": {
+        "0": -456523765,
+        "1": -456458227,
+        "2": -456392685,
+        "3": -456327147,
+        "4": -456261609
+      },
+      "saved_peer_disagreement": {
+        "scale": {
+          "expected": 0.5,
+          "actual": 0.0
+        },
+        "magazines": {
+          "expected": [
+            [
+              0.0,
+              20.0,
+              20.0
+            ]
+          ],
+          "actual": [
+            [
+              0.0,
+              180.0,
+              60.0
+            ]
+          ]
+        }
+      },
+      "restoration_failure_fields": {
+        "restored": {
+          "host": [],
+          "client": [
+            "attachment",
+            "magazines"
+          ]
+        },
+        "restored_again": {
+          "host": [],
+          "client": [
+            "attachment",
+            "magazines"
+          ]
+        }
+      },
+      "first_recovery_differences": {
+        "host": {},
+        "client": {
+          "attachment": {
+            "expected": -456458227.0,
+            "actual": -1.0
+          },
+          "magazines": {
+            "expected": [
+              [
+                0.0,
+                20.0,
+                20.0
+              ]
+            ],
+            "actual": [
+              [
+                0.0,
+                180.0,
+                60.0
+              ]
+            ]
+          }
+        }
+      },
+      "selected_sample_skew_seconds": {
+        "saved": 0.38144199999987904,
+        "changed": 0.035957000000053085,
+        "restored": 0.3974689999995462,
+        "restored_again": 0.39815099999941594
+      },
+      "reference_failure_counts": {
+        "saved": {
+          "host": 0,
+          "client": 0
+        },
+        "changed": {
+          "host": 0,
+          "client": 0
+        },
+        "restored": {
+          "host": 0,
+          "client": 0
+        },
+        "restored_again": {
+          "host": 0,
+          "client": 0
+        }
+      },
+      "unchanged_net_compare": {
+        "problems": [],
+        "divergences": []
+      },
+      "evidence": {
+        "folder": "build/m0/recovery-domains/xbox-filled",
+        "archive_sha256": "5dc03bae885a09c1951f5fe33f77115590e3e3e0f15c09b89563905a59bbf26c",
+        "manifest_sha256": "9844b86d8a5a9db97d25bd501bee7a308ff9864b498e8048311183731f8b6839",
+        "full_reduction_sha256": "7dcbe7ec744589e5216214bf087044879985551e0ea45638dd52f149fa2d91b7"
+      }
+    },
+    {
+      "case": "ce-filled",
+      "complete_sequence": true,
+      "early_exits": {
+        "host": null,
+        "client": null
+      },
+      "epoch_sequence_valid": true,
+      "mutations_observed": {
+        "saved_object_deleted": true,
+        "post_save_object_created": true,
+        "attachment_removed": true,
+        "scale_changed": true,
+        "ammunition_changed": true,
+        "inventory_changed": true,
+        "paused_visible_timer_changed": true,
+        "timer_layout_changed": true,
+        "allegiance_changed": true
+      },
+      "discarded_final_captures": {
+        "host": [],
+        "client": []
+      },
+      "empty_inventory_at_save": false,
+      "mcc_grenade_types": 0.0,
+      "recovery_windows": {
+        "first": {
+          "host": {
+            "samples": 8,
+            "duration_seconds": 5.999519000000873,
+            "epochs": [
+              2.0
+            ],
+            "ready_samples": null,
+            "wrong_saved_value_samples": {
+              "presence": 0,
+              "identity": 0,
+              "attachment": 0,
+              "scale": 0,
+              "magazines": 0,
+              "inventory": 0,
+              "timer": 0,
+              "timer_layout": 0,
+              "allegiance": 0,
+              "mcc_state": 0,
+              "mcc_extra_grenades": 0
+            }
+          },
+          "client": {
+            "samples": 7,
+            "duration_seconds": 5.999642999999196,
+            "epochs": [
+              2.0
+            ],
+            "ready_samples": 7,
+            "wrong_saved_value_samples": {
+              "presence": 0,
+              "identity": 0,
+              "attachment": 7,
+              "scale": 0,
+              "magazines": 7,
+              "inventory": 0,
+              "timer": 0,
+              "timer_layout": 0,
+              "allegiance": 0,
+              "mcc_state": 0,
+              "mcc_extra_grenades": 0
+            }
+          }
+        },
+        "second": {
+          "host": {
+            "samples": 33,
+            "duration_seconds": 30.999770000000353,
+            "epochs": [
+              3.0
+            ],
+            "ready_samples": null,
+            "wrong_saved_value_samples": {
+              "presence": 0,
+              "identity": 0,
+              "attachment": 0,
+              "scale": 0,
+              "magazines": 0,
+              "inventory": 0,
+              "timer": 0,
+              "timer_layout": 0,
+              "allegiance": 0,
+              "mcc_state": 0,
+              "mcc_extra_grenades": 0
+            }
+          },
+          "client": {
+            "samples": 32,
+            "duration_seconds": 30.999557999999524,
+            "epochs": [
+              3.0
+            ],
+            "ready_samples": 32,
+            "wrong_saved_value_samples": {
+              "presence": 0,
+              "identity": 0,
+              "attachment": 32,
+              "scale": 0,
+              "magazines": 32,
+              "inventory": 0,
+              "timer": 0,
+              "timer_layout": 0,
+              "allegiance": 0,
+              "mcc_state": 0,
+              "mcc_extra_grenades": 0
+            }
+          }
+        }
+      },
+      "family": "ce",
+      "level": "custom_maps\\b30",
+      "fixture_ids": {
+        "0": -304938034,
+        "1": -304872484,
+        "2": -304806899,
+        "3": -304741360,
+        "4": -287374346
+      },
+      "saved_peer_disagreement": {
+        "scale": {
+          "expected": 0.5,
+          "actual": 0.0
+        },
+        "magazines": {
+          "expected": [
+            [
+              0.0,
+              20.0,
+              20.0
+            ]
+          ],
+          "actual": [
+            [
+              0.0,
+              72.0,
+              36.0
+            ]
+          ]
+        }
+      },
+      "restoration_failure_fields": {
+        "restored": {
+          "host": [],
+          "client": [
+            "attachment",
+            "magazines"
+          ]
+        },
+        "restored_again": {
+          "host": [],
+          "client": [
+            "attachment",
+            "magazines"
+          ]
+        }
+      },
+      "first_recovery_differences": {
+        "host": {},
+        "client": {
+          "attachment": {
+            "expected": -304872484.0,
+            "actual": -1.0
+          },
+          "magazines": {
+            "expected": [
+              [
+                0.0,
+                20.0,
+                20.0
+              ]
+            ],
+            "actual": [
+              [
+                0.0,
+                72.0,
+                36.0
+              ]
+            ]
+          }
+        }
+      },
+      "selected_sample_skew_seconds": {
+        "saved": 0.1406440000009752,
+        "changed": 0.03684699999939767,
+        "restored": 0.17101800000091316,
+        "restored_again": 0.17140699999981734
+      },
+      "reference_failure_counts": {
+        "saved": {
+          "host": 0,
+          "client": 0
+        },
+        "changed": {
+          "host": 0,
+          "client": 0
+        },
+        "restored": {
+          "host": 0,
+          "client": 0
+        },
+        "restored_again": {
+          "host": 0,
+          "client": 0
+        }
+      },
+      "unchanged_net_compare": {
+        "problems": [],
+        "divergences": []
+      },
+      "evidence": {
+        "folder": "build/m0/recovery-domains/ce-filled",
+        "archive_sha256": "2a07112b8858536e7ecf77d522007cd7220e3747fd38ca7cf53240aed4dbd118",
+        "manifest_sha256": "6982f569ab49571f45cd740714703c44f1b9009048ca2a698b9b305ae0e6292d",
+        "full_reduction_sha256": "e1aa61cb4dd33e8632c1dbcb03839e33f41127fec7a70459c49b28970a0f699e"
+      }
+    },
+    {
+      "case": "mcc-filled",
+      "complete_sequence": true,
+      "early_exits": {
+        "host": null,
+        "client": null
+      },
+      "epoch_sequence_valid": true,
+      "mutations_observed": {
+        "saved_object_deleted": true,
+        "post_save_object_created": true,
+        "attachment_removed": true,
+        "scale_changed": true,
+        "ammunition_changed": true,
+        "inventory_changed": true,
+        "paused_visible_timer_changed": true,
+        "timer_layout_changed": true,
+        "allegiance_changed": true,
+        "mcc_speed_changed": true,
+        "mcc_gains_changed": true,
+        "mcc_extra_grenades_changed": true
+      },
+      "discarded_final_captures": {
+        "host": [],
+        "client": []
+      },
+      "empty_inventory_at_save": false,
+      "mcc_grenade_types": 4.0,
+      "recovery_windows": {
+        "first": {
+          "host": {
+            "samples": 8,
+            "duration_seconds": 7.999332999999751,
+            "epochs": [
+              2.0
+            ],
+            "ready_samples": null,
+            "wrong_saved_value_samples": {
+              "presence": 0,
+              "identity": 0,
+              "attachment": 0,
+              "scale": 0,
+              "magazines": 0,
+              "inventory": 0,
+              "timer": 0,
+              "timer_layout": 0,
+              "allegiance": 0,
+              "mcc_state": 0,
+              "mcc_extra_grenades": 0
+            }
+          },
+          "client": {
+            "samples": 7,
+            "duration_seconds": 7.999933000000965,
+            "epochs": [
+              2.0
+            ],
+            "ready_samples": 7,
+            "wrong_saved_value_samples": {
+              "presence": 0,
+              "identity": 0,
+              "attachment": 7,
+              "scale": 0,
+              "magazines": 7,
+              "inventory": 0,
+              "timer": 0,
+              "timer_layout": 0,
+              "allegiance": 0,
+              "mcc_state": 0,
+              "mcc_extra_grenades": 0
+            }
+          }
+        },
+        "second": {
+          "host": {
+            "samples": 33,
+            "duration_seconds": 41.33383599999979,
+            "epochs": [
+              3.0
+            ],
+            "ready_samples": null,
+            "wrong_saved_value_samples": {
+              "presence": 0,
+              "identity": 0,
+              "attachment": 0,
+              "scale": 0,
+              "magazines": 0,
+              "inventory": 0,
+              "timer": 0,
+              "timer_layout": 0,
+              "allegiance": 0,
+              "mcc_state": 0,
+              "mcc_extra_grenades": 0
+            }
+          },
+          "client": {
+            "samples": 32,
+            "duration_seconds": 41.332564999998795,
+            "epochs": [
+              3.0
+            ],
+            "ready_samples": 32,
+            "wrong_saved_value_samples": {
+              "presence": 0,
+              "identity": 0,
+              "attachment": 32,
+              "scale": 0,
+              "magazines": 32,
+              "inventory": 0,
+              "timer": 0,
+              "timer_layout": 0,
+              "allegiance": 0,
+              "mcc_state": 0,
+              "mcc_extra_grenades": 0
+            }
+          }
+        }
+      },
+      "family": "mcc",
+      "level": "mcc_maps\\a10",
+      "fixture_ids": {
+        "0": -456326748,
+        "1": -456261209,
+        "2": -456195670,
+        "3": -456130131,
+        "4": -456064592
+      },
+      "saved_peer_disagreement": {
+        "scale": {
+          "expected": 0.5,
+          "actual": 0.0
+        },
+        "magazines": {
+          "expected": [
+            [
+              0.0,
+              20.0,
+              20.0
+            ]
+          ],
+          "actual": [
+            [
+              0.0,
+              180.0,
+              60.0
+            ]
+          ]
+        }
+      },
+      "restoration_failure_fields": {
+        "restored": {
+          "host": [],
+          "client": [
+            "attachment",
+            "magazines"
+          ]
+        },
+        "restored_again": {
+          "host": [],
+          "client": [
+            "attachment",
+            "magazines"
+          ]
+        }
+      },
+      "first_recovery_differences": {
+        "host": {},
+        "client": {
+          "attachment": {
+            "expected": -456261209.0,
+            "actual": -1.0
+          },
+          "magazines": {
+            "expected": [
+              [
+                0.0,
+                20.0,
+                20.0
+              ]
+            ],
+            "actual": [
+              [
+                0.0,
+                180.0,
+                60.0
+              ]
+            ]
+          }
+        }
+      },
+      "selected_sample_skew_seconds": {
+        "saved": 0.37394599999970524,
+        "changed": 0.004256000000168569,
+        "restored": 0.3523189999996248,
+        "restored_again": 0.3505199999999604
+      },
+      "reference_failure_counts": {
+        "saved": {
+          "host": 0,
+          "client": 0
+        },
+        "changed": {
+          "host": 0,
+          "client": 0
+        },
+        "restored": {
+          "host": 0,
+          "client": 0
+        },
+        "restored_again": {
+          "host": 0,
+          "client": 0
+        }
+      },
+      "mcc_observations": {
+        "saved": {
+          "host": {
+            "speed_effects_music_types": [
+              0.75,
+              0.25,
+              0.5,
+              4.0
+            ],
+            "extra_grenades": [
+              [
+                -456523775.0,
+                1.0,
+                1.0
+              ]
+            ]
+          },
+          "client": {
+            "speed_effects_music_types": [
+              0.75,
+              0.25,
+              0.5,
+              4.0
+            ],
+            "extra_grenades": [
+              [
+                -456523775.0,
+                1.0,
+                1.0
+              ]
+            ]
+          }
+        },
+        "changed": {
+          "host": {
+            "speed_effects_music_types": [
+              0.5,
+              0.75,
+              0.875,
+              4.0
+            ],
+            "extra_grenades": [
+              [
+                -456523775.0,
+                3.0,
+                3.0
+              ]
+            ]
+          },
+          "client": {
+            "speed_effects_music_types": [
+              0.5,
+              0.75,
+              0.875,
+              4.0
+            ],
+            "extra_grenades": [
+              [
+                -456523775.0,
+                3.0,
+                3.0
+              ]
+            ]
+          }
+        },
+        "restored": {
+          "host": {
+            "speed_effects_music_types": [
+              0.75,
+              0.25,
+              0.5,
+              4.0
+            ],
+            "extra_grenades": [
+              [
+                -456523775.0,
+                1.0,
+                1.0
+              ]
+            ]
+          },
+          "client": {
+            "speed_effects_music_types": [
+              0.75,
+              0.25,
+              0.5,
+              4.0
+            ],
+            "extra_grenades": [
+              [
+                -456523775.0,
+                1.0,
+                1.0
+              ]
+            ]
+          }
+        },
+        "restored_again": {
+          "host": {
+            "speed_effects_music_types": [
+              0.75,
+              0.25,
+              0.5,
+              4.0
+            ],
+            "extra_grenades": [
+              [
+                -456523775.0,
+                1.0,
+                1.0
+              ]
+            ]
+          },
+          "client": {
+            "speed_effects_music_types": [
+              0.75,
+              0.25,
+              0.5,
+              4.0
+            ],
+            "extra_grenades": [
+              [
+                -456523775.0,
+                1.0,
+                1.0
+              ]
+            ]
+          }
+        }
+      },
+      "unchanged_net_compare": {
+        "problems": [],
+        "divergences": []
+      },
+      "evidence": {
+        "folder": "build/m0/recovery-domains/mcc-filled",
+        "archive_sha256": "cd00d53de97d10f68556d48a709ccd053068fa9e592706367163e2a65c25c1a4",
+        "manifest_sha256": "817dea635f759f79960b97fa8eec2ac6607970c286969cb8e246b80221519efc",
+        "full_reduction_sha256": "1dadcc23d0e67ec838b56250f238b78fdf8f6dddd0edf65a62d178ebc60f4dad"
+      }
+    },
+    {
+      "case": "xbox-empty",
+      "complete_sequence": true,
+      "early_exits": {
+        "host": null,
+        "client": null
+      },
+      "epoch_sequence_valid": true,
+      "mutations_observed": {
+        "saved_object_deleted": true,
+        "post_save_object_created": true,
+        "attachment_removed": true,
+        "scale_changed": true,
+        "ammunition_changed": true,
+        "inventory_changed": true,
+        "paused_visible_timer_changed": true,
+        "timer_layout_changed": true,
+        "allegiance_changed": true
+      },
+      "discarded_final_captures": {
+        "host": [],
+        "client": []
+      },
+      "empty_inventory_at_save": true,
+      "mcc_grenade_types": 0.0,
+      "recovery_windows": {
+        "first": {
+          "host": {
+            "samples": 8,
+            "duration_seconds": 5.999798999999257,
+            "epochs": [
+              2.0
+            ],
+            "ready_samples": null,
+            "wrong_saved_value_samples": {
+              "presence": 0,
+              "identity": 0,
+              "attachment": 0,
+              "scale": 0,
+              "magazines": 0,
+              "inventory": 0,
+              "timer": 0,
+              "timer_layout": 0,
+              "allegiance": 0,
+              "mcc_state": 0,
+              "mcc_extra_grenades": 0
+            }
+          },
+          "client": {
+            "samples": 7,
+            "duration_seconds": 5.999729999999545,
+            "epochs": [
+              2.0
+            ],
+            "ready_samples": 7,
+            "wrong_saved_value_samples": {
+              "presence": 0,
+              "identity": 0,
+              "attachment": 7,
+              "scale": 0,
+              "magazines": 7,
+              "inventory": 0,
+              "timer": 0,
+              "timer_layout": 0,
+              "allegiance": 0,
+              "mcc_state": 0,
+              "mcc_extra_grenades": 0
+            }
+          }
+        },
+        "second": {
+          "host": {
+            "samples": 41,
+            "duration_seconds": 39.00008700000035,
+            "epochs": [
+              3.0
+            ],
+            "ready_samples": null,
+            "wrong_saved_value_samples": {
+              "presence": 0,
+              "identity": 0,
+              "attachment": 0,
+              "scale": 0,
+              "magazines": 0,
+              "inventory": 0,
+              "timer": 0,
+              "timer_layout": 0,
+              "allegiance": 0,
+              "mcc_state": 0,
+              "mcc_extra_grenades": 0
+            }
+          },
+          "client": {
+            "samples": 40,
+            "duration_seconds": 39.00021799999922,
+            "epochs": [
+              3.0
+            ],
+            "ready_samples": 40,
+            "wrong_saved_value_samples": {
+              "presence": 0,
+              "identity": 0,
+              "attachment": 40,
+              "scale": 0,
+              "magazines": 40,
+              "inventory": 0,
+              "timer": 0,
+              "timer_layout": 0,
+              "allegiance": 0,
+              "mcc_state": 0,
+              "mcc_extra_grenades": 0
+            }
+          }
+        }
+      },
+      "family": "xbox",
+      "level": "levels\\a30\\a30",
+      "fixture_ids": {
+        "0": -456523765,
+        "1": -456458227,
+        "2": -456392685,
+        "3": -456327147,
+        "4": -456261617
+      },
+      "saved_peer_disagreement": {
+        "scale": {
+          "expected": 0.5,
+          "actual": 0.0
+        },
+        "magazines": {
+          "expected": [
+            [
+              0.0,
+              20.0,
+              20.0
+            ]
+          ],
+          "actual": [
+            [
+              0.0,
+              180.0,
+              60.0
+            ]
+          ]
+        }
+      },
+      "restoration_failure_fields": {
+        "restored": {
+          "host": [],
+          "client": [
+            "attachment",
+            "magazines"
+          ]
+        },
+        "restored_again": {
+          "host": [],
+          "client": [
+            "attachment",
+            "magazines"
+          ]
+        }
+      },
+      "first_recovery_differences": {
+        "host": {},
+        "client": {
+          "attachment": {
+            "expected": -456458227.0,
+            "actual": -1.0
+          },
+          "magazines": {
+            "expected": [
+              [
+                0.0,
+                20.0,
+                20.0
+              ]
+            ],
+            "actual": [
+              [
+                0.0,
+                180.0,
+                60.0
+              ]
+            ]
+          }
+        }
+      },
+      "selected_sample_skew_seconds": {
+        "saved": 0.36649299999953655,
+        "changed": 0.012199999999211286,
+        "restored": 0.3854060000012396,
+        "restored_again": 0.3864769999981945
+      },
+      "reference_failure_counts": {
+        "saved": {
+          "host": 0,
+          "client": 0
+        },
+        "changed": {
+          "host": 0,
+          "client": 0
+        },
+        "restored": {
+          "host": 0,
+          "client": 0
+        },
+        "restored_again": {
+          "host": 0,
+          "client": 0
+        }
+      },
+      "unchanged_net_compare": {
+        "problems": [],
+        "divergences": []
+      },
+      "evidence": {
+        "folder": "build/m0/recovery-domains/xbox-empty",
+        "archive_sha256": "2bb33543a8519fcf88e5dab01445e056918e90ed0d2c7836215cfba3f8d08ccd",
+        "manifest_sha256": "5a3b1a92a020e5eecce08ca33dc3dc759464e6d1fbfc08098f8729f39eef15d5",
+        "full_reduction_sha256": "9077e54c57b000b5bb0037840d15fd6a1b8b97a8b66d2a181df3349f7da2f054"
+      }
+    },
+    {
+      "case": "ce-empty",
+      "complete_sequence": true,
+      "early_exits": {
+        "host": null,
+        "client": null
+      },
+      "epoch_sequence_valid": true,
+      "mutations_observed": {
+        "saved_object_deleted": true,
+        "post_save_object_created": true,
+        "attachment_removed": true,
+        "scale_changed": true,
+        "ammunition_changed": true,
+        "inventory_changed": true,
+        "paused_visible_timer_changed": true,
+        "timer_layout_changed": true,
+        "allegiance_changed": true
+      },
+      "discarded_final_captures": {
+        "host": [],
+        "client": []
+      },
+      "empty_inventory_at_save": true,
+      "mcc_grenade_types": 0.0,
+      "recovery_windows": {
+        "first": {
+          "host": {
+            "samples": 8,
+            "duration_seconds": 5.999877000000197,
+            "epochs": [
+              2.0
+            ],
+            "ready_samples": null,
+            "wrong_saved_value_samples": {
+              "presence": 0,
+              "identity": 0,
+              "attachment": 0,
+              "scale": 0,
+              "magazines": 0,
+              "inventory": 0,
+              "timer": 0,
+              "timer_layout": 0,
+              "allegiance": 0,
+              "mcc_state": 0,
+              "mcc_extra_grenades": 0
+            }
+          },
+          "client": {
+            "samples": 7,
+            "duration_seconds": 6.000602999998591,
+            "epochs": [
+              2.0
+            ],
+            "ready_samples": 7,
+            "wrong_saved_value_samples": {
+              "presence": 0,
+              "identity": 0,
+              "attachment": 7,
+              "scale": 0,
+              "magazines": 7,
+              "inventory": 0,
+              "timer": 0,
+              "timer_layout": 0,
+              "allegiance": 0,
+              "mcc_state": 0,
+              "mcc_extra_grenades": 0
+            }
+          }
+        },
+        "second": {
+          "host": {
+            "samples": 33,
+            "duration_seconds": 31.00108200000068,
+            "epochs": [
+              3.0
+            ],
+            "ready_samples": null,
+            "wrong_saved_value_samples": {
+              "presence": 0,
+              "identity": 0,
+              "attachment": 0,
+              "scale": 0,
+              "magazines": 0,
+              "inventory": 0,
+              "timer": 0,
+              "timer_layout": 0,
+              "allegiance": 0,
+              "mcc_state": 0,
+              "mcc_extra_grenades": 0
+            }
+          },
+          "client": {
+            "samples": 32,
+            "duration_seconds": 30.999063999999635,
+            "epochs": [
+              3.0
+            ],
+            "ready_samples": 32,
+            "wrong_saved_value_samples": {
+              "presence": 0,
+              "identity": 0,
+              "attachment": 32,
+              "scale": 0,
+              "magazines": 32,
+              "inventory": 0,
+              "timer": 0,
+              "timer_layout": 0,
+              "allegiance": 0,
+              "mcc_state": 0,
+              "mcc_extra_grenades": 0
+            }
+          }
+        }
+      },
+      "family": "ce",
+      "level": "custom_maps\\b30",
+      "fixture_ids": {
+        "0": -311491634,
+        "1": -311426075,
+        "2": -311360528,
+        "3": -311294982,
+        "4": -289143855
+      },
+      "saved_peer_disagreement": {
+        "scale": {
+          "expected": 0.5,
+          "actual": 0.0
+        },
+        "magazines": {
+          "expected": [
+            [
+              0.0,
+              20.0,
+              20.0
+            ]
+          ],
+          "actual": [
+            [
+              0.0,
+              72.0,
+              36.0
+            ]
+          ]
+        }
+      },
+      "restoration_failure_fields": {
+        "restored": {
+          "host": [],
+          "client": [
+            "attachment",
+            "magazines"
+          ]
+        },
+        "restored_again": {
+          "host": [],
+          "client": [
+            "attachment",
+            "magazines"
+          ]
+        }
+      },
+      "first_recovery_differences": {
+        "host": {},
+        "client": {
+          "attachment": {
+            "expected": -311426075.0,
+            "actual": -1.0
+          },
+          "magazines": {
+            "expected": [
+              [
+                0.0,
+                20.0,
+                20.0
+              ]
+            ],
+            "actual": [
+              [
+                0.0,
+                72.0,
+                36.0
+              ]
+            ]
+          }
+        }
+      },
+      "selected_sample_skew_seconds": {
+        "saved": 0.12463000000025204,
+        "changed": 0.01712299999962852,
+        "restored": 0.15265100000033271,
+        "restored_again": 0.15008099999977276
+      },
+      "reference_failure_counts": {
+        "saved": {
+          "host": 0,
+          "client": 0
+        },
+        "changed": {
+          "host": 0,
+          "client": 0
+        },
+        "restored": {
+          "host": 0,
+          "client": 0
+        },
+        "restored_again": {
+          "host": 0,
+          "client": 0
+        }
+      },
+      "unchanged_net_compare": {
+        "problems": [],
+        "divergences": []
+      },
+      "evidence": {
+        "folder": "build/m0/recovery-domains/ce-empty",
+        "archive_sha256": "4c97704fdec73916e89be7ffcf38f17248012d9e48a281db03014ece5178891f",
+        "manifest_sha256": "bba8b70308942b790201e20928d96dbf12e4060a76d4aabb5ceb7d9eaed45dae",
+        "full_reduction_sha256": "3053aac387ceb310df36ea6df2707b3786ea8bcc166ee76bcc0b882b4ab99612"
+      }
+    },
+    {
+      "case": "mcc-empty",
+      "complete_sequence": true,
+      "early_exits": {
+        "host": null,
+        "client": null
+      },
+      "epoch_sequence_valid": true,
+      "mutations_observed": {
+        "saved_object_deleted": true,
+        "post_save_object_created": true,
+        "attachment_removed": true,
+        "scale_changed": true,
+        "ammunition_changed": true,
+        "inventory_changed": true,
+        "paused_visible_timer_changed": true,
+        "timer_layout_changed": true,
+        "allegiance_changed": true,
+        "mcc_speed_changed": true,
+        "mcc_gains_changed": true,
+        "mcc_extra_grenades_changed": true
+      },
+      "discarded_final_captures": {
+        "host": [],
+        "client": []
+      },
+      "empty_inventory_at_save": true,
+      "mcc_grenade_types": 4.0,
+      "recovery_windows": {
+        "first": {
+          "host": {
+            "samples": 8,
+            "duration_seconds": 7.999846000000616,
+            "epochs": [
+              2.0
+            ],
+            "ready_samples": null,
+            "wrong_saved_value_samples": {
+              "presence": 0,
+              "identity": 0,
+              "attachment": 0,
+              "scale": 0,
+              "magazines": 0,
+              "inventory": 0,
+              "timer": 0,
+              "timer_layout": 0,
+              "allegiance": 0,
+              "mcc_state": 0,
+              "mcc_extra_grenades": 0
+            }
+          },
+          "client": {
+            "samples": 7,
+            "duration_seconds": 7.999872999998843,
+            "epochs": [
+              2.0
+            ],
+            "ready_samples": 7,
+            "wrong_saved_value_samples": {
+              "presence": 0,
+              "identity": 0,
+              "attachment": 7,
+              "scale": 0,
+              "magazines": 7,
+              "inventory": 0,
+              "timer": 0,
+              "timer_layout": 0,
+              "allegiance": 0,
+              "mcc_state": 0,
+              "mcc_extra_grenades": 0
+            }
+          }
+        },
+        "second": {
+          "host": {
+            "samples": 33,
+            "duration_seconds": 41.333192000000054,
+            "epochs": [
+              3.0
+            ],
+            "ready_samples": null,
+            "wrong_saved_value_samples": {
+              "presence": 0,
+              "identity": 0,
+              "attachment": 0,
+              "scale": 0,
+              "magazines": 0,
+              "inventory": 0,
+              "timer": 0,
+              "timer_layout": 0,
+              "allegiance": 0,
+              "mcc_state": 0,
+              "mcc_extra_grenades": 0
+            }
+          },
+          "client": {
+            "samples": 32,
+            "duration_seconds": 41.332132999999885,
+            "epochs": [
+              3.0
+            ],
+            "ready_samples": 32,
+            "wrong_saved_value_samples": {
+              "presence": 0,
+              "identity": 0,
+              "attachment": 32,
+              "scale": 0,
+              "magazines": 32,
+              "inventory": 0,
+              "timer": 0,
+              "timer_layout": 0,
+              "allegiance": 0,
+              "mcc_state": 0,
+              "mcc_extra_grenades": 0
+            }
+          }
+        }
+      },
+      "family": "mcc",
+      "level": "mcc_maps\\a10",
+      "fixture_ids": {
+        "0": -456326748,
+        "1": -456261209,
+        "2": -456195670,
+        "3": -456130131,
+        "4": -456064610
+      },
+      "saved_peer_disagreement": {
+        "scale": {
+          "expected": 0.5,
+          "actual": 0.0
+        },
+        "magazines": {
+          "expected": [
+            [
+              0.0,
+              20.0,
+              20.0
+            ]
+          ],
+          "actual": [
+            [
+              0.0,
+              180.0,
+              60.0
+            ]
+          ]
+        }
+      },
+      "restoration_failure_fields": {
+        "restored": {
+          "host": [],
+          "client": [
+            "attachment",
+            "magazines"
+          ]
+        },
+        "restored_again": {
+          "host": [],
+          "client": [
+            "attachment",
+            "magazines"
+          ]
+        }
+      },
+      "first_recovery_differences": {
+        "host": {},
+        "client": {
+          "attachment": {
+            "expected": -456261209.0,
+            "actual": -1.0
+          },
+          "magazines": {
+            "expected": [
+              [
+                0.0,
+                20.0,
+                20.0
+              ]
+            ],
+            "actual": [
+              [
+                0.0,
+                180.0,
+                60.0
+              ]
+            ]
+          }
+        }
+      },
+      "selected_sample_skew_seconds": {
+        "saved": 0.35406999999941036,
+        "changed": 0.025451999999859254,
+        "restored": 0.32971100000031583,
+        "restored_again": 0.32963500000005297
+      },
+      "reference_failure_counts": {
+        "saved": {
+          "host": 0,
+          "client": 0
+        },
+        "changed": {
+          "host": 0,
+          "client": 0
+        },
+        "restored": {
+          "host": 0,
+          "client": 0
+        },
+        "restored_again": {
+          "host": 0,
+          "client": 0
+        }
+      },
+      "mcc_observations": {
+        "saved": {
+          "host": {
+            "speed_effects_music_types": [
+              0.75,
+              0.25,
+              0.5,
+              4.0
+            ],
+            "extra_grenades": [
+              [
+                -456523775.0,
+                1.0,
+                1.0
+              ]
+            ]
+          },
+          "client": {
+            "speed_effects_music_types": [
+              0.75,
+              0.25,
+              0.5,
+              4.0
+            ],
+            "extra_grenades": [
+              [
+                -456523775.0,
+                1.0,
+                1.0
+              ]
+            ]
+          }
+        },
+        "changed": {
+          "host": {
+            "speed_effects_music_types": [
+              0.5,
+              0.75,
+              0.875,
+              4.0
+            ],
+            "extra_grenades": [
+              [
+                -456523775.0,
+                3.0,
+                3.0
+              ]
+            ]
+          },
+          "client": {
+            "speed_effects_music_types": [
+              0.5,
+              0.75,
+              0.875,
+              4.0
+            ],
+            "extra_grenades": [
+              [
+                -456523775.0,
+                3.0,
+                3.0
+              ]
+            ]
+          }
+        },
+        "restored": {
+          "host": {
+            "speed_effects_music_types": [
+              0.75,
+              0.25,
+              0.5,
+              4.0
+            ],
+            "extra_grenades": [
+              [
+                -456523775.0,
+                1.0,
+                1.0
+              ]
+            ]
+          },
+          "client": {
+            "speed_effects_music_types": [
+              0.75,
+              0.25,
+              0.5,
+              4.0
+            ],
+            "extra_grenades": [
+              [
+                -456523775.0,
+                1.0,
+                1.0
+              ]
+            ]
+          }
+        },
+        "restored_again": {
+          "host": {
+            "speed_effects_music_types": [
+              0.75,
+              0.25,
+              0.5,
+              4.0
+            ],
+            "extra_grenades": [
+              [
+                -456523775.0,
+                1.0,
+                1.0
+              ]
+            ]
+          },
+          "client": {
+            "speed_effects_music_types": [
+              0.75,
+              0.25,
+              0.5,
+              4.0
+            ],
+            "extra_grenades": [
+              [
+                -456523775.0,
+                1.0,
+                1.0
+              ]
+            ]
+          }
+        }
+      },
+      "unchanged_net_compare": {
+        "problems": [],
+        "divergences": []
+      },
+      "evidence": {
+        "folder": "build/m0/recovery-domains/mcc-empty",
+        "archive_sha256": "82d495ad58c62c0e0af9c386aeeb2c00ed06f90ce8f39f4424003f83debfe459",
+        "manifest_sha256": "17ad2bd8138cc064c254100a5241748c01a7108c71826d8dee9dc16a9ced8591",
+        "full_reduction_sha256": "bf3bd3ef3c7b447d375d60a1be595138d73a58ff2df9389027091d06b2e8adbb"
+      }
+    }
+  ],
+  "status": "M0 open, M1 unstarted, unpublished; original 19-domain scope retained",
+  "platforms": {
+    "Windows": "Native hidden two-peer Crossplay, null rendering and audio off",
+    "Linux_runtime": "blocked: no runner",
+    "Android_runtime": "blocked: no device/emulator",
+    "Android_build": "earlier Windows shell/CMake blocker separate",
+    "browser_recovery": "not qualified by this native pass"
+  },
+  "profile_source": {
+    "profile_sha256": "7836a51dfec5f336f6fbe1b2a81a90a40793b7e09b7dc605250841961867901d",
+    "metadata_sha256": "686c9489b9807951a83cb2c609ab5dfe826ed1e36204dd123767a3e18571607e"
+  },
+  "focused_tests": {
+    "tests": "158",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0"
+  },
+  "cleanup": {
+    "private_fixture_bytes_removed": 13655792548,
+    "archived_files": 556,
+    "archived_raw_bytes": 464438819,
+    "archive_bytes": 53287917,
+    "temporary_build_test_bytes_removed": 236773547,
+    "retained_domains_bytes": 125046102,
+    "retained_all_m0_bytes": 2005565631
+  },
+  "limits": [
+    "Attachment recovery is a reproduced failure; no full-state acceptance.",
+    "Initial scale and ground ammunition disagreements predate reverts.",
+    "Primary ground ammunition mismatch is not proof of a player-visible pickup/reload defect.",
+    "Visible paused timer only; no running timer phase/expiry qualification.",
+    "MCC gains are values, not audible playback validation.",
+    "No forced slot reuse, changed roster, active combat/AI or other unexercised 19-domain coverage claimed.",
+    "Linux/Android runtime blocked; no M1 or publication."
+  ],
+  "validation": {
+    "default_diagnostic_source_copies_unchanged": 7,
+    "final_observer_tests_rerun_passed": 8,
+    "source_production_changes": false
+  }
+}

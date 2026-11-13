@@ -8,6 +8,12 @@ Read with the [19-domain inventory](coop_m0.md),
 The full co-op scope remains intact. Linux and Android runtime remain blocked:
 no runner/device is available. The previous Android build blocker is separate.
 
+The [subsequent domain-mutation pass](coop_m0_recovery_domains.md) extends
+these observations to object presence/absence, changed inventory, attachments,
+scale, primary ground ammunition, a visible paused timer, allegiance bits and
+non-default MCC state. It records an additional attachment recovery failure
+and preserves the remaining full-system obligations.
+
 ## Contract and observation boundary
 
 A complete recovery must satisfy two obligations: the host restores the saved
@@ -156,19 +162,19 @@ fixture above is one part of the complete oracle, not a replacement for it.
 | session | Two admitted peers and stable roster retained. Join/leave during restore, multiple local players, four players, dedicated zero-local-player hosts and current options versus saved options remain open. |
 | transport | Existing real-loopback stream fault probes and epoch tests remain applicable. This pass adds actual game observations; interrupted recovery streams, reconnect and end-to-end browser/public-internet recovery remain open. |
 | content | Separate Xbox, CE and MCC loader paths and unchanged original file hashes. Missing content, transfer cancellation and failed recovery load are not qualified by these successful loads. |
-| objects | Actual IDs/tags/parents and reference resolution observed; earlier construction-failure probes remain negative baselines. Explicit absence, slot reuse, arbitrary dependency order, attachment mutation, scale/region/permutation/animation restoration remain open. |
-| inventory | Current player weapon references retained. Change/empty/replace inventory across save, queued missing weapons, reload/ammunition and pickup-history recovery need full runtime qualification; existing real-function probes cover bounded pieces. |
+| objects | Actual IDs/tags/parents and reference resolution observed; earlier construction-failure probes remain negative baselines. The domain-mutation pass adds saved presence/post-save absence and scale restoration, plus a failed attachment restore. Forced slot reuse, arbitrary dependency order, region/permutation/animation restoration remain open. |
+| inventory | The domain-mutation pass adds filled-to-empty and empty-to-filled mutations around a checkpoint. Queued missing weapons, replacement/reload/non-default held ammunition and pickup-history recovery still need full runtime qualification. |
 | movement | Player input frozen and object poses recorded. Moving players, prediction queues, correction history, vehicle driver handoff and standing riders across restore remain open. |
 | actors | Authored actors remain in the running engine and identities are sampled. Decisions, targets, controls, death/resurrection and animation recovery require active scenarios and visual checks. |
 | combat | Reproduced stale maximum-vitality override. Damage history, kills, explosive/projectile lifetime, melee, ammo/grenades and duplicate-effect suppression remain open. |
-| presentation | Actual HUD visibility/objective/navigation fields actively changed; objective/navigation fail. Camera, active timer, screen effects, titles, audio loops/absence, seek and rendered animation remain open. |
+| presentation | Actual HUD visibility/objective/navigation fields actively changed; objective/navigation fail. The domain-mutation pass adds visible paused timer/layout restoration. Camera, running timer phase/expiry, screen effects, titles, audio loops/absence, seek and rendered animation remain open. |
 | events | Application-fault control is separate from network loss. Earlier sequence-gap/dependency/event-loss probes remain negative baselines. Every durable event needs explicit reconstructed presence/absence; transient actions need expiry rules. |
 | scripts | Real authored scripts run and the actual save/revert APIs execute. Safe-save eligibility, suspended threads, gathered players, teleports and interrupted script actions remain open. |
 | checkpoint | Successful disk-save callback and two advancing recovery epochs observed. Full-state convergence fails. Ordinary host menu controls, failed save/read, restart, interrupted restore and persistent profile ownership remain open. |
 | scaling | Existing callback owners retained. Consumed enemy/pickup/vehicle budgets, held riders and deleted sources across changed-roster recovery need active checks. |
 | policies | Existing host settings used. Changed live policy versus checkpoint policy, AFK, friendly fire, collision, BSP-majority cooldown and dedicated ownership remain open. |
 | social | No chat/voice/vote/link mutation in this fixture. Permission/session lifetime, in-flight operations and cleanup across recovery remain open; do not replay transient voice as saved state. |
-| mcc | Local MCC campaign uses MCC-owned adapters. Extra grenade slots, names, speed, campaign state and snapshot sidecars need explicit non-default mutations; shared field agreement cannot qualify them. |
+| mcc | Local MCC campaign uses MCC-owned adapters. The domain-mutation pass exercises non-default extra grenade counts, speed and campaign effects/music gains. Names and broader campaign/script/sidecar state remain open; numerical gains are not audio playback qualification. |
 | camera | No camera protocol or policy change. GulchCE third-person activation/shoulder/ownership through recovery and the Crossplay path remain open. |
 | multiplayer | No competitive or local-only implementation changed. Shared reset/replication preservation still requires competitive, solo and local split-screen recovery coverage. |
 | world | Authored device-group value actively restored; positions, power and runtime groups recorded. Door/switch use, runtime groups, broken surfaces, named-object deletion and attachment absence need active checks. |
