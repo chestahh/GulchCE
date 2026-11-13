@@ -1,0 +1,555 @@
+{
+  "date": "2026-11-13",
+  "baseline_source_revision": "887d9ac9d6ac7a647f2cc3fada30c602b1497f82",
+  "investigation_start_revision": "9f4e003747de469ac98f42b9a9ad830f8ebef65f",
+  "m0_signed_off": false,
+  "m1_started": false,
+  "capacity_fixture": {
+    "production_object_limit": 8192,
+    "fixture_sha256": "423b68214dd49da7e91e37ad0c36fcf4e7b8f4ebade693b6209bbb17bbbda817",
+    "cases": [
+      {
+        "capacity": 128,
+        "case": "snapshot-vacant",
+        "repeat": 0,
+        "exit_code": 0,
+        "output": "vacant packets=2 bytes=24\n"
+      },
+      {
+        "capacity": 128,
+        "case": "snapshot-vacant",
+        "repeat": 1,
+        "exit_code": 0,
+        "output": "vacant packets=2 bytes=24\n"
+      },
+      {
+        "capacity": 128,
+        "case": "snapshot-vacant",
+        "repeat": 2,
+        "exit_code": 0,
+        "output": "vacant packets=2 bytes=24\n"
+      },
+      {
+        "capacity": 128,
+        "case": "snapshot-empty",
+        "repeat": 0,
+        "exit_code": 0,
+        "output": "snapshot capacity=16 packets=4 bytes=376 build_ms=0.006800 qpc_frequency=10000000\n"
+      },
+      {
+        "capacity": 128,
+        "case": "snapshot-empty",
+        "repeat": 1,
+        "exit_code": 0,
+        "output": "snapshot capacity=16 packets=4 bytes=376 build_ms=0.006100 qpc_frequency=10000000\n"
+      },
+      {
+        "capacity": 128,
+        "case": "snapshot-empty",
+        "repeat": 2,
+        "exit_code": 0,
+        "output": "snapshot capacity=16 packets=4 bytes=376 build_ms=0.006200 qpc_frequency=10000000\n"
+      },
+      {
+        "capacity": 128,
+        "case": "snapshot-batches",
+        "repeat": 0,
+        "exit_code": 0,
+        "output": "snapshot capacity=128 packets=9 bytes=24480 build_ms=0.015100 qpc_frequency=10000000\n"
+      },
+      {
+        "capacity": 128,
+        "case": "snapshot-batches",
+        "repeat": 1,
+        "exit_code": 0,
+        "output": "snapshot capacity=128 packets=9 bytes=24480 build_ms=0.016800 qpc_frequency=10000000\n"
+      },
+      {
+        "capacity": 128,
+        "case": "snapshot-batches",
+        "repeat": 2,
+        "exit_code": 0,
+        "output": "snapshot capacity=128 packets=9 bytes=24480 build_ms=0.016300 qpc_frequency=10000000\n"
+      },
+      {
+        "capacity": 128,
+        "case": "snapshot-stall-objects",
+        "repeat": 0,
+        "exit_code": 0,
+        "output": "snapshot capacity=16 packets=4 bytes=376 build_ms=0.006300 qpc_frequency=10000000\nstall type=5 ticks=300 recovery_requests=3\n"
+      },
+      {
+        "capacity": 128,
+        "case": "snapshot-stall-objects",
+        "repeat": 1,
+        "exit_code": 0,
+        "output": "snapshot capacity=16 packets=4 bytes=376 build_ms=0.010400 qpc_frequency=10000000\nstall type=5 ticks=300 recovery_requests=3\n"
+      },
+      {
+        "capacity": 128,
+        "case": "snapshot-stall-objects",
+        "repeat": 2,
+        "exit_code": 0,
+        "output": "snapshot capacity=16 packets=4 bytes=376 build_ms=0.008400 qpc_frequency=10000000\nstall type=5 ticks=300 recovery_requests=3\n"
+      },
+      {
+        "capacity": 128,
+        "case": "snapshot-stall-inventories",
+        "repeat": 0,
+        "exit_code": 0,
+        "output": "snapshot capacity=16 packets=4 bytes=376 build_ms=0.008200 qpc_frequency=10000000\nstall type=4 ticks=300 recovery_requests=3\n"
+      },
+      {
+        "capacity": 128,
+        "case": "snapshot-stall-inventories",
+        "repeat": 1,
+        "exit_code": 0,
+        "output": "snapshot capacity=16 packets=4 bytes=376 build_ms=0.006800 qpc_frequency=10000000\nstall type=4 ticks=300 recovery_requests=3\n"
+      },
+      {
+        "capacity": 128,
+        "case": "snapshot-stall-inventories",
+        "repeat": 2,
+        "exit_code": 0,
+        "output": "snapshot capacity=16 packets=4 bytes=376 build_ms=0.006400 qpc_frequency=10000000\nstall type=4 ticks=300 recovery_requests=3\n"
+      },
+      {
+        "capacity": 128,
+        "case": "snapshot-stall-marker",
+        "repeat": 0,
+        "exit_code": 0,
+        "output": "snapshot capacity=16 packets=4 bytes=376 build_ms=0.006700 qpc_frequency=10000000\nstall type=8 ticks=300 recovery_requests=3\n"
+      },
+      {
+        "capacity": 128,
+        "case": "snapshot-stall-marker",
+        "repeat": 1,
+        "exit_code": 0,
+        "output": "snapshot capacity=16 packets=4 bytes=376 build_ms=0.006900 qpc_frequency=10000000\nstall type=8 ticks=300 recovery_requests=3\n"
+      },
+      {
+        "capacity": 128,
+        "case": "snapshot-stall-marker",
+        "repeat": 2,
+        "exit_code": 0,
+        "output": "snapshot capacity=16 packets=4 bytes=376 build_ms=0.006200 qpc_frequency=10000000\nstall type=8 ticks=300 recovery_requests=3\n"
+      },
+      {
+        "capacity": 8191,
+        "case": "snapshot-vacant",
+        "repeat": 0,
+        "exit_code": 0,
+        "output": "vacant packets=2 bytes=24\n"
+      },
+      {
+        "capacity": 8191,
+        "case": "snapshot-vacant",
+        "repeat": 1,
+        "exit_code": 0,
+        "output": "vacant packets=2 bytes=24\n"
+      },
+      {
+        "capacity": 8191,
+        "case": "snapshot-vacant",
+        "repeat": 2,
+        "exit_code": 0,
+        "output": "vacant packets=2 bytes=24\n"
+      },
+      {
+        "capacity": 8191,
+        "case": "snapshot-empty",
+        "repeat": 0,
+        "exit_code": 0,
+        "output": "snapshot capacity=16 packets=4 bytes=376 build_ms=0.007100 qpc_frequency=10000000\n"
+      },
+      {
+        "capacity": 8191,
+        "case": "snapshot-empty",
+        "repeat": 1,
+        "exit_code": 0,
+        "output": "snapshot capacity=16 packets=4 bytes=376 build_ms=0.008400 qpc_frequency=10000000\n"
+      },
+      {
+        "capacity": 8191,
+        "case": "snapshot-empty",
+        "repeat": 2,
+        "exit_code": 0,
+        "output": "snapshot capacity=16 packets=4 bytes=376 build_ms=0.009600 qpc_frequency=10000000\n"
+      },
+      {
+        "capacity": 8191,
+        "case": "snapshot-batches",
+        "repeat": 0,
+        "exit_code": 0,
+        "output": "snapshot capacity=8191 packets=405 bytes=1609580 build_ms=0.688000 qpc_frequency=10000000\n"
+      },
+      {
+        "capacity": 8191,
+        "case": "snapshot-batches",
+        "repeat": 1,
+        "exit_code": 0,
+        "output": "snapshot capacity=8191 packets=405 bytes=1609580 build_ms=0.690000 qpc_frequency=10000000\n"
+      },
+      {
+        "capacity": 8191,
+        "case": "snapshot-batches",
+        "repeat": 2,
+        "exit_code": 0,
+        "output": "snapshot capacity=8191 packets=405 bytes=1609580 build_ms=0.791500 qpc_frequency=10000000\n"
+      },
+      {
+        "capacity": 8191,
+        "case": "snapshot-stall-objects",
+        "repeat": 0,
+        "exit_code": 0,
+        "output": "snapshot capacity=16 packets=4 bytes=376 build_ms=0.007300 qpc_frequency=10000000\nstall type=5 ticks=300 recovery_requests=3\n"
+      },
+      {
+        "capacity": 8191,
+        "case": "snapshot-stall-objects",
+        "repeat": 1,
+        "exit_code": 0,
+        "output": "snapshot capacity=16 packets=4 bytes=376 build_ms=0.007400 qpc_frequency=10000000\nstall type=5 ticks=300 recovery_requests=3\n"
+      },
+      {
+        "capacity": 8191,
+        "case": "snapshot-stall-objects",
+        "repeat": 2,
+        "exit_code": 0,
+        "output": "snapshot capacity=16 packets=4 bytes=376 build_ms=0.010100 qpc_frequency=10000000\nstall type=5 ticks=300 recovery_requests=3\n"
+      },
+      {
+        "capacity": 8191,
+        "case": "snapshot-stall-inventories",
+        "repeat": 0,
+        "exit_code": 0,
+        "output": "snapshot capacity=16 packets=4 bytes=376 build_ms=0.007600 qpc_frequency=10000000\nstall type=4 ticks=300 recovery_requests=3\n"
+      },
+      {
+        "capacity": 8191,
+        "case": "snapshot-stall-inventories",
+        "repeat": 1,
+        "exit_code": 0,
+        "output": "snapshot capacity=16 packets=4 bytes=376 build_ms=0.007100 qpc_frequency=10000000\nstall type=4 ticks=300 recovery_requests=3\n"
+      },
+      {
+        "capacity": 8191,
+        "case": "snapshot-stall-inventories",
+        "repeat": 2,
+        "exit_code": 0,
+        "output": "snapshot capacity=16 packets=4 bytes=376 build_ms=0.008500 qpc_frequency=10000000\nstall type=4 ticks=300 recovery_requests=3\n"
+      },
+      {
+        "capacity": 8191,
+        "case": "snapshot-stall-marker",
+        "repeat": 0,
+        "exit_code": 0,
+        "output": "snapshot capacity=16 packets=4 bytes=376 build_ms=0.007200 qpc_frequency=10000000\nstall type=8 ticks=300 recovery_requests=3\n"
+      },
+      {
+        "capacity": 8191,
+        "case": "snapshot-stall-marker",
+        "repeat": 1,
+        "exit_code": 0,
+        "output": "snapshot capacity=16 packets=4 bytes=376 build_ms=0.008000 qpc_frequency=10000000\nstall type=8 ticks=300 recovery_requests=3\n"
+      },
+      {
+        "capacity": 8191,
+        "case": "snapshot-stall-marker",
+        "repeat": 2,
+        "exit_code": 0,
+        "output": "snapshot capacity=16 packets=4 bytes=376 build_ms=0.008200 qpc_frequency=10000000\nstall type=8 ticks=300 recovery_requests=3\n"
+      },
+      {
+        "capacity": 8192,
+        "case": "snapshot-vacant",
+        "repeat": 0,
+        "exit_code": 0,
+        "output": "vacant packets=2 bytes=24\n"
+      },
+      {
+        "capacity": 8192,
+        "case": "snapshot-vacant",
+        "repeat": 1,
+        "exit_code": 0,
+        "output": "vacant packets=2 bytes=24\n"
+      },
+      {
+        "capacity": 8192,
+        "case": "snapshot-vacant",
+        "repeat": 2,
+        "exit_code": 0,
+        "output": "vacant packets=2 bytes=24\n"
+      },
+      {
+        "capacity": 8192,
+        "case": "snapshot-empty",
+        "repeat": 0,
+        "exit_code": 0,
+        "output": "snapshot capacity=16 packets=4 bytes=376 build_ms=0.007500 qpc_frequency=10000000\n"
+      },
+      {
+        "capacity": 8192,
+        "case": "snapshot-empty",
+        "repeat": 1,
+        "exit_code": 0,
+        "output": "snapshot capacity=16 packets=4 bytes=376 build_ms=0.008500 qpc_frequency=10000000\n"
+      },
+      {
+        "capacity": 8192,
+        "case": "snapshot-empty",
+        "repeat": 2,
+        "exit_code": 0,
+        "output": "snapshot capacity=16 packets=4 bytes=376 build_ms=0.006700 qpc_frequency=10000000\n"
+      },
+      {
+        "capacity": 8192,
+        "case": "snapshot-batches",
+        "repeat": 0,
+        "exit_code": 0,
+        "output": "snapshot capacity=8192 packets=405 bytes=1609776 build_ms=0.691400 qpc_frequency=10000000\n"
+      },
+      {
+        "capacity": 8192,
+        "case": "snapshot-batches",
+        "repeat": 1,
+        "exit_code": 0,
+        "output": "snapshot capacity=8192 packets=405 bytes=1609776 build_ms=0.770800 qpc_frequency=10000000\n"
+      },
+      {
+        "capacity": 8192,
+        "case": "snapshot-batches",
+        "repeat": 2,
+        "exit_code": 0,
+        "output": "snapshot capacity=8192 packets=405 bytes=1609776 build_ms=0.742400 qpc_frequency=10000000\n"
+      },
+      {
+        "capacity": 8192,
+        "case": "snapshot-stall-objects",
+        "repeat": 0,
+        "exit_code": 0,
+        "output": "snapshot capacity=16 packets=4 bytes=376 build_ms=0.007100 qpc_frequency=10000000\nstall type=5 ticks=300 recovery_requests=3\n"
+      },
+      {
+        "capacity": 8192,
+        "case": "snapshot-stall-objects",
+        "repeat": 1,
+        "exit_code": 0,
+        "output": "snapshot capacity=16 packets=4 bytes=376 build_ms=0.007100 qpc_frequency=10000000\nstall type=5 ticks=300 recovery_requests=3\n"
+      },
+      {
+        "capacity": 8192,
+        "case": "snapshot-stall-objects",
+        "repeat": 2,
+        "exit_code": 0,
+        "output": "snapshot capacity=16 packets=4 bytes=376 build_ms=0.007800 qpc_frequency=10000000\nstall type=5 ticks=300 recovery_requests=3\n"
+      },
+      {
+        "capacity": 8192,
+        "case": "snapshot-stall-inventories",
+        "repeat": 0,
+        "exit_code": 0,
+        "output": "snapshot capacity=16 packets=4 bytes=376 build_ms=0.007800 qpc_frequency=10000000\nstall type=4 ticks=300 recovery_requests=3\n"
+      },
+      {
+        "capacity": 8192,
+        "case": "snapshot-stall-inventories",
+        "repeat": 1,
+        "exit_code": 0,
+        "output": "snapshot capacity=16 packets=4 bytes=376 build_ms=0.006800 qpc_frequency=10000000\nstall type=4 ticks=300 recovery_requests=3\n"
+      },
+      {
+        "capacity": 8192,
+        "case": "snapshot-stall-inventories",
+        "repeat": 2,
+        "exit_code": 0,
+        "output": "snapshot capacity=16 packets=4 bytes=376 build_ms=0.007500 qpc_frequency=10000000\nstall type=4 ticks=300 recovery_requests=3\n"
+      },
+      {
+        "capacity": 8192,
+        "case": "snapshot-stall-marker",
+        "repeat": 0,
+        "exit_code": 0,
+        "output": "snapshot capacity=16 packets=4 bytes=376 build_ms=0.010800 qpc_frequency=10000000\nstall type=8 ticks=300 recovery_requests=3\n"
+      },
+      {
+        "capacity": 8192,
+        "case": "snapshot-stall-marker",
+        "repeat": 1,
+        "exit_code": 0,
+        "output": "snapshot capacity=16 packets=4 bytes=376 build_ms=0.007400 qpc_frequency=10000000\nstall type=8 ticks=300 recovery_requests=3\n"
+      },
+      {
+        "capacity": 8192,
+        "case": "snapshot-stall-marker",
+        "repeat": 2,
+        "exit_code": 0,
+        "output": "snapshot capacity=16 packets=4 bytes=376 build_ms=0.015400 qpc_frequency=10000000\nstall type=8 ticks=300 recovery_requests=3\n"
+      }
+    ]
+  },
+  "capacity_limits": "Real production functions in the existing simplified checkpoint fixture; no engine-load or socket timing claim.",
+  "checkpoint_regression_tests": {
+    "passed": 52
+  },
+  "baseline_observations": [
+    {
+      "sessions": [
+        "menu-progression",
+        "menu-progression-cancel"
+      ],
+      "host_route": "ordinary Multiplayer/Create Game/Local Network/Singleplayer/A30 menus",
+      "completion_trigger": "(game_won)",
+      "result": "wrong A10 Normal completion bit; A50 selected/precached but host postgame UI opens multiplayer map selection; cancellation tears down session",
+      "completion_bytes_hex": "02000000000000000000",
+      "limitations": [
+        "not natural completion",
+        "client has no selected active profile",
+        "no next-round gameplay"
+      ]
+    },
+    {
+      "sessions": [
+        "menu-pause-reload"
+      ],
+      "result": "fresh process loaded copied resulting profile and selected/played A30; incorrect completion bytes persisted",
+      "pause_menu_qualified": false
+    },
+    {
+      "sessions": [
+        "family-transitions"
+      ],
+      "result": "Xbox A30 -> CE B30 -> MCC A10 -> Xbox A30 short rendered loads, then missing map and later command crashed",
+      "full_family_compatibility_qualified": false
+    },
+    {
+      "sessions": [
+        "failed-load-control"
+      ],
+      "result": "unchanged normal Xbox-only build reproduces failed-load console crash",
+      "exit_code": 3221225477
+    },
+    {
+      "sessions": [
+        "host-pause",
+        "menu-pause-reload"
+      ],
+      "result": "pause-menu probes inconclusive; no runtime Restart/Revert qualification"
+    }
+  ],
+  "focused_fix": {
+    "owner": "source/hs/hs_compile.c:hs_compile_expression",
+    "behavior": "Refuse compilation when the map syntax allocator is null or invalid, before acquiring console source storage.",
+    "protocol_change": false,
+    "pre_fix_regression": {
+      "failed": 4,
+      "cases": "null/invalid syntax storage in native/MCC fixtures"
+    },
+    "post_fix_regression": {
+      "passed": 115
+    },
+    "runtime": [
+      {
+        "session": "failed-load-fixed",
+        "binary_sha256": "3bd886211ff2152c5deb21b8715744ea2da9a0d251c73c06a7b259c7db2a2c5c",
+        "exit_before_cleanup": null,
+        "result": "live commands work; commands after fatal load return diagnostic; process remains alive until fixture cleanup"
+      },
+      {
+        "session": "family-fixed",
+        "binary_sha256": "3bd886211ff2152c5deb21b8715744ea2da9a0d251c73c06a7b259c7db2a2c5c",
+        "exit_before_cleanup": null,
+        "result": "live commands work; commands after fatal load return diagnostic; process remains alive until fixture cleanup"
+      }
+    ],
+    "builds": {
+      "windows": "passed",
+      "web": "passed",
+      "android": "blocked before changed source by Windows shell/CMake handling; guest-object attempt also stopped at POSIX header commands"
+    },
+    "limits": [
+      "fatal map-load error still requires restarting the game",
+      "no co-op progression or recovery rewrite",
+      "Linux and Android runtime blocked: no runner/device"
+    ],
+    "supplementary_network_checks": [
+      {
+        "session": "fixed-two-peer",
+        "comparison": {
+          "divergences": [],
+          "problems": [
+            "the host logged no game (C:\\Users\\matty\\.codex\\worktrees\\coop-rewrite-feasibility\\GulchCE\\build\\m0\\local\\fixed-two-peer\\host\\halo.log)",
+            "the client logged no game (C:\\Users\\matty\\.codex\\worktrees\\coop-rewrite-feasibility\\GulchCE\\build\\m0\\local\\fixed-two-peer\\client\\halo.log)"
+          ],
+          "early_exits": {
+            "host": null,
+            "client": null
+          }
+        }
+      },
+      {
+        "session": "control-two-peer",
+        "comparison": {
+          "divergences": [],
+          "problems": [],
+          "figures": {
+            "seconds": 19,
+            "position_max": 0.0,
+            "position_sum": 0.0,
+            "position_count": 19,
+            "aim_max": 0.0,
+            "mismatches": {},
+            "tick_offsets": [
+              -2,
+              0
+            ]
+          },
+          "drift": {
+            "samples": 551,
+            "apart": 0,
+            "mean": 0.0,
+            "largest": 0.0
+          },
+          "client_corrections": 0,
+          "early_exits": {
+            "host": null,
+            "client": null
+          }
+        }
+      },
+      {
+        "session": "fixed-two-peer-retry",
+        "comparison": {
+          "divergences": [],
+          "problems": [],
+          "figures": {
+            "seconds": 20,
+            "position_max": 0.0,
+            "position_sum": 0.0,
+            "position_count": 20,
+            "aim_max": 0.0,
+            "mismatches": {},
+            "tick_offsets": [
+              -1,
+              0
+            ]
+          },
+          "drift": {
+            "samples": 577,
+            "apart": 0,
+            "mean": 0.0,
+            "largest": 0.0
+          },
+          "client_corrections": 0,
+          "early_exits": {
+            "host": null,
+            "client": null
+          }
+        }
+      }
+    ],
+    "commit": "03913a39e668f0f6a2628d4dcf5e786e1b9d316d",
+    "source_sha256": "e6ebf0b22a8931077717b799a55b6a4a80b0cacdbd320e6c7f558bba6992e13b"
+  },
+  "local_evidence_root": "build/m0/local"
+}

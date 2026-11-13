@@ -80,6 +80,34 @@ def instrument(path, text):
                         f'\tm0_socket("{kind}", socket, result, {address});\n\treturn result;')
         return text
     if name == 'network_test':
+        text = once(text, '#include "interface/player_ui.h"',
+                    '#include "interface/player_ui.h"\n#include "interface/event_manager.h"\n#include "input/input.h"')
+        # UI tests enqueue ordinary controller events, without calling menu
+        # actions directly or changing selection/state behind the menu.
+        old = '\tif (!network_test.checked)\n\t\tnetwork_test_read_settings();'
+        text = once(text, old, '''\t{
+\t\tchar const *path = getenv("M0_UI_INPUT");
+\t\tstatic long previous;
+\t\tif (path && path[0])
+\t\t{
+\t\t\tFILE *input = fopen(path, "r");
+\t\t\tlong sequence;
+\t\t\tshort controller, button;
+\t\t\tif (input)
+\t\t\t{
+\t\t\t\tif (fscanf(input, "%ld %hd %hd", &sequence, &controller, &button) == 3 &&
+\t\t\t\t\tsequence > previous && controller >= 0 && controller < MAXIMUM_GAMEPADS &&
+\t\t\t\t\tbutton >= 0 && button < NUMBER_OF_GAMEPAD_BUTTONS)
+\t\t\t\t{
+\t\t\t\t\tprevious = sequence;
+\t\t\t\t\tevent_manager_post_button(controller, button);
+\t\t\t\t\tplatform_log("M0 UI: event %ld controller %d button %d", sequence, controller, button);
+\t\t\t\t}
+\t\t\t\tfclose(input);
+\t\t\t}
+\t\t}
+\t}
+''' + old)
         # Fixture setup uses the same public profile API as the normal menu.
         # The optional second start presses the existing start operation once;
         # it never chooses a map, changes a variant or repairs session state.
