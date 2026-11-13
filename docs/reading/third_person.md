@@ -2,7 +2,9 @@
 
 The optional on-foot shoulder camera defaults to off. Enable it under Video
 Setup > FOV And Viewmodels; Shoulder Camera sets distance, height, lateral
-offset and smoothing. Controls Setup > Camera rebinds N (perspective), B
+offset and smoothing. GulchCE's Modern frontend presents the same controls
+under Video > Third Person, including Smooth Crosshair and Crosshair Size.
+Controls Setup > Camera rebinds N (perspective), B
 (shoulder), held Left Alt (free look), Alt+wheel (distance), either Shift+wheel
 (height), and held Caps Lock+wheel (lateral position). Caps Lock uses the
 physical held state, not its typing toggle. Distance takes precedence over
