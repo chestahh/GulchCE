@@ -1,8 +1,8 @@
-"""Admission, framing and the audited differences from OpenCE 41.
+"""OpenCE 44 keeps the complete OpenCE 43 wire layout; sharing admission changes.
 
-The AGPL-3.0-or-later baseline fixture comes unchanged from OpenCommunityEdition/OpenCE
-c507cb26b6ea7e89c7669fb7c911e27b80d5d779, port/linux/network_format.txt.
-Keep this historical fixture unchanged. This branch includes the complete OpenCE protocol-44 agreement; older versions are refused.
+The unchanged AGPL-3.0-or-later protocol-43 fixture comes from
+OpenCommunityEdition/OpenCE 315285c6d, port/linux/network_format.txt.
+The real admission and framing handlers below retain their rejection checks.
 """
 from pathlib import Path
 import re
@@ -15,34 +15,13 @@ import network_format
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def test_audited_changes_from_opence_41_contract():
-    lines = (ROOT / "tools/fixtures/opence_network_41.txt").read_text().splitlines()
-    assert lines[0] == "version 41"
+def test_network_44_preserves_opence_43_layouts():
+    lines = (ROOT / "tools/fixtures/opence_network_43.txt").read_text().splitlines()
+    assert lines[0] == "version 43"
     expected = {f"{kind} {name}": value for kind, name, value in
                 (line.split(" ", 2) for line in lines[1:])}
-    actual = network_format.items()
-    # MCC appends two digests after the complete upstream settings prefix.
-    # Compare the upstream size separately rather than accepting a fork size.
-    assert actual["layout HALO_PORT_NETWORK_GAME_SIZE"] == "(HALO_PORT_NETWORK_GAME_PLAYERS_END + 0x3A + 64) /* MCC content and metadata SHA-256 */"
-    actual["layout HALO_PORT_NETWORK_GAME_SIZE"] = "(HALO_PORT_NETWORK_GAME_PLAYERS_END + 0x3A)"
-    # Join agreement, world epoch and the optional host scripted pose extend
-    # existing upstream wire items. New kinds are checked separately.
-    changed = {
-        "fields client_join_game_request": "d7dd965724e6",
-        "size message_client_join_game_request": "0x70 + 170 + 64 + 2",
-        "struct distributed_message_header": "5bc35a4ad92a",
-        "bound DISTRIBUTED_UNIT_STATE_MAXIMUM_SIZE": "3 + 4 + (4 + 2) + (12 + 3 * 6) + 2 + 2 * 2 + 4 * 2 + 2 * NUMBER_OF_PLAYER_POWERUPS + 2 + 1 + NUMBER_OF_DISTRIBUTED_POSE_VECTORS * 6",
-    }
-    assert {key: actual.get(key) for key in expected if actual.get(key) != expected[key]} == changed
-    limits = (ROOT / "port/linux/include/halo_port_limits.h").read_text()
-    assert re.search(r"#define HALO_PORT_NETWORK_VERSION 44\b", limits)
-    # All fields of the transmitted prefix match upstream, including names,
-    # types and order. The Windows build also asserts the actual ABI offsets.
-    header = (ROOT / "source/networking/network_game_manager.h").read_text()
-    header = re.sub(r"/\*.*?\*/|//[^\n]*", " ", header, flags=re.S)
-    block = next(network_format._blocks(header, r"^struct network_game\s*\{"))
-    block = re.sub(r"\s*byte mcc_(?:content|metadata)_sha256\[32\];", "", block)
-    assert network_format._hash(block) == 'd0025984b339'
+    assert network_format.items() == expected
+    assert network_format.version() == 44
 
 
 def test_shared_version_does_not_bypass_host_admission(tmp_path):

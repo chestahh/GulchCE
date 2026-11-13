@@ -1,5 +1,31 @@
 # MCC upstream extraction and validation
 
+## OpenCE parity update, 13 November 2026
+
+GET-YOUR-MCC-HERE now merges OpenCE main `315285c6d` and the complete
+PR #658 integration at `94c6a3884`, retaining both upstream histories.
+MCC production modules match that PR tip. The complete preceding shared-engine
+network changes are included; all map families use OpenCE protocol **44**.
+This is compatible with OpenCE's protocol-44 MCC integration, not builds still
+advertising protocol 43. See [NETCODE](../port/linux/NETCODE.md) for the agreement.
+
+The branch retains its additional MCC regression suite and automatic-test
+startup/sampling controls. Xbox `maps`, CE `custom_maps`, MCC `mcc_maps`,
+authoritative package resources and feature cleanup remain separate.
+Upstream's failed checkpoint capture preserves the previous complete save;
+retained tests check its image and player membership rather than invalidating it.
+
+Local Windows and Web release builds passed. Hidden Windows cross-build runs
+against PR #658 reached client tick 300 on MCC Lava Lab, MCC A10 co-op and
+Xbox Blood Gulch in both host directions. A separate Custom Edition Ice Fields
+run reached tick 300. These establish bounded LAN joining and map transitions,
+not a full campaign, Android-device testing or public-internet play.
+
+The record below describes the original extraction and its historical limits;
+its older protocol and feature inventory are not the current branch agreement.
+
+## Original extraction
+
 This branch is reconstructed from the completed refactor snapshot listed below,
 on OpenCE main `fc9deb0b10eaae1d62caedb0710968b4e77e6e16`.
 The exact source snapshot is `3d26678bf837335fb66a225c9c2fe1ad8626409c`.

@@ -2,12 +2,13 @@
 
 MCC map support is locked in at 1.0 and completed. The final refactor is done and we now have full support across desktop, mobile devices and even web browsers.
 
-For fork maintainers, the branch you'd want to fork the code from for yourself is under the aptly-named **GET-YOUR-MCC-HERE** branch (YOU ARE HERE!). It's based against OpenCE's main branch and due to the new networking messages for MCC-specific netcode, the version protocol sits at 42.
+For fork maintainers, the branch you'd want to fork the code from for yourself is under the aptly-named **GET-YOUR-MCC-HERE** branch (YOU ARE HERE!). It's based against OpenCE's main branch and due to the new networking messages for MCC-specific netcode, the network protocol is now **44**, matching OpenCE with PR #658.
 
 ## What about crossplay on my fork?!
-OpenCE will remain at 41 until the upstream merge is completed, so if you play early adopter but want to keep crossplay, you may need to add a temporary network guard to the MCC-specific netcode. 
-
-This functionality is already present on the **mcc-code-refactor** branch, so you can fork the network guards from this as well. You would need to make sure to remove said guards and sync the MCC-specific netcode back into OpenCE's network protocol once it's merged upstream.
+This branch now includes OpenCE main and its latest MCC integration from PR #658.
+Forks using the same protocol-44 agreement can join one another. Update the
+complete integration rather than changing only the version number; OpenCE
+builds still using protocol 43 cannot join protocol-44 games.
 
 ## Do you support every MCC map?
 There are some known issues with the map support at the moment, such as unsupported scripts that haven't been reverse-engineered yet. MCC map support does not support skulls or maps that require skulls as part of their scripting, for example.

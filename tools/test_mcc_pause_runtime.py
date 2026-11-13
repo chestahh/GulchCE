@@ -62,6 +62,7 @@ union point2d {struct {short x,y;} point;long value;};
 #define FALSE 0
 #define NONE (-1)
 #define NUMBEROF(a) (sizeof(a)/sizeof(*(a)))
+#define MAX(a,b) ((a)>(b)?(a):(b))
 #include "mcc_pause.h"
 #include "mcc_ui.h"
 #include "mcc_pause_runtime.h"

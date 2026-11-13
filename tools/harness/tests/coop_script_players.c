@@ -108,6 +108,8 @@ static void unit_scripting_exit_vehicle(long unit)
 {
 	calls[player_index_from_unit_index(unit)]++;
 }
+/* Keep the fixture helper separate from the Windows CRT declaration. */
+#define strlwr fixture_strlwr
 static char *strlwr(char *p)
 {
 	char *s = p;
