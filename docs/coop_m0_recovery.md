@@ -183,6 +183,17 @@ Known failures are useful M0 baselines and are not authorization to repair
 them. The complete persistent-state oracle and full M0 exit gate remain open.
 M1 is unstarted and nothing is published.
 
+The [reported A50 BSP/grav-lift and A10/C10 door softlocks](coop_rewrite_plan.md#reported-bsp-transitions-and-scripted-door-softlocks)
+add explicit pending cases across movement, world, scripts, policies and
+checkpoint recovery. The reports concern ordinary progression too; no common
+cause or recovery-specific cause has been established. Checkpoint tests must
+respect the saved door/BSP state and subsequent authored progression, while
+ordinary transition tests must establish actual traversal for every player.
+No local reproduction or successful validation of these reports is claimed.
+Any later fix must address the underlying co-op/engine behavior for all maps
+using the affected semantics. These map names identify regression cases only;
+map-specific overrides and bypassing authored progression are excluded.
+
 ## Reproduction and review
 
 Generate with `python tools/investigations/coop_m0_recovery.py`; configure the

@@ -232,6 +232,56 @@ record real-engine snapshot saturation and local numeric targets. Their
 explicit platform, active-workload and complete-state limitations keep the
 full M0 gate open. They do not authorize M1 or change the capacity contracts.
 
+#### Reported BSP transitions and scripted-door softlocks
+
+Added 14 November 2026 as explicit campaign-blocking scenarios within the
+existing full-system milestones. These are user-reported symptoms, not locally
+reproduced findings or established root causes. BSP means the loaded section
+of a level's world geometry. The affected build, map family, exact door/script
+identities and failure frequency must be recorded during M0; do not assume
+the reports apply identically to Xbox, CE and MCC.
+
+| Scenario | Reported failure | Milestone ownership and required outcome |
+| --- | --- | --- |
+| BSP-A50 | A50's grav-lift sequence teleports players into the void instead of inside the ship. The user also reports this with `bsp_switch`; exercise that trigger separately from the authored sequence. | M0 records both routes and per-peer transition order. M4/M6 require the intended destination BSP, collision and player placement to be usable together before play resumes. M5 repeats recovery around the transition; M10/M11 require every participating player to reach the ship and continue the authored mission. |
+| DOOR-A10 | A scripted door intermittently remains closed for some clients when it should open, blocking their mission progress. | M0 identifies the door, triggering script and affected peers. M4 requires authoritative device/group state and the resulting door position, collision and traversability to converge. M5 checks saved/restored door state; M10/M11 require all players to pass the door and trigger subsequent progression. |
+| DOOR-C10 | A scripted door intermittently remains closed for some clients when it should open, blocking their mission progress. | Retain a separate reproduction and result from A10. Apply the same M0, M4, M5 and M10/M11 gates without presuming the same cause. |
+
+Prioritize these in the next active-world M0 pass alongside movement, vehicles,
+AI and combat. Observe ordinary progression first, then checkpoint/restart and
+join timing; these reports are not restricted to checkpoint recovery. Capture
+host/client BSP identity and readiness, player transforms and collision,
+script progress, device identity/group target and actual state, and relevant
+message ordering. Check the visible result and actual traversal as well as
+replicated values: an open flag alone does not establish a pass.
+
+Use repeated controlled trials because the door reports are intermittent.
+Record successes and failures with exact builds/content, trigger, roster,
+role assignment, timing/network profile, seed where controllable, and the
+observation window. Include staggered player arrival, supported host/client
+role swaps and delayed delivery; retain clean-network controls. One successful
+run or failure to reproduce does not close a reported softlock. Distinguish
+host script failure from a client that received or applied incomplete world
+state; BSP/teleport ordering and device delivery remain hypotheses until traced.
+
+M0 completion for these cases means a reproducible baseline or an explicitly
+unconfirmed report with attempted routes and missing evidence recorded. Later
+behavioral gates require no stranded players or progression softlock in the
+declared matrix, including the existing repeated-transition qualification.
+Fix the underlying network co-op or engine contract for the affected class of
+transitions and device/script state, so every map using the same semantics
+benefits. This is a requirement, not a preference for these failures. A50, A10
+and C10 are regression fixtures only: no map-name, checksum, tag-path or asset
+fingerprint selectors, per-map teleports/door overrides, or original-map edits.
+Do not force doors open or bypass authored progression to hide the failure.
+Select the responsible co-op/engine owner from evidence while preserving the
+Xbox/CE/MCC isolation rules; a general fix does not mean merging their paths.
+Equivalent valid inputs under unrelated map names/checksums must receive the
+same correction, with unaffected BSP transitions and legitimately closed doors
+as counterexamples. Missing content or test setups remain explicit gaps. Linux
+and Android runtime remain blocked without a runner and device/emulator.
+These additions neither reduce the 19-domain scope nor authorize M1 or fixes.
+
 ### M1 — Refactor only what the replacement needs
 
 **Work:** In co-op-owned port code, introduce narrow interfaces for state
@@ -319,6 +369,9 @@ overflow failures have desired-behavior regressions that pass and meaningful
 negative controls where appropriate. Devices, names and attachment graphs match
 host authority after recovery. Equivalent authored semantics work under unrelated
 map names/checksums. Xbox/CE paths and MCC-specific semantics remain isolated.
+The [reported A10/C10 doors and A50 transition](#reported-bsp-transitions-and-scripted-door-softlocks)
+are explicit cases: verify usable geometry and actual door traversal, not only
+matching state values or successful event receipt.
 
 **Evidence:** Completed script-effect ledger, state/removal tests and scenarios
 covering device use, scripted creation/deletion and checkpoint-sensitive state.
@@ -370,6 +423,11 @@ mid-cutscene, BSP change, late join, disconnect and repeated requests.
 Run at least 20 successive revert/restart operations in the qualification
 scenario, including two reverts requested at the same simulation tick.
 No stale effects/hits/input, stranded clients, roster loss or save corruption.
+Include saves before and after the reported A50 transition and A10/C10 door
+changes, plus recovery interrupted during those operations; stale actions must
+not move players into an unloaded BSP or apply door state from the wrong
+checkpoint/transition. A door legitimately closed in the restored checkpoint
+must retain that state until the authored opening condition is satisfied.
 Visual confirmation and errors work at native resolution and split-screen sizes.
 
 **Evidence:** Operation state/transition traces, save-integrity checks, UI
@@ -394,6 +452,9 @@ profiles below, with bounded correction distributions, no accumulated speed/
 position exploitation and no repeated one-shot input. Vehicle/floor transitions
 survive latency and checkpoint/restart. Simulation checks and required host/client
 swaps pass; multiplayer and disabled-path behavior are preserved.
+Exercise the reported A50 grav-lift and `bsp_switch` routes separately: every
+player reaches a valid intended destination with usable collision, and stale
+prediction/correction cannot pull them back into the old BSP or into the void.
 
 **Evidence:** Per-tick trajectories and authoritative correction histories,
 moving-platform/vehicle scenarios, input abuse tests and native/browser play.
@@ -483,6 +544,9 @@ distinguished from failure. Missing next content has an actionable result.
 Run Xbox → CE → MCC → Xbox transitions, failed loads and repeated teardown.
 Verify public/private and passworded-host policies and local/split-screen
 behavior. No untracked legacy owner remains in the experimental co-op path.
+The reported A50 grav-lift/`bsp_switch` and A10/C10 door cases must demonstrate
+continued mission progress for every participating player. A host reaching
+the next objective while a client remains stranded is a failed integration gate.
 
 **Evidence:** End-to-end session/progression matrix, settings/feature parity
 ledger, failure diagnostics and cumulative recovery results.

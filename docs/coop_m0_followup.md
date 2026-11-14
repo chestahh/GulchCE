@@ -353,6 +353,13 @@ evidence are retained under `build/m0/local`.
 
 ## Remaining exit gate
 
+The next active-world pass explicitly includes the
+[reported A50 BSP/grav-lift and A10/C10 scripted-door softlocks](coop_rewrite_plan.md#reported-bsp-transitions-and-scripted-door-softlocks).
+These user reports remain unconfirmed locally. Baseline ordinary progression
+and actual per-client traversal as well as checkpoint recovery, with repeated
+trials for the intermittent doors. They are named cases within the full-system
+scope, not replacements for movement, vehicles, AI, combat or the other domains.
+
 The [subsequent readiness, transport and roster checks](coop_m0_readiness_transport.md)
 add reproducible incomplete-state baselines and a real native-loopback reliable
 stream fault fixture. They do not waive the full-system gate.
