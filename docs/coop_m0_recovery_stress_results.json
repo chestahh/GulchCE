@@ -1,0 +1,4517 @@
+{
+  "date": "2026-11-14",
+  "source_revision": "8b33d7349e21b506acf21742e337e0ceaaee9335",
+  "configuration": "Windows release portable PGO-off LTO-off; generated-only control/stress",
+  "status": "M0 open; full 19-domain scope retained; no M1 or publication",
+  "platforms": {
+    "Windows": "hidden native loopback, null renderer, audio disabled",
+    "Linux_runtime": "blocked: no runner",
+    "Android_runtime": "blocked: no device/emulator",
+    "Android_build": "earlier Windows shell/CMake blocker separate",
+    "browser_public_internet": "not qualified by native dispatch replay"
+  },
+  "binary_sha256": "02bdba41c5caccdfe3c43bef05cfc5c68f47827babcbcbdf29a3fd9a49557041",
+  "generated_files": {
+    "port/windows/src/win32_net.c": {
+      "source_sha256": "3b5f5441175b72ddb778009beeb327d1c89775c74e0ca49c4c00f3eb4d48e76c",
+      "copy_sha256": "5498a3582028ec55990b9a90584a04f6ffd4a885f802d3bdd99076054461eef9"
+    },
+    "port/linux/game/network_objects.c": {
+      "source_sha256": "4892f109c784213c56e61f2b75b9b07b9d65c9d3500f3d7a14889f28025ee552",
+      "copy_sha256": "c74a9b722760c4f724e80f8352451a918e4060d421f4596340fec244f26fc747"
+    },
+    "port/linux/game/network_distributed.c": {
+      "source_sha256": "11bf034c6ce01014073a1efe305a47bc9f7d69059d233fec42837f3ea7f80c8a",
+      "copy_sha256": "db104653daa57d8b1d75ea3a103ea01f20377dbeed8a46500969d3942d4aa0d1"
+    },
+    "port/linux/game/network_coop.c": {
+      "source_sha256": "a19a999cd8866307d6ea69c6e32b86d4454bd4d39f5bf66267f63a74bf0266e3",
+      "copy_sha256": "436b588f521fbe973d74a1702f2614ab131b9b5b5bd687ffab06c2babb4f7167"
+    },
+    "port/linux/game/network_test.c": {
+      "source_sha256": "d97c0f5569c0db474d9719d587e3956bec57b586567c04bcbb21e38011cadf4d",
+      "copy_sha256": "a1f67863b4b9e905459cfed18d9eb8bb87211fe62dfae8d1705e8e8baea88f5c"
+    },
+    "source/interface/hud_messaging.c": {
+      "source_sha256": "7d3ad62a2d766c2315556fb46730a72b8f5d6b6c73058ac52ccaced812712973",
+      "copy_sha256": "be29d8486bc0cf63826bdb0d2532e1e7cc2e10383bc69c63a5deea99e505a1ec"
+    },
+    "source/interface/hud_nav_points.c": {
+      "source_sha256": "6fa800eb47b1a0cad318754392f89a2b6c68b69b084061d4c7ff2cc44434cf13",
+      "copy_sha256": "d2bdcb9821aff1f57aac09987fe2d6169c11ba9fa1f3e9d004e61ad353729e8c"
+    },
+    "source/objects/objects.c": {
+      "source_sha256": "2a2cf825a75bb7f6180a74f0d422785491fa83b93f56bacc8f23239b17a0221f",
+      "copy_sha256": "f33d62686c577169b779c4e88d01efb8657632aa126c0999b6d1b2510b762bdc"
+    }
+  },
+  "content": {
+    "a30.map": {
+      "bytes": 152610816,
+      "sha256": "4875fa105e6c517589a796cfdcc7fcaa07e98df13d14e601bfc9eb1eab7e30b5"
+    },
+    "carousel.map": {
+      "bytes": 20215808,
+      "sha256": "1c6353df6e4530437841b09775e62fa067caa46bb0e40f4579bbf2276991a38e"
+    },
+    "ui.map": {
+      "bytes": 14145536,
+      "sha256": "35e3e560478d85178749be310ad13d6d6ecde618d32675261a3554592333a833"
+    },
+    "ce/b30.map": {
+      "bytes": 201578087,
+      "sha256": "baec59d37cf8d3f017dd3ac0d61fb431087490eeb1c469b2071ae2aec66ca24a"
+    },
+    "bitmaps.map": {
+      "bytes": 123547749,
+      "sha256": "317658e0ebd4aa189bac68e994fe0b515928f44d17b62ba676d8850aa329dd3d"
+    },
+    "sounds.map": {
+      "bytes": 41718640,
+      "sha256": "81658a8d9b127b2771558a35e664ec3f1a2b370f271fe957426d945001ceb5d2"
+    },
+    "loc.map": {
+      "bytes": 391996,
+      "sha256": "1321e17b5a86be84b1930b6eb2e7fdfe9285275d5d54cbe3d4a3635e2bf04041"
+    },
+    "mcc/a10.map": {
+      "bytes": 407040369,
+      "sha256": "3f7eaaaf27358591a1a1ae7ed99e3fdf9a826af4a4fa5ef1dd4757538ae0fed2"
+    }
+  },
+  "runs": [
+    {
+      "case": "xbox-control-v2",
+      "fixture_complete": true,
+      "observations_complete": true,
+      "early_exits": {
+        "host": null,
+        "client": null
+      },
+      "discarded_final_captures": {
+        "host": [],
+        "client": []
+      },
+      "trailing_gate": null,
+      "mutations": {
+        "2": {
+          "host": true,
+          "client": true
+        },
+        "4": {
+          "host": true,
+          "client": true
+        },
+        "6": {
+          "host": true,
+          "client": true
+        }
+      },
+      "saved_targets_qualified": true,
+      "saved_peer_agreement": true,
+      "saved_peer_skew_seconds": 0.35416199999599485,
+      "windows": {
+        "2": {
+          "gate": {
+            "samples": 1350,
+            "ready_incomplete": 0,
+            "both_flags_ready_incomplete": 0,
+            "ready_unsynchronized": 0,
+            "max_queued": 0.0,
+            "max_retry_ticks": 330.0,
+            "first_complete_seconds": 0.01006500000221422,
+            "last_ready_incomplete_seconds": null,
+            "incorrect_after_first_complete": 0
+          },
+          "peers": {
+            "host": {
+              "samples": 45,
+              "tail_samples": 6,
+              "tail_wrong_fields": {
+                "slot_contents": 0,
+                "inventories": 0,
+                "all_tracked_inventory_references": 0,
+                "owners": 0,
+                "primary_magazines": 0
+              }
+            },
+            "client": {
+              "samples": 45,
+              "tail_samples": 6,
+              "tail_wrong_fields": {
+                "slot_contents": 0,
+                "inventories": 0,
+                "all_tracked_inventory_references": 0,
+                "owners": 0,
+                "primary_magazines": 0
+              }
+            }
+          }
+        },
+        "3": {
+          "gate": {
+            "samples": 1800,
+            "ready_incomplete": 0,
+            "both_flags_ready_incomplete": 0,
+            "ready_unsynchronized": 0,
+            "max_queued": 0.0,
+            "max_retry_ticks": 330.0,
+            "first_complete_seconds": 0.008895999999367632,
+            "last_ready_incomplete_seconds": null,
+            "incorrect_after_first_complete": 0
+          },
+          "peers": {
+            "host": {
+              "samples": 60,
+              "tail_samples": 5,
+              "tail_wrong_fields": {
+                "slot_contents": 0,
+                "inventories": 0,
+                "all_tracked_inventory_references": 0,
+                "owners": 0,
+                "primary_magazines": 0
+              }
+            },
+            "client": {
+              "samples": 60,
+              "tail_samples": 6,
+              "tail_wrong_fields": {
+                "slot_contents": 0,
+                "inventories": 0,
+                "all_tracked_inventory_references": 0,
+                "owners": 0,
+                "primary_magazines": 0
+              }
+            }
+          }
+        },
+        "4": {
+          "gate": {
+            "samples": 270,
+            "ready_incomplete": 0,
+            "both_flags_ready_incomplete": 0,
+            "ready_unsynchronized": 0,
+            "max_queued": 0.0,
+            "max_retry_ticks": 330.0,
+            "first_complete_seconds": 0.009225000001606531,
+            "last_ready_incomplete_seconds": null,
+            "incorrect_after_first_complete": 0
+          },
+          "peers": {
+            "host": {
+              "samples": 10,
+              "tail_samples": 6,
+              "tail_wrong_fields": {
+                "slot_contents": 0,
+                "inventories": 0,
+                "all_tracked_inventory_references": 0,
+                "owners": 0,
+                "primary_magazines": 0
+              }
+            },
+            "client": {
+              "samples": 9,
+              "tail_samples": 5,
+              "tail_wrong_fields": {
+                "slot_contents": 0,
+                "inventories": 0,
+                "all_tracked_inventory_references": 0,
+                "owners": 0,
+                "primary_magazines": 0
+              }
+            }
+          }
+        },
+        "5": {
+          "gate": {
+            "samples": 1510,
+            "ready_incomplete": 0,
+            "both_flags_ready_incomplete": 0,
+            "ready_unsynchronized": 0,
+            "max_queued": 0.0,
+            "max_retry_ticks": 330.0,
+            "first_complete_seconds": 0.00880400000460213,
+            "last_ready_incomplete_seconds": null,
+            "incorrect_after_first_complete": 0
+          },
+          "peers": {
+            "host": {
+              "samples": 51,
+              "tail_samples": 5,
+              "tail_wrong_fields": {
+                "slot_contents": 0,
+                "inventories": 0,
+                "all_tracked_inventory_references": 0,
+                "owners": 0,
+                "primary_magazines": 0
+              }
+            },
+            "client": {
+              "samples": 50,
+              "tail_samples": 5,
+              "tail_wrong_fields": {
+                "slot_contents": 0,
+                "inventories": 0,
+                "all_tracked_inventory_references": 0,
+                "owners": 0,
+                "primary_magazines": 0
+              }
+            }
+          }
+        }
+      },
+      "packets": [],
+      "mode": "control",
+      "evidence": {
+        "folder": "build/m0/recovery-stress/xbox-control-v2",
+        "manifest_sha256": "c4d8574419b0c0e22358739e4178a80b7926c7c560ff88d9e075b95025ec54d8",
+        "archive_sha256": "8bb257521c2d886a2b8060a793a53c87449206f0ff5d0a664c54eae1f7b3e274",
+        "full_reduction_sha256": "276b07c9dc9b575d6c1085ab0430d0f39420af7e6883842208c7f4e626a3c133"
+      },
+      "binary_sha256": "dd80b010706e79b67cc67fe4c51183265e50de85b884a29f84d5b064690ebf6b",
+      "checkpoint_pins": [],
+      "retry_requests": [],
+      "reset_events": [
+        {
+          "time": 43165.415601,
+          "kind": "reset_before",
+          "v": [
+            1271.0,
+            2.0,
+            0.0,
+            330.0,
+            -1.0,
+            30.0
+          ]
+        },
+        {
+          "time": 43165.415703,
+          "kind": "reset_after",
+          "v": [
+            1271.0,
+            2.0,
+            0.0,
+            330.0,
+            -1.0,
+            30.0
+          ]
+        },
+        {
+          "time": 43213.416798,
+          "kind": "reset_before",
+          "v": [
+            2711.0,
+            3.0,
+            0.0,
+            330.0,
+            -1.0,
+            30.0
+          ]
+        },
+        {
+          "time": 43213.416895,
+          "kind": "reset_after",
+          "v": [
+            2711.0,
+            3.0,
+            0.0,
+            330.0,
+            -1.0,
+            30.0
+          ]
+        },
+        {
+          "time": 43276.416496,
+          "kind": "reset_before",
+          "v": [
+            4601.0,
+            4.0,
+            0.0,
+            330.0,
+            -1.0,
+            30.0
+          ]
+        },
+        {
+          "time": 43276.416597,
+          "kind": "reset_after",
+          "v": [
+            4601.0,
+            4.0,
+            0.0,
+            330.0,
+            -1.0,
+            30.0
+          ]
+        },
+        {
+          "time": 43285.416673,
+          "kind": "reset_before",
+          "v": [
+            4871.0,
+            5.0,
+            0.0,
+            330.0,
+            -1.0,
+            30.0
+          ]
+        },
+        {
+          "time": 43285.416772,
+          "kind": "reset_after",
+          "v": [
+            4871.0,
+            5.0,
+            0.0,
+            330.0,
+            -1.0,
+            30.0
+          ]
+        }
+      ],
+      "dependency_events": [],
+      "pool_events": [],
+      "unchanged_net_compare": {
+        "problems": [],
+        "divergences": []
+      },
+      "family": "xbox",
+      "level": "levels\\a30\\a30"
+    },
+    {
+      "case": "xbox-stress",
+      "fixture_complete": true,
+      "observations_complete": true,
+      "early_exits": {
+        "host": null,
+        "client": null
+      },
+      "discarded_final_captures": {
+        "host": [],
+        "client": []
+      },
+      "trailing_gate": null,
+      "mutations": {
+        "2": {
+          "host": true,
+          "client": true
+        },
+        "4": {
+          "host": true,
+          "client": true
+        },
+        "6": {
+          "host": true,
+          "client": true
+        }
+      },
+      "saved_targets_qualified": true,
+      "saved_peer_agreement": true,
+      "saved_peer_skew_seconds": 0.381095999997342,
+      "windows": {
+        "2": {
+          "gate": {
+            "samples": 1349,
+            "ready_incomplete": 990,
+            "both_flags_ready_incomplete": 0,
+            "ready_unsynchronized": 990,
+            "max_queued": 2.0,
+            "max_retry_ticks": 1320.0,
+            "first_complete_seconds": 33.01442999999563,
+            "last_ready_incomplete_seconds": 32.98075699999754,
+            "incorrect_after_first_complete": 0
+          },
+          "peers": {
+            "host": {
+              "samples": 45,
+              "tail_samples": 6,
+              "tail_wrong_fields": {
+                "slot_contents": 0,
+                "inventories": 0,
+                "all_tracked_inventory_references": 0,
+                "owners": 0,
+                "primary_magazines": 0
+              }
+            },
+            "client": {
+              "samples": 45,
+              "tail_samples": 6,
+              "tail_wrong_fields": {
+                "slot_contents": 0,
+                "inventories": 0,
+                "all_tracked_inventory_references": 0,
+                "owners": 0,
+                "primary_magazines": 0
+              }
+            }
+          }
+        },
+        "3": {
+          "gate": {
+            "samples": 1799,
+            "ready_incomplete": 179,
+            "both_flags_ready_incomplete": 179,
+            "ready_unsynchronized": 0,
+            "max_queued": 2.0,
+            "max_retry_ticks": 330.0,
+            "first_complete_seconds": 5.9822560000029625,
+            "last_ready_incomplete_seconds": 5.949108000000706,
+            "incorrect_after_first_complete": 0
+          },
+          "peers": {
+            "host": {
+              "samples": 60,
+              "tail_samples": 5,
+              "tail_wrong_fields": {
+                "slot_contents": 0,
+                "inventories": 0,
+                "all_tracked_inventory_references": 0,
+                "owners": 0,
+                "primary_magazines": 0
+              }
+            },
+            "client": {
+              "samples": 60,
+              "tail_samples": 6,
+              "tail_wrong_fields": {
+                "slot_contents": 0,
+                "inventories": 0,
+                "all_tracked_inventory_references": 0,
+                "owners": 0,
+                "primary_magazines": 0
+              }
+            }
+          }
+        },
+        "4": {
+          "gate": {
+            "samples": 270,
+            "ready_incomplete": 270,
+            "both_flags_ready_incomplete": 270,
+            "ready_unsynchronized": 0,
+            "max_queued": 2.0,
+            "max_retry_ticks": 330.0,
+            "first_complete_seconds": null,
+            "last_ready_incomplete_seconds": 8.97918899999786,
+            "incorrect_after_first_complete": 0
+          },
+          "peers": {
+            "host": {
+              "samples": 10,
+              "tail_samples": 6,
+              "tail_wrong_fields": {
+                "slot_contents": 0,
+                "inventories": 0,
+                "all_tracked_inventory_references": 0,
+                "owners": 0,
+                "primary_magazines": 0
+              }
+            },
+            "client": {
+              "samples": 9,
+              "tail_samples": 5,
+              "tail_wrong_fields": {
+                "slot_contents": 10,
+                "inventories": 10,
+                "all_tracked_inventory_references": 10,
+                "owners": 10,
+                "primary_magazines": 10
+              }
+            }
+          }
+        },
+        "5": {
+          "gate": {
+            "samples": 1510,
+            "ready_incomplete": 0,
+            "both_flags_ready_incomplete": 0,
+            "ready_unsynchronized": 0,
+            "max_queued": 0.0,
+            "max_retry_ticks": 330.0,
+            "first_complete_seconds": 0.012581999995745718,
+            "last_ready_incomplete_seconds": null,
+            "incorrect_after_first_complete": 0
+          },
+          "peers": {
+            "host": {
+              "samples": 51,
+              "tail_samples": 5,
+              "tail_wrong_fields": {
+                "slot_contents": 0,
+                "inventories": 0,
+                "all_tracked_inventory_references": 0,
+                "owners": 0,
+                "primary_magazines": 0
+              }
+            },
+            "client": {
+              "samples": 50,
+              "tail_samples": 5,
+              "tail_wrong_fields": {
+                "slot_contents": 0,
+                "inventories": 0,
+                "all_tracked_inventory_references": 0,
+                "owners": 0,
+                "primary_magazines": 0
+              }
+            }
+          }
+        }
+      },
+      "packets": [
+        {
+          "time": 42988.672274,
+          "kind": "old_packet_saved",
+          "v": [
+            4602.0,
+            0.0,
+            4.0,
+            5.0,
+            276.0,
+            2.0
+          ]
+        },
+        {
+          "time": 42988.673681,
+          "kind": "old_packet_saved",
+          "v": [
+            4602.0,
+            1.0,
+            4.0,
+            4.0,
+            524.0,
+            8.0
+          ]
+        },
+        {
+          "time": 42997.684918,
+          "kind": "old_packet_replay",
+          "v": [
+            4873.0,
+            0.0,
+            4.0,
+            5.0,
+            276.0,
+            0.0
+          ]
+        },
+        {
+          "time": 42997.684936,
+          "kind": "old_epoch_rejected",
+          "v": [
+            4873.0,
+            4.0,
+            5.0,
+            5.0,
+            276.0,
+            2.0
+          ]
+        },
+        {
+          "time": 42997.684941,
+          "kind": "old_packet_replay",
+          "v": [
+            4873.0,
+            1.0,
+            4.0,
+            5.0,
+            524.0,
+            0.0
+          ]
+        },
+        {
+          "time": 42997.684947,
+          "kind": "old_epoch_rejected",
+          "v": [
+            4873.0,
+            4.0,
+            5.0,
+            4.0,
+            524.0,
+            8.0
+          ]
+        }
+      ],
+      "mode": "stress",
+      "evidence": {
+        "folder": "build/m0/recovery-stress/xbox-stress",
+        "manifest_sha256": "4cbcb1586c01b3870acbb8fee1ffc1df2e167a87a4836be58ad6dd762d6cdd5e",
+        "archive_sha256": "da7618dc726c3ad9179be56739b6abdf0d3719aac3f2c3dcd6534f2546fc36f6",
+        "full_reduction_sha256": "156316d0de51505eee7f03aa0fd2fd59c4ad55fe9b710a9efbb3fbe6e6cdf429"
+      },
+      "binary_sha256": "dd80b010706e79b67cc67fe4c51183265e50de85b884a29f84d5b064690ebf6b",
+      "checkpoint_pins": [],
+      "retry_requests": [
+        {
+          "time": 42888.651642,
+          "kind": "retry_request",
+          "v": [
+            1602.0,
+            2.0,
+            120.0,
+            660.0,
+            1272.0,
+            1.0
+          ]
+        },
+        {
+          "time": 42910.651221,
+          "kind": "retry_request",
+          "v": [
+            2262.0,
+            2.0,
+            120.0,
+            1320.0,
+            1602.0,
+            1.0
+          ]
+        }
+      ],
+      "reset_events": [
+        {
+          "time": 42877.670798,
+          "kind": "reset_before",
+          "v": [
+            1272.0,
+            2.0,
+            0.0,
+            330.0,
+            -1.0,
+            30.0
+          ]
+        },
+        {
+          "time": 42877.670899,
+          "kind": "reset_after",
+          "v": [
+            1272.0,
+            2.0,
+            0.0,
+            330.0,
+            -1.0,
+            30.0
+          ]
+        },
+        {
+          "time": 42925.669571,
+          "kind": "reset_before",
+          "v": [
+            2712.0,
+            3.0,
+            0.0,
+            330.0,
+            -1.0,
+            120.0
+          ]
+        },
+        {
+          "time": 42925.669697,
+          "kind": "reset_after",
+          "v": [
+            2712.0,
+            3.0,
+            0.0,
+            330.0,
+            -1.0,
+            30.0
+          ]
+        },
+        {
+          "time": 42988.672111,
+          "kind": "reset_before",
+          "v": [
+            4602.0,
+            4.0,
+            0.0,
+            330.0,
+            -1.0,
+            30.0
+          ]
+        },
+        {
+          "time": 42988.672216,
+          "kind": "reset_after",
+          "v": [
+            4602.0,
+            4.0,
+            0.0,
+            330.0,
+            -1.0,
+            30.0
+          ]
+        },
+        {
+          "time": 42997.672694,
+          "kind": "reset_before",
+          "v": [
+            4872.0,
+            5.0,
+            2.0,
+            330.0,
+            -1.0,
+            30.0
+          ]
+        },
+        {
+          "time": 42997.672792,
+          "kind": "reset_after",
+          "v": [
+            4872.0,
+            5.0,
+            0.0,
+            330.0,
+            -1.0,
+            30.0
+          ]
+        }
+      ],
+      "dependency_events": [
+        {
+          "time": 42925.669758,
+          "kind": "dependency_hold",
+          "v": [
+            2712.0,
+            3.0,
+            0.0,
+            -456523765.0,
+            2712.0,
+            0.0
+          ]
+        },
+        {
+          "time": 42925.669764,
+          "kind": "dependency_hold",
+          "v": [
+            2712.0,
+            3.0,
+            1.0,
+            -456458227.0,
+            2712.0,
+            0.0
+          ]
+        },
+        {
+          "time": 42931.651494,
+          "kind": "dependency_release",
+          "v": [
+            2892.0,
+            3.0,
+            0.0,
+            -456523765.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "time": 42931.651522,
+          "kind": "dependency_release",
+          "v": [
+            2892.0,
+            3.0,
+            1.0,
+            -456458227.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "time": 42988.672284,
+          "kind": "dependency_hold",
+          "v": [
+            4602.0,
+            4.0,
+            0.0,
+            -456523765.0,
+            4602.0,
+            0.0
+          ]
+        },
+        {
+          "time": 42988.67229,
+          "kind": "dependency_hold",
+          "v": [
+            4602.0,
+            4.0,
+            1.0,
+            -456458227.0,
+            4602.0,
+            0.0
+          ]
+        },
+        {
+          "time": 42997.684951,
+          "kind": "dependency_cancel",
+          "v": [
+            4873.0,
+            4.0,
+            5.0,
+            1.0,
+            1.0,
+            0.0
+          ]
+        }
+      ],
+      "pool_events": [
+        {
+          "time": 42877.672949,
+          "kind": "pressure_fill",
+          "v": [
+            1272.0,
+            2.0,
+            -456523765.0,
+            491.0,
+            16612.0,
+            20.0
+          ]
+        },
+        {
+          "time": 42877.673029,
+          "kind": "pool_failed",
+          "v": [
+            1272.0,
+            -456523765.0,
+            636.0,
+            16612.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "time": 42877.673131,
+          "kind": "pressure_fill",
+          "v": [
+            1272.0,
+            2.0,
+            -456458227.0,
+            491.0,
+            16612.0,
+            20.0
+          ]
+        },
+        {
+          "time": 42877.673143,
+          "kind": "pool_failed",
+          "v": [
+            1272.0,
+            -456458227.0,
+            636.0,
+            16612.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "time": 42877.673412,
+          "kind": "pressure_fill",
+          "v": [
+            1272.0,
+            2.0,
+            -456523765.0,
+            491.0,
+            16612.0,
+            20.0
+          ]
+        },
+        {
+          "time": 42877.673424,
+          "kind": "pool_failed",
+          "v": [
+            1272.0,
+            -456523765.0,
+            636.0,
+            16612.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "time": 42877.673499,
+          "kind": "pressure_fill",
+          "v": [
+            1272.0,
+            2.0,
+            -456458227.0,
+            491.0,
+            16612.0,
+            20.0
+          ]
+        },
+        {
+          "time": 42877.673511,
+          "kind": "pool_failed",
+          "v": [
+            1272.0,
+            -456458227.0,
+            636.0,
+            16612.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "time": 42888.65274,
+          "kind": "pressure_fill",
+          "v": [
+            1602.0,
+            2.0,
+            -456523765.0,
+            494.0,
+            12.0,
+            12.0
+          ]
+        },
+        {
+          "time": 42888.652774,
+          "kind": "pool_failed",
+          "v": [
+            1602.0,
+            -456523765.0,
+            636.0,
+            12.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "time": 42888.652867,
+          "kind": "pressure_fill",
+          "v": [
+            1602.0,
+            2.0,
+            -456458227.0,
+            494.0,
+            12.0,
+            12.0
+          ]
+        },
+        {
+          "time": 42888.655043,
+          "kind": "pool_failed",
+          "v": [
+            1602.0,
+            -456458227.0,
+            636.0,
+            12.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "time": 42892.654363,
+          "kind": "pressure_release",
+          "v": [
+            1722.0,
+            2.0,
+            494.0,
+            12.0,
+            7986316.0,
+            0.0
+          ]
+        }
+      ],
+      "unchanged_net_compare": {
+        "problems": [],
+        "divergences": [
+          {
+            "player": 0,
+            "field": "weapons",
+            "tick": 1290,
+            "detail": "host ['47f'] client []",
+            "seconds": 3
+          },
+          {
+            "player": 1,
+            "field": "weapons",
+            "tick": 1290,
+            "detail": "host ['47f'] client []",
+            "seconds": 3
+          },
+          {
+            "player": 0,
+            "field": "weapons",
+            "tick": 2730,
+            "detail": "host ['47f'] client []",
+            "seconds": 3
+          },
+          {
+            "player": 1,
+            "field": "weapons",
+            "tick": 2730,
+            "detail": "host ['47f'] client []",
+            "seconds": 3
+          },
+          {
+            "player": 0,
+            "field": "weapons",
+            "tick": 4620,
+            "detail": "host ['47f'] client []",
+            "seconds": 3
+          },
+          {
+            "player": 1,
+            "field": "weapons",
+            "tick": 4620,
+            "detail": "host ['47f'] client []",
+            "seconds": 3
+          }
+        ]
+      },
+      "family": "xbox",
+      "level": "levels\\a30\\a30"
+    },
+    {
+      "case": "ce-control",
+      "fixture_complete": true,
+      "observations_complete": true,
+      "early_exits": {
+        "host": null,
+        "client": null
+      },
+      "discarded_final_captures": {
+        "host": [],
+        "client": []
+      },
+      "trailing_gate": null,
+      "mutations": {
+        "2": {
+          "host": true,
+          "client": true
+        },
+        "4": {
+          "host": true,
+          "client": true
+        },
+        "6": {
+          "host": true,
+          "client": true
+        }
+      },
+      "saved_targets_qualified": true,
+      "saved_peer_agreement": true,
+      "saved_peer_skew_seconds": 0.1571960000001127,
+      "windows": {
+        "2": {
+          "gate": {
+            "samples": 1349,
+            "ready_incomplete": 0,
+            "both_flags_ready_incomplete": 0,
+            "ready_unsynchronized": 0,
+            "max_queued": 0.0,
+            "max_retry_ticks": 330.0,
+            "first_complete_seconds": 0.025609000003896654,
+            "last_ready_incomplete_seconds": null,
+            "incorrect_after_first_complete": 0
+          },
+          "peers": {
+            "host": {
+              "samples": 45,
+              "tail_samples": 6,
+              "tail_wrong_fields": {
+                "slot_contents": 0,
+                "inventories": 0,
+                "all_tracked_inventory_references": 0,
+                "owners": 0,
+                "primary_magazines": 0
+              }
+            },
+            "client": {
+              "samples": 45,
+              "tail_samples": 6,
+              "tail_wrong_fields": {
+                "slot_contents": 0,
+                "inventories": 0,
+                "all_tracked_inventory_references": 0,
+                "owners": 0,
+                "primary_magazines": 0
+              }
+            }
+          }
+        },
+        "3": {
+          "gate": {
+            "samples": 1799,
+            "ready_incomplete": 0,
+            "both_flags_ready_incomplete": 0,
+            "ready_unsynchronized": 0,
+            "max_queued": 0.0,
+            "max_retry_ticks": 330.0,
+            "first_complete_seconds": 0.024154999999154825,
+            "last_ready_incomplete_seconds": null,
+            "incorrect_after_first_complete": 0
+          },
+          "peers": {
+            "host": {
+              "samples": 60,
+              "tail_samples": 5,
+              "tail_wrong_fields": {
+                "slot_contents": 0,
+                "inventories": 0,
+                "all_tracked_inventory_references": 0,
+                "owners": 0,
+                "primary_magazines": 0
+              }
+            },
+            "client": {
+              "samples": 60,
+              "tail_samples": 6,
+              "tail_wrong_fields": {
+                "slot_contents": 0,
+                "inventories": 0,
+                "all_tracked_inventory_references": 0,
+                "owners": 0,
+                "primary_magazines": 0
+              }
+            }
+          }
+        },
+        "4": {
+          "gate": {
+            "samples": 270,
+            "ready_incomplete": 0,
+            "both_flags_ready_incomplete": 0,
+            "ready_unsynchronized": 0,
+            "max_queued": 0.0,
+            "max_retry_ticks": 330.0,
+            "first_complete_seconds": 0.024205000001529697,
+            "last_ready_incomplete_seconds": null,
+            "incorrect_after_first_complete": 0
+          },
+          "peers": {
+            "host": {
+              "samples": 10,
+              "tail_samples": 6,
+              "tail_wrong_fields": {
+                "slot_contents": 4,
+                "inventories": 8,
+                "all_tracked_inventory_references": 0,
+                "owners": 0,
+                "primary_magazines": 0
+              }
+            },
+            "client": {
+              "samples": 9,
+              "tail_samples": 5,
+              "tail_wrong_fields": {
+                "slot_contents": 3,
+                "inventories": 6,
+                "all_tracked_inventory_references": 0,
+                "owners": 0,
+                "primary_magazines": 0
+              }
+            }
+          }
+        },
+        "5": {
+          "gate": {
+            "samples": 1288,
+            "ready_incomplete": 0,
+            "both_flags_ready_incomplete": 0,
+            "ready_unsynchronized": 0,
+            "max_queued": 0.0,
+            "max_retry_ticks": 330.0,
+            "first_complete_seconds": 0.0243689999988419,
+            "last_ready_incomplete_seconds": null,
+            "incorrect_after_first_complete": 0
+          },
+          "peers": {
+            "host": {
+              "samples": 44,
+              "tail_samples": 5,
+              "tail_wrong_fields": {
+                "slot_contents": 0,
+                "inventories": 0,
+                "all_tracked_inventory_references": 0,
+                "owners": 0,
+                "primary_magazines": 0
+              }
+            },
+            "client": {
+              "samples": 43,
+              "tail_samples": 5,
+              "tail_wrong_fields": {
+                "slot_contents": 0,
+                "inventories": 0,
+                "all_tracked_inventory_references": 0,
+                "owners": 0,
+                "primary_magazines": 0
+              }
+            }
+          }
+        }
+      },
+      "packets": [],
+      "mode": "control",
+      "evidence": {
+        "folder": "build/m0/recovery-stress/ce-control",
+        "manifest_sha256": "eaf9bb7f7405b8233e0ea5a7511621237a540ff384b112a66f8ab423cd904a71",
+        "archive_sha256": "8dc522a14e3bce6ded119b36abcc39218d0fb68bb304808c6d00d4e455ba3880",
+        "full_reduction_sha256": "0f56f6194000bd1a342414b8a33bbe641900944834fcbb3a6963aa32f4b6c0b9"
+      },
+      "binary_sha256": "dd80b010706e79b67cc67fe4c51183265e50de85b884a29f84d5b064690ebf6b",
+      "checkpoint_pins": [],
+      "retry_requests": [],
+      "reset_events": [
+        {
+          "time": 43412.395874,
+          "kind": "reset_before",
+          "v": [
+            1478.0,
+            2.0,
+            0.0,
+            330.0,
+            -1.0,
+            30.0
+          ]
+        },
+        {
+          "time": 43412.395972,
+          "kind": "reset_after",
+          "v": [
+            1478.0,
+            2.0,
+            0.0,
+            330.0,
+            -1.0,
+            30.0
+          ]
+        },
+        {
+          "time": 43460.396934,
+          "kind": "reset_before",
+          "v": [
+            2918.0,
+            3.0,
+            0.0,
+            330.0,
+            -1.0,
+            30.0
+          ]
+        },
+        {
+          "time": 43460.397061,
+          "kind": "reset_after",
+          "v": [
+            2918.0,
+            3.0,
+            0.0,
+            330.0,
+            -1.0,
+            30.0
+          ]
+        },
+        {
+          "time": 43523.396384,
+          "kind": "reset_before",
+          "v": [
+            4808.0,
+            4.0,
+            0.0,
+            330.0,
+            -1.0,
+            30.0
+          ]
+        },
+        {
+          "time": 43523.396514,
+          "kind": "reset_after",
+          "v": [
+            4808.0,
+            4.0,
+            0.0,
+            330.0,
+            -1.0,
+            30.0
+          ]
+        },
+        {
+          "time": 43532.397433,
+          "kind": "reset_before",
+          "v": [
+            5078.0,
+            5.0,
+            0.0,
+            330.0,
+            -1.0,
+            30.0
+          ]
+        },
+        {
+          "time": 43532.397532,
+          "kind": "reset_after",
+          "v": [
+            5078.0,
+            5.0,
+            0.0,
+            330.0,
+            -1.0,
+            30.0
+          ]
+        }
+      ],
+      "dependency_events": [],
+      "pool_events": [],
+      "unchanged_net_compare": {
+        "problems": [],
+        "divergences": []
+      },
+      "family": "ce",
+      "level": "custom_maps\\b30"
+    },
+    {
+      "case": "ce-stress",
+      "fixture_complete": true,
+      "observations_complete": true,
+      "early_exits": {
+        "host": null,
+        "client": null
+      },
+      "discarded_final_captures": {
+        "host": [],
+        "client": []
+      },
+      "trailing_gate": null,
+      "mutations": {
+        "2": {
+          "host": true,
+          "client": true
+        },
+        "4": {
+          "host": true,
+          "client": true
+        },
+        "6": {
+          "host": true,
+          "client": true
+        }
+      },
+      "saved_targets_qualified": true,
+      "saved_peer_agreement": true,
+      "saved_peer_skew_seconds": 0.13086499999917578,
+      "windows": {
+        "2": {
+          "gate": {
+            "samples": 1349,
+            "ready_incomplete": 990,
+            "both_flags_ready_incomplete": 0,
+            "ready_unsynchronized": 990,
+            "max_queued": 6.0,
+            "max_retry_ticks": 1320.0,
+            "first_complete_seconds": 33.0251849999986,
+            "last_ready_incomplete_seconds": 32.99067300000024,
+            "incorrect_after_first_complete": 0
+          },
+          "peers": {
+            "host": {
+              "samples": 45,
+              "tail_samples": 5,
+              "tail_wrong_fields": {
+                "slot_contents": 0,
+                "inventories": 0,
+                "all_tracked_inventory_references": 0,
+                "owners": 0,
+                "primary_magazines": 0
+              }
+            },
+            "client": {
+              "samples": 45,
+              "tail_samples": 6,
+              "tail_wrong_fields": {
+                "slot_contents": 0,
+                "inventories": 0,
+                "all_tracked_inventory_references": 0,
+                "owners": 0,
+                "primary_magazines": 0
+              }
+            }
+          }
+        },
+        "3": {
+          "gate": {
+            "samples": 1799,
+            "ready_incomplete": 179,
+            "both_flags_ready_incomplete": 179,
+            "ready_unsynchronized": 0,
+            "max_queued": 2.0,
+            "max_retry_ticks": 330.0,
+            "first_complete_seconds": 5.99252400000114,
+            "last_ready_incomplete_seconds": 5.958142000003136,
+            "incorrect_after_first_complete": 0
+          },
+          "peers": {
+            "host": {
+              "samples": 60,
+              "tail_samples": 6,
+              "tail_wrong_fields": {
+                "slot_contents": 0,
+                "inventories": 0,
+                "all_tracked_inventory_references": 0,
+                "owners": 0,
+                "primary_magazines": 0
+              }
+            },
+            "client": {
+              "samples": 60,
+              "tail_samples": 6,
+              "tail_wrong_fields": {
+                "slot_contents": 0,
+                "inventories": 0,
+                "all_tracked_inventory_references": 0,
+                "owners": 0,
+                "primary_magazines": 0
+              }
+            }
+          }
+        },
+        "4": {
+          "gate": {
+            "samples": 270,
+            "ready_incomplete": 270,
+            "both_flags_ready_incomplete": 270,
+            "ready_unsynchronized": 0,
+            "max_queued": 2.0,
+            "max_retry_ticks": 330.0,
+            "first_complete_seconds": null,
+            "last_ready_incomplete_seconds": 8.989083000000392,
+            "incorrect_after_first_complete": 0
+          },
+          "peers": {
+            "host": {
+              "samples": 10,
+              "tail_samples": 6,
+              "tail_wrong_fields": {
+                "slot_contents": 0,
+                "inventories": 0,
+                "all_tracked_inventory_references": 0,
+                "owners": 0,
+                "primary_magazines": 0
+              }
+            },
+            "client": {
+              "samples": 9,
+              "tail_samples": 6,
+              "tail_wrong_fields": {
+                "slot_contents": 12,
+                "inventories": 12,
+                "all_tracked_inventory_references": 12,
+                "owners": 12,
+                "primary_magazines": 12
+              }
+            }
+          }
+        },
+        "5": {
+          "gate": {
+            "samples": 1288,
+            "ready_incomplete": 0,
+            "both_flags_ready_incomplete": 0,
+            "ready_unsynchronized": 0,
+            "max_queued": 0.0,
+            "max_retry_ticks": 330.0,
+            "first_complete_seconds": 0.020801999999093823,
+            "last_ready_incomplete_seconds": null,
+            "incorrect_after_first_complete": 0
+          },
+          "peers": {
+            "host": {
+              "samples": 44,
+              "tail_samples": 5,
+              "tail_wrong_fields": {
+                "slot_contents": 0,
+                "inventories": 0,
+                "all_tracked_inventory_references": 0,
+                "owners": 0,
+                "primary_magazines": 0
+              }
+            },
+            "client": {
+              "samples": 43,
+              "tail_samples": 6,
+              "tail_wrong_fields": {
+                "slot_contents": 0,
+                "inventories": 0,
+                "all_tracked_inventory_references": 0,
+                "owners": 0,
+                "primary_magazines": 0
+              }
+            }
+          }
+        }
+      },
+      "packets": [
+        {
+          "time": 43768.031798,
+          "kind": "old_packet_saved",
+          "v": [
+            4806.0,
+            0.0,
+            4.0,
+            5.0,
+            3972.0,
+            30.0
+          ]
+        },
+        {
+          "time": 43768.034597,
+          "kind": "old_packet_saved",
+          "v": [
+            4806.0,
+            1.0,
+            4.0,
+            4.0,
+            4044.0,
+            63.0
+          ]
+        },
+        {
+          "time": 43777.052859,
+          "kind": "old_packet_replay",
+          "v": [
+            5077.0,
+            0.0,
+            4.0,
+            5.0,
+            3972.0,
+            0.0
+          ]
+        },
+        {
+          "time": 43777.052878,
+          "kind": "old_epoch_rejected",
+          "v": [
+            5077.0,
+            4.0,
+            5.0,
+            5.0,
+            3972.0,
+            30.0
+          ]
+        },
+        {
+          "time": 43777.052883,
+          "kind": "old_packet_replay",
+          "v": [
+            5077.0,
+            1.0,
+            4.0,
+            5.0,
+            4044.0,
+            0.0
+          ]
+        },
+        {
+          "time": 43777.052889,
+          "kind": "old_epoch_rejected",
+          "v": [
+            5077.0,
+            4.0,
+            5.0,
+            4.0,
+            4044.0,
+            63.0
+          ]
+        }
+      ],
+      "mode": "stress",
+      "evidence": {
+        "folder": "build/m0/recovery-stress/ce-stress",
+        "manifest_sha256": "89f0a340db3b5a6b1e62ae4031dabd05def90b84783df37fceae29e6a0ed9cab",
+        "archive_sha256": "6d16fd5001af01519f20c7cd2c41fb4292027d03f1a7b7cfd3a697fb2b5a1939",
+        "full_reduction_sha256": "c09bdb834f64b6d37eadce8f64a9bbd6ad6a96d82fef7c61f84e91351b9865a1"
+      },
+      "binary_sha256": "dd80b010706e79b67cc67fe4c51183265e50de85b884a29f84d5b064690ebf6b",
+      "checkpoint_pins": [],
+      "retry_requests": [
+        {
+          "time": 43668.020156,
+          "kind": "retry_request",
+          "v": [
+            1806.0,
+            2.0,
+            120.0,
+            660.0,
+            1476.0,
+            1.0
+          ]
+        },
+        {
+          "time": 43690.019597,
+          "kind": "retry_request",
+          "v": [
+            2466.0,
+            2.0,
+            120.0,
+            1320.0,
+            1806.0,
+            1.0
+          ]
+        }
+      ],
+      "reset_events": [
+        {
+          "time": 43657.029873,
+          "kind": "reset_before",
+          "v": [
+            1476.0,
+            2.0,
+            0.0,
+            330.0,
+            -1.0,
+            30.0
+          ]
+        },
+        {
+          "time": 43657.029969,
+          "kind": "reset_after",
+          "v": [
+            1476.0,
+            2.0,
+            0.0,
+            330.0,
+            -1.0,
+            30.0
+          ]
+        },
+        {
+          "time": 43705.027962,
+          "kind": "reset_before",
+          "v": [
+            2916.0,
+            3.0,
+            0.0,
+            330.0,
+            -1.0,
+            120.0
+          ]
+        },
+        {
+          "time": 43705.028066,
+          "kind": "reset_after",
+          "v": [
+            2916.0,
+            3.0,
+            0.0,
+            330.0,
+            -1.0,
+            30.0
+          ]
+        },
+        {
+          "time": 43768.031646,
+          "kind": "reset_before",
+          "v": [
+            4806.0,
+            4.0,
+            0.0,
+            330.0,
+            -1.0,
+            30.0
+          ]
+        },
+        {
+          "time": 43768.031745,
+          "kind": "reset_after",
+          "v": [
+            4806.0,
+            4.0,
+            0.0,
+            330.0,
+            -1.0,
+            30.0
+          ]
+        },
+        {
+          "time": 43777.032762,
+          "kind": "reset_before",
+          "v": [
+            5076.0,
+            5.0,
+            2.0,
+            330.0,
+            -1.0,
+            30.0
+          ]
+        },
+        {
+          "time": 43777.032861,
+          "kind": "reset_after",
+          "v": [
+            5076.0,
+            5.0,
+            0.0,
+            330.0,
+            -1.0,
+            30.0
+          ]
+        }
+      ],
+      "dependency_events": [
+        {
+          "time": 43705.028195,
+          "kind": "dependency_hold",
+          "v": [
+            2916.0,
+            3.0,
+            0.0,
+            -298646602.0,
+            2916.0,
+            0.0
+          ]
+        },
+        {
+          "time": 43705.028224,
+          "kind": "dependency_hold",
+          "v": [
+            2916.0,
+            3.0,
+            1.0,
+            -298581054.0,
+            2916.0,
+            0.0
+          ]
+        },
+        {
+          "time": 43711.020314,
+          "kind": "dependency_release",
+          "v": [
+            3096.0,
+            3.0,
+            0.0,
+            -298646602.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "time": 43711.020358,
+          "kind": "dependency_release",
+          "v": [
+            3096.0,
+            3.0,
+            1.0,
+            -298581054.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "time": 43768.031852,
+          "kind": "dependency_hold",
+          "v": [
+            4806.0,
+            4.0,
+            0.0,
+            -298646602.0,
+            4806.0,
+            0.0
+          ]
+        },
+        {
+          "time": 43768.031858,
+          "kind": "dependency_hold",
+          "v": [
+            4806.0,
+            4.0,
+            1.0,
+            -298581054.0,
+            4806.0,
+            0.0
+          ]
+        },
+        {
+          "time": 43777.052893,
+          "kind": "dependency_cancel",
+          "v": [
+            5077.0,
+            4.0,
+            5.0,
+            1.0,
+            1.0,
+            0.0
+          ]
+        }
+      ],
+      "pool_events": [
+        {
+          "time": 43657.032348,
+          "kind": "pressure_fill",
+          "v": [
+            1476.0,
+            2.0,
+            -298646602.0,
+            448.0,
+            185988.0,
+            0.0
+          ]
+        },
+        {
+          "time": 43657.032408,
+          "kind": "pool_failed",
+          "v": [
+            1476.0,
+            -298646602.0,
+            636.0,
+            185988.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "time": 43657.03251,
+          "kind": "pressure_fill",
+          "v": [
+            1476.0,
+            2.0,
+            -298581054.0,
+            448.0,
+            185988.0,
+            0.0
+          ]
+        },
+        {
+          "time": 43657.032524,
+          "kind": "pool_failed",
+          "v": [
+            1476.0,
+            -298581054.0,
+            636.0,
+            185988.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "time": 43657.033405,
+          "kind": "pool_failed",
+          "v": [
+            1476.0,
+            -425130975.0,
+            1260.0,
+            192032.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "time": 43657.033448,
+          "kind": "pool_failed",
+          "v": [
+            1476.0,
+            -424934364.0,
+            1260.0,
+            196796.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "time": 43657.033517,
+          "kind": "pool_failed",
+          "v": [
+            1476.0,
+            -423558087.0,
+            1260.0,
+            200052.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "time": 43657.033554,
+          "kind": "pool_failed",
+          "v": [
+            1476.0,
+            -423361476.0,
+            1260.0,
+            203308.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "time": 43657.034157,
+          "kind": "pressure_fill",
+          "v": [
+            1476.0,
+            2.0,
+            -298646602.0,
+            448.0,
+            203308.0,
+            0.0
+          ]
+        },
+        {
+          "time": 43657.03417,
+          "kind": "pool_failed",
+          "v": [
+            1476.0,
+            -298646602.0,
+            636.0,
+            203308.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "time": 43657.034266,
+          "kind": "pressure_fill",
+          "v": [
+            1476.0,
+            2.0,
+            -298581054.0,
+            448.0,
+            203308.0,
+            0.0
+          ]
+        },
+        {
+          "time": 43657.035181,
+          "kind": "pool_failed",
+          "v": [
+            1476.0,
+            -298581054.0,
+            636.0,
+            203308.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "time": 43668.02365,
+          "kind": "pressure_fill",
+          "v": [
+            1806.0,
+            2.0,
+            -298646602.0,
+            464.0,
+            8.0,
+            8.0
+          ]
+        },
+        {
+          "time": 43668.023663,
+          "kind": "pool_failed",
+          "v": [
+            1806.0,
+            -298646602.0,
+            636.0,
+            8.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "time": 43668.023756,
+          "kind": "pressure_fill",
+          "v": [
+            1806.0,
+            2.0,
+            -298581054.0,
+            464.0,
+            8.0,
+            8.0
+          ]
+        },
+        {
+          "time": 43668.023765,
+          "kind": "pool_failed",
+          "v": [
+            1806.0,
+            -298581054.0,
+            636.0,
+            8.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "time": 43668.053277,
+          "kind": "pool_failed",
+          "v": [
+            1806.0,
+            162402307.0,
+            552.0,
+            8.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "time": 43668.053404,
+          "kind": "pool_failed",
+          "v": [
+            1806.0,
+            162467843.0,
+            552.0,
+            8.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "time": 43668.053474,
+          "kind": "pool_failed",
+          "v": [
+            1806.0,
+            162533379.0,
+            552.0,
+            8.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "time": 43668.153162,
+          "kind": "pool_failed",
+          "v": [
+            1809.0,
+            162729988.0,
+            552.0,
+            8.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "time": 43668.187148,
+          "kind": "pool_failed",
+          "v": [
+            1810.0,
+            162795524.0,
+            552.0,
+            8.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "time": 43668.187432,
+          "kind": "pool_failed",
+          "v": [
+            1810.0,
+            162861060.0,
+            552.0,
+            8.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "time": 43668.187604,
+          "kind": "pool_failed",
+          "v": [
+            1810.0,
+            162926596.0,
+            552.0,
+            8.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "time": 43668.220445,
+          "kind": "pool_failed",
+          "v": [
+            1811.0,
+            163057668.0,
+            552.0,
+            8.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "time": 43668.486454,
+          "kind": "pool_failed",
+          "v": [
+            1819.0,
+            163319813.0,
+            552.0,
+            8.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "time": 43668.486602,
+          "kind": "pool_failed",
+          "v": [
+            1819.0,
+            163385349.0,
+            552.0,
+            8.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "time": 43668.486673,
+          "kind": "pool_failed",
+          "v": [
+            1819.0,
+            163450885.0,
+            552.0,
+            8.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "time": 43668.52046,
+          "kind": "pool_failed",
+          "v": [
+            1820.0,
+            163516421.0,
+            552.0,
+            8.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "time": 43668.520613,
+          "kind": "pool_failed",
+          "v": [
+            1820.0,
+            163581957.0,
+            552.0,
+            8.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "time": 43668.520683,
+          "kind": "pool_failed",
+          "v": [
+            1820.0,
+            163647493.0,
+            552.0,
+            8.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "time": 43668.553202,
+          "kind": "pool_failed",
+          "v": [
+            1821.0,
+            163778565.0,
+            552.0,
+            8.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "time": 43668.553617,
+          "kind": "pool_failed",
+          "v": [
+            1821.0,
+            163844101.0,
+            552.0,
+            8.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "time": 43668.654639,
+          "kind": "pool_failed",
+          "v": [
+            1824.0,
+            163975173.0,
+            552.0,
+            8.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "time": 43668.687331,
+          "kind": "pool_failed",
+          "v": [
+            1825.0,
+            164106245.0,
+            552.0,
+            8.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "time": 43668.687598,
+          "kind": "pool_failed",
+          "v": [
+            1825.0,
+            164171781.0,
+            552.0,
+            8.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "time": 43669.019612,
+          "kind": "pool_failed",
+          "v": [
+            1835.0,
+            164630533.0,
+            552.0,
+            8.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "time": 43669.019723,
+          "kind": "pool_failed",
+          "v": [
+            1835.0,
+            164696069.0,
+            552.0,
+            8.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "time": 43669.22,
+          "kind": "pool_failed",
+          "v": [
+            1841.0,
+            165220357.0,
+            552.0,
+            8.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "time": 43669.220111,
+          "kind": "pool_failed",
+          "v": [
+            1841.0,
+            165285893.0,
+            552.0,
+            8.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "time": 43669.253492,
+          "kind": "pool_failed",
+          "v": [
+            1842.0,
+            165482501.0,
+            552.0,
+            8.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "time": 43669.285662,
+          "kind": "pool_failed",
+          "v": [
+            1843.0,
+            165613573.0,
+            552.0,
+            8.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "time": 43669.719342,
+          "kind": "pool_failed",
+          "v": [
+            1856.0,
+            166662149.0,
+            552.0,
+            8.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "time": 43669.753015,
+          "kind": "pool_failed",
+          "v": [
+            1857.0,
+            166793221.0,
+            552.0,
+            8.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "time": 43669.753127,
+          "kind": "pool_failed",
+          "v": [
+            1857.0,
+            166858757.0,
+            552.0,
+            8.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "time": 43670.018995,
+          "kind": "pool_failed",
+          "v": [
+            1865.0,
+            167448581.0,
+            552.0,
+            8.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "time": 43670.186965,
+          "kind": "pool_failed",
+          "v": [
+            1870.0,
+            167907333.0,
+            552.0,
+            8.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "time": 43670.219674,
+          "kind": "pool_failed",
+          "v": [
+            1871.0,
+            168038405.0,
+            552.0,
+            8.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "time": 43670.219801,
+          "kind": "pool_failed",
+          "v": [
+            1871.0,
+            168103941.0,
+            552.0,
+            8.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "time": 43670.219871,
+          "kind": "pool_failed",
+          "v": [
+            1871.0,
+            168169477.0,
+            552.0,
+            8.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "time": 43670.252568,
+          "kind": "pool_failed",
+          "v": [
+            1872.0,
+            168235013.0,
+            552.0,
+            21436.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "time": 43670.252977,
+          "kind": "pool_failed",
+          "v": [
+            1872.0,
+            168300549.0,
+            552.0,
+            21436.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "time": 43670.253056,
+          "kind": "pool_failed",
+          "v": [
+            1872.0,
+            168366085.0,
+            552.0,
+            21436.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "time": 43672.023774,
+          "kind": "pressure_release",
+          "v": [
+            1926.0,
+            2.0,
+            464.0,
+            23320.0,
+            7495292.0,
+            0.0
+          ]
+        }
+      ],
+      "unchanged_net_compare": {
+        "problems": [],
+        "divergences": [
+          {
+            "player": 0,
+            "field": "weapons",
+            "tick": 1500,
+            "detail": "host ['874'] client []",
+            "seconds": 3
+          },
+          {
+            "player": 1,
+            "field": "weapons",
+            "tick": 1500,
+            "detail": "host ['874'] client []",
+            "seconds": 3
+          },
+          {
+            "player": 0,
+            "field": "weapons",
+            "tick": 2940,
+            "detail": "host ['874'] client []",
+            "seconds": 3
+          },
+          {
+            "player": 1,
+            "field": "weapons",
+            "tick": 2940,
+            "detail": "host ['874'] client []",
+            "seconds": 3
+          },
+          {
+            "player": 0,
+            "field": "weapons",
+            "tick": 4830,
+            "detail": "host ['874'] client []",
+            "seconds": 3
+          },
+          {
+            "player": 1,
+            "field": "weapons",
+            "tick": 4830,
+            "detail": "host ['874'] client []",
+            "seconds": 3
+          }
+        ]
+      },
+      "family": "ce",
+      "level": "custom_maps\\b30"
+    },
+    {
+      "case": "mcc-pinned-control",
+      "fixture_complete": true,
+      "observations_complete": true,
+      "early_exits": {
+        "host": null,
+        "client": null
+      },
+      "discarded_final_captures": {
+        "host": [],
+        "client": []
+      },
+      "trailing_gate": null,
+      "mutations": {
+        "2": {
+          "host": true,
+          "client": true
+        },
+        "4": {
+          "host": true,
+          "client": true
+        },
+        "6": {
+          "host": true,
+          "client": true
+        }
+      },
+      "saved_targets_qualified": true,
+      "saved_peer_agreement": true,
+      "saved_peer_skew_seconds": 0.28328099999635015,
+      "windows": {
+        "2": {
+          "gate": {
+            "samples": 1350,
+            "ready_incomplete": 0,
+            "both_flags_ready_incomplete": 0,
+            "ready_unsynchronized": 0,
+            "max_queued": 0.0,
+            "max_retry_ticks": 330.0,
+            "first_complete_seconds": 0.011087999999290332,
+            "last_ready_incomplete_seconds": null,
+            "incorrect_after_first_complete": 0
+          },
+          "peers": {
+            "host": {
+              "samples": 45,
+              "tail_samples": 6,
+              "tail_wrong_fields": {
+                "slot_contents": 0,
+                "inventories": 0,
+                "all_tracked_inventory_references": 0,
+                "owners": 0,
+                "primary_magazines": 0
+              }
+            },
+            "client": {
+              "samples": 45,
+              "tail_samples": 5,
+              "tail_wrong_fields": {
+                "slot_contents": 0,
+                "inventories": 0,
+                "all_tracked_inventory_references": 0,
+                "owners": 0,
+                "primary_magazines": 0
+              }
+            }
+          }
+        },
+        "3": {
+          "gate": {
+            "samples": 1800,
+            "ready_incomplete": 0,
+            "both_flags_ready_incomplete": 0,
+            "ready_unsynchronized": 0,
+            "max_queued": 0.0,
+            "max_retry_ticks": 330.0,
+            "first_complete_seconds": 0.006546000004163943,
+            "last_ready_incomplete_seconds": null,
+            "incorrect_after_first_complete": 0
+          },
+          "peers": {
+            "host": {
+              "samples": 60,
+              "tail_samples": 5,
+              "tail_wrong_fields": {
+                "slot_contents": 0,
+                "inventories": 0,
+                "all_tracked_inventory_references": 0,
+                "owners": 0,
+                "primary_magazines": 0
+              }
+            },
+            "client": {
+              "samples": 60,
+              "tail_samples": 6,
+              "tail_wrong_fields": {
+                "slot_contents": 0,
+                "inventories": 0,
+                "all_tracked_inventory_references": 0,
+                "owners": 0,
+                "primary_magazines": 0
+              }
+            }
+          }
+        },
+        "4": {
+          "gate": {
+            "samples": 270,
+            "ready_incomplete": 0,
+            "both_flags_ready_incomplete": 0,
+            "ready_unsynchronized": 0,
+            "max_queued": 0.0,
+            "max_retry_ticks": 330.0,
+            "first_complete_seconds": 0.010721999999077525,
+            "last_ready_incomplete_seconds": null,
+            "incorrect_after_first_complete": 0
+          },
+          "peers": {
+            "host": {
+              "samples": 10,
+              "tail_samples": 6,
+              "tail_wrong_fields": {
+                "slot_contents": 0,
+                "inventories": 0,
+                "all_tracked_inventory_references": 0,
+                "owners": 0,
+                "primary_magazines": 0
+              }
+            },
+            "client": {
+              "samples": 9,
+              "tail_samples": 6,
+              "tail_wrong_fields": {
+                "slot_contents": 0,
+                "inventories": 0,
+                "all_tracked_inventory_references": 0,
+                "owners": 0,
+                "primary_magazines": 0
+              }
+            }
+          }
+        },
+        "5": {
+          "gate": {
+            "samples": 1863,
+            "ready_incomplete": 0,
+            "both_flags_ready_incomplete": 0,
+            "ready_unsynchronized": 0,
+            "max_queued": 0.0,
+            "max_retry_ticks": 330.0,
+            "first_complete_seconds": 0.010291999999026302,
+            "last_ready_incomplete_seconds": null,
+            "incorrect_after_first_complete": 0
+          },
+          "peers": {
+            "host": {
+              "samples": 63,
+              "tail_samples": 5,
+              "tail_wrong_fields": {
+                "slot_contents": 0,
+                "inventories": 0,
+                "all_tracked_inventory_references": 0,
+                "owners": 0,
+                "primary_magazines": 0
+              }
+            },
+            "client": {
+              "samples": 62,
+              "tail_samples": 5,
+              "tail_wrong_fields": {
+                "slot_contents": 0,
+                "inventories": 0,
+                "all_tracked_inventory_references": 0,
+                "owners": 0,
+                "primary_magazines": 0
+              }
+            }
+          }
+        }
+      },
+      "packets": [],
+      "mode": "control",
+      "evidence": {
+        "folder": "build/m0/recovery-stress/mcc-pinned-control",
+        "manifest_sha256": "7bd6d159d2fbf00fe2d496f7074af99595e1ecf0332a1466f00a246bb0f0337b",
+        "archive_sha256": "da72ca52e1975aa6e2bf63a9f53469ac9ef55065cf8bbcaa810dfb5035dc76f6",
+        "full_reduction_sha256": "bf11338846a5ea0cf63064d8ea84ba558b780bb11a9ff0675e91fc965c7d5ff8"
+      },
+      "binary_sha256": "02bdba41c5caccdfe3c43bef05cfc5c68f47827babcbcbdf29a3fd9a49557041",
+      "checkpoint_pins": [
+        {
+          "time": 44251.454017,
+          "kind": "checkpoint_pin",
+          "v": [
+            712.0,
+            1.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "retry_requests": [],
+      "reset_events": [
+        {
+          "time": 44257.476829,
+          "kind": "reset_before",
+          "v": [
+            892.0,
+            2.0,
+            0.0,
+            330.0,
+            -1.0,
+            30.0
+          ]
+        },
+        {
+          "time": 44257.476933,
+          "kind": "reset_after",
+          "v": [
+            892.0,
+            2.0,
+            0.0,
+            330.0,
+            -1.0,
+            30.0
+          ]
+        },
+        {
+          "time": 44305.477463,
+          "kind": "reset_before",
+          "v": [
+            2332.0,
+            3.0,
+            0.0,
+            330.0,
+            -1.0,
+            30.0
+          ]
+        },
+        {
+          "time": 44305.477589,
+          "kind": "reset_after",
+          "v": [
+            2332.0,
+            3.0,
+            0.0,
+            330.0,
+            -1.0,
+            30.0
+          ]
+        },
+        {
+          "time": 44368.47683,
+          "kind": "reset_before",
+          "v": [
+            4222.0,
+            4.0,
+            0.0,
+            330.0,
+            -1.0,
+            30.0
+          ]
+        },
+        {
+          "time": 44368.476955,
+          "kind": "reset_after",
+          "v": [
+            4222.0,
+            4.0,
+            0.0,
+            330.0,
+            -1.0,
+            30.0
+          ]
+        },
+        {
+          "time": 44377.47739,
+          "kind": "reset_before",
+          "v": [
+            4492.0,
+            5.0,
+            0.0,
+            330.0,
+            -1.0,
+            30.0
+          ]
+        },
+        {
+          "time": 44377.47749,
+          "kind": "reset_after",
+          "v": [
+            4492.0,
+            5.0,
+            0.0,
+            330.0,
+            -1.0,
+            30.0
+          ]
+        }
+      ],
+      "dependency_events": [],
+      "pool_events": [],
+      "unchanged_net_compare": {
+        "problems": [],
+        "divergences": []
+      },
+      "family": "mcc",
+      "level": "mcc_maps\\a10"
+    },
+    {
+      "case": "mcc-pinned-stress",
+      "fixture_complete": true,
+      "observations_complete": true,
+      "early_exits": {
+        "host": null,
+        "client": null
+      },
+      "discarded_final_captures": {
+        "host": [],
+        "client": []
+      },
+      "trailing_gate": null,
+      "mutations": {
+        "2": {
+          "host": true,
+          "client": true
+        },
+        "4": {
+          "host": true,
+          "client": true
+        },
+        "6": {
+          "host": true,
+          "client": true
+        }
+      },
+      "saved_targets_qualified": true,
+      "saved_peer_agreement": true,
+      "saved_peer_skew_seconds": 0.29480599999806145,
+      "windows": {
+        "2": {
+          "gate": {
+            "samples": 1349,
+            "ready_incomplete": 990,
+            "both_flags_ready_incomplete": 0,
+            "ready_unsynchronized": 990,
+            "max_queued": 2.0,
+            "max_retry_ticks": 1320.0,
+            "first_complete_seconds": 33.01784999999654,
+            "last_ready_incomplete_seconds": 32.984606999998505,
+            "incorrect_after_first_complete": 0
+          },
+          "peers": {
+            "host": {
+              "samples": 45,
+              "tail_samples": 5,
+              "tail_wrong_fields": {
+                "slot_contents": 0,
+                "inventories": 0,
+                "all_tracked_inventory_references": 0,
+                "owners": 0,
+                "primary_magazines": 0
+              }
+            },
+            "client": {
+              "samples": 45,
+              "tail_samples": 5,
+              "tail_wrong_fields": {
+                "slot_contents": 0,
+                "inventories": 0,
+                "all_tracked_inventory_references": 0,
+                "owners": 0,
+                "primary_magazines": 0
+              }
+            }
+          }
+        },
+        "3": {
+          "gate": {
+            "samples": 1799,
+            "ready_incomplete": 179,
+            "both_flags_ready_incomplete": 179,
+            "ready_unsynchronized": 0,
+            "max_queued": 2.0,
+            "max_retry_ticks": 330.0,
+            "first_complete_seconds": 5.9841099999975995,
+            "last_ready_incomplete_seconds": 5.950755999998364,
+            "incorrect_after_first_complete": 0
+          },
+          "peers": {
+            "host": {
+              "samples": 60,
+              "tail_samples": 6,
+              "tail_wrong_fields": {
+                "slot_contents": 0,
+                "inventories": 0,
+                "all_tracked_inventory_references": 0,
+                "owners": 0,
+                "primary_magazines": 0
+              }
+            },
+            "client": {
+              "samples": 60,
+              "tail_samples": 6,
+              "tail_wrong_fields": {
+                "slot_contents": 0,
+                "inventories": 0,
+                "all_tracked_inventory_references": 0,
+                "owners": 0,
+                "primary_magazines": 0
+              }
+            }
+          }
+        },
+        "4": {
+          "gate": {
+            "samples": 270,
+            "ready_incomplete": 270,
+            "both_flags_ready_incomplete": 270,
+            "ready_unsynchronized": 0,
+            "max_queued": 2.0,
+            "max_retry_ticks": 330.0,
+            "first_complete_seconds": null,
+            "last_ready_incomplete_seconds": 8.983587000002444,
+            "incorrect_after_first_complete": 0
+          },
+          "peers": {
+            "host": {
+              "samples": 10,
+              "tail_samples": 6,
+              "tail_wrong_fields": {
+                "slot_contents": 0,
+                "inventories": 0,
+                "all_tracked_inventory_references": 0,
+                "owners": 0,
+                "primary_magazines": 0
+              }
+            },
+            "client": {
+              "samples": 9,
+              "tail_samples": 5,
+              "tail_wrong_fields": {
+                "slot_contents": 10,
+                "inventories": 10,
+                "all_tracked_inventory_references": 10,
+                "owners": 10,
+                "primary_magazines": 10
+              }
+            }
+          }
+        },
+        "5": {
+          "gate": {
+            "samples": 1862,
+            "ready_incomplete": 0,
+            "both_flags_ready_incomplete": 0,
+            "ready_unsynchronized": 0,
+            "max_queued": 0.0,
+            "max_retry_ticks": 330.0,
+            "first_complete_seconds": 0.016942000002018176,
+            "last_ready_incomplete_seconds": null,
+            "incorrect_after_first_complete": 0
+          },
+          "peers": {
+            "host": {
+              "samples": 63,
+              "tail_samples": 5,
+              "tail_wrong_fields": {
+                "slot_contents": 0,
+                "inventories": 0,
+                "all_tracked_inventory_references": 0,
+                "owners": 0,
+                "primary_magazines": 0
+              }
+            },
+            "client": {
+              "samples": 62,
+              "tail_samples": 6,
+              "tail_wrong_fields": {
+                "slot_contents": 0,
+                "inventories": 0,
+                "all_tracked_inventory_references": 0,
+                "owners": 0,
+                "primary_magazines": 0
+              }
+            }
+          }
+        }
+      },
+      "packets": [
+        {
+          "time": 44668.040813,
+          "kind": "old_packet_saved",
+          "v": [
+            4222.0,
+            0.0,
+            4.0,
+            5.0,
+            276.0,
+            2.0
+          ]
+        },
+        {
+          "time": 44668.042224,
+          "kind": "old_packet_saved",
+          "v": [
+            4222.0,
+            1.0,
+            4.0,
+            4.0,
+            4044.0,
+            63.0
+          ]
+        },
+        {
+          "time": 44677.057657,
+          "kind": "old_packet_replay",
+          "v": [
+            4493.0,
+            0.0,
+            4.0,
+            5.0,
+            276.0,
+            0.0
+          ]
+        },
+        {
+          "time": 44677.057675,
+          "kind": "old_epoch_rejected",
+          "v": [
+            4493.0,
+            4.0,
+            5.0,
+            5.0,
+            276.0,
+            2.0
+          ]
+        },
+        {
+          "time": 44677.05768,
+          "kind": "old_packet_replay",
+          "v": [
+            4493.0,
+            1.0,
+            4.0,
+            5.0,
+            4044.0,
+            0.0
+          ]
+        },
+        {
+          "time": 44677.057685,
+          "kind": "old_epoch_rejected",
+          "v": [
+            4493.0,
+            4.0,
+            5.0,
+            4.0,
+            4044.0,
+            63.0
+          ]
+        }
+      ],
+      "mode": "stress",
+      "evidence": {
+        "folder": "build/m0/recovery-stress/mcc-pinned-stress",
+        "manifest_sha256": "d8b874ca1711172d07d28a516451aa9fabb701b3ef79e86d28e12807c06a8dd7",
+        "archive_sha256": "a60151b6edfe43e22dbd0cde975a2f10e300ead38195eaceb351d628c363a076",
+        "full_reduction_sha256": "dc5c5a4a7e451f4cff41ea2beb65084ea1def2e54f6ec0c6e96006a5e0fae8a0"
+      },
+      "binary_sha256": "02bdba41c5caccdfe3c43bef05cfc5c68f47827babcbcbdf29a3fd9a49557041",
+      "checkpoint_pins": [
+        {
+          "time": 44551.016918,
+          "kind": "checkpoint_pin",
+          "v": [
+            712.0,
+            1.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "retry_requests": [
+        {
+          "time": 44568.024434,
+          "kind": "retry_request",
+          "v": [
+            1222.0,
+            2.0,
+            120.0,
+            660.0,
+            892.0,
+            1.0
+          ]
+        },
+        {
+          "time": 44590.024486,
+          "kind": "retry_request",
+          "v": [
+            1882.0,
+            2.0,
+            120.0,
+            1320.0,
+            1222.0,
+            1.0
+          ]
+        }
+      ],
+      "reset_events": [
+        {
+          "time": 44557.039959,
+          "kind": "reset_before",
+          "v": [
+            892.0,
+            2.0,
+            0.0,
+            330.0,
+            -1.0,
+            30.0
+          ]
+        },
+        {
+          "time": 44557.040065,
+          "kind": "reset_after",
+          "v": [
+            892.0,
+            2.0,
+            0.0,
+            330.0,
+            -1.0,
+            30.0
+          ]
+        },
+        {
+          "time": 44605.040277,
+          "kind": "reset_before",
+          "v": [
+            2332.0,
+            3.0,
+            0.0,
+            330.0,
+            -1.0,
+            120.0
+          ]
+        },
+        {
+          "time": 44605.040386,
+          "kind": "reset_after",
+          "v": [
+            2332.0,
+            3.0,
+            0.0,
+            330.0,
+            -1.0,
+            30.0
+          ]
+        },
+        {
+          "time": 44668.040658,
+          "kind": "reset_before",
+          "v": [
+            4222.0,
+            4.0,
+            0.0,
+            330.0,
+            -1.0,
+            30.0
+          ]
+        },
+        {
+          "time": 44668.04076,
+          "kind": "reset_after",
+          "v": [
+            4222.0,
+            4.0,
+            0.0,
+            330.0,
+            -1.0,
+            30.0
+          ]
+        },
+        {
+          "time": 44677.040806,
+          "kind": "reset_before",
+          "v": [
+            4492.0,
+            5.0,
+            2.0,
+            330.0,
+            -1.0,
+            30.0
+          ]
+        },
+        {
+          "time": 44677.040911,
+          "kind": "reset_after",
+          "v": [
+            4492.0,
+            5.0,
+            0.0,
+            330.0,
+            -1.0,
+            30.0
+          ]
+        }
+      ],
+      "dependency_events": [
+        {
+          "time": 44605.040463,
+          "kind": "dependency_hold",
+          "v": [
+            2332.0,
+            3.0,
+            1.0,
+            -456261218.0,
+            2332.0,
+            0.0
+          ]
+        },
+        {
+          "time": 44605.040469,
+          "kind": "dependency_hold",
+          "v": [
+            2332.0,
+            3.0,
+            0.0,
+            -456326748.0,
+            2332.0,
+            0.0
+          ]
+        },
+        {
+          "time": 44611.02437,
+          "kind": "dependency_release",
+          "v": [
+            2512.0,
+            3.0,
+            0.0,
+            -456326748.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "time": 44611.024403,
+          "kind": "dependency_release",
+          "v": [
+            2512.0,
+            3.0,
+            1.0,
+            -456261218.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "time": 44668.040822,
+          "kind": "dependency_hold",
+          "v": [
+            4222.0,
+            4.0,
+            1.0,
+            -456261218.0,
+            4222.0,
+            0.0
+          ]
+        },
+        {
+          "time": 44668.040828,
+          "kind": "dependency_hold",
+          "v": [
+            4222.0,
+            4.0,
+            0.0,
+            -456326748.0,
+            4222.0,
+            0.0
+          ]
+        },
+        {
+          "time": 44677.05769,
+          "kind": "dependency_cancel",
+          "v": [
+            4493.0,
+            4.0,
+            5.0,
+            1.0,
+            1.0,
+            0.0
+          ]
+        }
+      ],
+      "pool_events": [
+        {
+          "time": 44557.046164,
+          "kind": "pressure_fill",
+          "v": [
+            892.0,
+            2.0,
+            -456261218.0,
+            477.0,
+            9344.0,
+            4.0
+          ]
+        },
+        {
+          "time": 44557.046227,
+          "kind": "pool_failed",
+          "v": [
+            892.0,
+            -456261218.0,
+            636.0,
+            9344.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "time": 44557.046313,
+          "kind": "pressure_fill",
+          "v": [
+            892.0,
+            2.0,
+            -456326748.0,
+            477.0,
+            9344.0,
+            4.0
+          ]
+        },
+        {
+          "time": 44557.046323,
+          "kind": "pool_failed",
+          "v": [
+            892.0,
+            -456326748.0,
+            636.0,
+            9344.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "time": 44557.047283,
+          "kind": "pressure_fill",
+          "v": [
+            892.0,
+            2.0,
+            -456261218.0,
+            477.0,
+            9344.0,
+            4.0
+          ]
+        },
+        {
+          "time": 44557.047296,
+          "kind": "pool_failed",
+          "v": [
+            892.0,
+            -456261218.0,
+            636.0,
+            9344.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "time": 44557.047353,
+          "kind": "pressure_fill",
+          "v": [
+            892.0,
+            2.0,
+            -456326748.0,
+            477.0,
+            9344.0,
+            4.0
+          ]
+        },
+        {
+          "time": 44557.047363,
+          "kind": "pool_failed",
+          "v": [
+            892.0,
+            -456326748.0,
+            636.0,
+            9344.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "time": 44568.025899,
+          "kind": "pressure_fill",
+          "v": [
+            1222.0,
+            2.0,
+            -456261218.0,
+            480.0,
+            24.0,
+            24.0
+          ]
+        },
+        {
+          "time": 44568.025924,
+          "kind": "pool_failed",
+          "v": [
+            1222.0,
+            -456261218.0,
+            636.0,
+            24.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "time": 44568.02599,
+          "kind": "pressure_fill",
+          "v": [
+            1222.0,
+            2.0,
+            -456326748.0,
+            480.0,
+            24.0,
+            24.0
+          ]
+        },
+        {
+          "time": 44568.026001,
+          "kind": "pool_failed",
+          "v": [
+            1222.0,
+            -456326748.0,
+            636.0,
+            24.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "time": 44572.026986,
+          "kind": "pressure_release",
+          "v": [
+            1342.0,
+            2.0,
+            480.0,
+            24.0,
+            7765448.0,
+            0.0
+          ]
+        }
+      ],
+      "unchanged_net_compare": {
+        "problems": [],
+        "divergences": [
+          {
+            "player": 0,
+            "field": "weapons",
+            "tick": 900,
+            "detail": "host ['c38'] client []",
+            "seconds": 3
+          },
+          {
+            "player": 1,
+            "field": "weapons",
+            "tick": 900,
+            "detail": "host ['c38'] client []",
+            "seconds": 3
+          },
+          {
+            "player": 0,
+            "field": "weapons",
+            "tick": 2340,
+            "detail": "host ['c38'] client []",
+            "seconds": 3
+          },
+          {
+            "player": 1,
+            "field": "weapons",
+            "tick": 2340,
+            "detail": "host ['c38'] client []",
+            "seconds": 3
+          },
+          {
+            "player": 0,
+            "field": "weapons",
+            "tick": 4230,
+            "detail": "host ['c38'] client []",
+            "seconds": 3
+          },
+          {
+            "player": 1,
+            "field": "weapons",
+            "tick": 4230,
+            "detail": "host ['c38'] client []",
+            "seconds": 3
+          }
+        ]
+      },
+      "family": "mcc",
+      "level": "mcc_maps\\a10"
+    }
+  ],
+  "pilot_build": {
+    "sha256": "0c8e06ab4175ea4f010dc2f0c13568ea0a5a5b0412d26ed97c75a4325f14cc00",
+    "raw_bytes": 63428327,
+    "archive_bytes": 24975789
+  },
+  "unprotected_build": {
+    "sha256": "0a183e893a4cf65143af57e3a96254772ce60ef90e1243b80fbc1499108dd33f",
+    "binary_sha256": "dd80b010706e79b67cc67fe4c51183265e50de85b884a29f84d5b064690ebf6b",
+    "raw_bytes": 63428471,
+    "archive_bytes": 24975872
+  },
+  "excluded_pilots": [
+    {
+      "case": "xbox-control",
+      "reason": "Fourth revert became checkpoint respawn under the existing rate guard.",
+      "evidence": {
+        "folder": "build/m0/recovery-stress/xbox-control",
+        "manifest_sha256": "f5843f095e5b1c2e9da97340221606e7e9aed6d2c43d6f4a56b9734d612fbffa",
+        "archive_sha256": "2c0b1759839181d16cdc743e647a4d8602a70ff1eb2cf7d392cc7a20fbdb3f25",
+        "full_reduction_sha256": "576da83a49fa18a92637cef9f45a5125980a152a7205e7e9a77822dfdb793db0"
+      },
+      "binary_sha256": "edf88e0b29e2ea767f5e88ecd88e5654bfcc5e2f0ba6f0b25d6b483c1d58069d"
+    },
+    {
+      "case": "mcc-control",
+      "reason": "Authored MCC autosaves replaced the original fixture checkpoint.",
+      "evidence": {
+        "folder": "build/m0/recovery-stress/mcc-control",
+        "manifest_sha256": "4c9db8eaeb045171f4ed6a03ac631b4562910f46c3e873c81c793abd470e3833",
+        "archive_sha256": "7e21add2bf1ff5673f999c279494102e0182b07b92ec2f94f17c953083b5e7a9",
+        "full_reduction_sha256": "a38b1719e33c8f986c1fca3d6dc6e272ecd2dc330e2ea3ff64d6586407fbab10"
+      },
+      "binary_sha256": "dd80b010706e79b67cc67fe4c51183265e50de85b884a29f84d5b064690ebf6b"
+    }
+  ],
+  "profile_source": {
+    "profile_sha256": "7836a51dfec5f336f6fbe1b2a81a90a40793b7e09b7dc605250841961867901d",
+    "metadata_sha256": "686c9489b9807951a83cb2c609ab5dfe826ed1e36204dd123767a3e18571607e"
+  },
+  "ce_control_deviation": {
+    "classification": "Observed late control deviation; cause unqualified, not attributed to injected faults or checkpoint restore.",
+    "baseline": [
+      {
+        "slot_contents": [
+          [
+            -291306538.0,
+            -370669452.0,
+            2.0,
+            -1.0,
+            -431881261.0
+          ]
+        ],
+        "post_save_presence": [],
+        "inventories": [
+          [
+            -431881261.0,
+            0.0,
+            -291306538.0
+          ],
+          [
+            -431881261.0,
+            1.0,
+            -1.0
+          ],
+          [
+            -431881261.0,
+            2.0,
+            -1.0
+          ],
+          [
+            -431881261.0,
+            3.0,
+            -1.0
+          ],
+          [
+            -291699786.0,
+            0.0,
+            -291241001.0
+          ],
+          [
+            -291699786.0,
+            1.0,
+            -1.0
+          ],
+          [
+            -291699786.0,
+            2.0,
+            -1.0
+          ],
+          [
+            -291699786.0,
+            3.0,
+            -1.0
+          ]
+        ],
+        "all_tracked_inventory_references": [
+          [
+            -431881261.0,
+            0.0,
+            -291306538.0
+          ]
+        ],
+        "owners": [
+          [
+            -291306538.0,
+            -328204288.0,
+            1.0,
+            1.0
+          ]
+        ],
+        "primary_magazines": [
+          [
+            -291306538.0,
+            0.0,
+            20.0,
+            20.0
+          ]
+        ]
+      },
+      {
+        "slot_contents": [
+          [
+            -291241001.0,
+            -370669452.0,
+            2.0,
+            -1.0,
+            -291699786.0
+          ]
+        ],
+        "post_save_presence": [],
+        "inventories": [
+          [
+            -431881261.0,
+            0.0,
+            -291306538.0
+          ],
+          [
+            -431881261.0,
+            1.0,
+            -1.0
+          ],
+          [
+            -431881261.0,
+            2.0,
+            -1.0
+          ],
+          [
+            -431881261.0,
+            3.0,
+            -1.0
+          ],
+          [
+            -291699786.0,
+            0.0,
+            -291241001.0
+          ],
+          [
+            -291699786.0,
+            1.0,
+            -1.0
+          ],
+          [
+            -291699786.0,
+            2.0,
+            -1.0
+          ],
+          [
+            -291699786.0,
+            3.0,
+            -1.0
+          ]
+        ],
+        "all_tracked_inventory_references": [
+          [
+            -291699786.0,
+            0.0,
+            -291241001.0
+          ]
+        ],
+        "owners": [
+          [
+            -291241001.0,
+            -328138751.0,
+            1.0,
+            1.0
+          ]
+        ],
+        "primary_magazines": [
+          [
+            -291241001.0,
+            0.0,
+            24.0,
+            24.0
+          ]
+        ]
+      }
+    ],
+    "peers": {
+      "host": [
+        {
+          "after_revert_seconds": 6.836750000002212,
+          "tick": 5010.0,
+          "differences": [
+            {
+              "target": 0,
+              "values": {
+                "slot_contents": [
+                  [
+                    -291306538.0,
+                    -370669452.0,
+                    2.0,
+                    -1.0,
+                    -1.0
+                  ]
+                ],
+                "inventories": [
+                  [
+                    -431881261.0,
+                    0.0,
+                    -291306538.0
+                  ],
+                  [
+                    -431881261.0,
+                    1.0,
+                    -422443958.0
+                  ],
+                  [
+                    -431881261.0,
+                    2.0,
+                    -1.0
+                  ],
+                  [
+                    -431881261.0,
+                    3.0,
+                    -1.0
+                  ],
+                  [
+                    -291699786.0,
+                    0.0,
+                    -291241001.0
+                  ],
+                  [
+                    -291699786.0,
+                    1.0,
+                    -1.0
+                  ],
+                  [
+                    -291699786.0,
+                    2.0,
+                    -1.0
+                  ],
+                  [
+                    -291699786.0,
+                    3.0,
+                    -1.0
+                  ]
+                ]
+              }
+            },
+            {
+              "target": 1,
+              "values": {
+                "inventories": [
+                  [
+                    -431881261.0,
+                    0.0,
+                    -291306538.0
+                  ],
+                  [
+                    -431881261.0,
+                    1.0,
+                    -422443958.0
+                  ],
+                  [
+                    -431881261.0,
+                    2.0,
+                    -1.0
+                  ],
+                  [
+                    -431881261.0,
+                    3.0,
+                    -1.0
+                  ],
+                  [
+                    -291699786.0,
+                    0.0,
+                    -291241001.0
+                  ],
+                  [
+                    -291699786.0,
+                    1.0,
+                    -1.0
+                  ],
+                  [
+                    -291699786.0,
+                    2.0,
+                    -1.0
+                  ],
+                  [
+                    -291699786.0,
+                    3.0,
+                    -1.0
+                  ]
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "after_revert_seconds": 7.837183000003279,
+          "tick": 5040.0,
+          "differences": [
+            {
+              "target": 0,
+              "values": {
+                "slot_contents": [
+                  [
+                    -291306538.0,
+                    -370669452.0,
+                    2.0,
+                    -1.0,
+                    -1.0
+                  ]
+                ],
+                "inventories": [
+                  [
+                    -431881261.0,
+                    0.0,
+                    -291306538.0
+                  ],
+                  [
+                    -431881261.0,
+                    1.0,
+                    -422443958.0
+                  ],
+                  [
+                    -431881261.0,
+                    2.0,
+                    -1.0
+                  ],
+                  [
+                    -431881261.0,
+                    3.0,
+                    -1.0
+                  ],
+                  [
+                    -291699786.0,
+                    0.0,
+                    -291241001.0
+                  ],
+                  [
+                    -291699786.0,
+                    1.0,
+                    -1.0
+                  ],
+                  [
+                    -291699786.0,
+                    2.0,
+                    -1.0
+                  ],
+                  [
+                    -291699786.0,
+                    3.0,
+                    -1.0
+                  ]
+                ]
+              }
+            },
+            {
+              "target": 1,
+              "values": {
+                "inventories": [
+                  [
+                    -431881261.0,
+                    0.0,
+                    -291306538.0
+                  ],
+                  [
+                    -431881261.0,
+                    1.0,
+                    -422443958.0
+                  ],
+                  [
+                    -431881261.0,
+                    2.0,
+                    -1.0
+                  ],
+                  [
+                    -431881261.0,
+                    3.0,
+                    -1.0
+                  ],
+                  [
+                    -291699786.0,
+                    0.0,
+                    -291241001.0
+                  ],
+                  [
+                    -291699786.0,
+                    1.0,
+                    -1.0
+                  ],
+                  [
+                    -291699786.0,
+                    2.0,
+                    -1.0
+                  ],
+                  [
+                    -291699786.0,
+                    3.0,
+                    -1.0
+                  ]
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "after_revert_seconds": 8.836596000001009,
+          "tick": 5070.0,
+          "differences": [
+            {
+              "target": 0,
+              "values": {
+                "slot_contents": [
+                  [
+                    -291306538.0,
+                    -370669452.0,
+                    2.0,
+                    -1.0,
+                    -1.0
+                  ]
+                ],
+                "inventories": [
+                  [
+                    -431881261.0,
+                    0.0,
+                    -291306538.0
+                  ],
+                  [
+                    -431881261.0,
+                    1.0,
+                    -422443958.0
+                  ],
+                  [
+                    -431881261.0,
+                    2.0,
+                    -1.0
+                  ],
+                  [
+                    -431881261.0,
+                    3.0,
+                    -1.0
+                  ],
+                  [
+                    -291699786.0,
+                    0.0,
+                    -291241001.0
+                  ],
+                  [
+                    -291699786.0,
+                    1.0,
+                    -1.0
+                  ],
+                  [
+                    -291699786.0,
+                    2.0,
+                    -1.0
+                  ],
+                  [
+                    -291699786.0,
+                    3.0,
+                    -1.0
+                  ]
+                ]
+              }
+            },
+            {
+              "target": 1,
+              "values": {
+                "inventories": [
+                  [
+                    -431881261.0,
+                    0.0,
+                    -291306538.0
+                  ],
+                  [
+                    -431881261.0,
+                    1.0,
+                    -422443958.0
+                  ],
+                  [
+                    -431881261.0,
+                    2.0,
+                    -1.0
+                  ],
+                  [
+                    -431881261.0,
+                    3.0,
+                    -1.0
+                  ],
+                  [
+                    -291699786.0,
+                    0.0,
+                    -291241001.0
+                  ],
+                  [
+                    -291699786.0,
+                    1.0,
+                    -1.0
+                  ],
+                  [
+                    -291699786.0,
+                    2.0,
+                    -1.0
+                  ],
+                  [
+                    -291699786.0,
+                    3.0,
+                    -1.0
+                  ]
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "after_revert_seconds": 8.969706000003498,
+          "tick": 5074.0,
+          "differences": [
+            {
+              "target": 0,
+              "values": {
+                "slot_contents": [
+                  [
+                    -291306538.0,
+                    -370669452.0,
+                    2.0,
+                    -1.0,
+                    -1.0
+                  ]
+                ],
+                "inventories": [
+                  [
+                    -431881261.0,
+                    0.0,
+                    -291306538.0
+                  ],
+                  [
+                    -431881261.0,
+                    1.0,
+                    -422443958.0
+                  ],
+                  [
+                    -431881261.0,
+                    2.0,
+                    -1.0
+                  ],
+                  [
+                    -431881261.0,
+                    3.0,
+                    -1.0
+                  ],
+                  [
+                    -291699786.0,
+                    0.0,
+                    -291241001.0
+                  ],
+                  [
+                    -291699786.0,
+                    1.0,
+                    -1.0
+                  ],
+                  [
+                    -291699786.0,
+                    2.0,
+                    -1.0
+                  ],
+                  [
+                    -291699786.0,
+                    3.0,
+                    -1.0
+                  ]
+                ]
+              }
+            },
+            {
+              "target": 1,
+              "values": {
+                "inventories": [
+                  [
+                    -431881261.0,
+                    0.0,
+                    -291306538.0
+                  ],
+                  [
+                    -431881261.0,
+                    1.0,
+                    -422443958.0
+                  ],
+                  [
+                    -431881261.0,
+                    2.0,
+                    -1.0
+                  ],
+                  [
+                    -431881261.0,
+                    3.0,
+                    -1.0
+                  ],
+                  [
+                    -291699786.0,
+                    0.0,
+                    -291241001.0
+                  ],
+                  [
+                    -291699786.0,
+                    1.0,
+                    -1.0
+                  ],
+                  [
+                    -291699786.0,
+                    2.0,
+                    -1.0
+                  ],
+                  [
+                    -291699786.0,
+                    3.0,
+                    -1.0
+                  ]
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "client": [
+        {
+          "after_revert_seconds": 6.724040000000969,
+          "tick": 5010.0,
+          "differences": [
+            {
+              "target": 0,
+              "values": {
+                "slot_contents": [
+                  [
+                    -291306538.0,
+                    -370669452.0,
+                    2.0,
+                    -1.0,
+                    -1.0
+                  ]
+                ],
+                "inventories": [
+                  [
+                    -431881261.0,
+                    0.0,
+                    -291306538.0
+                  ],
+                  [
+                    -431881261.0,
+                    1.0,
+                    -422443958.0
+                  ],
+                  [
+                    -431881261.0,
+                    2.0,
+                    -1.0
+                  ],
+                  [
+                    -431881261.0,
+                    3.0,
+                    -1.0
+                  ],
+                  [
+                    -291699786.0,
+                    0.0,
+                    -291241001.0
+                  ],
+                  [
+                    -291699786.0,
+                    1.0,
+                    -1.0
+                  ],
+                  [
+                    -291699786.0,
+                    2.0,
+                    -1.0
+                  ],
+                  [
+                    -291699786.0,
+                    3.0,
+                    -1.0
+                  ]
+                ]
+              }
+            },
+            {
+              "target": 1,
+              "values": {
+                "inventories": [
+                  [
+                    -431881261.0,
+                    0.0,
+                    -291306538.0
+                  ],
+                  [
+                    -431881261.0,
+                    1.0,
+                    -422443958.0
+                  ],
+                  [
+                    -431881261.0,
+                    2.0,
+                    -1.0
+                  ],
+                  [
+                    -431881261.0,
+                    3.0,
+                    -1.0
+                  ],
+                  [
+                    -291699786.0,
+                    0.0,
+                    -291241001.0
+                  ],
+                  [
+                    -291699786.0,
+                    1.0,
+                    -1.0
+                  ],
+                  [
+                    -291699786.0,
+                    2.0,
+                    -1.0
+                  ],
+                  [
+                    -291699786.0,
+                    3.0,
+                    -1.0
+                  ]
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "after_revert_seconds": 7.723875000003318,
+          "tick": 5040.0,
+          "differences": [
+            {
+              "target": 0,
+              "values": {
+                "slot_contents": [
+                  [
+                    -291306538.0,
+                    -370669452.0,
+                    2.0,
+                    -1.0,
+                    -1.0
+                  ]
+                ],
+                "inventories": [
+                  [
+                    -431881261.0,
+                    0.0,
+                    -291306538.0
+                  ],
+                  [
+                    -431881261.0,
+                    1.0,
+                    -422443958.0
+                  ],
+                  [
+                    -431881261.0,
+                    2.0,
+                    -1.0
+                  ],
+                  [
+                    -431881261.0,
+                    3.0,
+                    -1.0
+                  ],
+                  [
+                    -291699786.0,
+                    0.0,
+                    -291241001.0
+                  ],
+                  [
+                    -291699786.0,
+                    1.0,
+                    -1.0
+                  ],
+                  [
+                    -291699786.0,
+                    2.0,
+                    -1.0
+                  ],
+                  [
+                    -291699786.0,
+                    3.0,
+                    -1.0
+                  ]
+                ]
+              }
+            },
+            {
+              "target": 1,
+              "values": {
+                "inventories": [
+                  [
+                    -431881261.0,
+                    0.0,
+                    -291306538.0
+                  ],
+                  [
+                    -431881261.0,
+                    1.0,
+                    -422443958.0
+                  ],
+                  [
+                    -431881261.0,
+                    2.0,
+                    -1.0
+                  ],
+                  [
+                    -431881261.0,
+                    3.0,
+                    -1.0
+                  ],
+                  [
+                    -291699786.0,
+                    0.0,
+                    -291241001.0
+                  ],
+                  [
+                    -291699786.0,
+                    1.0,
+                    -1.0
+                  ],
+                  [
+                    -291699786.0,
+                    2.0,
+                    -1.0
+                  ],
+                  [
+                    -291699786.0,
+                    3.0,
+                    -1.0
+                  ]
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "after_revert_seconds": 8.724456000003556,
+          "tick": 5070.0,
+          "differences": [
+            {
+              "target": 0,
+              "values": {
+                "slot_contents": [
+                  [
+                    -291306538.0,
+                    -370669452.0,
+                    2.0,
+                    -1.0,
+                    -1.0
+                  ]
+                ],
+                "inventories": [
+                  [
+                    -431881261.0,
+                    0.0,
+                    -291306538.0
+                  ],
+                  [
+                    -431881261.0,
+                    1.0,
+                    -422443958.0
+                  ],
+                  [
+                    -431881261.0,
+                    2.0,
+                    -1.0
+                  ],
+                  [
+                    -431881261.0,
+                    3.0,
+                    -1.0
+                  ],
+                  [
+                    -291699786.0,
+                    0.0,
+                    -291241001.0
+                  ],
+                  [
+                    -291699786.0,
+                    1.0,
+                    -1.0
+                  ],
+                  [
+                    -291699786.0,
+                    2.0,
+                    -1.0
+                  ],
+                  [
+                    -291699786.0,
+                    3.0,
+                    -1.0
+                  ]
+                ]
+              }
+            },
+            {
+              "target": 1,
+              "values": {
+                "inventories": [
+                  [
+                    -431881261.0,
+                    0.0,
+                    -291306538.0
+                  ],
+                  [
+                    -431881261.0,
+                    1.0,
+                    -422443958.0
+                  ],
+                  [
+                    -431881261.0,
+                    2.0,
+                    -1.0
+                  ],
+                  [
+                    -431881261.0,
+                    3.0,
+                    -1.0
+                  ],
+                  [
+                    -291699786.0,
+                    0.0,
+                    -291241001.0
+                  ],
+                  [
+                    -291699786.0,
+                    1.0,
+                    -1.0
+                  ],
+                  [
+                    -291699786.0,
+                    2.0,
+                    -1.0
+                  ],
+                  [
+                    -291699786.0,
+                    3.0,
+                    -1.0
+                  ]
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "focused_tests": {
+    "tests": "188",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0"
+  },
+  "unchanged_modes": {
+    "recovery": 7,
+    "recovery-domains": 7,
+    "recovery-timing": 7,
+    "recovery-identity": 7,
+    "recovery-faults": 8,
+    "recovery-stress": 8
+  },
+  "cleanup": {
+    "private_fixture_bytes_removed": 18091300486,
+    "archived_files": 745,
+    "archived_raw_bytes": 998153740,
+    "archive_bytes": 153629385,
+    "temporary_build_test_bytes_removed": 247175587,
+    "retained_pass_bytes": 280578493,
+    "retained_all_m0_bytes": 2689450600
+  }
+}

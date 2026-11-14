@@ -381,6 +381,11 @@ extends this to weapon-to-biped slot reuse and controlled allocation refusal
 and delayed inventory dependencies. It separates eventual saved-state repair
 from premature client readiness. Other type pairs, natural exhaustion and
 broader dependency failures remain open.
+The [sustained pressure/dependency continuation](coop_m0_recovery_stress.md)
+adds bounded exhaustion of the real pool, two missing weapon dependencies,
+interruption by another recovery epoch, and captured old-packet replay. Queue
+capacity/expiry is checked separately through extracted production functions.
+Its limits remain part of the full-system gate.
 
 | Gate | Current disposition |
 | --- | --- |

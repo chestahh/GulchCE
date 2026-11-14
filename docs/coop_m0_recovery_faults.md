@@ -6,6 +6,10 @@ and retains the [19-domain recovery ledger](coop_m0_recovery.md#full-system-reco
 Production source, protocol, defaults, original maps and original saves are
 unchanged. M0 remains open; M1 and publication are unstarted.
 
+The later [sustained-recovery pass](coop_m0_recovery_stress.md) extends this
+baseline to real pool pressure, multiple missing weapons and epoch interruption.
+Results below remain the original single-failure and cross-type experiment.
+
 Linux runtime is **blocked: no runner**. Android runtime is **blocked: no
 device/emulator**; the earlier Android build blocker remains separate. Runs
 use Windows native loopback peers, hidden windows, null rendering and disabled
