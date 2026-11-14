@@ -328,7 +328,8 @@ invalidate the catalog when it is next used.
 
 The small completion hook in `main_won_map_private` delegates to
 [`mcc_main_campaign_won`](../../port/linux/game/mcc_main.c), guarded by a loaded
-MCC campaign and the setting. Solo games retain difficulty and queue the next
+MCC campaign. Manifest progression requires the campaign setting; a validated
+script destination does not. Solo games retain difficulty and queue the next
 map. Network clients do not choose; hosts use the existing co-op lobby/settings
 transition. `mcc_ui_network_campaign_won` records a one-use request for that
 server, round and next mission, returning the host to the ready lobby with
@@ -337,7 +338,21 @@ the request; ordinary same-selection identity validation does not. Local package
 checks hold the start as described above; missing clients fetch the next mission
 and join when ready. No progression cursor survives unload: the current level
 and its own package identify the next mission. Standalone and final levels return to
-the menu or lobby. Xbox and CE still use their existing completion code.
+the menu or lobby when no script names a valid next mission.
+
+Campaign scripts can also call `map_name`. In
+[`hs.c`](../../source/hs/hs.c), `main_set_map_name_evaluate` distinguishes the
+owning console thread from a map script; global initializers cannot change
+maps. `main_script_map_name` in [`main.c`](../../source/main/main.c) resolves a
+script destination before queuing completion. MCC lookup stays in
+`mcc_main_script_level_resolve`: `mcc_maps\Pack\z10` requesting `a20.map`
+can select only a campaign map named `a20` in that same package. It cannot
+select another package or an Xbox/CE map. The validated destination is consumed
+by `main_won_map_private` and passed to `mcc_main_campaign_won`. Custom Edition
+uses its own campaign lookup; Xbox's normal level order remains separate.
+The destination and owning-thread harnesses, plus
+[`test_mcc_lifecycle.py`](../../tools/test_mcc_lifecycle.py), cover these
+boundaries and host/client behavior.
 
 Managed downloads retain this package boundary. If mission `z10` is in one
 `dl_<digest>` folder and `a10` in another, matching campaign JSON or Workshop
@@ -588,7 +603,7 @@ MCC-owned and changes neither Xbox/CE paths nor network timeouts or packet
 formats. It does not eliminate arbitrary storage or main-thread stalls.
 
 For an authored MCC campaign follow-on, `mcc_main_campaign_won` in
-[mcc_main.c](../../port/linux/game/mcc_main.c) passes the manifest-selected
+[mcc_main.c](../../port/linux/game/mcc_main.c) passes the manifest-selected or validated script-selected
 mission to `mcc_ui_network_campaign_won` in
 [mcc_ui_network.inl](../../port/linux/game/mcc_ui_network.inl). After the
 ordinary reliable round transition succeeds, an MCC-owned token identifies
