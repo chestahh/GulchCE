@@ -79,7 +79,6 @@ builds on GulchCE's. **If you're an Android player, this is the best place to ex
 [Watanoge/halo-content-evolved](https://github.com/Watanoge/halo-content-evolved),
 by Watanoge: the Xbox game with Watanoge's own quality-of-life changes for
 the Switch, with a lot for the campaign, such as skulls and a randomizer.
-Its Steam client is the base of SlipstreamCE's Steam Workshop downloads.
 
 ### halo-ce-vita
 
