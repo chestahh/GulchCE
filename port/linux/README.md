@@ -891,6 +891,13 @@ Each frame shows the world between the last two ticks
   the same way, as it did the tick before), is mixed: a30's lifepod sheds its
   airbrakes as it falls, and the whole pod, with the camera that follows it,
   had stepped once a tick.
+- A cut the scripts make (a cinematic's camera set to another point at
+  once, an animated camera started, the scripted camera turned on or off)
+  starts a new shot: for that tick the camera and every object are drawn as
+  the tick left them, as the Xbox drew them. Mixed, the camera swept from
+  one shot to the next when they were too close to tell for a cut (the
+  Captain's bridge in a10's opening), and what the script moved for the new
+  shot slid there (Sergeant Johnson's next walk).
 - After a long frame (several ticks in one frame), the camera mixes the
   last tick only, as the objects do.
 - In cinematics, a camera that moves with an object (the lifepod in a30,
@@ -2074,6 +2081,7 @@ Other changes:
 | `sound/sound_definitions.c`, `sound/sound_definitions.h` | Sound ranges can choose from up to 256 variations. Extra played bits are kept outside the tag, reused when mod ranges retire and reset on map changes. Allocation failure temporarily limits a pick to the first 32 without changing the tag; ranges of 32 or fewer keep their original picks and random-seed progression. See [sound channels and variation selection](../../docs/reading/audio_channels.md). |
 | `sound/sound_manager.c`, `camera/observer.c`, `camera/director.c` | The listener's velocity, which the Doppler effect takes, is the game's velocity for the camera's position as if it were fixed to the unit the camera follows (`director_get_followed_unit`, `object_get_point_velocity`), as the sounds on that unit get theirs, so that they cancel exactly, from a chase camera too, even through a network client's corrections and a turret's swing, and swinging the camera round adds nothing. With no such unit (a cinematic's camera, a flying one) it is measured from how far the focus moves from one tick to the next (`listener_measure_velocity`, `observer_get_focus_position`), with explicit resets on camera cuts, map changes and saved-game restoration, listener loss or reuse, and a fallback for jumps of 10 world units a tick or more. The observer's velocity, which the game gave, is a tick's motion divided by a frame's time on the native ports, several times too fast at a high frame rate, and zero while a cinematic forces the camera, so that sounds moving with the camera rose in pitch. |
 | `sound/sound_manager.c`, `sound/sound_dsound_xbox.c` | With `audio.stereo_doppler` enabled (off by default), a positioned stereo source is shifted by Doppler: the game gives the mixer how fast it comes towards the listener (`dsound_port_set_channel_stereo_position`). The reconstructed Xbox build routes stereo sources through 2D channels without motion Doppler; authored pitch still applies. See [Doppler audio](../../docs/reading/audio_doppler.md) for the evidence and reading route. |
+| `camera/camera_scripting.c` | A cut the scripts make (a camera point set at once, unless the camera is at it already, an animated camera started, the scripted camera turned on or off, a first-person or dead camera) tells the frames' interpolation (`render_interpolation_cut`), which draws that tick's camera and objects as they are, not mixed from the shot before (`display.interpolation`). |
 | `sound/game_sound.c`, `objects/objects.c` | A sound on an object moves as the point it is attached to does, with the spin of the object it rides (`object_get_point_velocity`), not only as the object's centre does, for the Doppler effect. The listener's velocity has the spin in it: without the sounds' too, a vehicle's own engine rose and fell in pitch for whoever rode it as it turned. |
 | `sound/sound_manager.c` | A track of a looping sound that is gone stops, even in the millisecond it started (`refresh_sound`). The Xbox never drew three frames in one millisecond; the port can (the null renderer, no frame limit), and then read the deleted looping sound and crashed. |
 | `cseries/errors.c` | `debug.txt` stays open between lines. A line that is the same as the line before it is counted, not written again (`last line repeated N times`). At 64 MB, `debug.txt` becomes `debug.old.txt` and a new `debug.txt` starts. |
