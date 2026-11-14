@@ -56,6 +56,39 @@ Keep these folders separate. Halo PC or MCC data does not replace the Xbox data 
 
 For installation, controls and platform requirements, see the [Windows](port/windows/README.md), [Linux](port/linux/README.md), [Android](port/android/README.md) or [browser](port/web/README.md) guide. Settings are available in the menus and `config.toml`.
 
+## Other cool community forks
+
+GulchCE is one of several community forks of the Halo: Combat Evolved
+decompilation and [OpenCE](https://github.com/OpenCommunityEdition/OpenCE).
+Each has its own focus, and they borrow from each other. Some notable ones:
+
+### SlipstreamCE
+
+<img align="right" width="96" alt="The SlipstreamCE logo" src="https://raw.githubusercontent.com/thelinkin3000/SlipstreamCE/refs/heads/main/port/assets/icon/slipstream-logo-2048.png" />
+
+[thelinkin3000/SlipstreamCE](https://github.com/thelinkin3000/SlipstreamCE), by thelinkin3000: an
+OpenCE fork focused on mobile and console platforms, among them its own Vulkan renderer
+and dynamic lighting on mobile and console platforms, and MCC custom map support.
+SlipstreamCE's dynamic lighting is ported from GulchCE, and its MCC support
+builds on GulchCE's. **If you're an Android player, this is the best place to experience OpenCE.**
+
+### Halo: Content Evolved
+
+<img align="right" width="96" alt="The Halo: Content Evolved logo" src="https://raw.githubusercontent.com/Watanoge/halo-content-evolved/main/port/assets/icon/opence-icon.png" />
+
+[Watanoge/halo-content-evolved](https://github.com/Watanoge/halo-content-evolved),
+by Watanoge: the Xbox game with Watanoge's own quality-of-life changes for
+the Switch, with a lot for the campaign, such as skulls and a randomizer.
+Its Steam client is the base of SlipstreamCE's Steam Workshop downloads.
+
+### halo-ce-vita
+
+<img align="right" width="96" alt="The halo-ce-vita logo: a PS Vita with the Halo ring on its screen" src="https://raw.githubusercontent.com/BirchWoodGod/halo-ce-vita/main/docs/logo.png" />
+
+[BirchWoodGod/halo-ce-vita](https://github.com/BirchWoodGod/halo-ce-vita),
+by BirchWoodGod: the decompilation ported to the PlayStation Vita, now
+adding Halo 2 support and Forge. Its bots are SlipstreamCE's Birchwood bots.
+
 ## MCC maps and campaigns
 
 GulchCE supports Halo 1 MCC maps, including Workshop multiplayer maps and campaign packages. Compatibility is experimental; some maps or scripted features may not work correctly.
