@@ -50,7 +50,7 @@ def generated(fault=None):
     return (('types.inc', types), ('under_test.inc', code))
 
 
-@pytest.mark.parametrize('case', ['clear', 'inactive', 'already-clear', 'actor-only', 'legacy-policy', 'client-policy'])
+@pytest.mark.parametrize('case', ['clear', 'inactive', 'already-clear', 'actor-only', 'legacy-policy', 'legacy-campaign-policy', 'client-policy'])
 def test_mcc_ai_deselect_semantics_and_boundaries(case):
     assert run(build('mcc_ai_deselect', generated()), case) == (0, '')
 
