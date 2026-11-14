@@ -15,6 +15,12 @@ source, protocol, menu, default, original map or original save. During the
 crash exposed by a failed load. That focused compiler-lifetime fix is separate
 from the unchanged baseline evidence and does not start M1.
 
+The [14 November active-world pass](coop_m0_active_world.md) adds staged BSP
+travel, selected door state/collision/recovery, active Xbox/CE/MCC gameplay and
+a controlled vehicle-seat restore. It distinguishes the bare-switch unsupported
+placement from the unconfirmed natural grav-lift/door reports, and records an
+A10 fast-entry failure. The full-system gate and platform blockers remain open.
+
 ## Baseline and revision reconciliation
 
 The unchanged native and web baselines use testing `887d9ac9d6ac7a647f2cc3fada30c602b1497f82`;

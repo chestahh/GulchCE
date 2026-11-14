@@ -1,0 +1,585 @@
+{
+  "date": "2026-11-14",
+  "source_revision": "637157de1fb0861a7a9da3a7f582e3afc8bc6f4e",
+  "branch": "investigate-coop-rewrite",
+  "status": "Bounded active-world M0 pass complete; full M0 remains open; no M1 or publication",
+  "production_source_changes": false,
+  "protocol_changes": false,
+  "platforms": {
+    "Windows": "Two hidden loopback peers; selected 1280x960 rendered captures; audio disabled",
+    "Linux_runtime": "blocked: no runner",
+    "Android_runtime": "blocked: no device/emulator",
+    "Android_build": "Earlier Windows shell/CMake blocker remains separate",
+    "browser_public_internet": "Not qualified by these native loopback cases"
+  },
+  "full_scope": [
+    "session",
+    "transport",
+    "content",
+    "objects",
+    "inventory",
+    "movement",
+    "actors",
+    "combat",
+    "presentation",
+    "events",
+    "scripts",
+    "checkpoint",
+    "scaling",
+    "policies",
+    "social",
+    "mcc",
+    "camera",
+    "multiplayer",
+    "world"
+  ],
+  "final_binary_sha256": "cbe5f65949b1cfc527723e86295c50973e36d8c4093b86bac195f4c779a24c36",
+  "generated_files": {
+    "port/windows/src/win32_net.c": {
+      "source_sha256": "3b5f5441175b72ddb778009beeb327d1c89775c74e0ca49c4c00f3eb4d48e76c",
+      "copy_sha256": "7e09e05f2cf83d9bbc5890089df5bcaeba79e7952dc78b8b248ed72c36491b6b"
+    },
+    "port/linux/game/network_objects.c": {
+      "source_sha256": "4892f109c784213c56e61f2b75b9b07b9d65c9d3500f3d7a14889f28025ee552",
+      "copy_sha256": "be7ef3361860d14d37070fc35c42eb6ffb33d5b430f2f6c4d8ec759dc9ebf33e"
+    },
+    "port/linux/game/network_distributed.c": {
+      "source_sha256": "11bf034c6ce01014073a1efe305a47bc9f7d69059d233fec42837f3ea7f80c8a",
+      "copy_sha256": "53e2f068b318d84362d437184e3acecefde8e0ff3a9900011610ee88751b2b59"
+    },
+    "port/linux/game/network_coop.c": {
+      "source_sha256": "a19a999cd8866307d6ea69c6e32b86d4454bd4d39f5bf66267f63a74bf0266e3",
+      "copy_sha256": "686fae1379f5bd7c0af2b069d9101448bad06b16a09971934f38601671276f49"
+    },
+    "port/linux/game/network_test.c": {
+      "source_sha256": "d97c0f5569c0db474d9719d587e3956bec57b586567c04bcbb21e38011cadf4d",
+      "copy_sha256": "b19b344d1300be0e341e197a6b6494e61c612d6d690c351f7bf93153136e8a07"
+    },
+    "source/interface/hud_messaging.c": {
+      "source_sha256": "7d3ad62a2d766c2315556fb46730a72b8f5d6b6c73058ac52ccaced812712973",
+      "copy_sha256": "be29d8486bc0cf63826bdb0d2532e1e7cc2e10383bc69c63a5deea99e505a1ec"
+    },
+    "source/interface/hud_nav_points.c": {
+      "source_sha256": "6fa800eb47b1a0cad318754392f89a2b6c68b69b084061d4c7ff2cc44434cf13",
+      "copy_sha256": "d2bdcb9821aff1f57aac09987fe2d6169c11ba9fa1f3e9d004e61ad353729e8c"
+    },
+    "source/scenario/scenario.c": {
+      "source_sha256": "812dc0e14d35c667922326da98bbe4bdd8fba08807329d1d58adb7eb63051db8",
+      "copy_sha256": "5401c6dab7b49c260de39fb627a5c829c8e8ee5eb95163de85838eec8450db1e"
+    },
+    "source/game/players.c": {
+      "source_sha256": "f279421ce1b70d40ea0f69201b8db36cd25d55c29404c0336c0a907294a3e810",
+      "copy_sha256": "93fd7792febfc7289d08d6186179216bf693e14400d10be54c767dbab54f5268"
+    },
+    "source/devices/devices.c": {
+      "source_sha256": "46d21a24838a24e63c22670b8a274e25ef0e3cac6833c89d8607f2ea314952e2",
+      "copy_sha256": "f630b07e22dddcb22005a9c6861ac23f0e2263adec6f81eac477559ff64cd5ab"
+    },
+    "source/hs/hs_library_external.c": {
+      "source_sha256": "db4aa07776729935f29f39398bc848efff582cdde4fe9a9d20096d10f31ad3f4",
+      "copy_sha256": "b52af631167bad2d2e241445a17d1f97b2e68ff56898c9bf0f2043bdffbb6460"
+    }
+  },
+  "cases": {
+    "a10-cryo-direct": {
+      "outcome": "One-unit device-only open/close/restore and target-door collision change; rays still hit other geometry.",
+      "binary_sha256": "cbe5f65949b1cfc527723e86295c50973e36d8c4093b86bac195f4c779a24c36",
+      "level": "levels\\a10\\a10",
+      "family": "xbox",
+      "seconds": 90,
+      "latency_ms_per_peer": 50,
+      "loss_percent": 5,
+      "input": "none",
+      "early_exits": {
+        "host": null,
+        "client": null
+      },
+      "manifest": "build/m0/active-world/a10-cryo-direct/manifest.json",
+      "summary": "build/m0/active-world/a10-cryo-direct/world-summary.json",
+      "observed_frames": {
+        "host": 926,
+        "client": 926
+      },
+      "executed_schedule_entries": 5,
+      "incomplete_shutdown_frames": {
+        "host": 0,
+        "client": 0
+      }
+    },
+    "a10-discovery": {
+      "outcome": "Metadata only; intro incomplete in the observation window.",
+      "binary_sha256": "cbd36f83b60a412bb6619be006087aad3413ba1138fc39246b526f011fbf8767",
+      "level": "levels\\a10\\a10",
+      "family": "xbox",
+      "seconds": 70,
+      "latency_ms_per_peer": 0,
+      "loss_percent": 0,
+      "input": "none",
+      "early_exits": {
+        "host": null,
+        "client": null
+      },
+      "manifest": "build/m0/active-world/a10-discovery/manifest.json"
+    },
+    "a10-door": {
+      "outcome": "Two-unit gameplay precondition unmet after 300 seconds; no scheduled door command executed.",
+      "binary_sha256": "ee84a09a6737b317f7106a4cf3b5646f80efdd31cdd897a1c2ca6cf899cd2fe8",
+      "level": "levels\\a10\\a10",
+      "family": "xbox",
+      "seconds": 300,
+      "latency_ms_per_peer": 0,
+      "loss_percent": 0,
+      "input": "none",
+      "early_exits": {
+        "host": null,
+        "client": null
+      },
+      "manifest": "build/m0/active-world/a10-door/manifest.json",
+      "summary": "build/m0/active-world/a10-door/world-summary.json",
+      "observed_frames": {
+        "host": 3026,
+        "client": 3026
+      },
+      "executed_schedule_entries": 0,
+      "incomplete_shutdown_frames": {
+        "host": 0,
+        "client": 0
+      }
+    },
+    "a10-door-direct": {
+      "outcome": "One-unit skip/device pilot; selected cafeteria door outside loaded BSP; no passage qualification.",
+      "binary_sha256": "cbe5f65949b1cfc527723e86295c50973e36d8c4093b86bac195f4c779a24c36",
+      "level": "levels\\a10\\a10",
+      "family": "xbox",
+      "seconds": 120,
+      "latency_ms_per_peer": 0,
+      "loss_percent": 0,
+      "input": "none",
+      "early_exits": {
+        "host": null,
+        "client": null
+      },
+      "manifest": "build/m0/active-world/a10-door-direct/manifest.json",
+      "summary": "build/m0/active-world/a10-door-direct/world-summary.json",
+      "observed_frames": {
+        "host": 1217,
+        "client": 1218
+      },
+      "executed_schedule_entries": 5,
+      "incomplete_shutdown_frames": {
+        "host": 0,
+        "client": 0
+      }
+    },
+    "a50-authored": {
+      "outcome": "Excluded schedule-path pilot; owned processes manually stopped; failed evidence retained.",
+      "binary_sha256": "9c0fcceac76db6c3e857d4b4ab9622e65159f75d6d9a7c09384e5b0029a9aebe",
+      "level": "levels\\a50\\a50",
+      "family": "xbox",
+      "seconds": 110,
+      "latency_ms_per_peer": 0,
+      "loss_percent": 0,
+      "input": "none",
+      "early_exits": {
+        "host": 4294967295,
+        "client": 4294967295
+      },
+      "manifest": "build/m0/active-world/a50-authored/manifest.json"
+    },
+    "a50-authored-delay": {
+      "outcome": "Bounded staged transfer reached ship/floor with delay/loss; natural mission unconfirmed.",
+      "binary_sha256": "9fca8a6caf004aa2e6014d2cabde4ad3c225247d1e4878fb6b7b2a4843580a3d",
+      "level": "levels\\a50\\a50",
+      "family": "xbox",
+      "seconds": 110,
+      "latency_ms_per_peer": 50,
+      "loss_percent": 5,
+      "input": "none",
+      "early_exits": {
+        "host": null,
+        "client": null
+      },
+      "manifest": "build/m0/active-world/a50-authored-delay/manifest.json",
+      "summary": "build/m0/active-world/a50-authored-delay/world-summary.json",
+      "observed_frames": {
+        "host": 1119,
+        "client": 1119
+      },
+      "executed_schedule_entries": 2,
+      "incomplete_shutdown_frames": {
+        "host": 0,
+        "client": 0
+      }
+    },
+    "a50-authored-v2": {
+      "outcome": "Ship teleport observed; successor omitted, so fade/progression not qualified.",
+      "binary_sha256": "9fca8a6caf004aa2e6014d2cabde4ad3c225247d1e4878fb6b7b2a4843580a3d",
+      "level": "levels\\a50\\a50",
+      "family": "xbox",
+      "seconds": 110,
+      "latency_ms_per_peer": 0,
+      "loss_percent": 0,
+      "input": "none",
+      "early_exits": {
+        "host": null,
+        "client": null
+      },
+      "manifest": "build/m0/active-world/a50-authored-v2/manifest.json"
+    },
+    "a50-authored-v3": {
+      "outcome": "Bounded staged transfer reached ship/floor on both peers; rendered; natural mission unconfirmed.",
+      "binary_sha256": "9fca8a6caf004aa2e6014d2cabde4ad3c225247d1e4878fb6b7b2a4843580a3d",
+      "level": "levels\\a50\\a50",
+      "family": "xbox",
+      "seconds": 110,
+      "latency_ms_per_peer": 0,
+      "loss_percent": 0,
+      "input": "none",
+      "early_exits": {
+        "host": null,
+        "client": null
+      },
+      "manifest": "build/m0/active-world/a50-authored-v3/manifest.json",
+      "summary": "build/m0/active-world/a50-authored-v3/world-summary.json",
+      "observed_frames": {
+        "host": 1117,
+        "client": 1119
+      },
+      "executed_schedule_entries": 2,
+      "incomplete_shutdown_frames": {
+        "host": 1,
+        "client": 0
+      }
+    },
+    "a50-discovery": {
+      "outcome": "Metadata/insertion observation only.",
+      "binary_sha256": "cbd36f83b60a412bb6619be006087aad3413ba1138fc39246b526f011fbf8767",
+      "level": "levels\\a50\\a50",
+      "family": "xbox",
+      "seconds": 75,
+      "latency_ms_per_peer": 0,
+      "loss_percent": 0,
+      "input": "none",
+      "early_exits": {
+        "host": null,
+        "client": null
+      },
+      "manifest": "build/m0/active-world/a50-discovery/manifest.json"
+    },
+    "a50-recovery": {
+      "outcome": "Active death/revert cycles observed, including explicit kill; not an isolated full-state oracle.",
+      "binary_sha256": "9fca8a6caf004aa2e6014d2cabde4ad3c225247d1e4878fb6b7b2a4843580a3d",
+      "level": "levels\\a50\\a50",
+      "family": "xbox",
+      "seconds": 150,
+      "latency_ms_per_peer": 0,
+      "loss_percent": 0,
+      "input": "none",
+      "early_exits": {
+        "host": null,
+        "client": null
+      },
+      "manifest": "build/m0/active-world/a50-recovery/manifest.json",
+      "summary": "build/m0/active-world/a50-recovery/world-summary.json",
+      "observed_frames": {
+        "host": 1524,
+        "client": 1525
+      },
+      "executed_schedule_entries": 5,
+      "incomplete_shutdown_frames": {
+        "host": 0,
+        "client": 0
+      }
+    },
+    "a50-recovery-direct": {
+      "outcome": "Three-unit displacement accepted then undone before revert; pose restoration not qualified by this pilot.",
+      "binary_sha256": "cbe5f65949b1cfc527723e86295c50973e36d8c4093b86bac195f4c779a24c36",
+      "level": "levels\\a50\\a50",
+      "family": "xbox",
+      "seconds": 130,
+      "latency_ms_per_peer": 0,
+      "loss_percent": 0,
+      "input": "none",
+      "early_exits": {
+        "host": null,
+        "client": null
+      },
+      "manifest": "build/m0/active-world/a50-recovery-direct/manifest.json",
+      "summary": "build/m0/active-world/a50-recovery-direct/world-summary.json",
+      "observed_frames": {
+        "host": 1323,
+        "client": 1324
+      },
+      "executed_schedule_entries": 6,
+      "incomplete_shutdown_frames": {
+        "host": 0,
+        "client": 0
+      }
+    },
+    "a50-recovery-displaced": {
+      "outcome": "Six-unit displacement persisted until revert; saved ship poses/floor restored on both peers with AI thinking paused.",
+      "binary_sha256": "cbe5f65949b1cfc527723e86295c50973e36d8c4093b86bac195f4c779a24c36",
+      "level": "levels\\a50\\a50",
+      "family": "xbox",
+      "seconds": 130,
+      "latency_ms_per_peer": 0,
+      "loss_percent": 0,
+      "input": "none",
+      "early_exits": {
+        "host": null,
+        "client": null
+      },
+      "manifest": "build/m0/active-world/a50-recovery-displaced/manifest.json",
+      "summary": "build/m0/active-world/a50-recovery-displaced/world-summary.json",
+      "observed_frames": {
+        "host": 1323,
+        "client": 1324
+      },
+      "executed_schedule_entries": 7,
+      "incomplete_shutdown_frames": {
+        "host": 0,
+        "client": 0
+      }
+    },
+    "a50-switch-only": {
+      "outcome": "Unsupported placement reproduced on both peers after bare BSP switch without destination teleport.",
+      "binary_sha256": "9fca8a6caf004aa2e6014d2cabde4ad3c225247d1e4878fb6b7b2a4843580a3d",
+      "level": "levels\\a50\\a50",
+      "family": "xbox",
+      "seconds": 85,
+      "latency_ms_per_peer": 0,
+      "loss_percent": 0,
+      "input": "none",
+      "early_exits": {
+        "host": null,
+        "client": null
+      },
+      "manifest": "build/m0/active-world/a50-switch-only/manifest.json",
+      "summary": "build/m0/active-world/a50-switch-only/world-summary.json",
+      "observed_frames": {
+        "host": 878,
+        "client": 878
+      },
+      "executed_schedule_entries": 1,
+      "incomplete_shutdown_frames": {
+        "host": 0,
+        "client": 0
+      }
+    },
+    "c10-discovery": {
+      "outcome": "Metadata/insertion observation only.",
+      "binary_sha256": "cbd36f83b60a412bb6619be006087aad3413ba1138fc39246b526f011fbf8767",
+      "level": "levels\\c10\\c10",
+      "family": "xbox",
+      "seconds": 70,
+      "latency_ms_per_peer": 0,
+      "loss_percent": 0,
+      "input": "none",
+      "early_exits": {
+        "host": null,
+        "client": null
+      },
+      "manifest": "build/m0/active-world/c10-discovery/manifest.json"
+    },
+    "c10-door": {
+      "outcome": "Excluded for passage qualification: wrong BSP, rejected teleports and no collision control.",
+      "binary_sha256": "ee84a09a6737b317f7106a4cf3b5646f80efdd31cdd897a1c2ca6cf899cd2fe8",
+      "level": "levels\\c10\\c10",
+      "family": "xbox",
+      "seconds": 150,
+      "latency_ms_per_peer": 50,
+      "loss_percent": 5,
+      "input": "none",
+      "early_exits": {
+        "host": null,
+        "client": null
+      },
+      "manifest": "build/m0/active-world/c10-door/manifest.json",
+      "summary": "build/m0/active-world/c10-door/world-summary.json",
+      "observed_frames": {
+        "host": 1525,
+        "client": 1526
+      },
+      "executed_schedule_entries": 7,
+      "incomplete_shutdown_frames": {
+        "host": 1,
+        "client": 0
+      }
+    },
+    "c10-door-direct": {
+      "outcome": "Bounded delayed/staggered placement and saved-open door/collision-ray restoration; no player traversal.",
+      "binary_sha256": "cbe5f65949b1cfc527723e86295c50973e36d8c4093b86bac195f4c779a24c36",
+      "level": "levels\\c10\\c10",
+      "family": "xbox",
+      "seconds": 140,
+      "latency_ms_per_peer": 50,
+      "loss_percent": 5,
+      "input": "none",
+      "early_exits": {
+        "host": null,
+        "client": null
+      },
+      "manifest": "build/m0/active-world/c10-door-direct/manifest.json",
+      "summary": "build/m0/active-world/c10-door-direct/world-summary.json",
+      "observed_frames": {
+        "host": 1419,
+        "client": 1419
+      },
+      "executed_schedule_entries": 7,
+      "incomplete_shutdown_frames": {
+        "host": 0,
+        "client": 0
+      }
+    },
+    "ce-active": {
+      "outcome": "Bounded movement/actors/combat baseline with delay/loss; no successful driver entry.",
+      "binary_sha256": "ee84a09a6737b317f7106a4cf3b5646f80efdd31cdd897a1c2ca6cf899cd2fe8",
+      "level": "custom_maps\\b30",
+      "family": "ce",
+      "seconds": 100,
+      "latency_ms_per_peer": 50,
+      "loss_percent": 5,
+      "input": "bot",
+      "early_exits": {
+        "host": null,
+        "client": null
+      },
+      "manifest": "build/m0/active-world/ce-active/manifest.json",
+      "summary": "build/m0/active-world/ce-active/world-summary.json",
+      "observed_frames": {
+        "host": 1013,
+        "client": 1012
+      },
+      "executed_schedule_entries": 0,
+      "incomplete_shutdown_frames": {
+        "host": 0,
+        "client": 0
+      }
+    },
+    "mcc-active": {
+      "outcome": "Bounded movement/actors/combat baseline; no successful driver entry.",
+      "binary_sha256": "ee84a09a6737b317f7106a4cf3b5646f80efdd31cdd897a1c2ca6cf899cd2fe8",
+      "level": "mcc_maps\\a10",
+      "family": "mcc",
+      "seconds": 160,
+      "latency_ms_per_peer": 0,
+      "loss_percent": 0,
+      "input": "bot",
+      "early_exits": {
+        "host": null,
+        "client": null
+      },
+      "manifest": "build/m0/active-world/mcc-active/manifest.json",
+      "summary": "build/m0/active-world/mcc-active/world-summary.json",
+      "observed_frames": {
+        "host": 1625,
+        "client": 1625
+      },
+      "executed_schedule_entries": 0,
+      "incomplete_shutdown_frames": {
+        "host": 0,
+        "client": 0
+      }
+    },
+    "xbox-active": {
+      "outcome": "Bounded movement/combat baseline; no successful driver entry.",
+      "binary_sha256": "ee84a09a6737b317f7106a4cf3b5646f80efdd31cdd897a1c2ca6cf899cd2fe8",
+      "level": "levels\\a30\\a30",
+      "family": "xbox",
+      "seconds": 100,
+      "latency_ms_per_peer": 0,
+      "loss_percent": 0,
+      "input": "bot",
+      "early_exits": {
+        "host": null,
+        "client": null
+      },
+      "manifest": "build/m0/active-world/xbox-active/manifest.json",
+      "summary": "build/m0/active-world/xbox-active/world-summary.json",
+      "observed_frames": {
+        "host": 1017,
+        "client": 1018
+      },
+      "executed_schedule_entries": 0,
+      "incomplete_shutdown_frames": {
+        "host": 0,
+        "client": 0
+      }
+    },
+    "xbox-vehicle-direct": {
+      "outcome": "Saved vehicle parent/driver seat restored after explicit exit on both peers; broader driving recovery open.",
+      "binary_sha256": "cbe5f65949b1cfc527723e86295c50973e36d8c4093b86bac195f4c779a24c36",
+      "level": "levels\\a30\\a30",
+      "family": "xbox",
+      "seconds": 100,
+      "latency_ms_per_peer": 0,
+      "loss_percent": 0,
+      "input": "bot",
+      "early_exits": {
+        "host": null,
+        "client": null
+      },
+      "manifest": "build/m0/active-world/xbox-vehicle-direct/manifest.json",
+      "summary": "build/m0/active-world/xbox-vehicle-direct/world-summary.json",
+      "observed_frames": {
+        "host": 1019,
+        "client": 1019
+      },
+      "executed_schedule_entries": 5,
+      "incomplete_shutdown_frames": {
+        "host": 0,
+        "client": 0
+      }
+    }
+  },
+  "tests": {
+    "passed": 116,
+    "failed": 0,
+    "final_junit": "build/m0/active-world/final-tests.xml",
+    "initial_run": "104 passed; 12 compilation failures from Windows CRT strlwr deprecation under Werror",
+    "adaptation": "Private CC wrapper defines _CRT_NONSTDC_NO_DEPRECATE; real extracted functions and negative assertions unchanged",
+    "build": "Windows diagnostic variants built; no production build-matrix claim"
+  },
+  "integrity": {
+    "original_input_files_verified": 13,
+    "archives_verified": 25,
+    "archived_members_verified": 2573,
+    "audit": "build/m0/active-world/audit.json"
+  },
+  "cleanup": {
+    "removed": [
+      {
+        "path": "build\\windows",
+        "bytes": 231638113
+      },
+      {
+        "path": "build\\m0\\active-world\\bin",
+        "bytes": 62461440
+      },
+      {
+        "path": "build\\m0\\active-world\\pytest-temp",
+        "bytes": 3641765
+      },
+      {
+        "path": "build\\m0\\active-world\\pytest-final-temp",
+        "bytes": 3642277
+      },
+      {
+        "path": "build\\m0\\active-world\\review-captures",
+        "bytes": 5549501
+      }
+    ],
+    "removed_bytes": 41191703354,
+    "case_removed_bytes": 40884770258,
+    "retained_active_world_bytes": 1539302704,
+    "retained_all_m0_bytes": 4228755647
+  },
+  "remaining": [
+    "Natural A50 grav-lift and intermittent A10/C10 softlocks unconfirmed; exact affected doors/content family not supplied.",
+    "Actual player traversal and subsequent mission triggers, repeated natural transitions and role swaps.",
+    "A10 fast-network entry one-unit/input-disabled failure; ordinary menu-entry control and causal diagnosis pending.",
+    "Small host-authorized teleport/prediction behavior and full checkpoint/prediction history.",
+    "Vehicle handoff/standing riders, AI decisions/animations and independent combat/projectile outcome recovery.",
+    "All earlier full-system ledger gates and platform blockers remain; no universal readiness or campaign-completion claim."
+  ]
+}

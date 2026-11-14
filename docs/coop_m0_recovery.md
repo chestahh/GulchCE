@@ -14,6 +14,11 @@ scale, primary ground ammunition, a visible paused timer, allegiance bits and
 non-default MCC state. It records an additional attachment recovery failure
 and preserves the remaining full-system obligations.
 
+The [active-world continuation](coop_m0_active_world.md) adds BSP transfers,
+selected door collision/state controls and active movement/AI/combat observations
+with a bounded vehicle-seat restore. Its failed setups and unconfirmed natural
+mission reports remain explicit; it does not complete the full-state oracle.
+
 ## Contract and observation boundary
 
 A complete recovery must satisfy two obligations: the host restores the saved
@@ -164,12 +169,12 @@ fixture above is one part of the complete oracle, not a replacement for it.
 | content | Separate Xbox, CE and MCC loader paths and unchanged original file hashes. Missing content, transfer cancellation and failed recovery load are not qualified by these successful loads. |
 | objects | Actual IDs/tags/parents and reference resolution observed; earlier construction-failure probes remain negative baselines. The domain-mutation pass adds saved presence/post-save absence and scale restoration, plus a failed attachment restore. The [identity continuation](coop_m0_recovery_identity.md) adds normal-allocator weapon-slot reuse with different generations, definitions and owners. The [cross-type/fault continuation](coop_m0_recovery_faults.md) adds weapon-to-biped reuse and a controlled object-memory allocation refusal. The [sustained-recovery continuation](coop_m0_recovery_stress.md) adds real object-pool exhaustion through bounded reservations and release, with actual failed reconstruction. Naturally occurring workload exhaustion, other type pairs, repeated churn, header-allocation failure, arbitrary dependency order and region/permutation/animation restoration remain open. |
 | inventory | The domain-mutation pass adds filled-to-empty and empty-to-filled mutations around a checkpoint. The [timer/ammunition continuation](coop_m0_recovery_timing.md) checks non-default primary counts in both players' held weapons. The [identity continuation](coop_m0_recovery_identity.md) checks replacement in a reused slot with different inventory ownership and owner metadata. The [cross-type/fault continuation](coop_m0_recovery_faults.md) observes a queued inventory while its weapon creation is withheld for 180 ticks, including premature readiness and eventual repair. The [sustained-recovery continuation](coop_m0_recovery_stress.md) adds two missing weapon dependencies and interruption by another epoch, plus extracted-production-function checks at the actual queue capacity and expiry boundary. A late extra-weapon/parent deviation in the CE control is retained without a recovery-cause claim. Real-game queue saturation, arbitrary dependency graphs, reload and player-driven pickup/replacement histories remain open. |
-| movement | Player input frozen and object poses recorded. Moving players, prediction queues, correction history, vehicle driver handoff and standing riders across restore remain open. |
-| actors | Authored actors remain in the running engine and identities are sampled. Decisions, targets, controls, death/resurrection and animation recovery require active scenarios and visual checks. |
-| combat | Reproduced stale maximum-vitality override. Damage history, kills, explosive/projectile lifetime, melee, ammo/grenades and duplicate-effect suppression remain open. |
+| movement | Earlier fixtures freeze input. The [active-world pass](coop_m0_active_world.md) observes Xbox/CE/MCC input and movement and restores a saved Xbox vehicle driver-seat relationship after exit. Prediction queues, small host teleports, correction history, vehicle handoff, standing riders and broad moving-state recovery remain open. |
+| actors | The active-world pass samples active authored actors and inspects rendered A50 combat. Decisions, targets, control histories, death/resurrection and animation recovery still require independent outcome oracles. |
+| combat | Reproduced stale maximum-vitality override. Active Xbox/CE/MCC shooting, dealt reports, deaths and sampled projectiles are now observed. Damage history, explosive/projectile outcomes and lifetime, melee, ammo/grenades and duplicate-effect suppression across restore remain open. |
 | presentation | Actual HUD visibility/objective/navigation fields actively changed; objective/navigation fail. The domain-mutation pass adds visible paused timer/layout restoration. The [timer/ammunition continuation](coop_m0_recovery_timing.md) measures running countdown loss, warning-state changes and early expiry. Camera, timer visuals and campaign expiry actions, screen effects, titles, audio loops/absence, seek and rendered animation remain open. |
 | events | Application-fault control is separate from network loss. Earlier sequence-gap/dependency/event-loss probes remain negative baselines. Every durable event needs explicit reconstructed presence/absence; transient actions need expiry rules. |
-| scripts | Real authored scripts run and the actual save/revert APIs execute. Safe-save eligibility, suspended threads, gathered players, teleports and interrupted script actions remain open. |
+| scripts | Real authored scripts and save/revert APIs execute. The active-world pass stages the A50 lift tail/successor and C10 staggered placement; it records a bare-switch unsupported-placement control and an A10 fast-entry failure. Natural progression, safe-save eligibility, suspended threads, full-roster gathering and interrupted actions remain open. |
 | checkpoint | Successful disk-save callbacks and advancing recovery epochs observed. The [sustained-recovery continuation](coop_m0_recovery_stress.md) interrupts two pending weapon dependencies with another real revert and observes queue reset and tracked-state restoration. Full-state convergence still fails. Ordinary host menu controls, failed save/read, restart, interruption at other recovery stages and persistent profile ownership remain open. |
 | scaling | Existing callback owners retained. Consumed enemy/pickup/vehicle budgets, held riders and deleted sources across changed-roster recovery need active checks. |
 | policies | Existing host settings used. The [sustained-recovery pilot](coop_m0_recovery_stress.md) observes the third-revert-in-a-minute respawn guard; subsequent runs preserve it. Changed live policy versus checkpoint policy, AFK, friendly fire, collision, BSP-majority cooldown and dedicated ownership remain open. |
@@ -177,7 +182,7 @@ fixture above is one part of the complete oracle, not a replacement for it.
 | mcc | Local MCC campaign uses MCC-owned adapters. The domain-mutation pass exercises non-default extra grenade counts, speed and campaign effects/music gains. The [sustained-recovery pair](coop_m0_recovery_stress.md) pins its checkpoint through diagnostic save cancellation, so authored save scheduling is not qualified. Names and broader campaign/script/sidecar state remain open; numerical gains are not audio playback qualification. |
 | camera | No camera protocol or policy change. GulchCE third-person activation/shoulder/ownership through recovery and the Crossplay path remain open. |
 | multiplayer | No competitive or local-only implementation changed. Shared reset/replication preservation still requires competitive, solo and local split-screen recovery coverage. |
-| world | Authored device-group value actively restored; positions, power and runtime groups recorded. Door/switch use, runtime groups, broken surfaces, named-object deletion and attachment absence need active checks. |
+| world | The active-world pass restores selected A10/C10 open door values and their door-collision changes after closure; C10 also clears a sampled ray. A10's device-only probe has one unit/input disabled and its rays still hit other geometry. Actual traversal/progression, intermittent reported failures, other switches/runtime groups, broken surfaces, named-object deletion and attachment absence remain open. |
 
 Known failures are useful M0 baselines and are not authorization to repair
 them. The complete persistent-state oracle and full M0 exit gate remain open.
@@ -189,7 +194,9 @@ checkpoint recovery. The reports concern ordinary progression too; no common
 cause or recovery-specific cause has been established. Checkpoint tests must
 respect the saved door/BSP state and subsequent authored progression, while
 ordinary transition tests must establish actual traversal for every player.
-No local reproduction or successful validation of these reports is claimed.
+The active-world pass reproduces unsupported placement after a bare BSP switch;
+it does not reproduce the natural A50 lift or intermittent A10/C10 softlocks.
+Bounded device controls do not establish successful mission traversal.
 Any later fix must address the underlying co-op/engine behavior for all maps
 using the affected semantics. These map names identify regression cases only;
 map-specific overrides and bypassing authored progression are excluded.

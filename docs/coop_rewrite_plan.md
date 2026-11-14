@@ -235,8 +235,9 @@ full M0 gate open. They do not authorize M1 or change the capacity contracts.
 #### Reported BSP transitions and scripted-door softlocks
 
 Added 14 November 2026 as explicit campaign-blocking scenarios within the
-existing full-system milestones. These are user-reported symptoms, not locally
-reproduced findings or established root causes. BSP means the loaded section
+existing full-system milestones. These are user-reported symptoms; the
+[active-world baseline](coop_m0_active_world.md) distinguishes the reproduced
+bare-switch outcome from unconfirmed natural lift/door failures. BSP means the loaded section
 of a level's world geometry. The affected build, map family, exact door/script
 identities and failure frequency must be recorded during M0; do not assume
 the reports apply identically to Xbox, CE and MCC.
@@ -247,8 +248,9 @@ the reports apply identically to Xbox, CE and MCC.
 | DOOR-A10 | A scripted door intermittently remains closed for some clients when it should open, blocking their mission progress. | M0 identifies the door, triggering script and affected peers. M4 requires authoritative device/group state and the resulting door position, collision and traversability to converge. M5 checks saved/restored door state; M10/M11 require all players to pass the door and trigger subsequent progression. |
 | DOOR-C10 | A scripted door intermittently remains closed for some clients when it should open, blocking their mission progress. | Retain a separate reproduction and result from A10. Apply the same M0, M4, M5 and M10/M11 gates without presuming the same cause. |
 
-Prioritize these in the next active-world M0 pass alongside movement, vehicles,
-AI and combat. Observe ordinary progression first, then checkpoint/restart and
+The [active-world M0 pass](coop_m0_active_world.md) records bounded BSP/device,
+movement, vehicle, AI and combat probes, including failed setups and remaining
+natural-progression gaps. Continue ordinary progression, then checkpoint/restart and
 join timing; these reports are not restricted to checkpoint recovery. Capture
 host/client BSP identity and readiness, player transforms and collision,
 script progress, device identity/group target and actual state, and relevant
