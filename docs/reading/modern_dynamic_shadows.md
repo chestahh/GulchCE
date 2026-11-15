@@ -640,7 +640,7 @@ The M4 menu-art failure was an environment mismatch: Pillow 13.0 was loaded
 instead of the repository's `tools/requirements-frontend.txt` pin, 12.3.0.
 Using that pinned dependency passes the pixel comparison without replacing
 artwork or weakening the test. The final focused isolation/render/menu suite
-passes all 175 checks, and the analytic desktop GL receiver tests pass. The visual
+passes all 219 checks, and the analytic desktop GL receiver tests pass. The visual
 cycle captures run at 30, 60 and 120 FPS; a separate 60 FPS capture verifies
 failure recovery. Representative vehicle, shield, CE and MCC captures retain
 complete maps. Native 2560 by 1440 menu captures verify readable controls;
@@ -668,6 +668,25 @@ shader translator now references `modern_shadow_emit`. The hidden-GL builder
 includes that real generator, without stubbing it or changing the shader.
 All 36 MCC meter renders and 15,360 ammunition-meter renders then pass locally;
 the same fix is included in the replacement CI run.
+
+The broader C harness also needed its attenuation fixture wired to the new
+shadow begin/end/reset dependencies. Counted hooks now check diffuse/specular
+scope and cleanup alongside the original falloff assertions. Its shader-source
+cache fixture now uses the production mandatory-record allocator: the optional
+source-sharing allocation can fail, while device records retain their existing
+calloc-or-abort contract. The previous fake incorrectly returned null for both.
+The 42 affected falloff, source-cache, framebuffer and visibility checks pass
+locally without any production renderer change. The full harness also found
+the older shield menu test still expecting ten controls; it now checks all
+eleven, explicitly including the desktop-only Off/Hard/Soft control while
+retaining the original ownership, help-layout and generated-file assertions.
+The expanded focused suite passes 219 checks after these corrections. A full
+Windows C-harness attempt recorded 2,563 passes, 353 failures and two skips:
+besides the corrected menu expectation, it encounters POSIX-only headers/APIs,
+MSVC warning and linker differences, and Windows text-encoding/newline assumptions.
+Those unrelated portability cases are retained unchanged; Linux CI is the gate
+for the full Linux-oriented suite. The failed local attempt is retained in
+`build/modern-m5/full-harness.log`, not represented as a passing full run.
 
 ### Performance evidence and remaining limits
 

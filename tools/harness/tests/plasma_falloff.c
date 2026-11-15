@@ -28,6 +28,10 @@ static void rasterizer_set_texture_direct(int stage,int bitmap,int mip) { restor
 static void D3DResource_Release(D3DResource *t) { releases++; }
 void *plasma_occlusion_texture(long index,int specular) { return NULL; }
 void plasma_occlusion_reset(void) {}
+static int shadow_begins, shadow_stage, shadow_resets;
+static void modern_shadows_world_begin(long index, int stage) { shadow_begins++; shadow_stage = stage; }
+static void modern_shadows_world_end(void) { shadow_stage = 0; }
+static void modern_shadows_reset(void) { shadow_resets++; }
 void plasma_falloff_dispose(void);
 #include "under_test.inc"
 int main(int argc, char **argv)
@@ -49,19 +53,23 @@ int main(int argc, char **argv)
 	{
 		plasma_falloff_begin(0); plasma_falloff_end();
 		CHECK(!creates && !binds && !restores, "stock pass untouched");
+		CHECK(!shadow_begins, "stock pass does not begin a shadow receiver");
 		selected=1; plasma_falloff_begin(0);
 		CHECK(creates == 1 && binds == 1 && filter == D3DTEXF_LINEAR, "selected pass uses smooth texture");
+		CHECK(shadow_begins == 1 && shadow_stage == 2, "diffuse receiver follows the selected pass");
 		CHECK(texels[0] == 0 && texels[64*64*64-1] == 0 && texels[(32*64+32)*64+32] > 0xF0000000UL, "dark corners and luminous center");
 		selected=0; plasma_falloff_end();
 		CHECK(restores == 1 && filter == D3DTEXF_POINT, "restore even after disabling");
 		plasma_falloff_end(); plasma_falloff_dispose(); plasma_falloff_dispose();
 		CHECK(restores == 1 && releases == 1, "idempotent end and cleanup");
+		CHECK(!shadow_stage && shadow_resets == 2, "cleanup resets shadow receiver state");
 	}
 	else if (!strcmp(argv[1], "specular"))
 	{
 		plasma_falloff_specular_begin(0); CHECK(!binds,"unselected specular stays stock");
 		selected=1; plasma_falloff_specular_begin(0);
 		CHECK(bound_stage==1 && filter==D3DTEXF_LINEAR,"specular uses attenuation stage one");
+		CHECK(shadow_stage==1,"specular receiver uses its own stage");
 		plasma_falloff_end();
 		CHECK(restored_stage==1 && filter==D3DTEXF_LINEAR,"specular filter restored");
 		plasma_falloff_begin(0);

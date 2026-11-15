@@ -11,7 +11,7 @@ def executable(collision=False, fault=None):
     code += 'static struct fragment_source_entry *fragment_source_buckets[FRAGMENT_BUCKETS];\n'
     code += 'static unsigned long long *shader_hashes;\nstatic GLuint shader_hashes_size;\n'
     code += '\n'.join(function(source, name) for name in (
-        'source_hash', 'shader_hash_set', 'hash_words', 'words_equal',
+        'device_record_new', 'source_hash', 'shader_hash_set', 'hash_words', 'words_equal',
         'fragment_source_hash', 'fragment_source_get', 'fragment_shader_get'))
     if collision:
         hashing = function(source, 'fragment_source_hash')
