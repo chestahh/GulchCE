@@ -16,6 +16,7 @@ import numpy as np
 from PIL import Image
 
 from hud_assets import add_meter_thresholds
+from harness import function
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -209,6 +210,7 @@ def main():
     unit += HARNESS.replace('METER_SETUP', setup).replace('HEALTH_RECTS', ','.join('{' + ','.join(map(str, r)) + '}' for r in rects))
     # Compile the production translator and string builder with only platform/config stubs.
     unit += '\n' + (ROOT / 'port/linux/src/xgpu_text.c').read_text()
+    unit += '\n' + function((ROOT / 'port/linux/src/modern_shadows_gl.c').read_text(), 'modern_shadow_emit')
     for name in ('mcc_environment_shader_gl.c', 'plasma_model_shader.c', 'nv2a_psh.c'):
         unit += '\n' + (ROOT / 'port/linux/src' / name).read_text()
     compiler = [args.cc, '-std=gnu11', '-O2', '-fuse-ld=lld', '-I' + str(ROOT / 'port/linux/src'), '-I' + str(ROOT / 'port/linux/game'), '-iquote' + str(ROOT / 'port/linux/include')]

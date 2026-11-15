@@ -663,6 +663,12 @@ local settings and the existing host policy. A single-process Xbox-to-MCC-to-CE-
 to-Xbox run passes with three observed map resets, retained preferences and
 shadow rendering after transitions. The web release build passes.
 
+The first CI run exposed a standalone HUD-test link dependency: its production
+shader translator now references `modern_shadow_emit`. The hidden-GL builder
+includes that real generator, without stubbing it or changing the shader.
+All 36 MCC meter renders and 15,360 ammunition-meter renders then pass locally;
+the same fix is included in the replacement CI run.
+
 ### Performance evidence and remaining limits
 
 The initial rebased release comparison uses the same copied pre-exterior c40
