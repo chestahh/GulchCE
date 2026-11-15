@@ -35,6 +35,7 @@ typedef int BOOL;
 static const char *data_root;
 static const char *platform_data_root(void) {return data_root;}
 static const char *platform_save_root(void) {return data_root;}
+static void save_drive_prepare(const char *p,unsigned d){(void)p;(void)d;}
 static const char *platform_custom_edition_root(void) {return "";}
 static void make_directories(const char *p) {(void)p;}
 int config_boolean(const char *p) {(void)p;return 0;}

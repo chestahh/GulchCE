@@ -5,9 +5,11 @@ static struct sdl_stream stream;
 static struct sdl_stream *streams=&stream;
 static struct dsound_globals dsound_globals;
 static int refills,unlocks,events,resets,lock_depth;
+static int mixer_busy,blocking_locks;
 static unsigned long status[8],completed[8];
 #define mixer_lock 0
-#define pthread_mutex_lock(...) ((void)lock_depth++)
+#define pthread_mutex_lock(...) ((void)(blocking_locks++,lock_depth++))
+#define pthread_mutex_trylock(...) (mixer_busy ? 1 : (lock_depth++,0))
 #define pthread_mutex_unlock(...) ((void)lock_depth--)
 #define channel_get(i) (&dsound_globals.channels[i])
 #define sound_cache_sound_hardware_unlock(...) ((void)unlocks++)
@@ -55,6 +57,20 @@ int main(int argc,char **argv) {
  int count=!strcmp(case_name,"empty")?0:3;
  int finished=!strcmp(case_name,"unfinished")?0:(!strcmp(case_name,"all-finished")?2:1);
  reset(count,finished,!strcmp(case_name,"wrapped"));
+ CASE("busy-completion") {
+  mixer_busy=1;
+  for(int i=0;i<4;i++) streams_complete_finished();
+  CHECK(!blocking_locks && !unlocks && !lock_depth,"four busy polls defer completion");
+  streams_complete_finished();
+  CHECK(unlocks==1 && status[0]==XMEDIAPACKET_STATUS_SUCCESS,"fifth poll guarantees progress");
+  CHECK(!lock_depth,"completion releases mixer lock");
+  int locks=blocking_locks;
+  streams_complete_finished();
+  CHECK(blocking_locks==locks,"successful completion resets missed count");
+  stream_flush(&stream.object);
+  CHECK(stream.packet_count==0 && unlocks==4 && !lock_depth,"flush stays synchronous while busy");
+  return 0;
+ }
  CASE("ordinary") {
   streams_complete_finished();
   CHECK(status[0]==XMEDIAPACKET_STATUS_SUCCESS && completed[0]==512,"ordinary completion succeeds");

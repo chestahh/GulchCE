@@ -187,13 +187,15 @@ int mcc_validation_publish(char const *name,struct mcc_validation_proof const *p
     return 1;
 }
 
-static struct mcc_validation_proof *mcc_validation_find(char const *name)
+static struct mcc_validation_proof *mcc_validation_find(char const *name,int polling)
 {
     char canonical[64];
     struct mcc_precache_snapshot files;
     struct mcc_validation_proof *result;
     unsigned i;
-    if (!mcc_package_name(name,canonical) || !mcc_precache_snapshot(canonical,&files)) return NULL;
+    if (!mcc_package_name(name,canonical)) return NULL;
+    if (!(polling ? mcc_precache_snapshot_poll(canonical,&files) :
+        mcc_precache_snapshot(canonical,&files))) return NULL;
     for (i=0;i<MCC_VALIDATION_RESULTS;i++) {
         result=&mcc_validation_results[i];
         if (strcmp(result->name,canonical)) continue;
@@ -205,7 +207,7 @@ static struct mcc_validation_proof *mcc_validation_find(char const *name)
 
 int mcc_validation_lookup(char const *name,uint32_t *checksum,unsigned char digest[32])
 {
-    struct mcc_validation_proof const *result=mcc_validation_find(name);
+    struct mcc_validation_proof const *result=mcc_validation_find(name,0);
     if (!result) return 0;
     if (checksum) *checksum=result->checksum;
     if (digest) memcpy(digest,result->digest,32);
@@ -214,7 +216,7 @@ int mcc_validation_lookup(char const *name,uint32_t *checksum,unsigned char dige
 
 int mcc_validation_resources(char const *name,char paths[2][128])
 {
-    struct mcc_validation_proof const *result=mcc_validation_find(name);
+    struct mcc_validation_proof const *result=mcc_validation_find(name,0);
     memset(paths,0,2*128);
     if (!result) return 0;
     memcpy(paths,result->resources,sizeof(result->resources));
@@ -234,14 +236,19 @@ int mcc_validation_request(char const *name,uint32_t *checksum,unsigned char dig
 {
     char canonical[64];
     struct mcc_precache_snapshot files;
-    if (mcc_validation_lookup(name,checksum,digest)) return 1;
+    struct mcc_validation_proof const *result=mcc_validation_find(name,1);
+    if (result) {
+        if (checksum) *checksum=result->checksum;
+        if (digest) memcpy(digest,result->digest,32);
+        return 1;
+    }
     if (!mcc_package_name(name,canonical)) {
         snprintf(mcc_validation_reason,sizeof(mcc_validation_reason),"The MCC package name is invalid. Select an installed MCC map.");
         return -1;
     }
     if (mcc_validation_job && !strcmp(canonical,mcc_validation_job->result.name)) {
         if (mcc_validation_job->state>=0) return 0;
-        if (mcc_precache_snapshot(canonical,&files) &&
+        if (mcc_precache_snapshot_poll(canonical,&files) &&
             !memcmp(&files,&mcc_validation_job->result.files,sizeof(files))) return -1;
     }
     mcc_validation_cancel();

@@ -149,13 +149,12 @@ boolean custom_edition_cache_present(
 	char *message,
 	long message_size);
 
-/* Whether the file `file_name` (custom_maps\<file_name>.map) is a Custom
-Edition cache of a campaign map (a solo scenario, played alone or as
-network co-op), or of a multiplayer map (custom_edition_maps.c). */
-boolean custom_edition_cache_campaign(
-	char const *file_name);
-boolean custom_edition_cache_multiplayer(
-	char const *file_name);
+/* The scenario type of the Custom Edition cache at `path`: a campaign map's
+(_scenario_type_solo, played alone or as network co-op) or a multiplayer
+map's, or another; NONE if it is no Custom Edition cache. `path` is the
+file a folder's listing found (custom_edition_maps.c), opened once. */
+short custom_edition_cache_file_scenario_type(
+	char const *path);
 
 /* Loads the Custom Edition map `map_name` names into its tag cache and
 converts its tags for this build, copying its cache header to `header`

@@ -9,7 +9,7 @@ from harness import CHECK_FAILED, build, function, mutated, read, run
 from harness.audio import stream_types
 
 CASES = ["mixed-head", "unfinished", "all-finished", "paused", "repeat", "ordinary",
-         "wrapped", "no-callback", "empty"]
+         "wrapped", "no-callback", "empty", "busy-completion"]
 NEGATIVE_CONTROLS = {
     "successful-cancellation": (("stream_complete_head(stream, XMEDIAPACKET_STATUS_FLUSHED,",
         "stream_complete_head(stream, head->finished ? XMEDIAPACKET_STATUS_SUCCESS : XMEDIAPACKET_STATUS_FLUSHED,"), "mixed-head"),

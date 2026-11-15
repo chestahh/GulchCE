@@ -1154,22 +1154,25 @@ boolean custom_edition_cache_display_error(char const *level_name)
 	return TRUE;
 }
 
-boolean custom_edition_cache_campaign(
-	char const *map_name)
+short custom_edition_cache_file_scenario_type(
+	char const *path)
 {
+	struct custom_edition_file file;
 	struct cache_file_identity identity;
+	short type = NONE;
 
-	return custom_edition_cache_identify(map_name, &identity) &&
-		identity.scenario_type == _scenario_type_solo;
-}
+	if (!halo_custom_edition_tag_cache() || !custom_edition_file_open(&file, path))
+	{
+		return NONE;
+	}
+	if (cache_file_identify(&file.source, &identity) == _cache_file_status_ok &&
+		identity.format == _cache_file_format_custom_edition_cache)
+	{
+		type = (short)identity.scenario_type;
+	}
+	custom_edition_file_close(&file);
 
-boolean custom_edition_cache_multiplayer(
-	char const *map_name)
-{
-	struct cache_file_identity identity;
-
-	return custom_edition_cache_identify(map_name, &identity) &&
-		identity.scenario_type == _scenario_type_multiplayer;
+	return type;
 }
 
 struct cache_file_tag_header *custom_edition_cache_tags_load(

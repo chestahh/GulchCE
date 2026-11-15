@@ -42,6 +42,7 @@ long port_mods_played(void);
 long port_mods_file_find(char const *tag_file, char const *map_name);
 int port_mods_file_stamp(long file, unsigned long *size, unsigned long stamp[2]);
 int port_mods_file_read(long file, unsigned long offset, void *buffer, unsigned long size);
+void port_mods_files_close(void);
 long port_mods_file_order(long file);
 char const *port_mods_file_mod(long file);
 char const *port_mods_file_path(long file);

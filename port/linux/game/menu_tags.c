@@ -46,6 +46,7 @@ menu gets FRIENDLY FIRE too.
 #include "mcc_ui.h"
 #include "mcc_cache.h"
 #include "mcc_menu_preview.h"
+#include "mcc_menu_text.h"
 #include "custom_edition_cache.h"
 
 #include <stdlib.h>
@@ -2704,6 +2705,7 @@ void menu_tags_unloaded(
 	void)
 {
 	mcc_menu_preview_clear();
+	mcc_menu_text_clear();
 	frontend_menu_unloaded();
 	if (menu_tags.loaded || menu_tags.block_count)
 		menu_tags_release();

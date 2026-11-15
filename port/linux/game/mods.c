@@ -274,6 +274,7 @@ static void mods_let_go(
 	mod_bitmaps_tags_unloaded();
 	mod_models_tags_unloaded(give_back);
 	mod_strings_tags_unloaded();
+	port_mods_files_close();
 	mods_globals.map_loaded = FALSE;
 	mods_globals.enabled = FALSE;
 	mods_globals.map_name[0] = 0;
@@ -361,6 +362,7 @@ void mods_enable(
 	}
 	mods_globals.say = TRUE;
 	mods_update(!enabled, FALSE);
+	if (!enabled) port_mods_files_close();
 	mods_globals.say = FALSE;
 
 	return;

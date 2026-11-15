@@ -4,6 +4,8 @@
 static long updates;
 static long releases;
 static unsigned long scans;
+static long closed;
+static void port_mods_files_close(void) { ++closed; }
 #define csstrncpy strncpy
 #define console_printf(...) ((void)0)
 #define console_warning(...) ((void)0)
@@ -32,7 +34,7 @@ int main(int argc, char **argv)
     CHECK(mods_map_loaded() && updates == 4, "Xbox mods apply");
     /* A load that never reached normal unload must still drop old overrides. */
     mods_tags_loaded("mcc_maps\\package\\bloodgulch");
-    CHECK(!mods_map_loaded() && releases == 1, "MCC clears previous mods");
+    CHECK(!mods_map_loaded() && releases == 1 && closed == 1, "MCC clears previous mods and readers");
     before = updates;
     mods_enable(TRUE);
     mods_reload();
@@ -42,6 +44,7 @@ int main(int argc, char **argv)
     mods_tags_loaded("custom_maps\\deathisland");
     CHECK(mods_map_loaded() && updates == before + 4, "CE mods resume");
     mods_enable(FALSE);
+    CHECK(closed == 3, "disabling mods releases readers");
     before = updates;
     mods_reload();
     CHECK(updates == before, "upstream manual disable preserved");

@@ -2151,11 +2151,21 @@ static void stream_complete_head(struct sdl_stream *stream, DWORD status, DWORD 
 	}
 }
 
+/* DirectSoundDoWork polls on the game thread. Defer finished packets while
+the mixer owns the lock, but wait on the fifth consecutive miss so a busy
+mixer cannot indefinitely delay completion. Explicit flush stays synchronous. */
 static void streams_complete_finished(void)
 {
+	static int missed;
 	struct sdl_stream *stream;
 
-	pthread_mutex_lock(&mixer_lock);
+	if (pthread_mutex_trylock(&mixer_lock) != 0)
+	{
+		if (++missed < 5)
+			return;
+		pthread_mutex_lock(&mixer_lock);
+	}
+	missed = 0;
 	for (stream = streams; stream; stream = stream->next)
 	{
 		while (stream->packet_count && stream->packets[stream->packet_head].finished)

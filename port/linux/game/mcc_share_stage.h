@@ -125,6 +125,7 @@ struct mcc_share_stage {
     uint32_t total, done;             /* every file's bytes, and written so far */
     struct mcc_sha256 hash;
     FILE *stream;
+    char *stream_buffer;             /* owned until the stream has been closed */
     /* Optional private identity job; release before any owned file cleanup.
      * The session binds this after begin and retains it through publication. */
     void (*cancel_check)(void *user);

@@ -26,6 +26,7 @@ matched case-insensitively, like the Xbox's FATX volumes.
 #include <ctype.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -311,6 +312,27 @@ static int translate_elsewhere(const char *cursor, char *resolved, unsigned long
 	return 0;
 }
 
+/* Successful save-drive preparation is reusable for this resolved root.
+ * Failures are never cached. NULL invalidates after removal or a missing-path
+ * operation, so externally removed drives can be recreated on retry. */
+static void save_drive_prepare(const char *path, unsigned drive)
+{
+	static pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
+	static char ready[26][1024];
+	struct posix_file_information information;
+	pthread_mutex_lock(&lock);
+	if (!path)
+		memset(ready, 0, sizeof(ready));
+	else if (drive < 26 && strlen(path) < sizeof(ready[drive]) && strcmp(ready[drive], path))
+	{
+		ready[drive][0] = 0;
+		if ((!posix_stat(path, &information) && (information.flags & _posix_file_is_directory)) ||
+			!posix_make_directory(path))
+			strcpy(ready[drive], path);
+	}
+	pthread_mutex_unlock(&lock);
+}
+
 void platform_translate_path(const char *xbox_path, char *host_path, unsigned long host_path_size)
 {
 	char resolved[1024];
@@ -332,12 +354,9 @@ void platform_translate_path(const char *xbox_path, char *host_path, unsigned lo
 		}
 		else if (drive != 'd')
 		{
-			struct posix_file_information information;
-
 			snprintf(resolved, sizeof(resolved), "%s/%c", platform_save_root(), drive);
 			/* every Xbox drive always exists; create its directory on first use */
-			if (posix_stat(resolved, &information) != 0)
-				posix_make_directory(resolved);
+			save_drive_prepare(resolved, (unsigned)(drive - 'a'));
 		}
 		cursor += 2;
 	}
@@ -364,19 +383,15 @@ void platform_translate_path(const char *xbox_path, char *host_path, unsigned lo
 		if (!component_length || strspn(component, ". ") == component_length)
 			continue;
 
-		if (posix_find_entry_case_insensitive(resolved, component, on_disk, sizeof(on_disk)))
 		{
-			/* prefer an exact match when several spellings exist */
 			char exact[1100];
 			struct posix_file_information information;
-
+			/* Exact spelling already wins. Avoid listing every parent folder
+			when the requested spelling exists; retain the FATX case fallback. */
 			snprintf(exact, sizeof(exact), "%s/%s", resolved, component);
-			if (posix_stat(exact, &information) == 0)
+			if (!posix_stat(exact, &information) ||
+				!posix_find_entry_case_insensitive(resolved, component, on_disk, sizeof(on_disk)))
 				snprintf(on_disk, sizeof(on_disk), "%s", component);
-		}
-		else
-		{
-			snprintf(on_disk, sizeof(on_disk), "%s", component);
 		}
 		length = strlen(resolved);
 		snprintf(resolved + length, sizeof(resolved) - length, "/%s", on_disk);
@@ -576,6 +591,12 @@ HANDLE WINAPI CreateFileA(LPCSTR file_name, DWORD desired_access, DWORD share_mo
 	}
 
 	descriptor = open(path, flags | O_CLOEXEC, 0644);
+	if (descriptor < 0 && errno == ENOENT && (flags & O_CREAT))
+	{
+		save_drive_prepare(NULL, 0);
+		platform_translate_path(file_name, path, sizeof(path));
+		descriptor = open(path, flags | O_CLOEXEC, 0644);
+	}
 	if (descriptor < 0)
 	{
 		platform_set_last_error_from_errno(errno);
@@ -1064,6 +1085,12 @@ BOOL WINAPI CreateDirectoryA(LPCSTR path_name, LPSECURITY_ATTRIBUTES security_at
 	platform_translate_path(path_name, path, sizeof(path));
 	if (posix_make_directory(path) != 0)
 	{
+		if (errno == ENOENT)
+		{
+			save_drive_prepare(NULL, 0);
+			platform_translate_path(path_name, path, sizeof(path));
+			if (!posix_make_directory(path)) return TRUE;
+		}
 		platform_set_last_error_from_errno(errno);
 		return FALSE;
 	}
@@ -1080,6 +1107,7 @@ BOOL WINAPI RemoveDirectoryA(LPCSTR path_name)
 		platform_set_last_error_from_errno(errno);
 		return FALSE;
 	}
+	save_drive_prepare(NULL, 0);
 	return TRUE;
 }
 

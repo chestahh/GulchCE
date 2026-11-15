@@ -172,6 +172,7 @@ static void stage_forget(struct mcc_share_stage *stage)
         cancel(stage->check_user);
     }
     if (stage->stream) { fclose(stage->stream); stage->stream=NULL; }
+    free(stage->stream_buffer); stage->stream_buffer=NULL;
     if (!stage->owns_directory || !stage->stage_dir[0] || !stage->io.path_safe(stage->stage_dir)) goto finish;
     for (i=0;i<stage->count;i++) {
         if (i==stage->current && stage->owns_partial &&
@@ -290,6 +291,13 @@ enum mcc_share_stage_result mcc_share_stage_write(struct mcc_share_stage *stage,
     if (!stage->stream) {
         if (!stage_parents(stage,file->leaf) || !stage_path(path,sizeof(path),stage->stage_dir,file->leaf,stage->io.direct ? "" : ".part") ||
             !stage->io.path_safe(path) || !(stage->stream=fopen(path,"wbx"))) return stage_fail(stage,MCC_SHARE_STAGE_WRITE_FAILED);
+        /* Coalesce 3 KB chunks. musl needs caller-provided storage to grow
+         * its buffer; NULL would retain its small default. On allocation or
+         * setvbuf failure, the stream keeps ordinary stdio buffering. */
+        stage->stream_buffer=malloc(0x40000);
+        if (stage->stream_buffer && setvbuf(stage->stream,stage->stream_buffer,_IOFBF,0x40000)) {
+            free(stage->stream_buffer); stage->stream_buffer=NULL;
+        }
         stage->owns_partial=1;
         mcc_sha256_begin(&stage->hash); stage->written=0;
     }
@@ -306,6 +314,7 @@ enum mcc_share_stage_result mcc_share_stage_write(struct mcc_share_stage *stage,
         closed=stage->io.direct && !stage->io.direct->flush(stage->stream);
         if (fclose(stage->stream)) closed=1;
         stage->stream=NULL;
+        free(stage->stream_buffer); stage->stream_buffer=NULL;
         if (closed) return stage_fail(stage,MCC_SHARE_STAGE_WRITE_FAILED);
         if (memcmp(digest,file->sha256,32)) return stage_fail(stage,MCC_SHARE_STAGE_BAD_HASH);
         if (!stage->io.direct && (!stage_path(part,sizeof(part),stage->stage_dir,file->leaf,".part") ||

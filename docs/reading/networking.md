@@ -302,6 +302,13 @@ reliable connections. Unreliable updates carry time information so stale
 data can be rejected. Reliability does not replace size, sender, direction,
 rate or index validation.
 
+[network_connection.c](../../source/networking/network_connection.c) reads
+up to 32 KB from a reliable stream into the bounded incoming queue; individual
+message limits and parsing are unchanged. [xnet.c](../../port/linux/src/xnet.c)
+caches a socket's nonzero local port until `halo_ws_closesocket`, falling back
+to querying handles outside its bounded table. Neither optimization changes
+wire data or simulation agreement, so it does not require a protocol bump.
+
 Internet play uses the P2P transport around this gameplay model. Native
 [p2p_webrtc.c](../../port/linux/src/p2p_webrtc.c) and browser
 [web_p2p.c](../../port/web/src/web_p2p.c) connect through WebRTC data channels;
