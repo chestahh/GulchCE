@@ -405,7 +405,12 @@ false whenever `network_coop_active()` is true, including on the host.
 `mcc_ui_event_function` calls the host revert path and
 `mcc_ui_restart` delegates to `mcc_ui_restart_network_game` in
 [mcc_ui_network.inl](../port/linux/game/mcc_ui_network.inl).
-These are inspected code paths, not proof of working live UI.
+The [M0 pause-control pass](coop_m0_host_controls.md) subsequently exercised
+both peers' rendered menus on representative Windows Xbox/CE/MCC campaigns.
+Xbox and CE confirmations performed no operation, matching the ordinary guards;
+MCC's separate host and client routes behaved differently. Consult that report
+for the bounded operation outcomes and retained qualification limits. Neither
+source inspection nor these samples constitute full M5 acceptance.
 Dedicated `sv_restart` is a server-process restart request, not evidence of
 mission restart. Automatic team-wipe recovery is another distinct operation.
 

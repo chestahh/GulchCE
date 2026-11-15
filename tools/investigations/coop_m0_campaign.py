@@ -81,6 +81,20 @@ def instrument(relative, original):
             '\tm0_emit("script_wake", game_time_get(), thread_index, thread->script_index, thread->sleep_until, 0, 0);\n'
             '\tif (thread->sleep_until != NONE)')
     text = world.instrument(relative, original)
+    if name == 'network_test':
+        # Pause is polled from raw controller state, before menu-event dispatch.
+        # Use the existing test controller for a bounded press; never invoke a
+        # pause/restart handler or alter widget/session state from the fixture.
+        text = 'extern double coop_m0_clock(void);\n' + text
+        text = trace.once(text, '\t\tstatic long previous;',
+            '\t\tstatic long previous;\n\t\tstatic double pause_until;\n'
+            '\t\tif (getenv("M0_RAW_PAUSE"))\n'
+            '\t\t\ttest_input_press(coop_m0_clock() < pause_until ? (1UL << HALO_CHAT_PAD_START) : 0);')
+        text = trace.once(text, '\t\t\t\t\tevent_manager_post_button(controller, button);',
+            '\t\t\t\t\tif (getenv("M0_RAW_PAUSE") && controller == 0 && button == _gamepad_binary_button_start)\n'
+            '\t\t\t\t\t\tpause_until = coop_m0_clock() + .25;\n'
+            '\t\t\t\t\telse\n'
+            '\t\t\t\t\t\tevent_manager_post_button(controller, button);')
     if name == 'players':
         text = trace.once(text, '\tplayers_globals->input_disabled = !enable;',
             '\tm0_emit("input_enable", game_time_get(), enable, players_globals->input_disabled, 0, 0, 0);\n\tplayers_globals->input_disabled = !enable;')

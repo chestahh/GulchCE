@@ -115,9 +115,19 @@ Hosted CI at the rebased investigation head passed:
 - [MCC map validation](https://github.com/chestahh/GulchCE/actions/runs/43701912367):
   reader/validator, Windows adapter and HUD meter-render checks.
 
-The final branch update adds documentation only. The tested implementation and
-diagnostic sources are unchanged. A final fetch still resolves testing to
+The preceding gate-review update (`b82703bbb0`) added documentation only. Its
+tested implementation and diagnostic sources were unchanged. That fetch
+resolved testing to
 `4595247ae6649c6efbc9baf99124f979ebef3a38`.
+
+The subsequent [pause-control baseline](coop_m0_host_controls.md) exercises
+host/client Revert and Restart through rendered Xbox/CE/MCC menus. Its only
+tooling change supplies a bounded raw Start press in generated diagnostic
+copies; production behavior and protocol remain unchanged. Xbox and CE
+confirmations reproduce the missing operations. MCC uses separate authority
+and lifecycle paths, with outcomes and limits recorded in that report.
+The focused final checks pass (159). The earlier CI links above belong to the
+preceding revision, not this diagnostic addition.
 
 ## Gate decision
 
