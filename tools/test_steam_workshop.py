@@ -198,6 +198,7 @@ typedef int BOOL;
 #define FALSE 0
 static char const *platform_data_root(void) {return getenv("TEST_DATA_ROOT");}
 static char const *platform_save_root(void) {return platform_data_root();}
+static void save_drive_prepare(const char *p,unsigned d){(void)p;(void)d;}
 static char const *platform_custom_edition_root(void) {return "";}
 static void make_directories(char const *path) {(void)path;}
 '''

@@ -36,6 +36,19 @@ little-endian reads. The host reporting tool and tests use the same parser
 as the game. MCC has its own parser and conversion modules; a shared runtime
 tag shape does not imply a shared on-disk format or resource owner.
 
+The CE menu scanner in
+[custom_edition_maps.c](../../port/linux/game/custom_edition_maps.c) lists each
+existing CE root once in `custom_edition_maps_scan_files`. It opens descriptions
+only when listed and calls `custom_edition_cache_file_scenario_type` once per
+uncached map. `identity_cached` retains successful classifications by full path,
+64-bit size and write time; configuration changes clear it. This bounded cache
+does not limit the catalog, and failed reads are retried. Directory-buffer
+growth keeps filename offsets rather than pointers into movable storage.
+Allocation failure falls back to streaming the directory. These are catalog
+hints: actual loading still validates content independently. Edits preserving
+both size and timestamp can retain an old hint until the cache is cleared.
+CE discovery roots, local-copy precedence and MCC ownership remain separate.
+
 For CE bitmap admission, read `custom_edition_bitmaps_verify` and
 `custom_edition_bitmap_raw_2d` in
 [custom_edition_bitmaps.c](../../port/linux/game/custom_edition_bitmaps.c).
@@ -542,10 +555,10 @@ selection, local admission and readiness do not repeatedly read unchanged files.
 package and root overrides, and both shared resource sets, even absent files.
 A cache miss or changed metadata requires validation again; failed metadata
 queries prevent reuse, and changes during validation refuse the result. Catalog
-rescans can retain this checksum because every use checks those inputs again.
+rescans can retain this checksum because safety-critical uses check those inputs again.
 Reselection, unload and disconnect cancel unfinished work and close its readers.
 Disconnect still clears session identities; successful file facts survive it,
-with their metadata rechecked on every use. Remote admission and actual loading
+with their metadata rechecked before admission or loading. Remote admission and actual loading
 still check the content identity; actual loading fingerprints the opened content.
 The older single-checksum cache remains for synchronous remote admission. This is
 not a persistent cache or proof against edits that preserve all recorded metadata.
@@ -555,6 +568,17 @@ early start request waits in pregame; pending validation is not a connection err
 Admission explanations pass through this same cache: a successful reuse clears
 stale caller text, while a failed fresh check returns its resource explanation.
 An install changing during validation gets its own refusal message.
+
+Idle pending-selection updates use `mcc_precache_snapshot_poll`, which retains
+one successful file snapshot for at most 500 ms. This advisory cache is separate
+from `mcc_precache_snapshot`: validation publication, admission, start gates and
+loading continue to request fresh metadata. A fresh failure or detected change
+invalidates the polling copy, and precache cleanup clears it. In the platform
+resolver, [mcc_local_package.c](../../port/linux/src/mcc_local_package.c) checks
+an exact child name before falling back to case-insensitive directory listing;
+package containment checks remain in force.
+[test_filesystem_caches.py](../../tools/test_filesystem_caches.py) checks timer
+wrap, changed files within the polling interval, failure recovery and CE scans.
 [test_mcc_validation.py](../../tools/test_mcc_validation.py) exercises reuse,
 changed inputs, failed validation, identity checks and checksum disagreement.
 

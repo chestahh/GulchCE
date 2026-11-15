@@ -2716,7 +2716,7 @@ static boolean get_nth_entry_in_mapfile(
 		/* port: from the copy (mapfile_copy), the file read whole once */
 		if (mapfile_copy_read(memory_unit_index))
 		{
-			if ((long)n >= 0 && (long)n < mapfile_copy.count)
+			if ((long)n < mapfile_copy.count)
 			{
 				*file = mapfile_copy.entries[n];
 				success = TRUE;

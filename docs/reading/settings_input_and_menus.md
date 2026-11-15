@@ -55,6 +55,25 @@ changes, or a gametype is saved; deletion makes the editor rebuild its list.
 `gametype_rules_text` consumes those cached settings while retaining OpenCE
 mode descriptions such as Infection and Gun Game.
 
+The underlying saved-game index, `z:\saved\hdmu.map`, has its own bounded
+in-memory copy in
+[saved_game_files.c](../../source/saved%20games/saved_game_files.c).
+`mapfile_copy_read` serves repeated entry lookups under the existing index
+mutex. Index writes, enumeration and storage-change notifications invalidate
+it; shutdown frees it. Failed allocation or reads use the existing uncached
+path. The copy is keyed by memory unit and index path. It does not watch for
+external edits to the index while the game is running, and it does not cache
+the `savegame.bin` checksum or change the save format.
+
+[xbox_files.c](../../port/linux/src/xbox_files.c) prepares each resolved save
+drive once after a successful directory check or creation. Failures are retried;
+directory removal and missing-parent creation failures invalidate the record.
+`platform_translate_path` tries exact component spelling before directory
+listing, retaining the case-insensitive fallback. These are shared file-service
+optimizations, with the existing Xbox, CE and MCC routing intact.
+[test_filesystem_caches.py](../../tools/test_filesystem_caches.py) exercises index
+mutations, failures, storage changes, disposal and save-root preparation.
+
 MCC catalog labels and descriptions use a separate bounded cache in
 [mcc_menu_text.c](../../port/linux/game/mcc_menu_text.c). It retains fitted
 rows and wrapped text keyed by text, font and panel dimensions. Settings

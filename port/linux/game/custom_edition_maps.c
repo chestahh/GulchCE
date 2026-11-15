@@ -31,13 +31,12 @@ Each map can have, beside it in its folder:
 - <name>.txt, its description, line by line (the Xbox descriptions use
   lines of about 20 characters).
 
-A scan costs little more than listing the folders, however many maps there
-are: each folder is listed once, whole, before its maps are looked at, so a
-description is opened only if the listing has it (a description looked for
-and not there cost a lookup that fails, on the Switch 10 ms or so, for
-nearly every map); and a map's kind (campaign, multiplayer, neither) is kept
-across scans by its path, size and time (identity_cache), so a map list
-opened again opens only the maps that are new or have changed since.
+Each folder is listed once before its maps are inspected. Descriptions are
+opened only when listed. A bounded identity_cache keeps valid maps' kinds
+across scans by full path, size and time; unchanged cached maps need no
+header read. Cache eviction costs additional reads without limiting the
+catalog. Failed reads are retried, and allocation failure uses a streamed
+scan with direct description probes.
 */
 
 /* ---------- headers */
@@ -239,11 +238,11 @@ static short identity_cached(
 	for (;;)
 	{
 		entry = &identity_cache[slot];
-		if (!entry->used || (entry->key == key && !strcmp(entry->path,path)))
+		if (!entry->used || (entry->key == key && !strcmp(entry->path, path)))
 			break;
 		slot = (slot + 1) % IDENTITY_CACHE_SIZE;
 	}
-    if (entry->used && entry->size == size && entry->time == time && entry->scenario_type != NONE)
+	if (entry->used && entry->size == size && entry->time == time && entry->scenario_type != NONE)
 	{
 		return entry->scenario_type;
 	}
@@ -263,7 +262,7 @@ static short identity_cached(
 	entry->size = size;
 	entry->time = time;
 	entry->scenario_type = custom_edition_cache_file_scenario_type(path);
-    entry->used = TRUE;
+	entry->used = TRUE;
 
 	return entry->scenario_type;
 }
@@ -476,7 +475,7 @@ static void custom_edition_map_add(
 	{
 		char local[MAXIMUM_FILENAME_LENGTH + 1];
 		WIN32_FILE_ATTRIBUTE_DATA information;
-		if (snprintf(local, sizeof(local), "%s%s.%s", CUSTOM_EDITION_MAP_DIRECTORY, name, extension) >= sizeof(local))
+		if (snprintf(local, sizeof(local), "%s%s.%s", CUSTOM_EDITION_MAP_DIRECTORY, name, extension) >= (int)sizeof(local))
 			return;
 		if (GetFileAttributesExA(local, GetFileExInfoStandard, &information))
 			return;
@@ -640,7 +639,7 @@ static void custom_edition_maps_scan_files(
 	descriptions = file_count ? malloc((size_t)file_count * sizeof(*descriptions)) : NULL;
 	for (index = 0; descriptions && index < file_count; index++)
 	{
-		if (!csstrcasecmp(files[index].name + files[index].extension, DESCRIPTION_EXTENSION + 1))
+		if (!csstrcasecmp(files[index].name + files[index].extension, &DESCRIPTION_EXTENSION[1]))
 			descriptions[description_count++] = name_hash(files[index].name, NULL);
 	}
 	for (index = 0; index < file_count; index++)

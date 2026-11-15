@@ -22,6 +22,7 @@ void mcc_loading_pulse(void) {}
 static int read_map(void *p,uint32_t at,uint32_t bytes,void *out) {
     return !fseek(p,(long)at,SEEK_SET) && fread(out,1,bytes,p)==bytes;
 }
+int mcc_precache_snapshot_poll(char const *name,struct mcc_precache_snapshot *out) {return mcc_precache_snapshot(name,out);}
 int mcc_precache_snapshot(char const *name,struct mcc_precache_snapshot *out) {
     (void)name;if(++stamp_reads==change_at)stamps.files[0].written_low++;
     *out=stamps;return 1;

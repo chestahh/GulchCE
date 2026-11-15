@@ -9,7 +9,11 @@
 #include "mcc_validation.h"
 #include "networking/network_game_globals.h"
 #include <xtl.h>
+#ifdef HALO_WINDOWS
+#include "../../windows/include/posix/pthread.h"
+#else
 #include <pthread.h>
+#endif
 #include <stdio.h>
 #include <string.h>
 
