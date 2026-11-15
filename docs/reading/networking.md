@@ -113,6 +113,16 @@ When scripts release the camera, the normal spectating path applies again;
 to watch. This is source behavior, not evidence of every campaign cutscene
 having been played through.
 
+On a dedicated host, `director_unattended_scripted_camera` in
+[`director.c`](../../source/camera/director.c) lets the first director and
+observer follow a scripted camera without a local player. `host_presentation`
+then sends that camera through the existing presentation message. For an older
+host whose camera stays at the world's origin, `client_host_camera_unmoved`
+selects `client_watch_cutscene`, which frames a locally available animated
+actor or player. The cutscene subject flag is cleared when the cinematic ends;
+normal map/recovery initialization still clears the presentation state. These
+changes keep the protocol-44 message layout unchanged.
+
 ## Compare states from the same time
 
 Suppose the host replies about tick T, but the client has already moved on.

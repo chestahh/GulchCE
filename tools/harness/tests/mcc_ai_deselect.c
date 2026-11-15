@@ -46,7 +46,7 @@ static void *datum_try_and_get(struct data_array *array, long handle) {
     return handle!=NONE && index<array->count && nodes[index].datum_header==(short)((unsigned long)handle>>16) ? nodes+index : NULL;
 }
 #define hs_type_valid(type) ((type)>=_hs_type_void && (type)<NUMBER_OF_HS_TYPES)
-static boolean hs_scenario_downloaded;
+static boolean hs_scenario_downloaded, hs_scenario_campaign;
 static char const *const hs_functions_denied_to_downloaded_maps[]={NULL};
 static char const *const hs_globals_denied_to_downloaded_maps[]={NULL};
 static boolean hs_name_listed(char const *name, char const *const *list) { return FALSE; }
@@ -96,7 +96,8 @@ int main(int argc, char **argv)
         for(i=0;i<NUMBER_OF_AI_DEBUG_ACTOR_RECORDS;i++) CHECK(!ai_debug.actor_record[i].valid && ai_debug.actor_record[i].sentinel==before.actor_record[i].sentinel,"native record lifetime");
         return 0;
     }
-    CASE("legacy-policy") {
+    if (!strcmp(case_name,"legacy-policy") || !strcmp(case_name,"legacy-campaign-policy")) {
+        hs_scenario_campaign=!strcmp(case_name,"legacy-campaign-policy");
         syntax_data.count=3;syntax_data.size=sizeof(nodes[0]);syntax_data.data=(byte *)nodes;
         nodes[0].datum_header=nodes[1].datum_header=nodes[2].datum_header=1;
         nodes[0].flags=8;nodes[0].type=_hs_type_void;nodes[0].data=0x10001;nodes[0].next_node_index=NONE;

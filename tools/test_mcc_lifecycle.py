@@ -56,21 +56,39 @@ int main(void) {
  int i;
  for(i=0;i<3;i++) {
   active=i!=0;type=i==1;enabled=i!=2;
-  if(mcc_main_campaign_won() || lookups || queued || rounds || completions)return 1;
+  if(mcc_main_campaign_won(NULL) || lookups || queued || rounds || completions)return 1;
  }
  active=enabled=1;type=0;
- if(!mcc_main_campaign_won() || strcmp(selected,"mcc_maps\\Pack\\a10") || persistent!=1 || queued)return 2;
- state=2;if(!mcc_main_campaign_won() || queued!=1)return 3;
- state=-1;if(!mcc_main_campaign_won() || queued!=2 || errors!=1)return 4;
- state=0;if(!mcc_main_campaign_won() || queued!=3)return 5;
+ if(!mcc_main_campaign_won(NULL) || strcmp(selected,"mcc_maps\\Pack\\a10") || persistent!=1 || queued)return 2;
+ state=2;if(!mcc_main_campaign_won(NULL) || queued!=1)return 3;
+ state=-1;if(!mcc_main_campaign_won(NULL) || queued!=2 || errors!=1)return 4;
+ state=0;if(!mcc_main_campaign_won(NULL) || queued!=3)return 5;
  connection=1;state=1;
- if(!mcc_main_campaign_won() || rounds!=1 || strcmp(selected,"mcc_maps\\Pack\\a10") || persistent!=1)return 6;
- state=2;if(!mcc_main_campaign_won() || rounds!=2 || strcmp(selected,"lobby"))return 7;
- state=-1;if(!mcc_main_campaign_won() || rounds!=3 || errors!=2)return 8;
+ if(!mcc_main_campaign_won(NULL) || rounds!=1 || strcmp(selected,"mcc_maps\\Pack\\a10") || persistent!=1)return 6;
+ state=2;if(!mcc_main_campaign_won(NULL) || rounds!=2 || strcmp(selected,"lobby"))return 7;
+ state=-1;if(!mcc_main_campaign_won(NULL) || rounds!=3 || errors!=2)return 8;
  connection=2;i=lookups;
- if(!mcc_main_campaign_won() || lookups!=i || rounds!=3 || queued!=3 || completions!=7)return 9;
+ if(!mcc_main_campaign_won(NULL) || lookups!=i || rounds!=3 || queued!=3 || completions!=7)return 9;
  /* Switching back to an unaffected family cannot retain campaign state. */
- active=0;connection=0;if(mcc_main_campaign_won() || lookups!=i)return 10;
+ active=0;connection=0;if(mcc_main_campaign_won(NULL) || lookups!=i)return 10;
+
+ /* A validated script destination works without manifest progression enabled. */
+ active=1;enabled=0;
+ if(!mcc_main_campaign_won("mcc_maps\\Local\\a20") || lookups!=i ||
+    strcmp(selected,"mcc_maps\\Local\\a20") || persistent!=2)return 11;
+ connection=1;
+ if(!mcc_main_campaign_won("mcc_maps\\Host\\a20") || lookups!=i ||
+    strcmp(selected,"mcc_maps\\Host\\a20") || rounds!=4)return 12;
+ connection=2;
+ if(!mcc_main_campaign_won("mcc_maps\\Host\\a20") || lookups!=i ||
+    rounds!=4 || completions!=9)return 13;
+ /* No request survives a later normal completion or an unaffected map. */
+ connection=0;enabled=1;state=2;
+ if(!mcc_main_campaign_won(NULL) || lookups!=i+1 || queued!=4)return 14;
+ active=0;
+ if(mcc_main_campaign_won("mcc_maps\\Local\\a20") || completions!=10)return 15;
+ active=1;type=1;
+ if(mcc_main_campaign_won("mcc_maps\\Local\\a20") || completions!=10)return 16;
  return 0;
 }
 ''')
