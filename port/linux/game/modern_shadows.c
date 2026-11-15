@@ -79,6 +79,8 @@ static int part_count;
 static struct structure_bsp const *cached_bsp;
 static long identities[SHADOW_LIGHTS];
 static long selected_identity = NONE, selected_rasterizer = NONE;
+static long challenger_identity = NONE;
+static float challenger_since, selection_time;
 static long slots[2] = {NONE, NONE};
 static int active, world_stage, receiver_failed;
 static int view_receiver;
@@ -99,6 +101,8 @@ void modern_shadows_reset(void)
 	view_receiver = 0;
 	cached_bsp = NULL;
 	selected_identity = selected_rasterizer = slots[0] = slots[1] = NONE;
+	challenger_identity = NONE;
+	challenger_since = selection_time = 0;
 }
 
 void modern_shadows_window(void)
@@ -457,6 +461,34 @@ static int object_casters(real_point3d const *origin, real radius, long const ow
 	return 1;
 }
 
+static long select_light(long best, long previous, float best_score, float previous_score)
+{
+	float now = global_frame_parameters.game_time_sec;
+	if (now < selection_time) challenger_identity = NONE;
+	selection_time = now;
+	if (best == NONE) { challenger_identity = NONE; return NONE; }
+	/* A modest challenger must remain stronger for 100 ms, independent of
+	   frame rate. Bright flashes respond immediately. Invalid or forbidden
+	   previous lights never retain a slot while waiting for a challenger. */
+	if (previous != NONE && previous != best && previous_score < best_score * 0.8f &&
+		previous_score > best_score * 0.5f)
+	{
+		if (challenger_identity != identities[best])
+		{
+			challenger_identity = identities[best];
+			challenger_since = now;
+		}
+		if (now - challenger_since < 0.1f) return previous;
+	}
+	else if (previous != NONE && previous_score >= best_score * 0.8f)
+	{
+		challenger_identity = NONE;
+		return previous;
+	}
+	challenger_identity = NONE;
+	return best;
+}
+
 void modern_shadows_prepare(int primary)
 {
 	struct structure_bsp const *bsp;
@@ -484,7 +516,7 @@ void modern_shadows_prepare(int primary)
 	}
 	/* Keep the current identity while it remains competitive. Never reuse a
    shadow from a recycled light index or a previous render window. */
-	if (previous != NONE && previous_score >= best * 0.8f) best_index = previous;
+	best_index = select_light(best_index, previous, best, previous_score);
 	if (best_index == NONE) { selected_identity = selected_rasterizer = NONE; return; }
 	selected_rasterizer = best_index;
 	selected_identity = identities[best_index];

@@ -20,7 +20,11 @@ a bounded performance prototype, not the final light budget or a promise
 that every eligible light is shadowed simultaneously. The score favours
 bright, nearby lights with useful radii; the previous identity stays selected
 while its score is at least 80% of the best candidate. Recycled rasterizer
-indices cannot inherit another light's map.
+indices cannot inherit another light's map. A challenger between 1.25 and
+2 times the current score must remain stronger for 100 ms of rendered game
+time. A light at least twice as strong, or replacement of an expired or
+ineligible light, is immediate. This suppresses frame-to-frame competition
+without delaying strong flashes or retaining host-rejected lighting.
 
 For example, with projectile lighting disabled and Covenant shield lighting
 enabled, a stationary shield can supply the selected light. Opaque world and
@@ -46,7 +50,8 @@ unchanged. A muzzle flash participates through the same selection interface.
    `modern_shadow_begin`, `modern_shadow_draw` and `modern_shadow_end` build a
    six-face depth cube: a depth image looking in each direction from the light.
    Hard and soft modes share the same map. Soft mode uses four visibility
-   samples to soften the edge; it does not blur baked lighting.
+   samples with bilinear comparison weights to soften the edge; it does not
+   blur baked lighting. Samples reproject across cube faces explicitly.
 4. `modern_shadow_emit` and `modern_shadow_bind` feed only the selected
    light's world diffuse/specular attenuation or model point-light slot.
    Receiver-plane depth comparison reduces grazing-surface acne without a
@@ -117,8 +122,8 @@ threshold and texture animation evaluation, including object function
 values and render time. Opaque materials skip the alpha evaluation.
 Transparent materials and alpha-blended decals do not cast solid shadows.
 Removed model regions retain the engine's signed `NONE` interpretation.
-Broad material batches, map/mesh capacity, selection changes and grazing
-surfaces still need quality acceptance before expanding the light budget.
+Broader material and map/mesh capacity stress coverage remains necessary as
+the light budget expands. The one-light quality coverage is recorded below.
 
 The two small additions in `source/` are required because private first-person
 remapping tables and the actual receiver draw boundary are not accessible
@@ -234,3 +239,132 @@ skinning or material handling. Converted meshes and bone submissions are reused
 between receiver maps. Further caching or depth-pass optimisations need measured
 evidence; the multi-light budget, menu integration and broader quality acceptance
 remain later milestones.
+
+## Milestone 2: shadow quality (2026-11-15)
+
+The receiver and selection fixes stay inside the two shadow modules. They
+add no shared renderer hooks, depth passes, texture allocation or sample
+count. Hard remains a single binary comparison. Soft uses four weighted
+comparisons on the cube face's texel grid instead of four equal-weight
+samples in a tangent basis that changed abruptly with direction.
+
+Receiver-plane comparison now uses the actual forward intersection instead
+of clamping it to within 5% of the receiver distance. Empty texels remain
+unblocked when that intersection lies outside the light's range. Small
+screen-space derivatives are normalized rather than mistaken for a missing
+normal: the old cutoff disabled plane correction on close-up viewmodels,
+producing repeating stripes on the rifle. The offset remains small; this
+does not hide acne by lifting the entire shadow away from its caster.
+
+`tools/modern_shadow_quality.py` runs the actual emitted receiver GLSL in a
+hidden Windows OpenGL context against independently constructed analytic
+depth cubes. It requires NumPy and Pillow, but no game assets or production
+instrumentation. Run it with `--output build/shadow-quality`; use `--source`
+and `--record` to retain a pre-fix comparison. It checks front-facing and
+grazing planes, positive/negative cube seams, a cube corner, close receivers,
+small derivatives and the map-range boundary. Separate blockers check that
+Hard stays binary, Soft preserves fully lit/shadowed interiors, and an edge
+crossing a cube seam remains continuous.
+
+On the RTX 5070 Ti, the original grazing fixture incorrectly shadowed 55.9%
+of pixels in Hard and 100% in Soft; the corrected fixtures have zero false
+shadow pixels in either mode. The close-up derivative fixture likewise goes
+from 100% false shadow coverage to zero. Soft's edge traversal improves from
+three distinct levels and a maximum 128/255 step to 52 levels and a maximum
+6/255 step, with the same four texture reads. The blocker crossing the cube
+seam has a maximum 1/255 step along the seam. These are controlled shader
+measurements, not a claim of alias-free shadows at every distance.
+
+The selection fixture reproduces repeated shadow-slot swaps on the original
+code and verifies the new 100 ms admission rule at 30, 60 and 120 FPS. It also
+checks immediate dominant flashes, host rejection, identity reuse, clock
+rewind and existing map/disable/failure cleanup. The one-light prototype can
+still make a discrete transfer when a selected light expires or a dominant
+challenger wins. It does not blend through an unoccluded state; other lights
+keep their established collision visibility. A larger simultaneous-light
+budget remains a separate milestone.
+
+The final focused suite passes 137 checks. Windows and web release builds
+pass; the Android build attempt still fails before producing an APK because
+the Windows graph launches the NDK's non-Windows compiler wrapper, with a
+separate SDL/CMake configuration failure. GLES exclusion tests pass. No AMD
+device or Android runtime result is claimed; vendor workarounds and platform
+guards are unchanged. The shader cache keys binaries by emitted GLSL, so
+these receiver changes do not require users to delete their cache.
+
+Final captures exercise Hard and Soft first-person receiving at each of
+30/60/120 FPS, MCC Digsite at 120, Warthog chassis receiving at 60, a crouching
+holder at 120, and a moving door at 30. All pass the runner's existing
+frame-rate and completeness checks, with no incomplete-map samples. CE
+Death Island at 30 completes its visual/muzzle sequence, but its overall
+rate check fails because of one 1.83-second gap while no feature light is
+selected; active-light sections average 30.18 FPS. That run is retained as a
+pacing failure, not counted as a clean cap pass. Its cause is not established
+by this capture. The full Xbox Hard/Soft matrix supplies the cap validation.
+
+One earlier Soft/120 capture overlapped web linking and missed its rate
+check; another exhausted the short wall-clock deadline during cold startup.
+`plasma_visual_run.py --startup-grace 15` allows additional startup time
+without changing captured simulation ticks, expected actions or acceptance
+thresholds. The clean Soft/120 run completes all three shots and 16 images,
+averaging 119.73 FPS. The retained before/after close-up comparison is
+`build/modern-m2/fp-quality-comparison.png`. GPU reports, source manifests,
+build/check logs and final `*-m2-quality-*` captures retain the evidence.
+
+### Combat performance investigation
+
+The first passive combat matrix used the fast validation build
+(`--pgo=off --lto=off`), native 2560x1440, the same archived snowy-route
+checkpoint, all dynamic lighting categories, 25 seconds warmup and two
+measured minutes. Off averaged 317.6 FPS, Hard 331.7, but Soft only 215.5
+(244.4 / 186.6 in its two minutes). All shadow-enabled frames had valid maps,
+and no measured frame exceeded 50 ms. The failed Soft result is retained in
+`build/lighting-performance/modern-m2-acceptance-soft`; it is not a passing
+240 FPS result. Live AI/light loads differ between runs.
+
+A controlled receiver comparison then used identical selection/collection
+code, a fixed shield, the same three lights and profiling instrumentation,
+changing only `modern_shadow_emit`. With 15 seconds warmup and 30 measured
+seconds, the old/new receivers averaged 383.6 / 392.0 FPS. CPU render time
+was 1.198 / 1.190 ms; sampled model-light GPU time was 0.0359 / 0.0361 ms,
+diffuse 0.0784 / 0.0832 ms, and specular 0.1281 / 0.0985 ms. This provides
+no evidence of a substantial receiver-cost regression; it does not establish
+a general speedup. Reports are `modern-m2-fixed-{old-receiver,quality}`.
+
+The 90-second busy Soft profile averaged 226.8 FPS in the same fast build.
+Its inclusive CPU render time was 3.882 ms. Model-field resolution took
+0.873 ms and collision tracing 0.622 ms; these scopes overlap and must not
+be added. Shadow preparation itself was 0.052 ms CPU and the depth passes
+0.079 ms GPU. The evidence points to the broader CPU workload rather than
+the new four-tap filter. The profile is diagnostic, not acceptance timing.
+The profiling builder's selection timer now follows the new selection helper.
+
+Final passive validation uses the **normal Windows release configuration**,
+`--portable --release`: full LTO and `pgo/halo_windows.profdata`, with no
+profiling instrumentation beyond the passive timing fixture. The scene,
+resolution, lighting categories, route, warmup and 120-second measured
+duration remain unchanged; no builds, GPU diagnostics or captures run
+alongside it.
+
+| Mode | Average FPS | Minute averages | Mean / maximum selected lights | Frames with a shadow map |
+| --- | ---: | --- | --- | ---: |
+| Hard | 325.1 | 350.5 / 299.7 | 10.38 / 20 | 100% |
+| Soft | 306.7 | 338.9 / 274.6 | 12.31 / 22 | 100% |
+
+Both normal release runs meet the 240+ average target in each measured
+minute. Neither has a frame above 50 ms (worst: 15.59 / 17.13 ms). Reports
+and exact source/build manifests are
+`build/lighting-performance/modern-m2-release-{hard,soft}`. The live encounter
+still varies: these runs validate the release configuration, but do not
+isolate a percentage gain from LTO/PGO or establish that Hard is intrinsically
+faster than Soft. The slower fast-build result remains relevant to developer
+builds. Future light-budget increases should focus on the measured CPU
+visibility workload before changing receiver quality.
+
+The final review retains the same 512-pixel maps, caster coverage, four-tap
+Soft budget, authored light shapes and stock shadows. No shared renderer,
+map-family, vendor workaround or host-policy implementation changed for M2.
+The original configure options and normal Windows executable are restored.
+This closes the bounded one-light quality milestone on the tested NVIDIA
+system; first-use stalls, the separate CE pacing failure, broader hardware
+acceptance and multi-light scaling are not silently signed off by it.

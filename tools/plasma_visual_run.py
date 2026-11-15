@@ -41,6 +41,8 @@ parser.add_argument('--sparse-images', action='store_true', help='Retain one ima
 parser.add_argument('--image-step', type=int, choices=range(1,31), default=3, help='Simulation ticks between sparse captures')
 parser.add_argument('--counter-detail', action='store_true', help='View a held world-model AR display over its holder\'s shoulder')
 parser.add_argument('--resolution', default='640x480', help='Capture window size, for example 1280x720')
+parser.add_argument('--startup-grace', type=int, choices=range(61), default=0,
+                    help='Extra wall-clock seconds for cold loading; capture ticks and acceptance checks are unchanged')
 parser.add_argument('--mixed', action='store_true')
 parser.add_argument('--model', action='store_true')
 parser.add_argument('--occlusion', type=int, choices=[0,1], default=0)
@@ -215,12 +217,13 @@ if args.model:
     env['HALO_PLASMA_CAPTURE_MODEL'] = '1'
 if args.per_pixel:
     env['HALO_PER_PIXEL_LIGHTING'] = '1'
+env['HALO_EXIT_AFTER'] = str(int(env['HALO_EXIT_AFTER']) + args.startup_grace)
 with (out/'stdout.log').open('wb') as so, (out/'stderr.log').open('wb') as se:
     capture_executable = capture_dir/'halo-capture.exe'
     process = subprocess.Popen([str(capture_executable)], cwd=out,
                                env=env, stdout=so, stderr=se, creationflags=subprocess.CREATE_NO_WINDOW)
     try:
-        process.wait(timeout=145 if args.map in ('b40', 'c40', 'mcc-ruby-c40') else 45)
+        process.wait(timeout=(145 if args.map in ('b40', 'c40', 'mcc-ruby-c40') else 45) + args.startup_grace)
     finally:
         if process.poll() is None:
             process.terminate()
@@ -266,6 +269,7 @@ report['holder_crouch_samples'] = [float(x) for x in re.findall(r'EMITTER holder
 report['turn'] = args.turn
 report['counter_detail'] = args.counter_detail
 report['resolution'] = args.resolution
+report['startup_grace'] = args.startup_grace
 report['emitter_samples'] = len(re.findall('EMITTER sample', logs))
 report['emitter_created'] = bool(re.search(r'EMITTER created (?!-1 )', logs))
 report['both_lighting'] = args.both_lighting

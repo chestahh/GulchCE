@@ -284,17 +284,32 @@ void modern_shadow_emit(struct xgpu_text *text)
 		" vec3 q=(clamp(floor((d*0.5+0.5)*512.0),vec3(0),vec3(511))+0.5)/256.0-1.0;\n"
 		" if(a.x>=a.y && a.x>=a.z) q.x=sign(d.x); else if(a.y>=a.z) q.y=sign(d.y); else q.z=sign(d.z);\n"
 		" float distance=length(receiver); float denominator=dot(q,normal);\n"
-		" float plane=abs(denominator)>0.000001?dot(receiver,normal)/denominator*length(q):distance;\n"
-		" float z=(clamp(plane,distance*0.95,distance*1.05)-max(0.0005,distance*0.00001))/modern_light.w;\n"
+		" float numerator=dot(receiver,normal);\n"
+		/* Neighbouring rays at grazing incidence can meet the plane far
+		   beyond the receiver. Clamping that intersection creates acne.
+		   A ray facing away from the plane has no receiver to occlude. */
+		" if(dot(normal,normal)>0.5 && numerator*denominator<=0.0) return 1.0;\n"
+		" float plane=abs(denominator)>0.000001?numerator/denominator*length(q):distance;\n"
+		/* Empty texels contain 1 even when the plane intersection is beyond
+		   the light's range; they must not become artificial blockers. */
+		" float z=min((plane-max(0.0005,plane*0.00001))/modern_light.w,1.0);\n"
 		" return step(z,texture(modern_depth,q).r);\n}\n"
 		"float modern_visibility(vec3 d) {\n"
-		" vec3 n=cross(dFdx(d),dFdy(d)); float nl=length(n); n=nl>0.000001?n/nl:vec3(0);\n"
+		/* Viewmodels and high-resolution receivers have very small screen
+		   derivatives. Test only degeneracy, not world-space triangle size. */
+		" vec3 n=cross(dFdx(d),dFdy(d)); float nl=length(n); n=nl>1.0e-20?n/nl:vec3(0);\n"
 		" float distance=length(d); if(distance<0.01 || distance>=modern_light.w) return 1.0;\n"
 		" if(modern_soft==0) return modern_compare(d,d,n);\n"
-		" vec3 direction=d/distance; vec3 axis=abs(direction.y)<0.9?vec3(0,1,0):vec3(1,0,0);\n"
-		" vec3 u=normalize(cross(direction,axis))*(1.25/512.0); vec3 v=cross(direction,u);\n"
-		" return 0.25*(modern_compare(direction+u+v,d,n)+modern_compare(direction+u-v,d,n)+\n"
-		" modern_compare(direction-u+v,d,n)+modern_compare(direction-u-v,d,n));\n}\n"
+		/* Bilinear comparison weights move continuously across texels. The
+		   four taps cross cube edges through the same ray/plane comparison;
+		   no driver-dependent depth-compare filtering is required. */
+		" vec3 a=abs(d); vec3 direction=d/max(a.x,max(a.y,a.z)); vec3 u,v; vec2 f;\n"
+		" if(a.x>=a.y && a.x>=a.z) { u=vec3(0,1,0); v=vec3(0,0,1); f=direction.yz; }\n"
+		" else if(a.y>=a.z) { u=vec3(1,0,0); v=vec3(0,0,1); f=direction.xz; }\n"
+		" else { u=vec3(1,0,0); v=vec3(0,1,0); f=direction.xy; }\n"
+		" f=fract(f*256.0+255.5); u/=256.0; v/=256.0; direction-=u*f.x+v*f.y;\n"
+		" return mix(mix(modern_compare(direction,d,n),modern_compare(direction+u,d,n),f.x),\n"
+		" mix(modern_compare(direction+v,d,n),modern_compare(direction+u+v,d,n),f.x),f.y);\n}\n"
 		"float modern_model(int slot,vec3 p) { return modern_slots[slot]>0.5?modern_visibility(p-modern_light.xyz):1.0; }\n");
 }
 

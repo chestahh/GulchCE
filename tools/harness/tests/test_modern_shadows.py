@@ -12,7 +12,7 @@ def test_selection_and_lifecycle():
                  'modern_shadows_receiver', 'modern_shadows_view_receiver',
                  'modern_shadows_cancel', 'modern_shadows_world_begin',
                  'modern_shadows_world_end', 'modern_shadows_world_stage',
-                 'modern_shadows_world_extent', 'modern_shadows_prepare'):
+                 'modern_shadows_world_extent', 'select_light', 'modern_shadows_prepare'):
         code += function(source, name)
     status, output = run(build('modern_shadows', (('under_test.inc', code),)), 'all')
     assert status == 0, output

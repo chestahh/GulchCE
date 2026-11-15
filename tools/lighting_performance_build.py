@@ -233,8 +233,8 @@ def main():
             shadow.write_text(declarations+text)
             replace(shadow, '\tfor (index = 0; index < MIN(rasterizer_lights.light_count, SHADOW_LIGHTS); index++)',
                     '\tlighting_profile_begin(18);\n\tfor (index = 0; index < MIN(rasterizer_lights.light_count, SHADOW_LIGHTS); index++)')
-            replace(shadow, '\tif (previous != NONE && previous_score >= best * 0.8f)',
-                    '\tlighting_profile_end(18);\n\tif (previous != NONE && previous_score >= best * 0.8f)')
+            selection = '\tbest_index = select_light(best_index, previous, best, previous_score);'
+            replace(shadow, selection, selection+'\n\tlighting_profile_end(18);')
             shadow_gl = ROOT/'port/linux/src/modern_shadows_gl.c'
             text = shadow_gl.read_text()
             body = function(text, 'modern_shadow_end')

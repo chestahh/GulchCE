@@ -10,6 +10,7 @@ static long rebound_light;
 static float captured_radius;
 static const char *mode = "off";
 static struct { struct { real_point3d position; } camera; } render;
+static struct { float game_time_sec; } global_frame_parameters;
 struct rasterizer_light_submit_parameters {
  real_point3d position; float radius;
  struct { float red, green, blue; } color;
@@ -46,6 +47,53 @@ static int world_casters(const struct structure_bsp *b,const real_point3d *p,flo
 static int viewmodel_casters(long owners[2]) { owners[0]=owners[1]=NONE; return complete; }
 static int object_casters(const real_point3d *p,float r,const long owners[2]) { return complete; }
 #include "under_test.inc"
+static int selection_stability(void)
+{
+ int fps, frame, switches;
+ long last;
+ for (fps=30; fps<=120; fps*=2) {
+  modern_shadows_reset(); modern_shadows_window();
+  modern_shadows_submitted(100,0); modern_shadows_submitted(101,1);
+  allowed=3; mode="hard";
+  rasterizer_lights.lights[0].color.red=1;
+  rasterizer_lights.lights[1].color.red=1;
+  global_frame_parameters.game_time_sec=0;
+  modern_shadows_prepare(1); last=selected_identity; switches=0;
+  for (frame=1;frame<=fps;frame++) {
+   global_frame_parameters.game_time_sec=(float)frame/fps;
+   /* A contender repeatedly crossing the 80% threshold used to take the
+      slot and lose it on alternate frames. */
+   rasterizer_lights.lights[1].color.red=frame%2 ? 1.4f : 0.7f;
+   modern_shadows_prepare(1);
+   switches+=selected_identity!=last; last=selected_identity;
+  }
+  CHECK(!switches,"brief competing lights must not churn the shadow slot");
+  for (frame=1;frame<=fps;frame++) {
+   global_frame_parameters.game_time_sec=1.f+(float)frame/fps;
+   rasterizer_lights.lights[1].color.red=1.4f;
+   modern_shadows_prepare(1);
+   if(selected_identity==101) break;
+  }
+  CHECK(frame>=(fps/10) && frame<=fps/10+2,"persistent challenger admitted after 100 ms at every cap");
+  rasterizer_lights.lights[0].color.red=4;
+  modern_shadows_prepare(1);
+  CHECK(selected_identity==100,"dominant flash admitted without delay");
+  allowed=2; modern_shadows_prepare(1);
+  CHECK(selected_identity==101,"policy removal cannot be delayed");
+  allowed=3; rasterizer_lights.lights[0].color.red=2;
+  modern_shadows_prepare(1);
+  global_frame_parameters.game_time_sec=0;
+  modern_shadows_prepare(1);
+  CHECK(selected_identity==101,"clock rewind restarts challenger interval");
+  modern_shadows_submitted(999,1); modern_shadows_prepare(1);
+  CHECK(selected_identity==100,"recycled identity cannot retain old selection");
+  rasterizer_lights.lights[0].color.red=rasterizer_lights.lights[1].color.red=0;
+  modern_shadows_prepare(1);
+  CHECK(!active && selected_identity==NONE,"zero-intensity lights do not retain a shadow slot");
+ }
+ return 0;
+}
+
 int main(int argc,char **argv)
 {
  int i, before;
@@ -102,5 +150,5 @@ int main(int argc,char **argv)
  modern_shadows_window();
  CHECK(identities[0]==NONE && slots[0]==NONE, "window transition clears light identities and slots");
  CHECK(!modern_shadows_view_receiver(), "window transition clears receiver kind");
- return 0;
+ return selection_stability();
 }
