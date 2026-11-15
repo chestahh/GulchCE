@@ -1,5 +1,9 @@
 # M0 ordinary campaign entry and authored progression
 
+**Continuation:** The [15 November gate review](coop_m0_status.md) records
+the rebased branch and authorized publication. This report retains the
+original ordinary-entry observations and their revision boundaries.
+
 This continues the [active-world baseline](coop_m0_active_world.md) on
 `investigate-coop-rewrite`, starting at `493abb5e9`. It investigates Xbox A10
 without changing the production game, protocol, menus, maps or saves. The

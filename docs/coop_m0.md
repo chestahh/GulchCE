@@ -1,5 +1,9 @@
 # M0: network co-op inventory and baseline
 
+**Current status:** See the [15 November gate review](coop_m0_status.md)
+for the rebase, branch publication and remaining platform/qualification limits.
+The revision and publication statements below describe the historical baseline.
+
 **Follow-up:** The [12–13 November measurement and qualification report](coop_m0_followup.md)
 adds payload/snapshot/correction captures, web and browser interoperability,
 revision-delta tests and stronger progression evidence. It updates the open

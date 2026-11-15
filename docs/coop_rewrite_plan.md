@@ -1,11 +1,14 @@
 # Staged network co-op rewrite plan
 
-Status: proposed plan, 12 November 2026. **Implementation is not authorized by
-this document. Nothing is to be published.** All milestones below are planned,
-not completed. The prior [feasibility assessment](coop_rewrite_feasibility.md)
+Status updated 15 November 2026. **M1 and rewrite implementation remain
+unauthorized.** The user authorized rebasing and publishing the investigation
+as `network-coop-rewrite` for CI. See the [current M0 gate review](coop_m0_status.md)
+for the current revision, validation boundaries and outstanding blockers.
+The later milestones below remain planned, not completed.
+The prior [feasibility assessment](coop_rewrite_feasibility.md)
 records investigation evidence; its tests do not validate this future design.
 
-Planning baseline: GulchCE testing `887d9ac9d`, with investigation commit
+Historical planning baseline: GulchCE testing `887d9ac9d`, with investigation commit
 `da6446d39` on local branch `investigate-coop-rewrite`.
 Recheck upstream and working-tree changes before any authorized implementation;
 do not silently rebase or discard ongoing work.
@@ -127,9 +130,10 @@ Preserve C89, 32-bit ABI, deterministic-maths and Android guest-import rules.
 - Roll back by leaving the session and using the known baseline build/path.
   Do not downgrade a live world or reinterpret a new snapshot as an old one.
   Keep checkpoints/profile compatibility explicit; test on isolated save copies.
-- No branch pushes, PRs, upstream coordination messages, default change or
-  release publication are authorized now. Later permission to implement
-  would not by itself authorize those external actions.
+- Publication of `network-coop-rewrite` for CI is authorized as of
+  15 November. This does not authorize PR creation, upstream coordination
+  messages, a default change or a release. M1 still requires separate
+  authorization.
 
 ## Refactoring map and state ownership
 
@@ -201,6 +205,8 @@ open for the named qualification, capacity and platform gaps.
 The [readiness/transport/roster continuation](coop_m0_readiness_transport.md)
 adds incomplete-reconstruction probes, native reliable-stream fault checks
 and short two-local-player Xbox/CE/MCC split-screen observations.
+The [15 November gate review](coop_m0_status.md) records the rebased and
+published baseline and the completed bounded A10 natural-checkpoint pass.
 No M1 implementation is authorized by this status entry.
 
 **Work:** Build a state-and-action ledger from every message kind, producer,
@@ -251,9 +257,11 @@ the reports apply identically to Xbox, CE and MCC.
 The [active-world M0 pass](coop_m0_active_world.md) records bounded BSP/device,
 movement, vehicle, AI and combat probes, including failed setups and remaining
 natural-progression gaps. The [ordinary-entry continuation](coop_m0_campaign_entry.md)
-begins with A10's host menu entry and input-driven tutorial. Continue ordinary
-progression, then checkpoint/restart and
-join timing; these reports are not restricted to checkpoint recovery. Capture
+begins with A10's host menu entry and input-driven tutorial. The
+[natural-checkpoint continuation](coop_m0_campaign_restore.md) restores two
+tutorial checkpoints in both player orderings and resumes the authored exit.
+Later progression, restart controls and join timing remain separate obligations;
+these reports are not restricted to checkpoint recovery. Capture
 host/client BSP identity and readiness, player transforms and collision,
 script progress, device identity/group target and actual state, and relevant
 message ordering. Check the visible result and actual traversal as well as

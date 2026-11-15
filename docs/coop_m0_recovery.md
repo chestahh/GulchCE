@@ -1,5 +1,9 @@
 # M0: saved-state restoration and client recovery
 
+**Current status:** See the [15 November gate review](coop_m0_status.md)
+for the current branch, rebase and publication status. The observations below
+remain pinned to their historical builds.
+
 13 November 2026, local `investigate-coop-rewrite`, starting at `360857a59`.
 This is characterization of the existing implementation, not M1 or a fix.
 Read with the [19-domain inventory](coop_m0.md),

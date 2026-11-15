@@ -1,5 +1,9 @@
 # M0 follow-up: measurements and remaining qualification
 
+**Current status:** The [15 November gate review](coop_m0_status.md) records
+the rebase and authorized branch publication. Results below retain their
+original revisions and validation limits.
+
 Investigation on 12–13 November 2026, on local `investigate-coop-rewrite`.
 Read with the [complete inventory and first baseline](coop_m0.md) and
 [staged rewrite plan](coop_rewrite_plan.md). The scope remains all 19 co-op

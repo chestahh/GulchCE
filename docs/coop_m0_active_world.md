@@ -1,5 +1,9 @@
 # M0: BSP travel, devices and active gameplay
 
+**Current status:** See the [15 November gate review](coop_m0_status.md)
+for the rebase and authorized branch publication. The results below are
+historical observations, not fresh qualification of the new base.
+
 Local investigation from `637157de1` on `investigate-coop-rewrite`,
 14 November 2026. This continues the [sustained recovery baseline](coop_m0_recovery_stress.md).
 The [full 19-domain ledger](coop_m0_recovery.md#full-system-recovery-coverage)
