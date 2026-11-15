@@ -1,5 +1,6 @@
 """Build an isolated menu acceptance executable and restore production sources."""
 from pathlib import Path
+import argparse
 import hashlib
 import json
 import re
@@ -12,7 +13,11 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def main():
-    out = ROOT/'build/modern-m4/menu-build'
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--output-dir', type=Path, default=ROOT/'build/modern-shadow-menu-build')
+    options = parser.parse_args()
+    out = options.output_dir.resolve()
+    assert out.is_relative_to((ROOT/'build').resolve())
     out.mkdir(parents=True, exist_ok=True)
     menu = ROOT/'port/linux/game/menu_functions.c'
     ui = ROOT/'source/interface/ui_widget.c'

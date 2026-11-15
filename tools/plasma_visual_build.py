@@ -196,6 +196,14 @@ try:
     text = 'void platform_log(const char *, ...);\n' + text.replace(marker, marker + '\n\t{ static int frames[MODERN_SHADOW_LIGHTS]; if (!(frames[slot]++ % 30)) platform_log("SHADOW selected %ld complete %d active %d parts %d view_weapon %ld view_hands %ld slot %d", index, complete, (active >> slot) & 1, part_count, owners[0], owners[1], slot); }')
     shadow.write_text(text)
     text = shadow_gl_original.decode().replace('\r\n', '\n')
+    # Fault injection stays in the capture executable. Exercise the real sticky
+    # resource-failure path and its recovery after an Off/On settings cycle.
+    marker = '\tif (program) return 1;'
+    assert text.count(marker) == 1
+    text = '#include <stdlib.h>\n' + text.replace(marker,
+        '\t{ static int injected; if (!injected && getenv("HALO_SHADOW_CAPTURE_RESOURCE_FAILURE")) {\n'
+        '\t\tinjected = 1; platform_log("SHADOW TEST resource failure injected"); return 0;\n'
+        '\t} }\n' + marker)
     manifest['shadow_reuse'] = args.shadow_reuse
     if args.shadow_reuse:
         probe = (ROOT/'tools/fixtures/modern_shadow_reuse_probe.inc').read_text()

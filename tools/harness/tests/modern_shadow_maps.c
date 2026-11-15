@@ -11,7 +11,7 @@ enum { GL_TEXTURE0,GL_TEXTURE_2D,GL_FRAMEBUFFER,GL_DEPTH_ATTACHMENT,
  GL_ARRAY_BUFFER,GL_ELEMENT_ARRAY_BUFFER,GL_FLOAT,GL_TRIANGLES,
  GL_UNSIGNED_SHORT,GL_UPPER_LEFT,GL_ZERO_TO_ONE };
 struct xgpu_texture_description { int unused; };
-static int fbo,allocated,handoffs,receiver,texture,element,draw_counts[4][4],fail_fbo,deleted_textures;
+static int fbo,allocated,handoffs,receiver,texture,element,draw_counts[4][4],fail_fbo,deleted_textures,delete_calls;
 static unsigned int bound[2];
 static int map_slots[2]={0,1};
 #define glViewport(...) ((void)0)
@@ -42,6 +42,7 @@ static int map_slots[2]={0,1};
 #define glDeleteVertexArrays(...) ((void)0)
 #define glDeleteSamplers(...) ((void)0)
 static void glDeleteTextures(int n,const GLuint *textures) {
+ delete_calls++;
  CHECK(n==2,"dispose owns world/view pair");deleted_textures+=!!textures[0]+!!textures[1];
 }
 static void glBindFramebuffer(int target,int value) { fbo=value; }
@@ -72,6 +73,8 @@ int modern_shadow_end(void);
 int main(int argc,char **argv) {
  float matrix[16]={0},uv[8]={1,0,0,.25f,0,1,0,.5f},origin[3]={0};int i;
  struct modern_shadow_uniforms uniforms={0};
+ modern_shadow_dispose();modern_shadow_dispose();
+ CHECK(!delete_calls && !handoffs,"unused shadow feature never calls the driver during cleanup");
  framebuffer=9;mesh_count=3;
  for(i=0;i<3;i++) { meshes[i].indices=10+i;meshes[i].count=3; }
  CHECK(!modern_shadow_begin(-1,origin,2,0) && !modern_shadow_begin(2,origin,2,0),"invalid slot never allocates");
@@ -105,5 +108,7 @@ int main(int argc,char **argv) {
  CHECK(!modern_shadow_end() && resource_failed && !drawing && handoffs==4,"failed map falls back and restores renderer");
  modern_shadow_dispose();
  CHECK(deleted_textures==4 && !maps[0].depth_cube[0] && !maps[1].depth_cube[1] && !resource_failed,"disable/map reset releases all maps and retries resources");
+ i=delete_calls;modern_shadow_dispose();
+ CHECK(delete_calls==i,"repeated cleanup does not submit empty texture deletions");
  return 0;
 }

@@ -16,16 +16,19 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--data-root', type=Path, required=True)
     parser.add_argument('--label', required=True)
+    parser.add_argument('--build-dir', type=Path, default=ROOT/'build/modern-shadow-menu-build')
     parser.add_argument('--inspect-modern', action='store_true', help='Capture the modern frontend scrolled to the shadow row')
     args = parser.parse_args()
     assert re.fullmatch(r'[A-Za-z0-9_-]+', args.label)
-    out = ROOT/'build/modern-m4'/args.label
+    out = ROOT/'build/modern-shadow-menu'/args.label
+    build = args.build_dir.resolve()
+    assert build.is_relative_to((ROOT/'build').resolve())
     out.mkdir(parents=True, exist_ok=False)
     (out/'maps').mkdir(); (out/'screenshots').mkdir()
     shutil.copy2(args.data_root/'maps/ui.map', out/'maps/ui.map')
     # Portable config belongs beside the executable, not the data-root override.
-    shutil.copy2(ROOT/'build/modern-m4/menu-build/halo-menu.exe', out/'halo-menu.exe')
-    shutil.copy2(ROOT/'build/modern-m4/menu-build/manifest.json', out/'manifest.json')
+    shutil.copy2(build/'halo-menu.exe', out/'halo-menu.exe')
+    shutil.copy2(build/'manifest.json', out/'manifest.json')
     manifest = json.loads((out/'manifest.json').read_text())
     assert hashlib.sha256((out/'halo-menu.exe').read_bytes()).hexdigest() == manifest['exe_sha256']
     (out/'config.toml').write_text('[display]\nmenu_frontend="off"\nmodern_shadows="off"\ndynamic_lighting_reset=true\nmode="windowed"\n')

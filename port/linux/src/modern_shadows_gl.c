@@ -1,5 +1,5 @@
 /* Feature-owned point-light depth maps. No stock render target or shader is
-   modified. GLES has no resources or shader variants for this prototype. */
+   modified. GLES has no shadow resources or shader variants. */
 #include "modern_shadows.h"
 #include "xgpu.h"
 #include <stddef.h>
@@ -278,7 +278,8 @@ void modern_shadow_dispose(void)
 		glDeleteBuffers(1, &meshes[i].vertices);
 		glDeleteBuffers(1, &meshes[i].indices);
 	}
-	for (i = 0; i < MODERN_SHADOW_LIGHTS; i++) glDeleteTextures(2, maps[i].depth_cube);
+	for (i = 0; i < MODERN_SHADOW_LIGHTS; i++)
+		if (maps[i].depth_cube[0] || maps[i].depth_cube[1]) glDeleteTextures(2, maps[i].depth_cube);
 	memset(maps, 0, sizeof(maps));
 	map = &maps[0];
 	if (framebuffer) glDeleteFramebuffers(1, &framebuffer);

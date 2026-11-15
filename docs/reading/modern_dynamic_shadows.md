@@ -1,4 +1,4 @@
-# Modern dynamic shadow prototype
+# Modern dynamic shadows
 
 This branch adds optional rendered shadow maps to GulchCE's dynamic lighting.
 It leaves the original object shadow projection in place. Choose **Off**, **Hard**
@@ -25,7 +25,7 @@ toggles and host policy remain authoritative; shadows do not create lights
 or enable a disabled lighting category.
 
 The current budget renders **two selected lights per primary view**. This
-is a bounded prototype, not a promise that every eligible light is shadowed
+is a bounded implementation, not a promise that every eligible light is shadowed
 simultaneously. Vacancies and the weaker incumbent are considered first;
 a surviving light keeps its map slot when scores reorder. The score favours
 bright, nearby lights with useful radii; an incumbent identity stays selected
@@ -616,3 +616,94 @@ in `build/plasma-visual/*-m4-*`, multiplayer records in
 The cleanup records document verified save archives, lossless screenshot
 conversion and removal of disposable test maps and executables. The normal
 Windows executable and original release configuration are retained.
+
+## Milestone 5: integration and final acceptance
+
+The five feature commits were rebased onto testing `a6c42bfad` without
+conflicts. Testing already contains the model-mask upload optimisation, so
+the rebase does not reintroduce that patch. The combined review covers the
+selection and caster modules, GL ownership and shader fallback, shared render
+hooks, settings, generated menus, test fixtures and this guide. The two-light
+budget, filtering, material semantics and host eligibility remain unchanged.
+No new runtime diagnostics, map adapters or network messages were added.
+
+One concrete disabled-path improvement removes empty `glDeleteTextures`
+calls when no shadow maps were allocated, including repeated cleanup. The
+real GL-owner harness rejects the old implementation and accepts the guard.
+This avoids unnecessary driver calls; it is not claimed as a gameplay FPS gain.
+Capture-only fault injection now exercises resource-creation failure: existing
+lighting continues, setup is not retried each frame, and an Off/On cycle restores
+shadow rendering. The menu tools accept independent build directories instead
+of overwriting the M4 evidence folder.
+
+The M4 menu-art failure was an environment mismatch: Pillow 13.0 was loaded
+instead of the repository's `tools/requirements-frontend.txt` pin, 12.3.0.
+Using that pinned dependency passes the pixel comparison without replacing
+artwork or weakening the test. The final focused isolation/render/menu suite
+passes all 175 checks, and the analytic desktop GL receiver tests pass. The visual
+cycle captures run at 30, 60 and 120 FPS; a separate 60 FPS capture verifies
+failure recovery. Representative vehicle, shield, CE and MCC captures retain
+complete maps. Native 2560 by 1440 menu captures verify readable controls;
+Save, Cancel, Defaults and portable restart persistence pass.
+
+The late-join probe previously treated global game tick 600 as the end of a
+client's startup period. A late client can already be past that tick before
+the reliable host-policy message arrives. The engine correctly uses stock
+shield effects while waiting. The test-only probe now records receipt after
+the existing message validator accepts the host's policy: every waiting sample
+must remain stock, and every received sample must match the host. It no longer
+uses a timing grace period. The production policy implementation is unchanged.
+A reconnect scenario preserves both client-process CSV histories and requires
+the host to observe two players, then one, then two again; restarting a client
+without an observed return cannot pass. It follows the normal postgame/lobby
+flow when the departing opponent ends the two-player round. This passes with
+62 seconds of paired snapshots in the new round, observed respawns and weapon
+changes. Xbox, CE and MCC peer checks and late joining also pass with different
+local settings and the existing host policy. A single-process Xbox-to-MCC-to-CE-
+to-Xbox run passes with three observed map resets, retained preferences and
+shadow rendering after transitions. The web release build passes.
+
+### Performance evidence and remaining limits
+
+The initial rebased release comparison uses the same copied pre-exterior c40
+checkpoint and snowy route, with all feature-light categories enabled, an
+explicitly invulnerable test player, native 2560 by 1440 rendering, normal
+release LTO/PGO, 25 seconds of warmup and 120 measured seconds. Screenshots,
+phase profiling and competing builds are disabled during these measurements.
+
+| Shadows | Average FPS | First / second minute | Worst frame (ms) |
+| --- | ---: | ---: | ---: |
+| Off | 320.4 | 351.5 / 289.4 | 10.16 |
+| Hard | 312.6 | 326.3 / 299.0 | 16.09 |
+| Soft | 281.7 | 296.1 / 267.4 | 13.29 |
+
+Both enabled modes maintain two active maps throughout; Off has none. Every
+measured minute exceeds the agreed 240 FPS average target, with no frames over
+50 ms. Combat light populations vary between runs, so these results establish
+acceptance on this machine, not an exact shadow overhead or a new optimisation
+gain. These initial measurements precede the cleanup-only guard; the final
+release confirmations are retained with their build manifests under
+`build/lighting-performance/modern-m5-*`.
+
+The earlier 117 FPS Hard outlier did not recur in this comparison. Its cause
+remains unestablished; neither Discord nor shader compilation has been proved
+responsible, and no speculative renderer workaround was added. Private memory
+rose by roughly 5 MiB between the first and last sampled windows in all three
+modes, including Off. Feature cleanup is verified, but these short runs do not
+prove a long-term engine/driver memory plateau or identify that growth's owner.
+
+Testing uses an RTX 5070 Ti and i7-14700K. AMD hardware is unavailable; the
+existing vendor workarounds are preserved and the relevant shader/state tests
+remain enabled. Android is excluded from shadow execution. The local native
+Windows Android build graph still relies on POSIX shell commands and cannot
+serve as a full Android build check; the Linux-hosted Android CI is the platform
+build gate. This limitation concerns the local build environment, not a change
+to Android rendering. Public-internet and full-campaign coverage are not implied
+by local multiplayer and representative-map checks.
+
+The M5 evidence is under `build/modern-m5`, `build/modern-shadow-menu/m5-*`,
+`build/plasma-visual/*-m5-*` and `build/lighting-compatibility/m5-*`. Original maps
+and saves are preserved; disposable copies are removed and retained captures
+and test saves are verified before lossless archival. The Windows playtest
+ships a normal release executable, with no capture/failure-injection hooks and
+with shadows and dynamic lighting still off by default.

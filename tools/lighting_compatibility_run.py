@@ -29,8 +29,24 @@ CASES={
 DEATH_CUE = 'if (> (unit_get_health (unit (list_get (players) 1))) 0) (unit_kill (unit (list_get (players) 1)))'
 
 
+def policy_samples(rows,connection,expected_policy,expected_shield):
+    # The client deliberately draws stock until the validated reliable policy
+    # message arrives. Global game tick is not the age of a late connection.
+    connected=[r for r in rows if r['connection']==connection]
+    received=[r for r in connected if r['policy_received']]
+    pending=[r for r in connected if not r['policy_received']]
+    correct=[r for r in received if r['policy']==expected_policy and r['shield_enabled']==expected_shield]
+    safe=all(r['policy']==0 and r['shield_enabled']==0 for r in pending)
+    return received,correct,pending,safe
+
+
 def report_passed(result):
     peers=result['peers']
+    if result.get('reconnect'):
+        reconnect=result['reconnect']
+        counts=reconnect['host_player_counts']
+        if reconnect['client_first_exit'] != 0 or not any(counts[i:i+3]==[2,1,2] for i in range(len(counts)-2)):
+            return False
     if set(peers)!= {'host','client'}:return False
     for peer in peers.values():
         if not (peer['exit']==0 and not peer['forced_stop'] and peer['two_player_samples']>10 and
@@ -60,8 +76,11 @@ def main():
     parser.add_argument('--client-shadows',choices=['off','hard','soft'],default='off')
     parser.add_argument('--mcc-package',type=Path)
     parser.add_argument('--fire',action='store_true',help='Use real trigger input as well as the scripted damage/respawn probes')
+    parser.add_argument('--reconnect',action='store_true',help='Restart the client with its saved settings while the host keeps running')
     parser.add_argument('--pickup-at',type=int,default=12,help='Game seconds before the forced weapon-pickup setup')
     args=parser.parse_args()
+    if args.reconnect and args.case=='late':
+        parser.error('--reconnect and the late-join case are separate scenarios')
     level,host_enabled,policy,delay=CASES[args.case]
     label=args.label or args.case
     assert re.fullmatch(r'[A-Za-z0-9_-]+',label)
@@ -75,7 +94,7 @@ def main():
     copies=['maps/ui.map','maps/bloodgulch.map','maps/carousel.map']
     if args.case=='ce':copies += ['custom_maps/'+n+'.map' for n in ('deathisland','bitmaps','sounds','loc')]
     if args.case=='mcc':copies += ['mcc_maps/DigsiteMP/'+n+'.map' for n in ('1','bitmaps','sounds')]
-    children={};handles=[];settings={};forced={};outputs=[]
+    children={};handles=[];settings={};forced={};outputs=[];first_exit=None
     # Stage both peers before starting the host; copy time must not consume its join window.
     try:
         for role in ('host','client'):
@@ -117,11 +136,35 @@ def main():
                 HALO_UPDATE_ANSWER='never',HALO_CRASH_REPORTS='no',
                 HALO_SCREENSHOT_DIR=str(out/'screenshots'),HALO_SCREENSHOT_EVERY='1800')
             if args.fire:env['HALO_SHADOW_COMPAT_FIRE']='1'
+            if args.reconnect and role=='client':env['HALO_EXIT_AFTER']='40'
+            if args.reconnect and role=='host':
+                # The stock two-player match ends when the opponent leaves.
+                # Use the existing next-variant control to return through the
+                # real postgame/lobby flow before the client plays again.
+                env.update(HALO_EXIT_AFTER='150',HALO_NETWORK_TEST='host:'+level+':slayer,slayer')
             (out/'test-settings.json').write_text(json.dumps(dict(display=settings[role],environment={k:v for k,v in env.items() if k.startswith('HALO_')}),indent=2))
             stdout=(out/'stdout.log').open('wb');stderr=(out/'stderr.log').open('wb');handles += [stdout,stderr]
             children[role]=subprocess.Popen([str(out/'halo-performance.exe')],cwd=out,env=env,
                 stdout=stdout,stderr=stderr,creationflags=subprocess.CREATE_NO_WINDOW)
-        while any(p.poll() is None for p in children.values()) and time.monotonic()-started<150:time.sleep(.25)
+        if args.reconnect:
+            # The last launch owns the client environment and log handles.
+            # A normal exit exercises shutdown; the second process retains its
+            # profile/config but must rebuild all render and session resources.
+            first_exit=children['client'].wait(timeout=65)
+            assert first_exit==0, 'First client failed before reconnect'
+            for name in ('lighting-policy','shadow-state'):
+                path=out/(name+'.csv')
+                if path.exists():path.rename(out/(name+'-before-reconnect.csv'))
+            stdout.close();stderr.close()
+            for name in ('stdout','stderr'):
+                (out/(name+'.log')).rename(out/(name+'-before-reconnect.log'))
+            stdout=(out/'stdout.log').open('wb');stderr=(out/'stderr.log').open('wb');handles += [stdout,stderr]
+            time.sleep(5)
+            env.update(HALO_EXIT_AFTER='95',HALO_NETWORK_TEST_PICKUP='',HALO_NETWORK_TEST_KILL='',HALO_NETWORK_TEST_SHOOT='')
+            (out/'reconnect-settings.json').write_text(json.dumps({k:v for k,v in env.items() if k.startswith('HALO_')},indent=2))
+            children['client']=subprocess.Popen([str(out/'halo-performance.exe')],cwd=out,env=env,
+                stdout=stdout,stderr=stderr,creationflags=subprocess.CREATE_NO_WINDOW)
+        while any(p.poll() is None for p in children.values()) and time.monotonic()-started<(190 if args.reconnect else 150):time.sleep(.25)
     finally:
         for role,p in children.items():
             forced[role]=p.poll() is None
@@ -129,6 +172,7 @@ def main():
         for handle in handles:handle.close()
         for out in outputs:cleanup(out)
     result=dict(case=args.case,level=level,policy=policy,join_delay=delay,peers={})
+    if args.reconnect:result['reconnect']=dict(client_first_exit=first_exit,host_player_counts=[])
     for role,p in children.items():
         out=base/role;log=(out/'stderr.log').read_text(errors='replace')
         samples,names,errors=parse_log(out/'stderr.log')
@@ -139,13 +183,19 @@ def main():
             inventories[player]=sorted(set(tuple(w[0] for w in s.get('weapons',[])) for s in states if s['alive']))
             respawns[player]=sum(not a['alive'] and b['alive'] for a,b in zip(states,states[1:]))
         policy_rows=[]
-        if (out/'lighting-policy.csv').exists():
-            with (out/'lighting-policy.csv').open() as f:policy_rows=[{k:int(v) for k,v in r.items()} for r in csv.DictReader(f)]
-        stable=[r for r in policy_rows if r['tick']>600]
+        for path in sorted(out.glob('lighting-policy*.csv')):
+            with path.open() as f:policy_rows.extend({k:int(v) for k,v in r.items()} for r in csv.DictReader(f))
+        if args.reconnect and role=='host':
+            counts=result['reconnect']['host_player_counts']
+            for row in policy_rows:
+                if row['connection']!=2:continue
+                count=row['active_players']
+                if not counts or counts[-1]!=count:counts.append(count)
         expected_policy={'stock':0,'glow_overshield':4,'players':-1}[policy]
         expected_shield=int(settings[role]['shield_glow']) if policy=='players' else int(policy!='stock')
-        correct=[r for r in stable if r['policy']==expected_policy and r['shield_enabled']==expected_shield]
+        stable,correct,pending,safe=policy_samples(policy_rows,2 if role=='host' else 1,expected_policy,expected_shield)
         failures=errors+re.findall(r'(?im)^.*(?:crash: exception|exception halt|assertion failed|shader.*(?:error|failed)|GL_INVALID).*$',log)
+        if not safe:failures.append('Client enabled shield effects before receiving host policy')
         if not stable or any(r['local_plasma'] != int(settings[role]['plasma_lighting']) or
                              r['local_needler'] != int(settings[role]['needler_lighting']) or
                              r['local_shield'] != int(settings[role]['shield_glow']) for r in stable):
@@ -158,11 +208,12 @@ def main():
             one_player_samples=sum(len(r['players'])==1 for r in rows),
             first_two_player_tick=both[0]['tick'] if both else None,respawns=respawns,inventories=inventories,
             shoot_events=log.count('shoots player'),kill_events=log.count('first player kills'),
-            pickup_events=log.count('stands on weapon'),policy_samples=len(stable),correct_policy_samples=len(correct),
+            pickup_events=log.count('stands on weapon'),policy_samples=len(stable),correct_policy_samples=len(correct),pending_policy_samples=len(pending),
             policy_values=sorted(set(r['policy'] for r in stable)),config_verified=config_ok,failures=failures)
     for role in ('host','client'):
-        path=base/role/'shadow-state.csv'
-        rows=list(csv.DictReader(path.open())) if path.exists() else []
+        rows=[]
+        for path in sorted((base/role).glob('shadow-state*.csv')):
+            with path.open() as stream:rows.extend(csv.DictReader(stream))
         expected={'off':0,'hard':1,'soft':2}[settings[role]['modern_shadows']]
         good=bool(rows) and all(int(row['mode'])==expected and (expected or int(row['maps'])==0) for row in rows)
         result['peers'][role]['shadow_mode_correct']=good
@@ -170,7 +221,13 @@ def main():
         if not good:result['peers'][role]['failures'].append('Shadow setting or disabled GPU isolation mismatch')
         if expected and settings[role]['plasma_lighting'] and not result['peers'][role]['shadow_active_samples']:
             result['peers'][role]['failures'].append('Enabled shadow peer never rendered a shadow map')
-    result['agreement']=judge_run(base/'host/stderr.log',base/'client/stderr.log',SimpleNamespace(seconds=45,skip=8),TOLERANCES)
+    host_log=base/'host/stderr.log'
+    if args.reconnect:
+        log=host_log.read_text(errors='replace')
+        assert 'network test: the next game' in log, 'Host never returned through the normal postgame flow'
+        host_log=base/'host/reconnected-game.log'
+        host_log.write_text(log.rsplit('network test: the next game',1)[1])
+    result['agreement']=judge_run(host_log,base/'client/stderr.log',SimpleNamespace(seconds=45,skip=8),TOLERANCES)
     result['paired_snapshot_seconds']=result['agreement'].get('figures',{}).get('seconds',0)
     result['passed']=report_passed(result)
     (base/'report.json').write_text(json.dumps(result,indent=2))

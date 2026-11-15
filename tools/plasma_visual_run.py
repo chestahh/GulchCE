@@ -19,6 +19,7 @@ parser.add_argument('--mcc-package', type=Path, help='Read-only Digsite Workshop
 parser.add_argument('--fps', required=True, type=int, choices=[30, 60, 120, 240])
 parser.add_argument('--enabled', required=True, type=int, choices=[0, 1])
 parser.add_argument('--shadow-switch', action='store_true', help='Cycle Off/Hard/Soft in the isolated capture config')
+parser.add_argument('--shadow-resource-failure', action='store_true', help='Fail the first shadow resource creation in the capture build; requires --shadow-switch')
 parser.add_argument('--shadow-view-switch', action='store_true', help='Switch first/third/first person during the shadow capture')
 parser.add_argument('--modern-shadows', choices=['off', 'hard', 'soft'], default='off')
 parser.add_argument('--label', default='')
@@ -62,6 +63,8 @@ parser.add_argument('--height', type=float)
 parser.add_argument('--drop', type=float)
 parser.add_argument('--receiver-distance', type=float)
 args = parser.parse_args()
+if args.shadow_resource_failure and not args.shadow_switch:
+    parser.error('--shadow-resource-failure requires --shadow-switch')
 if args.mcc_package and args.map != 'mcc-digsite':
     parser.error('--mcc-package requires --map mcc-digsite')
 if args.prong_lighting:
@@ -124,6 +127,8 @@ if args.specular_only:
         init.write('(set rasterizer_environment_diffuse_lights false)\n')
 
 env = {k:v for k,v in os.environ.items() if not k.startswith('HALO_')}
+if args.shadow_resource_failure:
+    env['HALO_SHADOW_CAPTURE_RESOURCE_FAILURE'] = '1'
 if args.shadow_switch:
     env['HALO_SHADOW_CAPTURE_SWITCH'] = '1'
     (out/'config.toml').write_text('[display]\nmodern_shadows="off"\ndynamic_lighting_reset=true\n')
@@ -257,6 +262,7 @@ report = dict(kind=args.kind, mixed=args.mixed, cap=args.fps, enabled=args.enabl
 report['authored_light_flags'] = sorted({int(x, 16) for x in re.findall(r'PLASMA enabled [01] light flags ([0-9a-f]+)', logs)})
 report['glow_template_flags'] = sorted({int(x, 16) for x in re.findall(r'PLASMA glow template [^\r\n]+ flags ([0-9a-f]+)', logs)})
 report['no_images'] = args.no_images
+report['shadow_resource_failure'] = args.shadow_resource_failure
 active_frames = [(int(t), int(n)) for t, n in re.findall(r'PLASMA frame (\d+)[^\r\n]+ selected (\d+)', logs)]
 active_deltas = [b[0]-a[0] for a, b in zip(active_frames, active_frames[1:]) if a[1] and b[1] and b[0] > a[0]]
 report['active_average_fps'] = 1000 / statistics.mean(active_deltas) if active_deltas else None
@@ -397,6 +403,13 @@ if args.shadow_switch:
             assert not re.search(r'SHADOW selected[^\r\n]+ active 1', intervals[i+2])
     assert re.search(r'SHADOW FREE cubes [1-4] remaining 0 meshes 0', logs)
     assert report['shadow_active_samples'] > 0
+    if args.shadow_resource_failure:
+        assert logs.count('SHADOW TEST resource failure injected') == 1
+        assert logs.count('modern shadow resources unavailable; retaining existing lighting until reset') == 1
+        # First Hard/Soft pair falls back; the pair after Off recovers.
+        assert not re.search(r'SHADOW selected[^\r\n]+ active 1', intervals[6] + intervals[9])
+        assert re.search(r'SHADOW selected[^\r\n]+ active 1', intervals[15] + intervals[18])
+        assert report['occlusion_updates'] > 0, 'Existing lighting must survive shadow-resource failure'
 
 if args.shadow_view_switch:
     assert re.findall(r'SHADOW CAMERA tick (\d+) third (\d+)', logs) == [('110','1'),('170','0')]

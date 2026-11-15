@@ -4,10 +4,24 @@
 #include "game/game.h"
 #include "network_shield_effects.h"
 #include "shield_glow.h"
+#include "game/players.h"
+#include "memory/data.h"
 #include <stdio.h>
 #include <string.h>
 
 int config_boolean(char const *name);
+int lighting_compatibility_policy_received(void);
+
+static int lighting_compatibility_players(void)
+{
+	struct data_iterator iterator;
+	struct player_datum *player;
+	int count = 0;
+	data_iterator_new(&iterator, player_data);
+	while ((player = (struct player_datum *)data_iterator_next(&iterator)) != NULL)
+		if (!player->quit_out_of_game) count++;
+	return count;
+}
 
 void lighting_compatibility_sample(void)
 {
@@ -19,13 +33,14 @@ void lighting_compatibility_sample(void)
 	if (!file)
 	{
 		file = fopen("lighting-policy.csv", "w");
-		if (file) fprintf(file, "tick,connection,policy,shield_enabled,local_shield,local_plasma,local_needler\n");
+		if (file) fprintf(file, "tick,connection,policy,shield_enabled,local_shield,local_plasma,local_needler,policy_received,active_players\n");
 	}
 	if (file)
 	{
-		fprintf(file, "%ld,%d,%d,%d,%d,%d,%d\n", tick, game_connection(),
+		fprintf(file, "%ld,%d,%d,%d,%d,%d,%d,%d,%d\n", tick, game_connection(),
 			network_shield_effects(), shield_glow_enabled(), config_boolean("display.shield_glow"),
-			config_boolean("display.plasma_lighting"), config_boolean("display.needler_lighting"));
+			config_boolean("display.plasma_lighting"), config_boolean("display.needler_lighting"),
+			lighting_compatibility_policy_received(), lighting_compatibility_players());
 		fflush(file);
 	}
 }

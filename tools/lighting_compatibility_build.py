@@ -27,6 +27,8 @@ def main():
     shadow_original = shadow.read_bytes()
     input_source = ROOT/'port/linux/src/xinput_sdl.c'
     input_original = input_source.read_bytes()
+    policy = ROOT/'port/linux/game/network_shield_effects.c'
+    policy_original = policy.read_bytes()
     args = shlex.split(re.search(r'^configure_args = (.*)$', (ROOT/'build.ninja').read_text(), re.M)[1])
     manifest = dict(revision=subprocess.check_output(['git','rev-parse','HEAD'],text=True,cwd=ROOT).strip(),
                     configure_args=args, source_sha256=hashlib.sha256(original).hexdigest(),
@@ -39,7 +41,15 @@ def main():
                                     for name in ('collision_bsp.c', 'collision_bsp.h')}
     manifest['shadow_sha256']=hashlib.sha256(shadow_original).hexdigest()
     manifest['input_sha256']=hashlib.sha256(input_original).hexdigest()
+    manifest['policy_sha256']=hashlib.sha256(policy_original).hexdigest()
     try:
+        text = policy_original.decode().replace('\r\n', '\n')
+        for anchor, extra in [('\tclient_effects = _shield_effects_stock;', '\n\tlighting_policy_received = 0;'),
+                              ('\tclient_effects = (short)message.effects;', '\n\tlighting_policy_received = 1;')]:
+            assert text.count(anchor) == 1
+            text = text.replace(anchor, anchor + extra)
+        policy.write_text('static int lighting_policy_received;\n'+text+
+            '\nint lighting_compatibility_policy_received(void) { return game_connection() != _game_connection_network_client || lighting_policy_received; }\n')
         # The network damage probe does not fire a weapon. Add ordinary trigger
         # input to the stationary look sequence for real muzzle-light coverage.
         text = input_original.decode().replace('\r\n', '\n')
@@ -66,6 +76,7 @@ def main():
         target.write_bytes(original)
         shadow.write_bytes(shadow_original)
         input_source.write_bytes(input_original)
+        policy.write_bytes(policy_original)
         fixture.unlink(missing_ok=True)
         subprocess.run([sys.executable,'configure.py',*args],cwd=ROOT,check=True)
         subprocess.run(['ninja','windows'],cwd=ROOT,check=True)

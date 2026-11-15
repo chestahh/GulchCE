@@ -1,5 +1,5 @@
 /* Render-only shadow selection and caster collection. The existing feature
-   lighting selection is authoritative (including host policy). The prototype
+   lighting selection is authoritative (including host policy). This feature
    shadows a bounded light set; it neither creates lights nor edits map resources. */
 #include "cseries.h"
 #include "modern_shadows.h"
