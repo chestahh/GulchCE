@@ -365,6 +365,18 @@ optional GPU calls for stock draws. The
 checks the real vertex programs and point-light formulas on desktop, web and
 Android. These CPU tests do not establish driver performance or visual parity.
 
+Enhanced model-light masks use texture units 6/7 in
+[plasma_occlusion_gl.c](../../port/linux/src/plasma_occlusion_gl.c).
+Desktop uploads return to active unit zero rather than querying the driver's
+previous active unit: material draws use named multi-bind, and later uploads
+must stay outside the cached mask units. This removes a synchronous driver
+query without changing the masks, sampling or the game's texture bindings.
+GLES retains its existing active-unit save/restore; Android's lighting
+exclusion is unchanged. The
+[binding ownership harness](../../tools/harness/tests/test_plasma_occlusion_gl.py)
+covers both paths, view resets, sampler-allocation fallback and unrelated
+shaders that must perform no binding work.
+
 These optional features are available on `main` and `testing`. The
 [plasma lighting source](../../port/linux/game/plasma_lighting.c)
 is a useful second example after FOV. `plasma_lighting_prepare` selects

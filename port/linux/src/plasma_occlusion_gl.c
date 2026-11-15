@@ -7,6 +7,20 @@
 
 static int model_bindings_known;
 
+static GLenum model_upload_restore_unit(void)
+{
+#ifdef HALO_GLES
+	GLint active;
+	glGetIntegerv(GL_ACTIVE_TEXTURE, &active);
+	return active;
+#else
+	/* Desktop material draws use named multi-bind, not the active unit.
+	   Leave subsequent uploads on unit zero, outside our cached mask units,
+	   instead of synchronizing the GL worker to recover irrelevant state. */
+	return GL_TEXTURE0;
+#endif
+}
+
 void plasma_occlusion_model_initialize(unsigned long program, struct plasma_occlusion_uniforms *uniforms)
 {
 	int slot;
@@ -33,7 +47,7 @@ static GLuint model_texture_get(DWORD const *resource)
 	static int count;
 	unsigned long current = plasma_occlusion_view_serial();
 	GLuint texture;
-	GLint active;
+	GLenum active;
 	GLenum target;
 	struct xgpu_texture_description description;
 	int i;
@@ -42,7 +56,7 @@ static GLuint model_texture_get(DWORD const *resource)
 		if (resolved[i].resource == resource) return resolved[i].texture;
 	/* A cache miss can upload and bind a texture. Confine that side effect
 	   to our units; ordinary material draws need no active-unit query. */
-	glGetIntegerv(GL_ACTIVE_TEXTURE, &active);
+	active = model_upload_restore_unit();
 	glActiveTexture(GL_TEXTURE0 + 6);
 	texture = xgpu_texture_get(resource, NULL, &target, &description);
 	glActiveTexture(active);
@@ -60,7 +74,7 @@ static void model_bind_textures(const GLuint textures[2], GLuint sampler)
 	static GLuint bound[2], bound_sampler;
 	static unsigned long view;
 	unsigned long current = plasma_occlusion_view_serial();
-	GLint active;
+	GLenum active;
 	int slot;
 	if (view != current) { view = current; model_bindings_known = 0; }
 	if (sampler && model_bindings_known && bound_sampler == sampler &&
@@ -78,7 +92,7 @@ static void model_bind_textures(const GLuint textures[2], GLuint sampler)
 	else
 #endif
 	{
-		glGetIntegerv(GL_ACTIVE_TEXTURE, &active);
+		active = model_upload_restore_unit();
 		for (slot = 0; slot < 2; slot++)
 		{
 			glActiveTexture(GL_TEXTURE0 + 6 + slot);
@@ -102,7 +116,7 @@ static void model_bind_textures(const GLuint textures[2], GLuint sampler)
 
 void plasma_occlusion_bind_model(struct plasma_occlusion_uniforms *uniforms)
 {
-	GLint active;
+	GLenum active;
 	GLuint texture, textures[2];
 	DWORD const *resource;
 	int slot;
@@ -145,7 +159,7 @@ void plasma_occlusion_bind_model(struct plasma_occlusion_uniforms *uniforms)
 			if (!white)
 			{
 				unsigned char pixel[4] = {255, 255, 255, 255};
-				glGetIntegerv(GL_ACTIVE_TEXTURE, &active);
+				active = model_upload_restore_unit();
 				glActiveTexture(GL_TEXTURE0 + 6);
 				glGenTextures(1, &white);
 				glBindTexture(GL_TEXTURE_3D, white);
