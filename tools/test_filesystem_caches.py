@@ -79,7 +79,7 @@ def test_mcc_exact_path_before_case_fallback(tmp_path):
 #include <assert.h>
 static int stats,listings,exists=1;
 int posix_stat(char const *p,struct posix_file_information *i){(void)p;(void)i;stats++;return exists ? 0 : -1;}
-int posix_find_entry_case_insensitive(char const *p,char const *n,char *out,unsigned long size){
+int posix_find_entry_case_insensitive(char const *p,char const *n,char *out,posix_ulong size){
     (void)p;(void)n;listings++;snprintf(out,size,"MiXeD");return 1;
 }
 ''' + function(source, "child") + r'''

@@ -175,6 +175,7 @@ int mcc_identity_prepare_host(char const *name) {(void)name;identities_prepared+
 #include "mcc_precache.h"
 #include "mcc_validation.h"
 int mcc_precache_snapshot(char const *name,struct mcc_precache_snapshot *s) {(void)name;memset(s,0,sizeof(*s));return 1;}
+int mcc_precache_snapshot_poll(char const *name,struct mcc_precache_snapshot *s) {return mcc_precache_snapshot(name,s);}
 static char saved_identity[64];
 static int allocation_fails;
 void *mcc_runtime_allocate(struct mcc_runtime *r,uint32_t bytes) {
