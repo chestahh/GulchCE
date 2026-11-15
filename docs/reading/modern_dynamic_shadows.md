@@ -685,6 +685,14 @@ gain. These initial measurements precede the cleanup-only guard; the final
 release confirmations are retained with their build manifests under
 `build/lighting-performance/modern-m5-*`.
 
+The final runtime revision `72f0ac46a` confirms Hard at **301.4 FPS**
+(316.7 / 286.1 per minute) and Soft at **306.1 FPS** (316.9 / 295.3).
+Both maps remain active throughout; the worst frames are 11.68 and 8.96 ms,
+respectively, with no frames over 50 ms. These are separate dynamic combat
+runs, so the ordering does not establish that Soft is cheaper than Hard.
+Private memory rises by 4.4 MiB in Hard and 4.0 MiB in Soft over the sampled
+windows; the longer-term qualification below still applies.
+
 The earlier 117 FPS Hard outlier did not recur in this comparison. Its cause
 remains unestablished; neither Discord nor shader compilation has been proved
 responsible, and no speculative renderer workaround was added. Private memory
