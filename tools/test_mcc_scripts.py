@@ -27,6 +27,8 @@ def native_mcc_harness(tmp_path_factory):
     def build(name):
         binary = directory / (name + ".exe")
         extra = [str(ROOT / "port/linux/game/mcc_syntax.c")] if name == "mcc_scripts" else []
+        if name in ("mcc_scripts", "mcc_script_parameters", "mcc_audio"):
+            extra.append(str(ROOT / "port/linux/game/mcc_diagnostics.c"))
         if name == "mcc_campaign":
             extra.append(str(ROOT / "port/linux/game/mcc_script_effects.c"))
         if name == "mcc_recording_control":
@@ -151,3 +153,19 @@ def test_mcc_sound_streams_and_cleanup(native_mcc_harness):
     result = subprocess.run([str(native_mcc_harness("mcc_audio"))],
                             capture_output=True, text=True, timeout=10)
     assert result.returncode == 0, result.stdout + result.stderr
+
+
+@pytest.mark.parametrize("codec,reason", [
+    (0, "PCM byte count is not a whole 16-bit sample frame"),
+    (1, "Xbox ADPCM byte count is not a whole 36-byte block"),
+    (2, "unsupported sound codec"),
+    (3, "test decoder rejected payload"),
+])
+def test_sound_refusal_names_authoring_tag_range_and_permutation(native_mcc_harness, codec, reason):
+    binary = native_mcc_harness("mcc_audio")
+    result = subprocess.run([str(binary), str(codec)], capture_output=True, text=True)
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert r"sound\weapons\rifle\fire.sound" in result.stdout
+    assert "pitch_ranges[0] 'automatic'.permutations[0] 'burst_02'" in result.stdout
+    assert reason in result.stdout
+    assert f"codec {codec}" in result.stdout

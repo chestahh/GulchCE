@@ -1040,6 +1040,23 @@ Xbox/CE keep OpenCE protocol 41. See
 for the inspected Warthog hierarchy, integer edge policy, runtime coverage and
 Mission Z9's lighting state and checkpoint compatibility.
 
+## Tracing a refused MCC conversion
+
+MCC refusal diagnostics resolve the original authoring tag path and add the field
+or zero-based element index plus the failed check. Start with
+[`mcc_diagnostics.c`](../../port/linux/game/mcc_diagnostics.c), then follow the
+converter named in the [complete before/after catalogue](../mcc_conversion_diagnostics.md).
+For example, `bitmaps[3]` identifies the fourth image inside the named `.bitmap`;
+sound errors include pitch-range/permutation indices and names, codec and payload
+location. Nested validation paths retain block indices. The source scenario name
+is captured before runtime renaming, and specialized bitmap copies report their
+source tag. Diagnostic state is owned and cleared by the MCC runtime.
+
+The catalogue distinguishes authored-data failures from missing resource files,
+allocation failures and damaged compiled-map headers. It also records the
+fallback when a corrupt map does not contain a safely readable tag name. These
+messages do not relax conversion checks or change Xbox/Custom Edition loading.
+
 Continue with [platforms and testing](platforms_and_testing.md), or return
 to the [guide](README.md).
 

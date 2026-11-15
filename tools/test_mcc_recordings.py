@@ -25,12 +25,13 @@ def recording_tool(tmp_path_factory):
     source = work / "runner.c"
     source.write_text(r'''
 #include <stdio.h>
+#include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
 #include "mcc_recordings.h"
 #include "mcc_runtime.h"
 int mcc_tags_prepare(struct mcc_runtime *r);
-void error(int level,char const *format,...) {(void)level;(void)format;}
+void error(int level,char const *format,...) {va_list args;(void)level;va_start(args,format);vfprintf(stderr,format,args);va_end(args);fputc(10,stderr);}
 void *mcc_runtime_pointer(struct mcc_runtime *r,uint32_t address,uint32_t size) {
     uint32_t offset=address-r->report.tag_base;
     return address>=r->report.tag_base && offset<=r->used && size<=r->used-offset ? r->tags+offset : NULL;
@@ -48,7 +49,8 @@ int main(int argc,char **argv) {
         ok=mcc_recording_prepare(data+0x700,size,atoi(argv[1]),atoi(argv[2]),&corrected);
     else {
         r.tags=r.tag_index=data;r.used=0x700+size;r.report.tag_base=0x50000000;r.report.tag_count=1;
-        put(data,'scnr');put(data+20,0x50000020);sc=data+0x20;rec=data+0x600;
+        put(data,'scnr');put(data+16,0x50000680);put(data+20,0x50000020);sc=data+0x20;rec=data+0x600;
+        strcpy((char *)data+0x680,"levels\\test\\recording");strcpy((char *)rec,"pelican_takeoff");
         put(sc+0x36C,1);put(sc+0x370,0x50000600);
         rec[0x20]=(unsigned char)atoi(argv[1]);rec[0x22]=(unsigned char)atoi(argv[2]);
         put(rec+0x2C,size);put(rec+0x38,0x50000700);
@@ -66,7 +68,7 @@ int main(int argc,char **argv) {
     game = ROOT / "port/linux/game"
     command = [clang, "-std=gnu89", "-Wall", "-Wextra", "-Werror", "-Wno-multichar",
                "-I" + str(work), "-I" + str(game), str(source), str(game / "mcc_recordings.c"),
-               str(game / "mcc_tags.c"), "-o", str(binary)]
+               str(game / "mcc_tags.c"), str(game / "mcc_diagnostics.c"), "-o", str(binary)]
     if sys.platform == "win32":
         command[1:1] = ["--target=i686-pc-windows-msvc", "-fuse-ld=lld", "-D_CRT_SECURE_NO_WARNINGS"]
     result = subprocess.run(command, capture_output=True, text=True)
@@ -173,3 +175,19 @@ def test_checked_mcc_scenario_integration(recording_tool, tmp_path, mode):
     expected = bytearray(data)
     if mode == "tags":expected[4:6] = b"\xff\xff"
     assert converted == expected
+
+
+@pytest.mark.parametrize("payload,reason,offset", [
+    (stream(), "recording has no end event", 72),
+    (stream() + bytes([23 << 2]), "recording event type is outside 0..22", 72),
+    (stream() + event(4, 5, bytes([0])), "recording event payload is truncated", 72),
+])
+def test_recording_refusal_has_authoring_name_and_stream_offset(recording_tool, tmp_path, payload, reason, offset):
+    source, output = tmp_path / "in.bin", tmp_path / "out.bin"
+    source.write_bytes(payload)
+    result = subprocess.run([str(recording_tool), "4", "4", str(source), str(output), "tags"], capture_output=True, text=True, check=True)
+    assert result.stdout.startswith("0 ")
+    assert r"levels\test\recording.scenario" in result.stderr
+    assert "recorded_animations[0] 'pelican_takeoff'" in result.stderr
+    assert reason + " at stream byte " + str(offset) in result.stderr
+    assert output.read_bytes() == payload

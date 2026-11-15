@@ -361,7 +361,7 @@ int main(int argc,char **argv) {
     admission += "\n" + (ROOT / "port/linux/game/mcc_validation.inl").read_text()
     source.write_text(source_code.replace("int main(int argc,char **argv)", "#define fopen mcc_test_fopen\n#define fread mcc_test_fread\n" + admission + "\n#undef fopen\n#undef fread\nint main(int argc,char **argv)"))
     output = work / ("catalog.exe" if sys.platform == "win32" else "catalog")
-    command = [compiler, "-include", str(ROOT / "port/linux/game/mcc_loading.h"), str(ROOT / "tools/mcc_loading_stub.c"), "-std=c99", "-Wall", "-Wextra", "-Werror", "-DZ_PREFIX",
+    command = [compiler, str(ROOT / "tools/mcc_diagnostics_stub.c"), "-include", str(ROOT / "port/linux/game/mcc_loading.h"), str(ROOT / "tools/mcc_loading_stub.c"), "-std=c99", "-Wall", "-Wextra", "-Werror", "-DZ_PREFIX",
                "-I", str(work), "-I", str(ROOT / "port/linux/game"), "-I", str(ROOT / "port/linux/src"), str(source),
                str(ROOT / "port/linux/src/mcc_local_package.c"), str(ROOT / "port/linux/src/posix_mcc_share.c"),
                str(ROOT / ("port/windows/src/win32_files.c" if sys.platform == "win32" else "port/linux/src/posix_files.c")),

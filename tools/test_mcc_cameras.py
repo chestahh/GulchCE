@@ -27,7 +27,8 @@ def camera_tool(tmp_path_factory):
 #include <string.h>
 int mcc_tags_prepare(struct mcc_runtime *);
 void error(int level,char const *format,...) {(void)level;(void)format;}
-int mcc_recording_prepare(unsigned char *p,uint32_t s,unsigned char v,unsigned char c,uint32_t *n) {
+int mcc_recording_prepare_ex(unsigned char *p,uint32_t s,unsigned char v,unsigned char c,uint32_t *n,char const **reason,uint32_t *offset) {
+    (void)reason;(void)offset;
     (void)p;(void)s;(void)v;(void)c;(void)n;abort();return 0;
 }
 int mcc_recording_weapon_only(unsigned char const *p,uint32_t s,unsigned char v,unsigned char c) {
@@ -51,7 +52,7 @@ int main(int argc,char **argv) {
     binary = work / ("camera.exe" if sys.platform == "win32" else "camera")
     game = ROOT / "port/linux/game"
     command = [compiler, "-std=gnu89", "-Wall", "-Wextra", "-Werror", "-Wno-multichar",
-               "-I" + str(work), "-I" + str(game), str(source), str(game / "mcc_tags.c"), "-o", str(binary)]
+               "-I" + str(work), "-I" + str(game), str(source), str(game / "mcc_tags.c"), str(game / "mcc_diagnostics.c"), "-o", str(binary)]
     if sys.platform == "win32":
         command[1:1] = ["--target=i686-pc-windows-msvc", "-fuse-ld=lld", "-D_CRT_SECURE_NO_WARNINGS"]
     result = subprocess.run(command, capture_output=True, text=True)
