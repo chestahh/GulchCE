@@ -405,6 +405,7 @@ static boolean frontend_editor(struct widget_instance *widget, boolean *deleted)
 	else if (!strcmp(key, "row_dead_zones")) target = "gamepad_setup\\dead_zones\\dead_zone_settings_screen";
 	else if (!strcmp(key, "row_discord")) target = "network_setup\\discord_account\\discord_account_settings_screen";
 	else if (!strcmp(key, "row_mcc_downloads")) target = "network_setup\\mcc_downloads\\screen";
+	else if (!strcmp(key, "row_steam_workshop")) target = "network_setup\\steam_workshop\\steam_workshop_screen";
 	else if (!strcmp(key, "row_gamepad")) target = "controller_remapping\\controller_remapping_screen";
 	else
 	{

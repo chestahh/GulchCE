@@ -717,6 +717,7 @@
 		<child widget="modern/online/row_link_10" x="28" y="287" />
 		<child widget="modern/online/row_link_11" x="28" y="317" />
 		<child widget="modern/online/row_discord" x="28" y="347" />
+		<child widget="modern/online/row_steam_workshop" x="28" y="377" platform="android" />
 		<child widget="modern/online/button_bar" x="26" y="414" />
 	</widget>
 	<widget name="modern/online/tabs" type="column_list" width="584" height="26" flags="pass_unhandled_to_focused_child left_right_tabs_items">
@@ -817,6 +818,13 @@
 		<child widget="modern/online/label_discord" x="12" y="3" />
 	</widget>
 	<widget name="modern/online/label_discord" type="text" controller="1" width="312" height="24" string_list="modern/online/labels" string_index="7" font="ui\large_ui" color="#FF2896FF" />
+	<widget name="modern/online/row_steam_workshop" width="336" height="26" bitmap="modern/row" platform="android" flags="nifty_fx">
+		<on event="a" run="port frontend editor" />
+		<on event="start" run="port frontend editor" />
+		<on event="left_mouse" run="mouse emit accept event" />
+		<child widget="modern/online/label_steam_workshop" x="12" y="3" />
+	</widget>
+	<widget name="modern/online/label_steam_workshop" type="text" controller="1" width="312" height="24" string_list="modern/online/labels" string_index="8" font="ui\large_ui" color="#FF2896FF" />
 	<strings name="modern/online/labels">
 		<string text="INTERNET PLAY" />
 		<string text="UPNP FORWARDING" />
@@ -826,6 +834,7 @@
 		<string text="MAP SHARING &gt;" />
 		<string text="SERVER BROWSER &gt;" />
 		<string text="DISCORD ACCOUNT &gt;" />
+		<string text="STEAM WORKSHOP &gt;" />
 	</strings>
 	<strings name="modern/online/help_strings">
 		<string text="OK saves pending settings across pages. Defaults resets this page. Cancel discards pending settings. Tab or Y changes tabs." />
@@ -837,6 +846,7 @@
 		<string text="Open map sharing settings. Pending changes stay until OK or Cancel." />
 		<string text="Open server browser settings. Pending changes stay until OK or Cancel." />
 		<string text="Manage account linking in its existing editor. That editor's OK saves changes independently of these Settings." />
+		<string text="Sign in with Steam to download MCC shared files and Halo 1 Workshop maps." />
 	</strings>
 	<widget name="modern/online/button_bar" type="column_list" width="588" height="26" flags="pass_unhandled_to_focused_child left_right_tabs_items">
 		<child widget="modern/online/button_defaults" x="0" y="0" />

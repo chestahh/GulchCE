@@ -145,6 +145,13 @@ guide, test or concise code comment.
   never authorizes such a change itself. Do not reformat established Xbox
   or Custom Edition code, generated output or vendored dependencies.
 
+## Upstream comment conventions
+
+Within port code, follow OpenCE's plain C comments and section rulers.
+Use lowercase sentence fragments where the surrounding code does; reasons
+inside functions use parentheses. Avoid Doxygen blocks and leading-star
+continuations. Keep the required `port:` markers in decompiled sources.
+
 ## Working and review method
 
 - Resolve routine implementation choices within the user's authorized

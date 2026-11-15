@@ -562,6 +562,7 @@ def test_modern_network_menu_reaches_sharing(platform):
             'game.mcc_campaigns', 'game.mcc_collections'} <= settings
     assert ('game.workshop_maps' in settings) == (platform == 'desktop')
     assert 'modern/sharing/row_mcc_downloads' in reached
+    assert ('modern/online/row_steam_workshop' in reached) == (platform == 'android')
     assert 'network.mcc_map_share' not in settings
 
 
@@ -588,19 +589,20 @@ boolean ui_widget_port_open(struct widget_instance *w,char const *s,boolean *d) 
           without_includes('port/linux/game/frontend_menu_runtime.inl') + r'''
 int main(void) {
     struct widget_instance root={0},spinner={0},action={0};int deleted=0,i;
-    char const *names[]={"row_dead_zones","row_discord"};
+    char const *names[]={"row_dead_zones","row_discord","row_steam_workshop"};
     char const *targets[]={"gamepad_setup\\dead_zones\\dead_zone_settings_screen",
-        "network_setup\\discord_account\\discord_account_settings_screen"};
+        "network_setup\\discord_account\\discord_account_settings_screen",
+        "network_setup\\steam_workshop\\steam_workshop_screen"};
     root.definition_tag_index=3;root.child=&spinner;spinner.parent=&root;
     spinner.type=2;spinner.definition_tag_index=5;spinner.parameters.list.selected_index=2;
     spinner.next=&action;action.parent=&root;
-    for(i=0;i<2;i++) {
+    for(i=0;i<3;i++) {
         action.name=names[i];opened=targets[i];deleted=0;
         assert(frontend_menu_event(&action,"port frontend editor",&deleted)&&deleted);
         assert(frontend_session.count==1&&frontend_session.pending[0].index==2);
         assert(!frontend_session.owns_profile&&!writes);
     }
-    assert(opens==2);
+    assert(opens==3);
     assert(frontend_menu_event(&action,"port frontend cancel",&deleted));
     assert(!frontend_session.count&&!writes&&transitions==1);
     return 0;
