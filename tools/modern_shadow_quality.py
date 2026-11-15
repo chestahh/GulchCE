@@ -84,8 +84,9 @@ def main():
     }'''
     fragment = '#version 330 core\n' + receiver + '''
     in vec2 uv; out vec4 color;
-    uniform vec3 center, along, up;
-    void main() { color=vec4(vec3(modern_visibility(center+uv.x*along+uv.y*up)),1); }
+    uniform vec3 center, along, up; uniform int model_slot;
+    void main() { vec3 p=center+uv.x*along+uv.y*up;
+      color=vec4(vec3(model_slot<0?modern_visibility(p):modern_model(model_slot,p)),1); }
     '''
     program = gl('CreateProgram', u)()
     attach = gl('AttachShader', None, u, u)
@@ -102,6 +103,7 @@ def main():
     gl('Uniform4f', None, i, f, f, f, f)(uniform('modern_light'), 0, 0, 0, 100)
     uniform1 = gl('Uniform1i', None, i, i)
     uniform1(uniform('modern_depth'), 0)
+    uniform1(uniform('model_slot'), -1)
     vao = u(); gl('GenVertexArrays', None, i, C.POINTER(u))(1, C.byref(vao))
     gl('BindVertexArray', None, u)(vao)
     cube = u(); gl('GenTextures', None, i, C.POINTER(u))(1, C.byref(cube))
@@ -180,12 +182,34 @@ def main():
     Image.fromarray(seam).save(args.output/'occluder-seam.png')
     metrics['occluder-seam'] = {'largest_step':int(np.abs(np.diff(seam.astype(int),axis=1)).max()),
                                'lit':int(seam[:8].min()), 'shadow':int(seam[-8:].max())}
+    # The second model light must sample its own cube, not the first light's
+    # depth. Exercise both runtime slot branches and disabling either slot.
+    other = u(); gl('GenTextures',None,i,C.POINTER(u))(1,C.byref(other))
+    gl('ActiveTexture',None,u)(0x84C1)
+    gl('BindTexture',None,u,u)(0x8513,other)
+    for key,value in ((0x2801,0x2600),(0x2800,0x2600),(0x2802,0x812F),(0x2803,0x812F),(0x8072,0x812F)):
+        parameter(0x8513,key,value)
+    clear = np.ones((512,512),dtype=np.float32)
+    for face in range(6): upload(0x8515+face,0,0x8CAC,512,512,0,0x1902,0x1406,clear.ctypes.data)
+    uniform1(uniform('modern_depth_other'),1)
+    gl('Uniform4f',None,i,f,f,f,f)(uniform('modern_light_other'),0,0,0,100)
+    gl('Uniform2f',None,i,f,f)(uniform('modern_slots'),1,1)
+    uniform1(uniform('model_slot'),0)
+    first = capture((5,0,5),(1,0,-1),(0,.08,0),1)
+    uniform1(uniform('model_slot'),1)
+    second = capture((5,0,5),(1,0,-1),(0,.08,0),1)
+    gl('Uniform2f',None,i,f,f)(uniform('modern_slots'),0,1)
+    uniform1(uniform('model_slot'),0)
+    disabled = capture((5,0,5),(1,0,-1),(0,.08,0),1)
+    metrics['model-pair'] = {'first_shadow':int(first[-8:].max()),
+                             'second_lit':int(second.min()),'disabled_lit':int(disabled.min())}
     report = {'renderer':gl('GetString',C.c_char_p,u)(0x1F01).decode(),
               'shader_sha256':hashlib.sha256(receiver.encode()).hexdigest(), 'metrics':metrics}
     (args.output/'report.json').write_text(json.dumps(report,indent=2)+'\n')
     print(json.dumps(report,indent=2))
     gl('DeleteTextures',None,i,C.POINTER(u))(1,C.byref(cube))
     gl('DeleteTextures',None,i,C.POINTER(u))(1,C.byref(target))
+    gl('DeleteTextures',None,i,C.POINTER(u))(1,C.byref(other))
     gl('DeleteFramebuffers',None,i,C.POINTER(u))(1,C.byref(framebuffer))
     gl('DeleteVertexArrays',None,i,C.POINTER(u))(1,C.byref(vao))
     gl('DeleteProgram',None,u)(program)
@@ -199,6 +223,7 @@ def main():
         assert metrics['soft-edge']['levels'] >= 32, metrics
         assert metrics['occluder-seam']['largest_step'] <= 8, metrics
         assert metrics['occluder-seam']['lit']==255 and metrics['occluder-seam']['shadow']==0, metrics
+        assert metrics['model-pair']=={'first_shadow':0,'second_lit':255,'disabled_lit':255}, metrics
 
 
 if __name__ == '__main__':

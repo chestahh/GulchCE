@@ -18,6 +18,7 @@ ROOT = Path(__file__).resolve().parents[1]
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--output-dir', type=Path, default=ROOT/'build/plasma-visual')
 parser.add_argument('--verify-traces', action='store_true')
+parser.add_argument('--shadow-reuse', action='store_true', help='Measure conservative cross-frame shadow reuse; diagnostic overhead only')
 args = parser.parse_args()
 source = ROOT / 'port/linux/game/render_interpolation.c'
 fixture = ROOT / 'port/linux/game/plasma_capture_fixture.c'
@@ -189,14 +190,21 @@ try:
     text = text.replace(marker, marker+'\n\t\t\tplatform_log("MUZZLE submit %ld", rasterizer_index);')
     muzzle.write_text(text)
     text = shadow_original.decode().replace('\r\n', '\n')
-    marker = '\tactive = modern_shadow_end() && complete;'
+    marker = '\t\tif (modern_shadow_end() && complete) active |= 1 << slot;'
     assert text.count(marker) == 1
-    text = 'void platform_log(const char *, ...);\n' + text.replace(marker, marker + '\n\t{ static int frames; if (!(frames++ % 30)) platform_log("SHADOW selected %ld complete %d active %d parts %d view_weapon %ld view_hands %ld", selected_rasterizer, complete, active, part_count, owners[0], owners[1]); }')
+    text = 'void platform_log(const char *, ...);\n' + text.replace(marker, marker + '\n\t{ static int frames[MODERN_SHADOW_LIGHTS]; if (!(frames[slot]++ % 30)) platform_log("SHADOW selected %ld complete %d active %d parts %d view_weapon %ld view_hands %ld slot %d", index, complete, (active >> slot) & 1, part_count, owners[0], owners[1], slot); }')
     shadow.write_text(text)
     text = shadow_gl_original.decode().replace('\r\n', '\n')
-    marker = '\t\tvalid = 1;'
+    manifest['shadow_reuse'] = args.shadow_reuse
+    if args.shadow_reuse:
+        probe = (ROOT/'tools/fixtures/modern_shadow_reuse_probe.inc').read_text()
+        manifest['shadow_reuse_probe_sha256'] = hashlib.sha256(probe.encode()).hexdigest()
+        text = text.replace('int modern_shadow_end(void)', probe+'\nint modern_shadow_end(void)', 1)
+    marker = '\t\tmap->valid = 1;'
     assert text.count(marker) == 1
-    text = text.replace(marker, marker + '\n\t\t{ static int frames; if (!(frames++ % 30)) platform_log("SHADOW MAPS views %d draws %d", 1 + view_map, draw_count); }')
+    if args.shadow_reuse:
+        text = text.replace(marker, marker + '\n\t\tmodern_shadow_reuse_probe();')
+    text = text.replace(marker, marker + '\n\t\t{ static int frames; if (!(frames++ % 30)) platform_log("SHADOW MAPS views %d draws %d", 1 + map->view_map, draw_count); }')
     shadow_gl.write_text(text)
     manifest['source_hashes']['port/linux/game/modern_shadows.c'] = hashlib.sha256(shadow_original).hexdigest()
     for name in ['port/linux/src/modern_shadows_gl.c', 'port/linux/include/modern_shadows.h', 'source/render/render.c',

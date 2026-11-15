@@ -1,6 +1,6 @@
 /* Render-only shadow selection and caster collection. The existing feature
    lighting selection is authoritative (including host policy). The prototype
-   shadows one light; it neither creates lights nor edits map resources. */
+   shadows a bounded light set; it neither creates lights nor edits map resources. */
 #include "cseries.h"
 #include "modern_shadows.h"
 
@@ -78,9 +78,12 @@ static struct
 static int part_count;
 static struct structure_bsp const *cached_bsp;
 static long identities[SHADOW_LIGHTS];
-static long selected_identity = NONE, selected_rasterizer = NONE;
-static long challenger_identity = NONE;
-static float challenger_since, selection_time;
+static struct shadow_selection
+{
+	long identity, rasterizer, challenger;
+	float since, time;
+} selections[MODERN_SHADOW_LIGHTS] = {{NONE,NONE,NONE,0,0}, {NONE,NONE,NONE,0,0}};
+static int world_map;
 static long slots[2] = {NONE, NONE};
 static int active, world_stage, receiver_failed;
 static int view_receiver;
@@ -95,14 +98,16 @@ static int setting(void)
 
 void modern_shadows_reset(void)
 {
+	int i;
 	modern_shadow_dispose();
 	memset(parts, 0, sizeof(parts));
 	part_count = active = world_stage = receiver_failed = 0;
 	view_receiver = 0;
 	cached_bsp = NULL;
-	selected_identity = selected_rasterizer = slots[0] = slots[1] = NONE;
-	challenger_identity = NONE;
-	challenger_since = selection_time = 0;
+	slots[0] = slots[1] = NONE;
+	memset(selections, 0, sizeof(selections));
+	for (i = 0; i < MODERN_SHADOW_LIGHTS; i++)
+		selections[i].identity = selections[i].rasterizer = selections[i].challenger = NONE;
 }
 
 void modern_shadows_window(void)
@@ -110,7 +115,8 @@ void modern_shadows_window(void)
 	int i;
 	active = world_stage = 0;
 	view_receiver = 0;
-	selected_rasterizer = slots[0] = slots[1] = NONE;
+	slots[0] = slots[1] = NONE;
+	for (i = 0; i < MODERN_SHADOW_LIGHTS; i++) selections[i].rasterizer = NONE;
 	for (i = 0; i < SHADOW_LIGHTS; i++) identities[i] = NONE;
 	modern_shadow_clear_draws();
 }
@@ -126,36 +132,50 @@ void modern_shadows_model_slot(long rasterizer_index, int slot)
 	if (slot >= 0 && slot < 2) slots[slot] = rasterizer_index;
 }
 
+static int map_for(long rasterizer)
+{
+	int i;
+	if (rasterizer == NONE) return NONE;
+	for (i = 0; i < MODERN_SHADOW_LIGHTS; i++)
+		if ((active & (1 << i)) && selections[i].rasterizer == rasterizer) return i;
+	return NONE;
+}
+
 unsigned int modern_shadows_model_mask(void)
 {
-	if (!active) return 0;
-	return (slots[0] == selected_rasterizer ? 1 : 0) | (slots[1] == selected_rasterizer ? 2 : 0);
+	return (map_for(slots[0]) != NONE ? 1 : 0) | (map_for(slots[1]) != NONE ? 2 : 0);
+}
+
+/* World attenuation binds one map; each of the two model light slots can
+   independently name either map. Slot identities never follow array order. */
+int modern_shadows_map(int slot)
+{
+	if (world_stage) return slot == 0 ? world_map : NONE;
+	return slot >= 0 && slot < 2 ? map_for(slots[slot]) : NONE;
 }
 
 void modern_shadows_receiver(int first_person) { view_receiver = active && first_person; }
 int modern_shadows_view_receiver(void) { return view_receiver && !world_stage; }
-
-int modern_shadows_selected(long rasterizer_index)
-{
-	return active && rasterizer_index == selected_rasterizer;
-}
+int modern_shadows_selected(long rasterizer_index) { return map_for(rasterizer_index) != NONE; }
 
 void modern_shadows_cancel(void)
 {
 	int stage = world_stage;
+	long rasterizer = stage ? selections[world_map].rasterizer : NONE;
 	active = world_stage = 0;
 	receiver_failed = 1;
 	modern_shadow_clear_draws();
 	/* World attenuation was bound before shader selection. Restore its
 	   collision mask too; the renderer then refreshes that texture binding. */
-	if (stage == 1) plasma_falloff_specular_begin(selected_rasterizer);
-	else if (stage == 2) plasma_falloff_begin(selected_rasterizer);
+	if (stage == 1) plasma_falloff_specular_begin(rasterizer);
+	else if (stage == 2) plasma_falloff_begin(rasterizer);
 }
 
 void modern_shadows_world_begin(long rasterizer_index, int stage)
 {
 	world_stage = 0;
-	if (!active || rasterizer_index != selected_rasterizer) return;
+	world_map = map_for(rasterizer_index);
+	if (world_map == NONE) return;
 	world_stage = stage;
 	world_extent = rasterizer_lights.lights[rasterizer_index].radius * 2.f;
 	if (stage == 1)
@@ -461,41 +481,76 @@ static int object_casters(real_point3d const *origin, real radius, long const ow
 	return 1;
 }
 
-static long select_light(long best, long previous, float best_score, float previous_score)
+static long select_light(struct shadow_selection *selection, long best, long previous, float best_score, float previous_score)
 {
 	float now = global_frame_parameters.game_time_sec;
-	if (now < selection_time) challenger_identity = NONE;
-	selection_time = now;
-	if (best == NONE) { challenger_identity = NONE; return NONE; }
+	if (now < selection->time) selection->challenger = NONE;
+	selection->time = now;
+	if (best == NONE) { selection->challenger = NONE; return NONE; }
 	/* A modest challenger must remain stronger for 100 ms, independent of
 	   frame rate. Bright flashes respond immediately. Invalid or forbidden
 	   previous lights never retain a slot while waiting for a challenger. */
 	if (previous != NONE && previous != best && previous_score < best_score * 0.8f &&
 		previous_score > best_score * 0.5f)
 	{
-		if (challenger_identity != identities[best])
+		if (selection->challenger != identities[best])
 		{
-			challenger_identity = identities[best];
-			challenger_since = now;
+			selection->challenger = identities[best];
+			selection->since = now;
 		}
-		if (now - challenger_since < 0.1f) return previous;
+		if (now - selection->since < 0.1f) return previous;
 	}
 	else if (previous != NONE && previous_score >= best_score * 0.8f)
 	{
-		challenger_identity = NONE;
+		selection->challenger = NONE;
 		return previous;
 	}
-	challenger_identity = NONE;
+	selection->challenger = NONE;
 	return best;
+}
+
+static void select_lights(void)
+{
+	float scores[SHADOW_LIGHTS] = {0}, retained[MODERN_SHADOW_LIGHTS] = {0};
+	long index;
+	int i, order, first = 0;
+	for (i = 0; i < MODERN_SHADOW_LIGHTS; i++) selections[i].rasterizer = NONE;
+	for (index = 0; index < MIN(rasterizer_lights.light_count, SHADOW_LIGHTS); index++)
+	{
+		struct rasterizer_light_submit_parameters const *light = &rasterizer_lights.lights[index];
+		float brightness, score;
+		if (identities[index] == NONE || !plasma_lighting_selected(index)) continue;
+		if (!(light->radius > 0.01f && light->radius < 1000.f)) continue;
+		brightness = MAX(light->color.red, MAX(light->color.green, light->color.blue));
+		score = brightness * light->radius * light->radius / (1.f + distance_squared3d(&render.camera.position, &light->position));
+		if (!(score > 0)) continue;
+		scores[index] = score;
+		for (i = 0; i < MODERN_SHADOW_LIGHTS; i++)
+			if (identities[index] == selections[i].identity) { selections[i].rasterizer = index; retained[i] = score; }
+	}
+	/* Fill vacancies / replace the weaker incumbent first, without moving a
+	   surviving light between maps. A pending challenger cannot own two slots. */
+	if (retained[1] < retained[0]) first = 1;
+	for (order = 0; order < MODERN_SHADOW_LIGHTS; order++)
+	{
+		int slot = order ^ first, other = slot ^ 1;
+		float best = 0;
+		long best_index = NONE;
+		for (index = 0; index < MIN(rasterizer_lights.light_count, SHADOW_LIGHTS); index++)
+		{
+			if (selections[other].rasterizer != NONE && identities[index] == selections[other].identity) continue;
+			if (scores[index] > best) { best = scores[index]; best_index = index; }
+		}
+		best_index = select_light(&selections[slot], best_index, selections[slot].rasterizer, best, retained[slot]);
+		selections[slot].rasterizer = best_index;
+		selections[slot].identity = best_index != NONE ? identities[best_index] : NONE;
+	}
 }
 
 void modern_shadows_prepare(int primary)
 {
 	struct structure_bsp const *bsp;
-	struct rasterizer_light_submit_parameters const *light;
-	float best = 0, previous_score = 0, radius;
-	long best_index = NONE, previous = NONE, index;
-	int mode = setting(), complete;
+	int mode = setting(), complete, slot;
 	long owners[2];
 	active = world_stage = 0;
 	if (!mode) { if (cached_bsp) modern_shadows_reset(); return; }
@@ -503,36 +558,27 @@ void modern_shadows_prepare(int primary)
 	bsp = global_structure_bsp_get();
 	if (bsp != cached_bsp) { modern_shadows_reset(); cached_bsp = bsp; }
 	if (!bsp || receiver_failed) return;
-	for (index = 0; index < MIN(rasterizer_lights.light_count, SHADOW_LIGHTS); index++)
+	select_lights();
+	for (slot = 0; slot < MODERN_SHADOW_LIGHTS; slot++)
 	{
-		float score, brightness;
-		if (identities[index] == NONE || !plasma_lighting_selected(index)) continue;
+		long index = selections[slot].rasterizer;
+		struct rasterizer_light_submit_parameters const *light;
+		float radius;
+		if (index == NONE) continue;
 		light = &rasterizer_lights.lights[index];
-		if (!(light->radius > 0.01f && light->radius < 1000.f)) continue;
-		brightness = MAX(light->color.red, MAX(light->color.green, light->color.blue));
-		score = brightness * light->radius * light->radius / (1.f + distance_squared3d(&render.camera.position, &light->position));
-		if (score > best) { best = score; best_index = index; }
-		if (identities[index] == selected_identity) { previous = index; previous_score = score; }
+		/* Diffuse and specular share the map, including the larger extent. */
+		radius = light->radius * MAX(1.f, plasma_occlusion_specular_scale(index));
+		if (!modern_shadow_begin(slot, (float const *)&light->position, radius, mode == 2)) continue;
+		complete = viewmodel_casters(owners) && world_casters(bsp, &light->position, radius) &&
+			object_casters(&light->position, radius, owners);
+		if (modern_shadow_end() && complete) active |= 1 << slot;
 	}
-	/* Keep the current identity while it remains competitive. Never reuse a
-   shadow from a recycled light index or a previous render window. */
-	best_index = select_light(best_index, previous, best, previous_score);
-	if (best_index == NONE) { selected_identity = selected_rasterizer = NONE; return; }
-	selected_rasterizer = best_index;
-	selected_identity = identities[best_index];
-	light = &rasterizer_lights.lights[best_index];
-	/* Specular can reach beyond the diffuse sphere; both passes sample the
-	   same map and need blockers throughout their full authored extent. */
-	radius = light->radius * MAX(1.f, plasma_occlusion_specular_scale(best_index));
-	if (!modern_shadow_begin((float const *)&light->position, radius, mode == 2)) return;
-	complete = viewmodel_casters(owners) && world_casters(bsp, &light->position, radius) &&
-		object_casters(&light->position, radius, owners);
-	active = modern_shadow_end() && complete;
-	if (!active) modern_shadow_clear_draws();
 }
+
 #else
 void modern_shadows_receiver(int first_person) {}
 int modern_shadows_view_receiver(void) { return 0; }
+int modern_shadows_map(int slot) { return -1; }
 void modern_shadows_prepare(int primary) {}
 void modern_shadows_reset(void) {}
 void modern_shadows_window(void) {}

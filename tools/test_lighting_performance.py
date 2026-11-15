@@ -65,7 +65,12 @@ def test_missing_frame_samples_are_not_a_pass():
 def test_shadow_coverage_distinguishes_fallback_from_active_maps():
     rows=[dict(seconds=t, frame_ms=4, selected=2, scene_lights=4,
                occlusion_updates=1, capture_excluded=0, tick=t*30, shadowed=t%2) for t in range(60)]
-    assert summarize(rows, 30, 30, 240)['shadowed_frame_percent'] == 50
+    rows[31]['shadowed'] = 2
+    result = summarize(rows, 30, 30, 240)
+    assert result['shadowed_frame_percent'] == 50
+    assert result['shadowed_max'] == 2
+    assert result['shadowed_mean'] == pytest.approx(16/30)
+    assert result['multiple_shadow_frame_percent'] == pytest.approx(100/30)
     for row in rows:
         del row['shadowed']
     assert 'shadowed_frame_percent' not in summarize(rows, 30, 30, 240)

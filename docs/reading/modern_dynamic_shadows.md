@@ -15,11 +15,12 @@ name does not restrict selection to plasma or projectiles. Existing local
 toggles and host policy remain authoritative; shadows do not create lights
 or enable a disabled lighting category.
 
-The first milestone renders **one selected light per primary view**. This is
-a bounded performance prototype, not the final light budget or a promise
-that every eligible light is shadowed simultaneously. The score favours
-bright, nearby lights with useful radii; the previous identity stays selected
-while its score is at least 80% of the best candidate. Recycled rasterizer
+The current budget renders **two selected lights per primary view**. This
+is a bounded prototype, not a promise that every eligible light is shadowed
+simultaneously. Vacancies and the weaker incumbent are considered first;
+a surviving light keeps its map slot when scores reorder. The score favours
+bright, nearby lights with useful radii; an incumbent identity stays selected
+while its score is at least 80% of its best available challenger. Recycled rasterizer
 indices cannot inherit another light's map. A challenger between 1.25 and
 2 times the current score must remain stronger for 100 ms of rendered game
 time. A light at least twice as strong, or replacement of an expired or
@@ -31,6 +32,10 @@ enabled, a stationary shield can supply the selected light. Opaque world and
 model triangles block its illumination. The translucent shield surface is
 not turned into an opaque wall. Other lighting and baked illumination remain
 unchanged. A muzzle flash participates through the same selection interface.
+When the Warthog turret flash obtains a shadow slot, the chassis and turret
+geometry can block its light on the ground and nearby surfaces. This removes
+the flash contribution behind blockers; it does not darken baked illumination
+or replace the original vehicle shadow.
 
 ## Reading route and ownership
 
@@ -49,11 +54,14 @@ unchanged. A muzzle flash participates through the same selection interface.
 3. [modern_shadows_gl.c](../../port/linux/src/modern_shadows_gl.c):
    `modern_shadow_begin`, `modern_shadow_draw` and `modern_shadow_end` build a
    six-face depth cube: a depth image looking in each direction from the light.
-   Hard and soft modes share the same map. Soft mode uses four visibility
+   Each selected light has its own maps; hard and soft modes share their format. Soft mode uses four visibility
    samples with bilinear comparison weights to soften the edge; it does not
    blur baked lighting. Samples reproject across cube faces explicitly.
 4. `modern_shadow_emit` and `modern_shadow_bind` feed only the selected
    light's world diffuse/specular attenuation or model point-light slot.
+   `modern_shadows_map` resolves the two model slots independently; their
+   order need not match the shadow slots. The second receiver cube uses
+   texture unit 10; unit 9 remains reserved for caster alpha textures.
    Receiver-plane depth comparison reduces grazing-surface acne without a
    large constant offset that would detach shadows from feet.
 5. [plasma_occlusion.c](../../port/linux/game/plasma_occlusion.c): a complete
@@ -80,10 +88,12 @@ are present. World receivers use the complete world body and weapon; the
 first-person receiver uses the arms/weapon pose and excludes their hidden
 world counterparts. Other casters participate in both maps. This prevents
 double silhouettes without removing the player's body shadow from the world.
-Both cubes share converted meshes and the frame's copied bone matrices;
-the extra depth storage is 6 MiB. Mesh storage is bounded to
-2,048 parts and 32 MiB; a frame holds at most 256 caster draws with 64 bones
-per draw. Incomplete caster collection falls back instead of displaying a
+Each light's two cubes share the frame's copied bone matrices. Converted
+meshes and the draw queue are shared between lights. Each cube takes 6 MiB:
+two world maps use 12 MiB, or 24 MiB with both first-person maps allocated.
+Mesh storage is bounded to
+2,048 parts and 32 MiB; each selected light holds at most 256 caster draws with 64 bones
+per draw in the reused queue. Incomplete caster collection falls back instead of displaying a
 partially populated shadow map. Initialization is lazy. Disabling shadows,
 changing BSP or disposing lighting releases feature resources. Each render
 window clears transient slot associations and validity.
@@ -368,3 +378,108 @@ The original configure options and normal Windows executable are restored.
 This closes the bounded one-light quality milestone on the tested NVIDIA
 system; first-use stalls, the separate CE pacing failure, broader hardware
 acceptance and multi-light scaling are not silently signed off by it.
+
+
+## Milestone 3: two simultaneous shadow lights
+
+The feature now maintains two stable identities and independent world/view
+depth-map pairs. It visits the weaker incumbent first, excludes the other
+slot's live identity from admission, and retains the existing score hysteresis
+and 100 ms challenger interval. Strong flashes remain immediate. Model slots
+resolve by rasterizer identity, so reordering lights cannot swap their depth
+cubes. A failed or incomplete map cannot borrow another light's depth; an
+independently complete map remains usable. Window, BSP, disable and shader
+failure cleanup covers both slots.
+
+This change stays in the feature's game and GL modules. It adds no shared
+renderer, vendor, host-policy, map-loading or networking changes. It retains
+512-pixel faces, the Hard comparison and four-sample Soft filter, animated
+casters and separate first-person receiving. The geometry pool, submission
+queue and depth program are shared; only depth images and light coordinates
+are per selected light. The budget remains two rather than speculatively
+raising it to four.
+
+The optional capture-builder flag `--shadow-reuse` measures conservative
+cross-frame reuse candidates. It compares the source and full submitted
+poses/material data, and rejects alpha-tested draws because their texture
+contents may change independently. The moving-projectile check found zero
+matches in 120 samples per map/receiver; the stationary c40 shield found zero
+in 240 samples per receiver. Full-record comparison can reject unused-field
+differences too; this is not proof that every alternative cache would miss.
+It provides no justification for adding a persistent cache here. A stationary
+light alone is insufficient: animated nearby casters still change its map.
+The probe's snapshots and logging exist only in explicitly requested capture
+builds, never normal or passive performance builds. The initial M3 diagnostic
+capture executable included this probe before it became an opt-in builder
+flag; its results are diagnostic, not release performance measurements.
+
+
+### Visual and platform checks
+
+The GPU quality fixture still checks Hard/Soft interiors, edges and cube
+seams. It additionally binds two independent cubes through the emitted model
+shader: the first blocks a receiver while the second remains lit, and disabling
+the first model slot restores full visibility. Runtime diagnostics identify
+both selected map slots independently.
+
+The Xbox three-projectile overlap sequence passes Hard and Soft at 30, 60
+and 120 FPS, with two complete maps and the third light retaining collision
+occlusion. The initial Hard/120 capture averages 108.8 FPS and fails its cap
+check (worst recorded gap 128 ms); an unchanged-binary repeat averages 119.8.
+Its cause is not established, and the failed capture is retained. CE Death
+Island passes its AR muzzle sequence at 30 FPS; MCC Digsite passes the
+three-projectile/model/specular sequence at 120 FPS (119.3 average). These
+are representative map checks, not exhaustive family or hardware acceptance.
+
+The Warthog exterior capture passes at 60 FPS. The Soft/Off comparison shows
+the chassis blocking muzzle illumination under and behind the vehicle;
+stock flash effects and original shadows remain. A separate 120 FPS capture
+records a 468 ms gap and fails its overall rate check at 110.0 FPS despite a
+9 ms active-frame 95th percentile. That failure remains part of the evidence. The unchanged-binary repeat
+passes at 120.0 FPS; neither run establishes the cause of the intermittent
+gap. The stationary-shield reuse probe uses c40; an initial Blood Gulch attempt
+failed because that map lacks the shield tag and is not counted as coverage.
+
+Web builds successfully. Android's full build attempt still fails at the
+Windows launch of the NDK's extensionless non-Windows compiler wrapper, with
+the separate SDL configuration issue; no APK or device run is claimed. AMD
+hardware is unavailable. Existing vendor workarounds and GLES exclusion stay
+unchanged. The normal Windows build uses the original `--portable --release`
+configuration, including LTO and the repository's Windows PGO profile.
+
+The final combined review checks slot ownership, fallback, lifetime, shader
+binding and platform isolation; all 137 focused checks pass. The tests use
+production selection and GL-owner functions, including failed-one/valid-other
+handling, reordered model slots, host rejection, identity reuse and cleanup.
+The review introduces no persistent depth cache or shared-engine changes:
+there is no demonstrated benefit sufficient to justify either for this
+bounded two-light milestone. Broader CPU visibility work remains a separate
+optimisation opportunity, not a claimed outcome of these shadow changes.
+
+
+### Normal release combat acceptance
+
+Both runs use the archived pre-snowy-fight c40 checkpoint, the same controlled
+route, all dynamic lighting categories, native 2560x1440 resolution, 25 seconds
+warmup and 120 measured seconds. The passive release executable uses normal
+LTO/PGO, without profiling or the reuse probe. No build or capture runs
+concurrently.
+
+| Mode | Average FPS | Minute averages | Mean / maximum selected lights | Worst frame (ms) |
+| --- | ---: | --- | --- | ---: |
+| Hard | 298.2 | 314.1 / 282.3 | 13.96 / 24 | 13.02 |
+| Soft | 290.7 | 307.9 / 273.4 | 8.68 / 15 | 13.77 |
+
+Both shadow maps are active in 100% of measured frames in both runs. Every
+measured minute exceeds the 240 FPS average target; neither run records a
+frame over 50 ms. Live AI and light loads differ from the one-light M2 runs,
+so these numbers do not isolate a percentage cost or speedup. They establish
+the bounded two-light release budget on the tested NVIDIA system, not
+long-term memory stability, first-use pacing or acceptance of four lights.
+
+Reports and source manifests are in
+`build/lighting-performance/modern-m3-release-{hard,soft}`; the validation
+index, GPU checks, build logs and cleanup report are in `build/modern-m3`.
+The `*-m3-*` visual folders retain screenshots and failures. Saves are
+archived and verified before disposable test maps and executables are removed;
+the normal Windows executable and original configuration remain available.

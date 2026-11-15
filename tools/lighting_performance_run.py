@@ -63,6 +63,9 @@ def summarize(rows, warmup, seconds, cap, captures=True):
                   minutes=[])
     if all('shadowed' in r for r in measured):
         result['shadowed_frame_percent'] = 100*sum(r['shadowed']>0 for r in measured)/len(measured)
+        result['shadowed_mean'] = statistics.mean(r['shadowed'] for r in measured)
+        result['shadowed_max'] = max(r['shadowed'] for r in measured)
+        result['multiple_shadow_frame_percent'] = 100*sum(r['shadowed']>1 for r in measured)/len(measured)
     for start in range(0, seconds, 60):
         block=[r['frame_ms'] for r in clean if warmup+start <= r['seconds'] < warmup+min(start+60, seconds)]
         if block: result['minutes'].append(dict(start=start, **distribution(block, cap)))

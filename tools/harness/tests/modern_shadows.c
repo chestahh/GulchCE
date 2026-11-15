@@ -2,10 +2,11 @@
 #define MIN(a,b) ((a)<(b)?(a):(b))
 #define MAX(a,b) ((a)>(b)?(a):(b))
 #define SHADOW_LIGHTS 128
+#define MODERN_SHADOW_LIGHTS 2
 struct structure_bsp { int identity; } map_a, map_b;
 static struct structure_bsp *map = &map_a;
 static int parts[1], begins, disposals, failed, complete = 1, mode_soft;
-static int rebound_stage;
+static int rebound_stage, failed_slot = -1;
 static long rebound_light;
 static float captured_radius;
 static const char *mode = "off";
@@ -35,8 +36,8 @@ static float distance_squared3d(const real_point3d *a,const real_point3d *b) {
  float x=a->x-b->x,y=a->y-b->y,z=a->z-b->z; return x*x+y*y+z*z;
 }
 static float plasma_occlusion_specular_scale(long i) { return 2; }
-static int modern_shadow_begin(const float p[3],float radius,int soft) {
- begins++; captured_radius=radius; mode_soft=soft; return !failed;
+static int modern_shadow_begin(int slot,const float p[3],float radius,int soft) {
+ begins++; captured_radius=radius; mode_soft=soft; return !failed && slot!=failed_slot;
 }
 static void modern_shadow_dispose(void) { disposals++; }
 static void modern_shadow_clear_draws(void) {}
@@ -49,51 +50,52 @@ static int object_casters(const real_point3d *p,float r,const long owners[2]) { 
 #include "under_test.inc"
 static int selection_stability(void)
 {
- int fps, frame, switches;
- long last;
+ int fps, frame, switches, map_zero, map_one;
  for (fps=30; fps<=120; fps*=2) {
   modern_shadows_reset(); modern_shadows_window();
-  modern_shadows_submitted(100,0); modern_shadows_submitted(101,1);
-  allowed=3; mode="hard";
-  rasterizer_lights.lights[0].color.red=1;
+  modern_shadows_submitted(100,0); modern_shadows_submitted(101,1); modern_shadows_submitted(102,2);
+  allowed=7; mode="hard";
+  rasterizer_lights.lights[0].color.red=2;
   rasterizer_lights.lights[1].color.red=1;
+  rasterizer_lights.lights[2].color.red=.7f;
   global_frame_parameters.game_time_sec=0;
-  modern_shadows_prepare(1); last=selected_identity; switches=0;
-  for (frame=1;frame<=fps;frame++) {
+  modern_shadows_prepare(1); map_zero=map_for(0);map_one=map_for(1);switches=0;
+  CHECK(map_zero!=NONE && map_one!=NONE && map_zero!=map_one,"two strongest lights receive independent maps");
+  for(frame=1;frame<=fps;frame++) {
    global_frame_parameters.game_time_sec=(float)frame/fps;
-   /* A contender repeatedly crossing the 80% threshold used to take the
-      slot and lose it on alternate frames. */
-   rasterizer_lights.lights[1].color.red=frame%2 ? 1.4f : 0.7f;
+   rasterizer_lights.lights[2].color.red=frame%2?1.4f:.7f;
    modern_shadows_prepare(1);
-   switches+=selected_identity!=last; last=selected_identity;
+   switches+=map_for(0)!=map_zero || map_for(1)!=map_one;
   }
-  CHECK(!switches,"brief competing lights must not churn the shadow slot");
-  for (frame=1;frame<=fps;frame++) {
+  CHECK(!switches,"brief challengers do not churn either slot");
+  for(frame=1;frame<=fps;frame++) {
    global_frame_parameters.game_time_sec=1.f+(float)frame/fps;
-   rasterizer_lights.lights[1].color.red=1.4f;
-   modern_shadows_prepare(1);
-   if(selected_identity==101) break;
+   rasterizer_lights.lights[2].color.red=1.4f;modern_shadows_prepare(1);
+   if(modern_shadows_selected(2)) break;
   }
-  CHECK(frame>=(fps/10) && frame<=fps/10+2,"persistent challenger admitted after 100 ms at every cap");
-  rasterizer_lights.lights[0].color.red=4;
+  CHECK(frame>=fps/10 && frame<=fps/10+2,"persistent challenger admitted after 100 ms at every cap");
+  CHECK(map_for(0)==map_zero && map_for(2)==map_one && !modern_shadows_selected(1),"replace weaker light without moving surviving map");
+  modern_shadows_model_slot(2,0);modern_shadows_model_slot(0,1);
+  CHECK(modern_shadows_model_mask()==3 && modern_shadows_map(0)==map_one && modern_shadows_map(1)==map_zero,"both model slots resolve independently of shadow slot order");
+  modern_shadows_world_begin(2,2);
+  CHECK(modern_shadows_map(0)==map_one && modern_shadows_map(1)==NONE,"world draw binds just its own light");
+  modern_shadows_world_end();
+  rasterizer_lights.lights[1].color.red=4;modern_shadows_prepare(1);
+  CHECK(modern_shadows_selected(1) && map_for(0)==map_zero,"dominant flash responds immediately without evicting both lights");
+  allowed=4;modern_shadows_prepare(1);
+  CHECK(!modern_shadows_selected(0) && !modern_shadows_selected(1) && modern_shadows_selected(2),"host rejection is immediate for either slot");
+  allowed=7;rasterizer_lights.lights[0].color.red=2;rasterizer_lights.lights[1].color.red=.7f;
   modern_shadows_prepare(1);
-  CHECK(selected_identity==100,"dominant flash admitted without delay");
-  allowed=2; modern_shadows_prepare(1);
-  CHECK(selected_identity==101,"policy removal cannot be delayed");
-  allowed=3; rasterizer_lights.lights[0].color.red=2;
-  modern_shadows_prepare(1);
-  global_frame_parameters.game_time_sec=0;
-  modern_shadows_prepare(1);
-  CHECK(selected_identity==101,"clock rewind restarts challenger interval");
-  modern_shadows_submitted(999,1); modern_shadows_prepare(1);
-  CHECK(selected_identity==100,"recycled identity cannot retain old selection");
-  rasterizer_lights.lights[0].color.red=rasterizer_lights.lights[1].color.red=0;
-  modern_shadows_prepare(1);
-  CHECK(!active && selected_identity==NONE,"zero-intensity lights do not retain a shadow slot");
+  rasterizer_lights.lights[1].color.red=1.8f;modern_shadows_prepare(1);
+  global_frame_parameters.game_time_sec=0;modern_shadows_prepare(1);
+  CHECK(modern_shadows_selected(2) && !modern_shadows_selected(1),"clock rewind restarts challenger interval");
+  modern_shadows_submitted(999,2);modern_shadows_prepare(1);
+  CHECK(modern_shadows_selected(1) && !modern_shadows_selected(2),"recycled identity cannot keep its old slot");
+  rasterizer_lights.lights[0].color.red=rasterizer_lights.lights[1].color.red=rasterizer_lights.lights[2].color.red=0;
+  modern_shadows_prepare(1);CHECK(!active,"zero-intensity lights do not retain maps");
  }
  return 0;
 }
-
 int main(int argc,char **argv)
 {
  int i, before;
@@ -111,7 +113,7 @@ int main(int argc,char **argv)
  for(i=0;i<7;i++) {
   allowed=1U<<i;
   modern_shadows_prepare(1);
-  CHECK(active && selected_rasterizer==i, "every eligible light category can supply the shadow map");
+  CHECK(active && modern_shadows_selected(i), "every eligible light category can supply the shadow map");
   CHECK(captured_radius==4, "specular extent is covered");
   modern_shadows_model_slot(i,0); modern_shadows_model_slot(NONE,1);
   CHECK(modern_shadows_model_mask()==1 && modern_shadows_selected(i), "only the selected light slot is shadowed");
@@ -119,13 +121,16 @@ int main(int argc,char **argv)
   CHECK(!active, "disabled or policy-rejected categories cannot keep a map");
  }
  allowed=3; modern_shadows_prepare(1);
- CHECK(selected_identity==100, "initial tie is deterministic");
+ CHECK(modern_shadows_selected(0) && modern_shadows_selected(1), "initial pair is deterministic");
+ failed_slot=1;modern_shadows_prepare(1);
+ CHECK(modern_shadows_selected(0) && !modern_shadows_selected(1), "one failed map preserves the other and cannot reuse old depth");
+ failed_slot=-1;modern_shadows_prepare(1);
  rasterizer_lights.lights[1].color.red=1.1f;
  modern_shadows_prepare(1);
- CHECK(selected_identity==100, "near-equal scores do not churn identity");
+ CHECK(map_for(0)==0 && map_for(1)==1, "near-equal scores do not reshuffle maps");
  modern_shadows_submitted(200,0); rasterizer_lights.lights[1].color.red=2;
  mode="soft"; modern_shadows_prepare(1);
- CHECK(selected_identity==101 && mode_soft, "new identity and stronger light are reconsidered");
+ CHECK(modern_shadows_selected(1) && mode_soft, "new identity and stronger light are reconsidered");
  modern_shadows_receiver(1);
  CHECK(modern_shadows_view_receiver(), "first-person receiver selects its depth map");
  modern_shadows_world_begin(1,1);

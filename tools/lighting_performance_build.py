@@ -231,10 +231,8 @@ def main():
                 if result != 'void': wrapper += '\treturn result;\n'
                 text = text.replace(body, timed+wrapper+'}\n', 1)
             shadow.write_text(declarations+text)
-            replace(shadow, '\tfor (index = 0; index < MIN(rasterizer_lights.light_count, SHADOW_LIGHTS); index++)',
-                    '\tlighting_profile_begin(18);\n\tfor (index = 0; index < MIN(rasterizer_lights.light_count, SHADOW_LIGHTS); index++)')
-            selection = '\tbest_index = select_light(best_index, previous, best, previous_score);'
-            replace(shadow, selection, selection+'\n\tlighting_profile_end(18);')
+            replace(shadow, '\tselect_lights();', '\tlighting_profile_begin(18);\n\tselect_lights();')
+            replace(shadow, '\tselect_lights();', '\tselect_lights();\n\tlighting_profile_end(18);')
             shadow_gl = ROOT/'port/linux/src/modern_shadows_gl.c'
             text = shadow_gl.read_text()
             body = function(text, 'modern_shadow_end')
