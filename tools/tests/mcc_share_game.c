@@ -32,6 +32,7 @@
 #include "mcc_share_session.h"
 #include "mcc_workshop.h"
 #include "mcc_share_metadata.h"
+#include "posix.h"
 #include "mcc_share_storage.h"
 #include "mcc_validation.h"
 #include "cseries.h"
@@ -392,7 +393,16 @@ void platform_translate_path(char const *input,char *output,unsigned long size)
 }
 FILE *fixture_fopen(char const *path,char const *mode)
 { char native[2048]; platform_translate_path(path,native,sizeof(native)); return fopen(native,mode); }
-int posix_find_entry_case_insensitive(char const *directory,char const *name,char *result,unsigned long size)
+int posix_stat(char const *path,struct posix_file_information *information)
+{
+    struct stat status;
+    if (stat(path,&status)) return -1;
+    memset(information,0,sizeof(*information));
+    information->flags=S_ISDIR(status.st_mode) ? _posix_file_is_directory : 0;
+    information->size_low=(posix_ulong)status.st_size;
+    return 0;
+}
+int posix_find_entry_case_insensitive(char const *directory,char const *name,char *result,posix_ulong size)
 {
     char path[2048];
     snprintf(path,sizeof(path),"%s/%s",directory,name);

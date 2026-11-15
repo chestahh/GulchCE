@@ -194,6 +194,10 @@ def document():
             event(spinner,"created","port setting load")
         actions=[(f"link_{target}",PAGES[target][3]+" >",f"Open {PAGES[target][3].lower()} settings. Pending changes stay until OK or Cancel.",platform,"port frontend page") for target,platform in LINKS.get(page,[])]
         actions += [(key,caption+" >",help_text,None,"port frontend editor") for key,caption,help_text in EDITORS.get(page,[])]
+        if page == 3:
+            actions.append(("steam_workshop", "STEAM WORKSHOP >",
+                            "Sign in with Steam to download MCC shared files and Halo 1 Workshop maps.",
+                            "android", "port frontend editor"))
         if page>=6: actions.append((f"link_{parent}","< BACK","Return to the parent page, keeping pending changes.",None,"port frontend page"))
         for key,label,help_text,platform,callback in actions:
             index=len(labels); labels.append(label); helps.append(help_text)

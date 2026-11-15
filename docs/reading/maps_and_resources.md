@@ -1101,3 +1101,14 @@ identity-candidate, sharing and server tests exercise these cases with synthetic
 files; they do not measure slow-device join times. Host downloads use separate
 folders and never replace the player's installed package. See
 [MCC installation and sharing](../mcc_maps.md) for prerequisites and limits.
+
+On Android, the Steam Workshop screen can install shared resources and whole
+Workshop packages directly. The guest's
+[steam_screen.c](../../port/linux/src/steam_screen.c) passes UI requests to
+[steam_downloads.c](../../port/android/host/steam_downloads.c) in the host;
+Steam credentials remain in the host. GulchCE's Modern Online page opens the
+same screen through `frontend_editor` in
+[frontend_menu_runtime.inl](../../port/linux/game/frontend_menu_runtime.inl).
+The entry is Android-only. The existing manual importer remains available.
+See the [Steam Workshop guide](../steam_workshop.md) for sign-in, publication,
+join-time fingerprint checks and device-only validation requirements.

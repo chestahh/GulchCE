@@ -66,7 +66,7 @@ static GLuint xgpu_texture_get(const DWORD *resource,void *unused,GLenum *target
 int main(int argc,char **argv)
 {
  struct plasma_occlusion_uniforms a,b;
- int n;
+ int n, previous_active;
  plasma_occlusion_model_initialize(1,&a);
  plasma_occlusion_model_initialize(2,&b);
  CHECK(lookups==10 && sampler_uniforms==4,"uniform lookup and sampler assignments occur at link time");
@@ -76,14 +76,18 @@ int main(int argc,char **argv)
  for(n=0;n<100;n++) plasma_occlusion_bind_model(n&1 ? &a : &b);
  CHECK(lookups==10 && sampler_uniforms==4,"draws do not repeat program lookup or sampler assignment");
  CHECK(samplers==2 && sampler_parameters==5 && fallback_parameters==10,"immutable sampling state is created once after recovery");
- CHECK(active==GL_TEXTURE0+3,"caller active unit restored");
+#ifdef HALO_GLES
+ CHECK(active==GL_TEXTURE0+3,"GLES caller active unit restored");
+#else
+ CHECK(active==GL_TEXTURE0,"desktop leaves future uploads outside the mask units");
+#endif
  CHECK(gpu_enabled[1][0] && gpu_enabled[2][1] && gpu_transform[1][0][3]==3 && gpu_transform[2][1][3]==3,
        "uniform values belong to each linked program across switches");
  CHECK(fetches==2 && uniform_writes==6,"unchanged draws reuse resolved textures and program uniforms");
 #ifdef HALO_GLES
  CHECK(state_queries==4 && texture_binds==6,"ES repeats no active-unit queries or bindings for unchanged materials");
 #else
- CHECK(state_queries==3 && texture_binds==5,"repeated material draws skip active-unit queries and redundant bindings");
+ CHECK(!state_queries && texture_binds==5,"desktop uploads and material draws never query active-unit state");
 #endif
  CHECK(bound_textures[0]==11 && bound_textures[1]==12,"uploads cannot leave the wrong resource bound");
  view_serial++;plasma_occlusion_bind_model(&a);
@@ -95,7 +99,7 @@ int main(int argc,char **argv)
  selected=2; plasma_occlusion_bind_model(&a);
  CHECK(!enabled_value[0] && enabled_value[1],"activation change keeps independent slots");
  CHECK(bound_textures[0]==88 && bound_textures[1]==12,"slot changes replace the correct bound texture");
- a.enabled=-1; n=sampler_parameters; plasma_occlusion_bind_model(&a);
- CHECK(sampler_parameters==n && active==GL_TEXTURE0+3,"unrelated shader requires no binding work");
+ a.enabled=-1; n=sampler_parameters; previous_active=active; plasma_occlusion_bind_model(&a);
+ CHECK(sampler_parameters==n && active==previous_active,"unrelated shader requires no binding work");
  return 0;
 }

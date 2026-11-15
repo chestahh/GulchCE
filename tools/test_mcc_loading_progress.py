@@ -78,6 +78,7 @@ boolean network_distributed_server_send_to_machine_reliably(long n,void *p,word 
 #define TRUE 1
 #define FALSE 0
 #define MAXIMUM_NETWORK_MACHINE_COUNT 4
+static boolean network_game_server_map_pending[MAXIMUM_NETWORK_MACHINE_COUNT];
 #define MAXIMUM_MACHINE_NAME_LENGTH 32
 #define MILLISECONDS_PER_SECOND 1000
 #define NETWORK_GAME_SERVER_MAXIMUM_WAIT_TIME_FOR_LEVEL_LOADING 60000

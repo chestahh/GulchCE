@@ -109,14 +109,23 @@ If a newly downloaded package is missing, reopen the map list or restart GulchCE
 steam = 'C:\Steam'
 ```
 
-### Android and browser
+### Android
 
-These platforms use imported files rather than discovering a Steam installation.
+Download MCC's shared files and Halo 1 Workshop maps directly in GulchCE:
 
-- **Android:** copy a complete Workshop package folder or ZIP from your PC. Quit GulchCE, long-press its launcher icon, choose **Import MCC maps**, then select **Workshop package**. Import required base resources using **Singleplayer shared resources** or **Multiplayer shared resources**. See the [Android import guide](port/android/README.md#importing-mcc-packages).
-- **Browser:** import your Xbox data first, then use **Custom maps** to import CE files or an MCC package folder. See the [browser import guide](port/web/README.md#custom-edition-and-mcc-imports) for supported layouts and storage limits.
+1. Open **Settings > Online > Steam Workshop** in Modern menus, or **Settings > Network Setup > Steam Workshop** in the other menu styles.
+2. Sign in with a Steam account that owns **Halo: The Master Chief Collection** and **Halo: Combat Evolved Anniversary**, then complete Steam Guard approval if requested.
+3. Use **MCC File Status** to download the shared resources, then **Browse Workshop** to find and install Halo 1 maps or campaigns.
+
+When you join an MCC game while signed in, GulchCE can install its Workshop package and missing shared resources directly from Steam. It checks the package against the host's copy; if it differs or the download fails, the existing host-download prompt remains available. See the [Steam Workshop guide](docs/steam_workshop.md).
+
+**Manual installation remains a fallback:** copy a complete Workshop package folder or ZIP from your PC. Quit GulchCE, long-press its launcher icon, choose **Import MCC maps**, then select **Workshop package**. Import required base resources using **Singleplayer shared resources** or **Multiplayer shared resources**. See the [Android import guide](port/android/README.md#importing-mcc-packages).
 
 Workshop packages are stored on your PC under `steamapps/workshop/content/976730/<workshop ID>`. Keep their maps, package resources, JSON metadata and artwork together.
+
+### Browser
+
+Import your Xbox data first, then use **Custom maps** to import CE files or an MCC package folder. See the [browser import guide](port/web/README.md#custom-edition-and-mcc-imports) for supported layouts and storage limits.
 
 ### Local installation
 
@@ -165,10 +174,10 @@ Older cores and checkpoints from before the saved-state layout change are incomp
 The host's existing **Map Sharing** setting covers both Custom Edition maps and MCC packages. It is enabled by default. There is no separate **Share MCC Packages** option or manual package approval list to configure.
 
 - **Custom Edition:** missing maps and required CE resource files can download from the game's players.
-- **MCC:** the joining player is offered a download from the host. Workshop packages can also offer a link to their Steam page, with a browser fallback on desktop.
-- **MCC base resources stay local:** packages may depend on them, but those shared base files are not supplied by the host. Each player needs matching local resources, discovered from MCC on desktop or imported on Android/browser.
+- **MCC:** Android players signed in with Steam can download Workshop packages directly from Steam. Otherwise, the joining player is offered a download from the host. Workshop packages can also offer a link to their Steam page, with a browser fallback on desktop.
+- **MCC base resources stay local:** packages may depend on them, but those shared base files are not supplied by the host. Each player needs matching local resources, discovered from MCC on desktop, downloaded from Steam or imported on Android, or imported in the browser.
 
-Downloaded MCC packages are validated before use, and existing installations are kept. **Download Maps** controls whether a joining player accepts map downloads; MCC asks before starting the transfer.
+Downloaded MCC packages are validated before use. **Download Maps** controls whether a joining player accepts map downloads; transfers from the host ask for confirmation. Steam installs can update an existing Workshop package.
 
 ### Dedicated servers
 

@@ -377,7 +377,7 @@ def test_package_fingerprints_cover_contents_not_paths(resource_tool, tmp_path):
 
 
 @pytest.mark.parametrize("kind", [1, 2])
-@pytest.mark.parametrize("override", ["absent", "valid", "empty", "damaged", "wrong_entry", "directory"])
+@pytest.mark.parametrize("override", ["absent", "valid", "empty", "damaged", "position_match", "directory"])
 def test_fallback_only_for_absent_files(resource_tool, tmp_path, kind, override):
     root = tmp_path / "mcc_maps"
     package = root / "package"
@@ -392,14 +392,16 @@ def test_fallback_only_for_absent_files(resource_tool, tmp_path, kind, override)
         blob[16:20] = b"PACK"
         if override == "empty": blob = b""
         if override == "damaged": blob = blob[:-1]
-        if override == "wrong_entry": blob[24] = ord("X")
+        if override == "position_match": blob[24] = ord("X")
         local.write_bytes(blob)
-    expected = override in {"absent", "valid"}
+    # A renamed entry in the selected file is valid when its position and
+    # size match. A corrupt override must still never fall back to root.
+    expected = override in {"absent", "valid", "position_match"}
     result = subprocess.run([str(resource_tool), str(kind), r"sound\test__0__0", "16", "4",
                              str(int(expected)), "mcc_maps/package/a10"],
                             cwd=tmp_path, capture_output=True, timeout=10)
     assert result.returncode == 0, result.stderr
-    assert result.stdout == (b"PACK" if override == "valid" else b"abcd" if expected else b"")
+    assert result.stdout == (b"PACK" if override in {"valid", "position_match"} else b"abcd" if expected else b"")
 
 
 def test_effective_resources_determine_fingerprint(resource_tool, tmp_path):

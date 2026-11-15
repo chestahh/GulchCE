@@ -287,5 +287,6 @@ def test_the_menus_name_known_platforms_and_match_their_generator():
     network = (ROOT / "port/assets/menus/ce/main_menu.settings_select.player_setup.player_profile_edit."
                "network_setup.xml").read_text()
     for row in ("op_allow_upnp", "op_join_from_clipboard", "op_auto"):
-        assert re.search(rf'<child widget="[^"]*/{row}"[^>]*platform="desktop android"', network), row
+        platforms = re.findall(rf'<child widget="[^"]*/{row}"[^>]*platform="([^"]+)"', network)
+        assert {name for group in platforms for name in group.split()} == {"desktop", "android"}, row
     assert re.search(r'<child widget="[^"]*/op_online"[^>]*platform="desktop android web"', network)
