@@ -10,7 +10,8 @@
 #define SDL_IO_SEEK_SET 0
 typedef long ssize_t;
 typedef long long Sint64;
-typedef int pthread_mutex_t;
+#define pthread_mutex_t fixture_mutex_t
+typedef int fixture_mutex_t;
 #define PTHREAD_MUTEX_INITIALIZER 0
 static void pthread_mutex_lock(int *m){assert(!*m);*m=1;}
 static void pthread_mutex_unlock(int *m){assert(*m);*m=0;}
@@ -69,8 +70,9 @@ int main(void){
         memset(disk[i].data,'a'+i,64);
     }
     for(i=0;i<300;i++){assert(port_mods_file_read(0,0,out,16));assert(out[0]=='a');}
+    assert(reads==300);
 #ifdef HALO_WINDOWS
-    assert(opens==300 && closes==300 && active()==0);puts("Windows: original 300 opens/300 closes retained");
+    assert(opens==300 && closes==300 && stats==0 && active()==0);puts("Windows: original 300 opens/300 closes retained");
 #else
     assert(opens==1 && closes==0 && stats==300 && active()==1);
     puts("POSIX: 300 reads -> 1 open, 300 fresh metadata checks");
