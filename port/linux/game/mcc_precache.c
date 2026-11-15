@@ -66,12 +66,10 @@ static boolean mcc_precache_files(char const *name, struct mcc_precache_stamp *f
     return TRUE;
 }
 
-/* A pending MCC selection asks for its package's snapshot several times a
- * frame (validation lookups, the host's identity, the countdown's hold), and
- * each is nine stats through the path resolver: 150 folder listings a second
- * made the lobby crawl on a Switch. One a package each SNAPSHOT_KEPT_MS is
- * enough to see a file replaced; a validation's own check still compares a
- * snapshot taken before it with one taken after it. */
+/* Idle lobby polling may lag a file change by half a second. Validation,
+ * publication, admission, countdown and loading use the fresh API below.
+ * Keep the lock through the read so a concurrent clear cannot be undone by
+ * publishing a snapshot taken before that clear. */
 #define SNAPSHOT_KEPT_MS 500
 static pthread_mutex_t mcc_snapshot_lock = PTHREAD_MUTEX_INITIALIZER;
 static struct {
@@ -90,6 +88,17 @@ static void mcc_snapshot_forget(void)
 
 int mcc_precache_snapshot(char const *name, struct mcc_precache_snapshot *snapshot)
 {
+    int ok=mcc_precache_files(name, snapshot->files);
+    pthread_mutex_lock(&mcc_snapshot_lock);
+    if (mcc_snapshot_kept.valid && name && !strcmp(name,mcc_snapshot_kept.name) &&
+        (!ok || memcmp(snapshot,&mcc_snapshot_kept.snapshot,sizeof(*snapshot))))
+        mcc_snapshot_kept.valid=0;
+    pthread_mutex_unlock(&mcc_snapshot_lock);
+    return ok;
+}
+
+int mcc_precache_snapshot_poll(char const *name, struct mcc_precache_snapshot *snapshot)
+{
     unsigned long now = system_milliseconds();
     int ok;
     pthread_mutex_lock(&mcc_snapshot_lock);
@@ -99,9 +108,7 @@ int mcc_precache_snapshot(char const *name, struct mcc_precache_snapshot *snapsh
         pthread_mutex_unlock(&mcc_snapshot_lock);
         return 1;
     }
-    pthread_mutex_unlock(&mcc_snapshot_lock);
     ok = mcc_precache_files(name, snapshot->files);
-    pthread_mutex_lock(&mcc_snapshot_lock);
     mcc_snapshot_kept.valid = ok && name && strlen(name) < sizeof(mcc_snapshot_kept.name);
     if (mcc_snapshot_kept.valid) {
         strcpy(mcc_snapshot_kept.name, name);

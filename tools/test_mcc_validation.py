@@ -164,6 +164,9 @@ int mcc_precache_snapshot(char const *name,struct mcc_precache_snapshot *out) {
     (void)name;if(++snapshots==change_at_snapshot)stamps.files[0].written_low++;
     *out=stamps;return !unreadable;
 }
+int mcc_precache_snapshot_poll(char const *name,struct mcc_precache_snapshot *out) {
+    return mcc_precache_snapshot(name,out);
+}
 static FILE *mcc_open_explain(char const *n,struct mcc_cache_source *s,struct mcc_cache_identity *i,
     char *reason,size_t size) {
     (void)n;(void)s;(void)i;(void)reason;(void)size;opened++;return tmpfile();

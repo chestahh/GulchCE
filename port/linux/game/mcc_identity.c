@@ -141,7 +141,7 @@ int mcc_identity_prepare_host(char const *map)
     struct mcc_workshop_item item;
     char name[64];
     unsigned char digest[32],metadata[32];
-    if (!mcc_package_name(map,name) || !mcc_precache_snapshot(name,&before)) {
+    if (!mcc_package_name(map,name) || !mcc_precache_snapshot_poll(name,&before)) {
         mcc_host_identity.valid=0;
         return 0;
     }

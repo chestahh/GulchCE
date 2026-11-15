@@ -136,6 +136,7 @@ static unsigned char offered_digest[32],offered_metadata[32];
 static int offer(char const name[128],unsigned char const digest[32],unsigned char const metadata[32],char const *reason){
  (void)name;(void)reason;offers++;memcpy(offered_digest,digest,32);memcpy(offered_metadata,metadata,32);if(allow_offer)mcc_admission_client_finish(0);return allow_offer;
 }
+int mcc_precache_snapshot_poll(char const *s,struct mcc_precache_snapshot *out){return mcc_precache_snapshot(s,out);}
 int mcc_precache_snapshot(char const *s,struct mcc_precache_snapshot *out){
  int i=find(s);memset(out,0,sizeof(*out));if(denied)return 0;
  if(i>=0){out->files[0].present=1;out->files[0].written_low=files[i].stamp;}return 1;
