@@ -39,7 +39,9 @@ typedef struct {float alpha,red,green,blue;} real_argb_color;
 #define MAX(a,b) ((a)>(b)?(a):(b))
 struct bitmap_data {short width,height;uintptr_t base_address;int hardware_format;};
 struct rasterizer_dynamic_screen_geometry_parameters {int unused;};
-static int live,loads,draws,text_draws,current_font,fail_image,portrait;
+static int live,loads,draws,text_draws,current_font,fail_image,portrait,measures;
+static unsigned long settings_version;
+static unsigned long config_changes(void) {return settings_version;}
 static rectangle2d drawn,clipped,drawn_texels;
 static wchar_t drawn_text[512];
 static const char *tag_name="ui\\shell\\bitmaps\\mp_map_grafix";
@@ -64,6 +66,7 @@ static void draw_bitmap_in_rect(struct bitmap_data *b,rectangle2d *r,rectangle2d
 static void draw_string_set_draw_mode(long f,short s,short j,unsigned long flags,const real_argb_color *c) {(void)s;(void)j;(void)flags;(void)c;current_font=(int)f;}
 static void draw_unicode_string_compute_bounds(const rectangle2d *b,const wchar_t *s,rectangle2d *ink,rectangle2d *cursor) {
  int width=current_font==2?6:10,height=current_font==2?12:22,x=b->x0,y=b->y0,right=x;
+ measures++;
  for(;*s;s++){if(*s=='\r'){y+=height;x=b->x0;}else x+=width;right=MAX(x,right);}
  set_rectangle2d(ink,b->x0,b->y0,(short)right,(short)(y+height));set_rectangle2d(cursor,(short)x,(short)y,(short)x,(short)(y+height));
 }
@@ -84,6 +87,13 @@ int main(void) {
  wcscpy(row_text,L"Short title");mcc_menu_text_row(row_text);assert(!wcscmp(row_text,L"Short title"));
  wcscpy(row_text,L"A long MCC title which needs to fit inside the map list row");
  mcc_menu_text_row(row_text);assert(width_of(row_text)<=310&&wcsstr(row_text,L"..."));
+ i=measures;
+ wcscpy(row_text,L"A long MCC title which needs to fit inside the map list row");
+ mcc_menu_text_row(row_text);assert(measures==i);
+ settings_version++;
+ wcscpy(row_text,L"A long MCC title which needs to fit inside the map list row");
+ mcc_menu_text_row(row_text);assert(measures>i);
+ mcc_menu_text_clear();assert(!mcc_text_rows&&!mcc_text_layouts);
  assert(mcc_menu_preview_index(0,0)==NONE);assert(mcc_menu_preview_index(0,0x4000)==NONE);
  assert(mcc_menu_preview_index(0,0x6000)==NONE);assert(mcc_menu_preview_index(0,0x1000)==0);
  tag_name="unrelated";assert(mcc_menu_preview_index(0,0x1000)==NONE);tag_name="ui\\shell\\bitmaps\\mp_map_grafix";
@@ -115,6 +125,12 @@ int main(void) {
  assert(!mcc_menu_text_draw(0,0x4000,L"CE",1,0,&color,&box,NULL));assert(!text_draws);
  assert(mcc_menu_text_draw(0,0x1000,L"Steam Workshop\r\nHalo CE - A level with a long title and description",1,0,&color,&box,NULL));
  assert(wcschr(drawn_text,'\r')&&text_draws==1);
+ i=measures;
+ assert(mcc_menu_text_draw(0,0x1000,L"Steam Workshop\r\nHalo CE - A level with a long title and description",1,0,&color,&box,NULL));
+ assert(measures==i+1); /* Only the fake rasterizer measures on a cache hit. */
+ mcc_menu_text_clear();
+ assert(mcc_menu_text_draw(0,0x1000,L"Steam Workshop\r\nHalo CE - A level with a long title and description",1,0,&color,&box,NULL));
+ assert(measures>i+2); /* Reused tag handles after unload require new metrics. */
  tag_name="pc\\main_menu\\mp_map_right_name";set_rectangle2d(&box,417,204,563,247);
  assert(mcc_menu_text_draw(0,0x1000,L"A VERY LONG MCC LEVEL TITLE WITH LOTS OF WORDS",1,0,&color,&box,NULL));
  assert(current_font==2);assert(wcsstr(drawn_text,L"...")==NULL);
@@ -129,6 +145,7 @@ int main(void) {
  set_rectangle2d(&box,40,60,600,280);
  assert(mcc_menu_text_draw(0,NONE,L"The host package is missing or differs. Downloads are disabled. Visit the Workshop page or obtain the exact package from the host.\\nExisting packages remain installed.",2,0,&color,&box,NULL));
  assert(wcschr(drawn_text,'\r'));
+ mcc_menu_text_clear();assert(!mcc_text_rows&&!mcc_text_layouts);
  puts("MCC preview bounds, cache lifecycle, text wrapping and Xbox/CE isolation passed");return 0;
 }
 '''

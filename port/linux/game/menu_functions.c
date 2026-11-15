@@ -4047,7 +4047,7 @@ static void gametype_rules_text(long profile_index, wchar_t *text, short size)
 		break;
 	default:
 		usnprintf(text, size - 1, L"%s\r\n%s\r\nScore to win: %ld", kind ? kind : engine_names[engine],
-			variant->universal_variant->teams ? L"Teams" : L"Free for all", variant->universal_variant->score_to_win);
+			variant->universal_variant.teams ? L"Teams" : L"Free for all", variant->universal_variant.score_to_win);
 		break;
 	}
 	text[size - 1] = 0;

@@ -87,6 +87,9 @@ def test_session_resolution_and_validation(tmp_path):
 static struct {char name[64];unsigned char digest[32],metadata[32];unsigned stamp;int invalid_metadata;} files[20];
 static int count,probes,errors,connection,changing,denied,clears,hash_loads,rescan_install;
 static int lease,lease_wait,lease_begins,aborts,open_checks,ready_blocked;
+static unsigned long now;
+static int metadata_reads;
+unsigned long system_milliseconds(void){return now;}
 void network_game_abort(void){aborts++;}
 int mcc_admission_client_begin(struct network_game const *g){(void)g;lease=1;lease_begins++;return 1;}
 int mcc_admission_client_status(void){return lease_wait ? 0 : lease;}
@@ -124,6 +127,7 @@ int mcc_manifest_package_root(char const *name,char root[1024]){strcpy(root,name
 int mcc_share_metadata_digest(char const *root,int campaign,char const *level,
  unsigned char digest[32],char reason[128]){
  int i=find(root);(void)campaign;(void)level;(void)reason;memset(digest,0,32);
+ metadata_reads++;
  if(i<0)return 1;if(files[i].invalid_metadata)return 0;
  memcpy(digest,files[i].metadata,32);return 1;
 }
@@ -356,9 +360,13 @@ int main(void){
  {
   unsigned long revision=mcc_identity_host_revision();
   CHECK(revision && mcc_identity_prepare_host(game.map.name) && mcc_identity_host_revision()==revision);
+  old=metadata_reads;
+  now+=1999;
+  CHECK(mcc_identity_prepare_host(game.map.name) && metadata_reads==old);
   files[0].metadata[0]^=1;
   CHECK(!mcc_identity_host_settings(&game,sizeof(game),&copy));
   CHECK(!mcc_identity_host_package(game.map.name,wanted));
+  now++;
   CHECK(mcc_identity_prepare_host(game.map.name) && mcc_identity_host_revision()!=revision);
  }
  /* Advisory sidecars are not part of either content digest. Changing their
@@ -370,6 +378,7 @@ int main(void){
   CHECK(mcc_identity_host_settings(&game,sizeof(game),&copy));
   memcpy(content,copy.mcc_content_sha256,32);memcpy(metadata,copy.mcc_metadata_sha256,32);
   old=probes;sidecar="111\nFirst origin\n";
+  now+=2000;
   CHECK(!mcc_identity_host_settings(&game,sizeof(game),&copy));
   CHECK(!mcc_identity_host_package(game.map.name,wanted));
   CHECK(mcc_identity_prepare_host(game.map.name));CHECK(probes==old);
@@ -379,6 +388,7 @@ int main(void){
   CHECK(!memcmp(copy.mcc_content_sha256,content,32) && !memcmp(copy.mcc_metadata_sha256,metadata,32));
   CHECK(mcc_identity_prepare_host(game.map.name));CHECK(mcc_identity_host_revision()==revision && probes==old);
   sidecar="222\nCorrected origin\n";
+  now+=2000;
   CHECK(!mcc_identity_host_settings(&game,sizeof(game),&copy));
   CHECK(!mcc_identity_host_package(game.map.name,wanted));
   CHECK(mcc_identity_prepare_host(game.map.name));CHECK(probes==old && mcc_identity_host_revision()!=revision);
@@ -387,15 +397,17 @@ int main(void){
   CHECK(mcc_workshop_wire_unpack(copy.map.name,&item) && !strcmp(item.id,"222") && !strcmp(item.title,"Corrected origin"));
   CHECK(!memcmp(copy.mcc_content_sha256,content,32) && !memcmp(copy.mcc_metadata_sha256,metadata,32));
   sidecar="222\nCorrected title\n";
+  now+=2000;
   CHECK(mcc_identity_prepare_host(game.map.name));CHECK(probes==old && mcc_identity_host_revision()!=revision);
   CHECK(mcc_identity_host_settings(&game,sizeof(game),&copy));
   CHECK(mcc_workshop_wire_unpack(copy.map.name,&item) && !strcmp(item.title,"Corrected title"));
   revision=mcc_identity_host_revision();sidecar=NULL;
+  now+=2000;
   CHECK(mcc_identity_prepare_host(game.map.name));CHECK(probes==old && mcc_identity_host_revision()!=revision);
   CHECK(mcc_identity_host_settings(&game,sizeof(game),&copy));CHECK(!mcc_workshop_wire_unpack(copy.map.name,&item));
   CHECK(!memcmp(copy.mcc_content_sha256,content,32) && !memcmp(copy.mcc_metadata_sha256,metadata,32));
  }
- files[0].invalid_metadata=1;CHECK(!mcc_identity_prepare_host(game.map.name));
+ now+=2000;files[0].invalid_metadata=1;CHECK(!mcc_identity_prepare_host(game.map.name));
  CHECK(!mcc_identity_host_revision());
  CHECK(!mcc_identity_host_settings(&game,sizeof(game),&copy));
 

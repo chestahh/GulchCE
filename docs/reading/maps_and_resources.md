@@ -248,7 +248,11 @@ and its validated package is offered automatically; the client enables the exist
    creates an owned `mcc_staging/dl_<digest>` directory on native platforms.
    The browser uses a hidden journaled destination instead, as explained in
    [browser storage](browser_imports.md). Files arrive in order
-   through `mcc_share_stage_write`, with size and SHA-256 checks. Required JSON
+   through `mcc_share_stage_write`, with size and SHA-256 checks.
+   Each open download owns a 256 KB stdio
+   buffer, released after close on completion, failure or cancellation.
+   Allocation or buffer-setup failure retains ordinary stdio buffering;
+   close/flush failure still refuses publication. Required JSON
    is reparsed and its reference allowlist rebuilt; invalid optional PNGs are
    discarded, while invalid required metadata refuses installation. The
    gameplay check owns its worker and readers. `mcc_package_stage_redirect`
@@ -592,6 +596,11 @@ admission completes; `mcc_ui_network_update_map` then applies it through the
 ordinary map-change function. A pending selection prevents starting the
 temporary map, and legacy selections or teardown cancel it. These paths keep
 package work outside the local client's five-second joining state.
+While the same host package's file snapshot remains current,
+`mcc_identity_prepare_host` polls its metadata digest and Workshop sidecar at
+most once every two seconds. This delay applies only to idle preparation:
+`mcc_identity_host_package` and `mcc_identity_host_settings` still check fresh
+snapshots, metadata and origin before offering content or sending settings.
 `mcc_identity_host_settings` reuses that digest only while the map and all
 resource-candidate file stamps match, including absent overrides. Changed
 files require fresh validation; disconnect clears the cache. Local admission

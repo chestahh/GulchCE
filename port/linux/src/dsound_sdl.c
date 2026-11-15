@@ -2151,10 +2151,9 @@ static void stream_complete_head(struct sdl_stream *stream, DWORD status, DWORD 
 	}
 }
 
-/* (on the game's thread each frame: with the mixer mixing, the lock is not
-waited for but tried again the next frame, a stream's finished packets told a
-frame later - waited for, it was up to an eighth of the Switch's game thread
-in a busy match; a fifth frame in a row waits) */
+/* DirectSoundDoWork polls on the game thread. Defer finished packets while
+the mixer owns the lock, but wait on the fifth consecutive miss so a busy
+mixer cannot indefinitely delay completion. Explicit flush stays synchronous. */
 static void streams_complete_finished(void)
 {
 	static int missed;

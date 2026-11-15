@@ -8,6 +8,8 @@
 #include "rasterizer/rasterizer.h"
 #include "mcc_maps.h"
 #include "mcc_menu_text.h"
+#include "../src/port_config.h"
+#include <stdlib.h>
 #include <string.h>
 
 static boolean field(long tag, short index)
@@ -48,13 +50,32 @@ static int width_of(wchar_t const *text)
 struct mcc_text_row { long font; unsigned stamp; wchar_t text[64], fitted[64]; };
 struct mcc_text_layout {
     long font, fitted_font;
-    int width, height, used;
+    int width, height;
     unsigned stamp;
     wchar_t text[MCC_TEXT_CACHED], wrapped[512];
 };
 static struct mcc_text_row *mcc_text_rows;
 static struct mcc_text_layout *mcc_text_layouts;
 static unsigned mcc_text_stamp;
+static unsigned long mcc_text_config = (unsigned long)-1;
+
+void mcc_menu_text_clear(void)
+{
+    free(mcc_text_rows); mcc_text_rows=NULL;
+    free(mcc_text_layouts); mcc_text_layouts=NULL;
+    mcc_text_stamp=0;
+}
+
+static void mcc_text_cache_refresh(void)
+{
+    unsigned long changes=config_changes();
+    /* Layout uses the tag's logical metrics. Settings may change text
+     * presentation; tag unload has its own clear even if handles repeat. */
+    if (changes!=mcc_text_config || mcc_text_stamp==(unsigned)-1) {
+        mcc_menu_text_clear();
+        mcc_text_config=changes;
+    }
+}
 
 static int mcc_text_same(wchar_t const *a, wchar_t const *b, int limit)
 {
@@ -93,8 +114,11 @@ void mcc_menu_text_row(wchar_t text[64])
 {
     long font=tag_loaded('font',"ui\\large_ui");
     struct mcc_text_row *row, *oldest;
+    real_argb_color color={1,1,1,1};
     int i;
     if (font==NONE) return;
+    mcc_text_cache_refresh();
+    draw_string_set_draw_mode(font,NONE,0,0,&color);
     if (!mcc_text_rows && (mcc_text_rows=malloc(MCC_TEXT_ROWS*sizeof(*mcc_text_rows)))!=NULL)
         memset(mcc_text_rows,0,MCC_TEXT_ROWS*sizeof(*mcc_text_rows));
     if (!mcc_text_rows || mcc_text_length(text,64)==NONE) {mcc_text_row_fit(text,font);return;}
@@ -150,6 +174,7 @@ boolean mcc_menu_text_draw(long tag, short index, wchar_t const *text, long font
     long small;
     char const *name;
     if (!field(tag,index)) return FALSE;
+    mcc_text_cache_refresh();
     name=tag_get_name(tag);
     /* Xbox cards reserve their lower row for earned badges. Keep the native
      * text origin, but never let an authored description draw over that row. */
@@ -178,7 +203,6 @@ boolean mcc_menu_text_draw(long tag, short index, wchar_t const *text, long font
         if (layout) {
             layout->stamp=++mcc_text_stamp;
             memcpy(wrapped,layout->wrapped,sizeof(wrapped));
-            used=layout->used;
             font=layout->fitted_font;
         } else {
             long given=font;
@@ -207,7 +231,7 @@ boolean mcc_menu_text_draw(long tag, short index, wchar_t const *text, long font
                 for (i=0; i<MCC_TEXT_CACHED && text[i]; i++) oldest->text[i]=text[i];
                 memcpy(oldest->wrapped,wrapped,sizeof(wrapped));
                 oldest->font=given;oldest->fitted_font=font;
-                oldest->width=width;oldest->height=height;oldest->used=used;
+                oldest->width=width;oldest->height=height;
                 oldest->stamp=++mcc_text_stamp;
             }
         }
