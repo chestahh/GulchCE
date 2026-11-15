@@ -78,7 +78,7 @@ struct mcc_runtime {
 };
 static void *mcc_runtime_pointer(struct mcc_runtime *r,uint32_t address,uint32_t size) {
     uintptr_t start=(uintptr_t)r->tags;
-    if(address>=4096 && address-4096<=r->name_size && size<=r->name_size-(address-4096))return r->name+address-4096;
+    if(address>=4096 && address-4096<=r->name_size && size<=r->name_size-(address-4096))return r->name+(address-4096);
     if(address==(uintptr_t)&r->group && size<=sizeof(r->group))return &r->group;
     return r->tags && address>=start && address-start<=r->used && size<=r->used-(address-start) ?
         (void *)(uintptr_t)address : NULL;
