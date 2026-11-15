@@ -24,6 +24,7 @@ Conventions carried over from the Xbox:
 #include "xgpu.h"
 #include "shader_prepare.h"
 #include "plasma_model_shader.h"
+#include "modern_shadows.h"
 #include "plasma_occlusion.h"
 #include "mcc_environment_shader.h"
 #include "sdl_platform.h"
@@ -555,6 +556,7 @@ struct vertex_shader_object
 	BOOL plasma_model;
 #endif
 #ifndef HALO_GLES
+	unsigned int modern_shadow_failed;
 	/* the vertex array its draws last used, and the streams they had
 	(setup_streams: the layout follows from the two) */
 	struct vertex_array_entry *vertex_array;
@@ -637,6 +639,9 @@ struct program_entry
 #ifndef HALO_ANDROID
 	GLint plasma_model_slots;
 	struct plasma_occlusion_uniforms plasma_occlusion;
+#endif
+#ifndef HALO_GLES
+	struct modern_shadow_uniforms modern_shadow;
 #endif
 	unsigned long long model_lights_serial;
 
@@ -1471,6 +1476,16 @@ void xgpu_gl_state_invalidate(void)
 	vertex_array_cache_invalidate();
 #endif
 }
+
+#ifndef HALO_GLES
+void xgpu_gl_end_external_pass(void)
+{
+	/* The same handoff as the existing anti-alias/HDR passes. Keep the
+	   device's D3D state authoritative instead of querying the GL worker. */
+	glBindVertexArray(device.vertex_array);
+	xgpu_gl_state_invalidate();
+}
+#endif
 
 /* (a unit the shadows still said had it would never be bound to a new
 texture GL gives its name to; and a stage no draw samples keeps what was
@@ -4074,7 +4089,7 @@ static GLuint fragment_shader_get(const struct nv2a_pixel_shader_key *key)
 	return entry->shader;
 }
 
-static struct program_entry *program_get(GLuint vertex_shader, GLuint fragment_shader, BOOL plasma_model)
+static struct program_entry *program_get(GLuint vertex_shader, GLuint fragment_shader, BOOL plasma_model, BOOL modern_shadow)
 {
 	static struct program_entry *last;
 	unsigned long hash = (vertex_shader * 2654435761UL) ^ fragment_shader;
@@ -4191,6 +4206,10 @@ static struct program_entry *program_get(GLuint vertex_shader, GLuint fragment_s
 	entry->depth_bias = glGetUniformLocation(entry->program, "depth_bias");
 	entry->blend_constant = glGetUniformLocation(entry->program, "blend_constant");
 	entry->model_lights = glGetUniformLocation(entry->program, "model_lights");
+#ifndef HALO_GLES
+	entry->modern_shadow.light = -1;
+	if (modern_shadow) modern_shadow_uniforms_initialize(entry->program, &entry->modern_shadow);
+#endif
 #ifndef HALO_ANDROID
 	entry->plasma_model_slots = -1;
 	if (plasma_model)
@@ -4231,11 +4250,33 @@ static struct program_entry *draw_program_get(struct vertex_shader_object *progr
 #endif
 	key->plasma_model = 0;
 	key->per_pixel_lighting = 0;
+	key->modern_shadow = 0;
+#ifndef HALO_GLES
+	key->modern_shadow = (unsigned char)modern_shadows_world_stage();
+	if (program->plasma_model && program->lighting.lights == 2 && modern_shadows_model_mask()) key->modern_shadow = 3;
+	if (key->modern_shadow && !(program->modern_shadow_failed & (1U << key->modern_shadow)))
+	{
+		BOOL lit = program->lighting.lights && !*failed && (per_pixel_lighting() || key->modern_shadow == 3);
+		key->per_pixel_lighting = lit ? (unsigned char)program->lighting.lights : 0;
+		key->plasma_model = lit ? (unsigned char)plasma_model : 0;
+		entry = program_get(vertex_shader_get(program, immediate, lit, plasma_model), fragment_shader_get(key), plasma_model, TRUE);
+		if (entry) return entry;
+		/* A failed shadow variant must not disable established lighting or
+		   drop the draw. Retry it only when this shader object is recreated. */
+		program->modern_shadow_failed |= 1U << key->modern_shadow;
+		platform_log("GPU: modern shadow variant %u failed for vertex shader %lu; retaining existing lighting",
+			key->modern_shadow, program->id);
+	}
+	if (key->modern_shadow) modern_shadows_cancel();
+	key->modern_shadow = 0;
+	key->per_pixel_lighting = 0;
+	key->plasma_model = 0;
+#endif
 	if (program->lighting.lights && !*failed && per_pixel_lighting())
 	{
 		key->per_pixel_lighting = (unsigned char)program->lighting.lights;
 		key->plasma_model = (unsigned char)plasma_model;
-		entry = program_get(vertex_shader_get(program, immediate, TRUE, plasma_model), fragment_shader_get(key), plasma_model);
+		entry = program_get(vertex_shader_get(program, immediate, TRUE, plasma_model), fragment_shader_get(key), plasma_model, key->modern_shadow != 0);
 		if (!entry)
 		{
 			/* Keep each variant's fallback independent of the other. */
@@ -4247,7 +4288,7 @@ static struct program_entry *draw_program_get(struct vertex_shader_object *progr
 		}
 	}
 	if (!entry)
-		entry = program_get(vertex_shader_get(program, immediate, FALSE, plasma_model), fragment_shader_get(key), plasma_model);
+		entry = program_get(vertex_shader_get(program, immediate, FALSE, plasma_model), fragment_shader_get(key), plasma_model, key->modern_shadow != 0);
 	return entry;
 }
 
@@ -5204,6 +5245,9 @@ static struct program_entry *prepare_draw(BOOL immediate)
 	BOOL has_depth = FALSE;
 	unsigned int plasma_mask = 0;
 	int stage;
+#ifndef HALO_GLES
+	int shadow_world;
+#endif
 
 	/* (the fixed-function pipeline's draws: immediate mode's only) */
 	if (!device.gl_ready || !program || !(device.vertex_shader || device.fixed_function) || !program->instructions ||
@@ -5271,7 +5315,16 @@ static struct program_entry *prepare_draw(BOOL immediate)
 	if (program->plasma_model)
 		plasma_mask = plasma_model_lighting_mask();
 #endif
+#ifndef HALO_GLES
+	shadow_world = modern_shadows_world_stage();
+#endif
 	entry = draw_program_get(program, immediate, &key, plasma_mask);
+#ifndef HALO_GLES
+	/* A failed shadow receiver restores the feature's collision attenuation.
+	   It is still a volume texture, so the fallback shader key is unchanged. */
+	if (shadow_world && !key.modern_shadow)
+		bind_textures(&key, uniforms.texture_scale);
+#endif
 	/* The loading pass needs the identical shader key, but no draw uniforms. */
 	if (material_preparing) return entry;
 	if (!entry)
@@ -5365,6 +5418,9 @@ static struct program_entry *prepare_draw(BOOL immediate)
 		plasma_occlusion_bind_model(&entry->plasma_occlusion);
 		glUniform2f(entry->plasma_model_slots, (plasma_mask & 1) ? 1.0f : 0.0f, (plasma_mask & 2) ? 1.0f : 0.0f);
 	}
+#endif
+#ifndef HALO_GLES
+	if (key.modern_shadow) modern_shadow_bind(&entry->modern_shadow);
 #endif
 	/* the lights of a draw lit for each pixel, from the same registers, when
 	any of them changed since the program last had them */

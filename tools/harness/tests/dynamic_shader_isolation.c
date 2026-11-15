@@ -8,10 +8,16 @@ typedef int BOOL;
 struct nv2a_vertex_lighting;
 struct nv2a_pixel_shader_key;
 struct plasma_occlusion_uniforms { int enabled; };
-struct program_entry { GLuint program; int plasma_model_slots; struct plasma_occlusion_uniforms plasma_occlusion; };
+struct modern_shadow_uniforms { int light; };
+struct program_entry { GLuint program; int plasma_model_slots; struct plasma_occlusion_uniforms plasma_occlusion; struct modern_shadow_uniforms modern_shadow; };
 static struct { const char *dump_shaders; } debug_settings;
 static int compiles, hashes, pp = 1, fail_compile, fail_link, last_lit, last_optional;
 static int gpu_calls, bound, looked_up;
+static int shadow_stage, shadow_mask, fail_shadow, shadow_attempts;
+static int modern_shadows_world_stage(void) { return shadow_stage; }
+static unsigned modern_shadows_model_mask(void) { return shadow_mask; }
+static void modern_shadow_bind(const struct modern_shadow_uniforms *u) { gpu_calls++; }
+static void modern_shadows_cancel(void) {}
 static float mask0, mask1;
 static char *nv2a_vertex_shader_to_glsl(const DWORD *words, unsigned long count,
  unsigned long packed, const struct nv2a_vertex_lighting *lighting, BOOL plasma)
@@ -25,10 +31,11 @@ static GLuint xgpu_compile_shader(int kind, const char *source, const char *labe
 static void shader_hash_set(GLuint shader, const char *source) { hashes++; }
 static BOOL per_pixel_lighting(void) { return pp; }
 static GLuint fragment_shader_get(const struct nv2a_pixel_shader_key *key);
-static struct program_entry *program_get(GLuint vs, GLuint fs, BOOL optional)
+static struct program_entry *program_get(GLuint vs, GLuint fs, BOOL optional, BOOL modern)
 {
  static struct program_entry entries[64];
  last_optional = optional;
+ if (modern) { shadow_attempts++; if (fail_shadow) return NULL; }
  if (!vs || (fail_link && last_lit && optional)) return NULL;
  CHECK(vs < 64, "bounded lazy variants"); entries[vs].program = vs;
  return &entries[vs];
@@ -74,6 +81,26 @@ int main(int argc, char **argv)
 #endif
   base=gpu_calls; bind_model(&entry, 0);
   CHECK(gpu_calls==base, "disable skips even a previously enhanced program's GPU setup");
+  return 0;
+ }
+ if (!strcmp(argv[1], "shadows"))
+ {
+  shadow_mask=1; pp=0;
+  enhanced=draw_program_get(&program,FALSE,&key,1);
+#ifndef HALO_GLES
+  CHECK(enhanced && key.modern_shadow==3 && key.per_pixel_lighting==2, "selected model shadows require pixel lighting");
+  shadow_mask=0; shadow_stage=2;
+  CHECK(draw_program_get(&program,FALSE,&key,1) && key.modern_shadow==2, "world attenuation receives selected shadows");
+  shadow_stage=1; fail_shadow=1;
+  CHECK(draw_program_get(&program,FALSE,&key,1) && !key.modern_shadow, "failed specular shadow falls back without losing draw");
+  CHECK(!program.lighting_failed && !program.plasma_lighting_failed, "shadow failure cannot poison existing lighting");
+  base=shadow_attempts;
+  CHECK(draw_program_get(&program,FALSE,&key,1) && shadow_attempts==base, "failed shadow variant is not retried each draw");
+  shadow_stage=0; pp=1;
+  CHECK(draw_program_get(&program,FALSE,&key,1) && key.per_pixel_lighting==2 && key.plasma_model, "ordinary enhanced lighting survives shadow failure");
+#else
+  CHECK(enhanced && !key.modern_shadow && !shadow_attempts, "GLES excludes shadow variants");
+#endif
   return 0;
  }
  if (!strcmp(argv[1], "failure"))

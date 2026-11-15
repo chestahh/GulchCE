@@ -54,6 +54,9 @@ static void light_reconnect_to_map(long index)
 	{ real_point3d p; light_compute_bounding_sphere(index, TRUE, FALSE, TRUE, &p, &connected_radius); }
 }
 void plasma_occlusion_model_slot(long i, short s) {}
+void modern_shadows_model_slot(long i, int s) {}
+void modern_shadows_window(void) {}
+void modern_shadows_submitted(long i, long r) {}
 static int visibility_resets;
 void plasma_occlusion_reset(void) { visibility_resets++; }
 void muzzle_lighting_frame_end(void) {}

@@ -8,6 +8,7 @@
 #include "authored_emitter_lighting.h"
 #include "plasma_model_shader.h"
 #include "plasma_occlusion.h"
+#include "modern_shadows.h"
 #include "rocket_lighting.h"
 #include "covenant_lighting.h"
 #include "covenant_emitter_lighting.h"
@@ -36,6 +37,8 @@ void plasma_model_lighting_reset(void)
 	plasma_model_mask = 0;
 	plasma_occlusion_model_slot(NONE, 0);
 	plasma_occlusion_model_slot(NONE, 1);
+	modern_shadows_model_slot(NONE, 0);
+	modern_shadows_model_slot(NONE, 1);
 }
 
 void plasma_model_lighting_slot(long light_index, short slot)
@@ -44,6 +47,7 @@ void plasma_model_lighting_slot(long light_index, short slot)
 		return;
 	plasma_model_mask &= ~(1U << slot);
 	plasma_occlusion_model_slot(light_index, slot);
+	modern_shadows_model_slot(light_index, slot);
 	if (plasma_lighting_selected(light_index))
 		plasma_model_mask |= 1U << slot;
 }
@@ -165,6 +169,7 @@ void plasma_lighting_reset(void)
 void plasma_lighting_window_begin(void)
 {
 	int index;
+	modern_shadows_window();
 	plasma_occlusion_window();
 	shield_glow_window_begin();
 	muzzle_lighting_window_begin();
@@ -179,6 +184,7 @@ void plasma_lighting_window_begin(void)
 void plasma_lighting_submitted(long light_index, long rasterizer_index)
 {
 	int index;
+	modern_shadows_submitted(light_index, rasterizer_index);
 	shield_glow_submitted(light_index, rasterizer_index);
 	muzzle_lighting_submitted(light_index, rasterizer_index);
 	covenant_emitter_lighting_submitted(light_index, rasterizer_index);
@@ -195,6 +201,8 @@ void plasma_lighting_submitted(long light_index, long rasterizer_index)
 int plasma_lighting_selected(long rasterizer_index)
 {
 	int index;
+	/* Shared feature-light eligibility despite the historical module name:
+	   emitters, held glows and muzzle flashes participate without projectiles. */
 	if (shield_glow_selected(rasterizer_index) || muzzle_lighting_selected(rasterizer_index) || covenant_emitter_lighting_selected(rasterizer_index))
 		return TRUE;
 	if (rasterizer_index == NONE || (!lighting_config_boolean("display.plasma_lighting") && !authored_emitter_lighting_enabled()))

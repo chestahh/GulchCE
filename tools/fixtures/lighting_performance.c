@@ -4,10 +4,12 @@
 #include "cseries.h"
 #include <xtl.h>
 #include "game/game.h"
+#include "game/cheats.h"
 #include "objects/objects.h"
 #include "rasterizer/rasterizer.h"
 #include "rasterizer/rasterizer_lights.h"
 #include "plasma_lighting.h"
+#include "modern_shadows.h"
 #include "camera/observer.h"
 #include "tag_files/tag_files.h"
 #include "physics/collisions.h"
@@ -16,11 +18,11 @@
 
 static FILE *timings;
 static double origin, previous, flushed, next_capture;
-static long selected, lights, occlusion_updates;
+static long selected, lights, occlusion_updates, shadowed;
 static double occlusion_started, occlusion_seconds;
 static int screenshot_frames;
 static FILE *profile;
-enum { LIGHTING_PROFILE_PHASES = 12 };
+enum { LIGHTING_PROFILE_PHASES = 19 };
 static double phase_start[LIGHTING_PROFILE_PHASES], phase_time[LIGHTING_PROFILE_PHASES];
 static long phase_calls[LIGHTING_PROFILE_PHASES];
 
@@ -68,12 +70,41 @@ double lighting_performance_seconds(void)
 	return origin ? clock_seconds() - origin : -1;
 }
 
+/* Explicit test route from the archived c40 exterior-door checkpoint. This
+   operates the real door control and walks around the exterior buttress. */
+static int lighting_snowy_route(XINPUT_GAMEPAD *pad, double elapsed)
+{
+	static const struct { double seconds; short lx, ly, rx; int use; } steps[] = {
+		{2,0,0,0,0}, {2.85,0,32767,0,0}, {.3,0,0,0,0},
+		{1.1,32767,0,0,0}, {.3,0,0,0,0}, {.5,0,0,32767,0}, {.3,0,0,0,0},
+		{.2,0,0,0,1}, {1,0,0,0,0}, {.95,0,-32767,0,0}, {.3,0,0,0,0},
+		{.5,0,0,-32767,0}, {.3,0,0,0,0}, {5,0,32767,0,0}, {.3,0,0,0,0},
+		{.5,0,0,32767,0}, {.3,0,0,0,0}, {3.5,0,32767,0,0}, {.3,0,0,0,0},
+		{.5,0,0,-32767,0}
+	};
+	int i;
+	if (elapsed < 0) return FALSE;
+	for (i = 0; i < NUMBEROF(steps); i++)
+	{
+		if (elapsed < steps[i].seconds)
+		{
+			pad->sThumbLX = steps[i].lx; pad->sThumbLY = steps[i].ly; pad->sThumbRX = steps[i].rx;
+			pad->bAnalogButtons[XINPUT_GAMEPAD_X] = steps[i].use ? 255 : 0;
+			break;
+		}
+		elapsed -= steps[i].seconds;
+	}
+	return TRUE;
+}
+
 /* Route inspection uses ordinary controller movement in a copied checkpoint.
    It neither teleports the player nor changes the mission's actors/scripts. */
 int lighting_performance_input(XINPUT_GAMEPAD *pad)
 {
 	const char *advance = getenv("HALO_LIGHTING_BENCH_ADVANCE");
 	double elapsed;
+	if (getenv("HALO_LIGHTING_BENCH_SNOWY_ROUTE"))
+		return lighting_snowy_route(pad, lighting_performance_seconds());
 	if (!advance) return FALSE;
 	elapsed = lighting_performance_seconds();
 	if (elapsed < 2) return FALSE;
@@ -98,9 +129,13 @@ void lighting_performance_lights(void)
 {
 	long i;
 	selected = 0;
+	shadowed = 0;
 	lights = rasterizer_lights.light_count;
 	for (i = 0; i < lights; i++)
+	{
 		selected += plasma_lighting_selected(i) != 0;
+		shadowed += modern_shadows_selected(i) != 0;
+	}
 }
 
 void lighting_performance_occlusion(int updates)
@@ -137,13 +172,20 @@ void lighting_performance_frame(void)
 	if (origin) stationary_shield_scene(now - origin);
 	if (!origin)
 	{
+		/* Explicit controlled stress run, never part of the production build.
+		   Keep the copied encounter active instead of measuring death/reload. */
+		if (getenv("HALO_LIGHTING_BENCH_DEATHLESS"))
+		{
+			cheat.deathless_player = TRUE;
+			fprintf(stderr, "BENCH controlled invulnerable player enabled\n");
+		}
 		origin = now;
 		previous = now;
 		next_capture = getenv("HALO_LIGHTING_BENCH_ROUTE_CAPTURES") ? 2.0 : 35.0;
 		timings = fopen("frames.csv", "w");
 		if (!timings) return;
 		setvbuf(timings, NULL, _IOFBF, 65536);
-		fprintf(timings, "seconds,frame_ms,selected,scene_lights,occlusion_updates,capture_excluded,tick,occlusion_ms\n");
+		fprintf(timings, "seconds,frame_ms,selected,scene_lights,occlusion_updates,capture_excluded,tick,occlusion_ms,shadowed\n");
 	}
 	if (phase_calls[0] || phase_calls[1] || phase_calls[2] || phase_calls[3] || phase_calls[7])
 	{
@@ -153,23 +195,24 @@ void lighting_performance_frame(void)
 			if (profile)
 			{
 				setvbuf(profile, NULL, _IOFBF, 65536);
-				fprintf(profile, "seconds,trace_ms,field_ms,texture_ms,bind_ms,prepare_ms,light_scene_ms,upload_ms,render_ms,traces,fields,textures,binds,prepares,light_scenes,uploads,renders,model_field_ms,model_resolve_ms,collision_scene_ms,mask_upload_ms\n");
+				fprintf(profile, "seconds,trace_ms,field_ms,texture_ms,bind_ms,prepare_ms,light_scene_ms,upload_ms,render_ms,traces,fields,textures,binds,prepares,light_scenes,uploads,renders,model_field_ms,model_resolve_ms,collision_scene_ms,mask_upload_ms,shadow_ms,shadow_world_ms,shadow_objects_ms,shadow_draw_ms,shadow_state_ms,shadow_resources_ms,shadow_selection_ms\n");
 			}
 		}
 		if (profile)
-			fprintf(profile, "%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%.6f,%.6f,%.6f,%.6f\n", now-origin,
-				phase_time[0]*1000, phase_time[1]*1000, phase_time[2]*1000, phase_time[3]*1000,
-				phase_time[4]*1000, phase_time[5]*1000, phase_time[6]*1000, phase_time[7]*1000,
-				phase_calls[0],phase_calls[1],phase_calls[2],phase_calls[3],
-				phase_calls[4],phase_calls[5],phase_calls[6],phase_calls[7],
-				phase_time[8]*1000,phase_time[9]*1000,phase_time[10]*1000,phase_time[11]*1000);
+		{
+			fprintf(profile, "%.6f", now-origin);
+			for (i = 0; i < 8; i++) fprintf(profile, ",%.6f", phase_time[i]*1000);
+			for (i = 0; i < 8; i++) fprintf(profile, ",%ld", phase_calls[i]);
+			for (i = 8; i < LIGHTING_PROFILE_PHASES; i++) fprintf(profile, ",%.6f", phase_time[i]*1000);
+			fputc('\n', profile);
+		}
 	}
 	for (i = 0; i < LIGHTING_PROFILE_PHASES; i++) { phase_time[i] = 0; phase_calls[i] = 0; }
 	if (timings)
 	{
-		fprintf(timings, "%.6f,%.6f,%ld,%ld,%ld,%d,%ld,%.6f\n", now - origin,
+		fprintf(timings, "%.6f,%.6f,%ld,%ld,%ld,%d,%ld,%.6f,%ld\n", now - origin,
 			(now - previous) * 1000.0, selected, lights, occlusion_updates,
-			screenshot_frames > 0, game_time_get(), occlusion_seconds * 1000.0);
+			screenshot_frames > 0, game_time_get(), occlusion_seconds * 1000.0, shadowed);
 		if (now - flushed >= 1.0)
 		{
 			fflush(timings);

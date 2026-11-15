@@ -22,6 +22,8 @@ args = parser.parse_args()
 source = ROOT / 'port/linux/game/render_interpolation.c'
 fixture = ROOT / 'port/linux/game/plasma_capture_fixture.c'
 original = source.read_bytes()
+shadow = ROOT / 'port/linux/game/modern_shadows.c'
+shadow_original = shadow.read_bytes()
 main = ROOT / 'source/main/main.c'
 backend = ROOT / 'port/linux/src/d3d8_gl.c'
 main_original = main.read_bytes()
@@ -107,9 +109,9 @@ try:
     shutil.copy2(ROOT / 'tools/fixtures/plasma_lighting_capture.c', fixture)
     text = original.decode().replace('\r\n', '\n')
     text = 'struct observer_result;\nstruct observer_result const *plasma_capture_view(struct observer_result const *source);\n' + text
-    camera = 'return render_interpolation_direct_camera(local_player_index,\n\t\trender_interpolation_blended_camera(local_player_index, observer));'
+    camera = 'third_person_reticle_view(local_player_index, view);\n\treturn view;'
     assert text.count(camera) == 1
-    text = text.replace(camera, 'return plasma_capture_view(render_interpolation_direct_camera(local_player_index,\n\t\trender_interpolation_blended_camera(local_player_index, observer)));')
+    text = text.replace(camera, 'third_person_reticle_view(local_player_index, view);\n\treturn plasma_capture_view(view);')
     text = text.replace('void render_interpolation_tick(void)',
                         'void plasma_capture_tick(void);\nvoid plasma_capture_frame(void);\n\nvoid render_interpolation_tick(void)', 1)
     text = text.replace('long previous_tick = interpolation_tick++;',
@@ -184,12 +186,23 @@ try:
     assert text.count(marker) == 1
     text = text.replace(marker, marker+'\n\t\t\tplatform_log("MUZZLE submit %ld", rasterizer_index);')
     muzzle.write_text(text)
+    text = shadow_original.decode().replace('\r\n', '\n')
+    marker = '\tactive = modern_shadow_end() && complete;'
+    assert text.count(marker) == 1
+    text = 'void platform_log(const char *, ...);\n' + text.replace(marker, marker + '\n\t{ static int frames; if (!(frames++ % 30)) platform_log("SHADOW selected %ld complete %d active %d parts %d", selected_rasterizer, complete, active, part_count); }')
+    shadow.write_text(text)
+    manifest['source_hashes']['port/linux/game/modern_shadows.c'] = hashlib.sha256(shadow_original).hexdigest()
+    for name in ['port/linux/src/modern_shadows_gl.c', 'port/linux/include/modern_shadows.h', 'source/render/render.c']:
+        manifest['source_hashes'][name] = hashlib.sha256((ROOT/name).read_bytes()).hexdigest()
     subprocess.run([sys.executable, 'configure.py', *saved_args], cwd=ROOT, check=True)
     subprocess.run(['ninja', 'windows'], cwd=ROOT, check=True)
     shutil.copy2(ROOT / 'build/windows/halo.exe', out / 'halo-capture.exe')
+    if (ROOT/'build/windows/halo.pdb').exists():
+        shutil.copy2(ROOT/'build/windows/halo.pdb', out/'halo.pdb')
     manifest['capture_sha256'] = hashlib.sha256((out/'halo-capture.exe').read_bytes()).hexdigest()
     (out/'build-manifest.json').write_text(json.dumps(manifest, indent=2))
 finally:
+    shadow.write_bytes(shadow_original)
     shield.write_bytes(shield_original)
     emitter.write_bytes(emitter_original)
     covenant.write_bytes(covenant_original)

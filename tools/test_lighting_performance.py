@@ -62,6 +62,15 @@ def test_missing_frame_samples_are_not_a_pass():
         distribution([],60)
 
 
+def test_shadow_coverage_distinguishes_fallback_from_active_maps():
+    rows=[dict(seconds=t, frame_ms=4, selected=2, scene_lights=4,
+               occlusion_updates=1, capture_excluded=0, tick=t*30, shadowed=t%2) for t in range(60)]
+    assert summarize(rows, 30, 30, 240)['shadowed_frame_percent'] == 50
+    for row in rows:
+        del row['shadowed']
+    assert 'shadowed_frame_percent' not in summarize(rows, 30, 30, 240)
+
+
 def test_disabled_capture_keeps_stalls_even_with_old_fixture_markers():
     rows=[dict(seconds=t,frame_ms=10,selected=2,scene_lights=4,
                occlusion_updates=1,capture_excluded=0,tick=t*30) for t in range(60)]

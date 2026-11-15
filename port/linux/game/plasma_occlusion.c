@@ -9,6 +9,7 @@
 #include "plasma_collision.h"
 #include "ammo_counter_falloff.h"
 #include "cseries.h"
+#include "modern_shadows.h"
 #include "physics/collisions.h"
 #include "plasma_lighting.h"
 #include "authored_emitter_lighting.h"
@@ -798,8 +799,14 @@ void plasma_occlusion_model_slot(long rasterizer_index, short slot)
 }
 void *plasma_occlusion_texture(long rasterizer_index, int specular)
 {
-	struct occlusion_field *field = field_for(rasterizer_index);
-	void *texture = field_texture(field, specular ? 2 : 1, rasterizer_index);
+	struct occlusion_field *field;
+	void *texture;
+	/* A complete rendered map replaces collision visibility for this light.
+	   Keep the existing authored direction/height mask and radial falloff. */
+	if (modern_shadows_selected(rasterizer_index))
+		return ammo_counter_falloff_texture(rasterizer_index, specular ? 2 : 1, NULL);
+	field = field_for(rasterizer_index);
+	texture = field_texture(field, specular ? 2 : 1, rasterizer_index);
 	return texture ? texture : ammo_counter_falloff_texture(rasterizer_index, specular ? 2 : 1, NULL);
 }
 void *plasma_occlusion_model_texture(int slot, float transform[4])
@@ -807,6 +814,8 @@ void *plasma_occlusion_model_texture(int slot, float transform[4])
 	struct occlusion_field *field;
 	if (slot < 0 || slot >= 2)
 		return NULL;
+	if (modern_shadows_selected(model_slots[slot]))
+		return ammo_counter_falloff_texture(model_slots[slot], 0, transform);
 	field = field_for(model_slots[slot]);
 	if (!field)
 		return ammo_counter_falloff_texture(model_slots[slot], 0, transform);

@@ -25,6 +25,7 @@ the menu to the camera, reticle and first-person weapon.
 | Optional hardware | [DualSense feedback](dualsense.md) | Map physical trigger actions to feedback and clear it across gameplay and device lifecycles. |
 | Worked detail | [Doppler audio](audio_doppler.md) | Follow source and camera motion into pitch, and distinguish Xbox behavior from optional stereo-source Doppler. |
 | Feature prototype | [Modern frontend](menu_redesign.md) | Isolated Settings/hosting/lobby views, native browsers and main-menu-only legacy switching. |
+| Feature prototype | [Modern dynamic shadows](modern_dynamic_shadows.md) | Bounded rendered shadow maps for every eligible dynamic-light category, with hard/soft filtering and stock defaults. |
 | Branch feature | [Shoulder camera](third_person.md) | Director selection, cover-aware aiming, controls and host-owned hit validation. |
 | Worked detail | [Loading presentation](loading_presentation.md) | Fill the screen with the original loading artwork while preserving map-family ownership and the Xbox chant. |
 | Worked detail | [MCC level previews](mcc_level_previews.md) | Resolve installed package images, fit them inside existing menu thumbnails, and wrap package text. |

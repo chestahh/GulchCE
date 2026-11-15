@@ -50,6 +50,8 @@ static long last_ignore;
 static unsigned long last_flags;
 static int directional_on, vehicle_only;
 static int prong_on;
+static long modern_selected = NONE;
+int modern_shadows_selected(long index) { return index != NONE && index == modern_selected; }
 struct plasma_collision_scene { int unused; };
 int plasma_lighting_prong_cone(long r,float axis[3],float origin[3],float *radius)
 { axis[0]=1;axis[1]=axis[2]=0;origin[0]=origin[1]=origin[2]=0;*radius=.3f;return prong_on?3:0; }
@@ -570,5 +572,27 @@ int main(int argc, char **argv)
 		blocked=1;
 	}
 	plasma_occlusion_reset();
+	/* A rendered map replaces only collision visibility. Author masks remain
+	   exact, and losing the map restores the normal field on the same light. */
+	modern_selected=0;directional_on=1;directional_radius=1;directional_origin=0;
+	plasma_occlusion_window();plasma_occlusion_submit(901,0);
+	plasma_occlusion_model_slot(0,0);
+	n=queries;
+	CHECK(plasma_occlusion_texture(0,0)==ammo_counter_falloff_texture(0,1,NULL),
+		"rendered shadows retain the authored diffuse mask");
+	CHECK(plasma_occlusion_texture(0,1)==ammo_counter_falloff_texture(0,2,NULL),
+		"rendered shadows retain the authored specular mask");
+	CHECK(plasma_occlusion_model_texture(0,transform)==ammo_counter_falloff_texture(0,0,NULL) &&
+		transform[0]==0 && transform[3]==.5f,
+		"rendered model shadows retain mask coordinates");
+	CHECK(queries==n,"rendered shadows skip redundant collision tracing");
+	directional_on=0;
+	CHECK(!plasma_occlusion_texture(0,0) && !plasma_occlusion_model_texture(0,transform) && queries==n,
+		"omnidirectional rendered lights use the normal radial fallback without collision fields");
+	modern_selected=NONE;
+	CHECK(plasma_occlusion_texture(0,0) && queries>n,
+		"losing the rendered map restores existing collision visibility");
+	plasma_occlusion_reset();
+	CHECK(!allocations,"rendered mask fallback cleanup releases textures");
 	return 0;
 }

@@ -56,6 +56,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--output-dir', type=Path, default=ROOT/'build/lighting-performance-build')
     parser.add_argument('--profile', action='store_true', help='CPU phase timers and asynchronous sampled GPU draw queries')
+    parser.add_argument('--campaign-control', action='store_true', help='Test-only expiring controller commands for recording a fresh checkpoint; not a timing variant')
     parser.add_argument('--diagnose', action='store_true', help='Collision phase timings and retained resource counts (not acceptance timings)')
     parser.add_argument('--resources', action='store_true', help='Retained resource counts without per-ray diagnostic clocks')
     parser.add_argument('--stalls', action='store_true', help='Windows thread CPU and shader compile/link timings; diagnostic only')
@@ -77,7 +78,8 @@ def main():
              'port/linux/game/authored_emitter_lighting.c', 'port/linux/src/xinput_sdl.c']
     paths += ['port/linux/game/plasma_collision_models.c']
     if args.profile:
-        paths += ['source/objects/object_lights.c', 'port/linux/src/plasma_occlusion_gl.c']
+        paths += ['source/objects/object_lights.c', 'port/linux/src/plasma_occlusion_gl.c',
+                  'port/linux/game/modern_shadows.c', 'port/linux/src/modern_shadows_gl.c']
     if args.diagnose or args.resources:
         paths += ['source/physics/collision_usage.c', 'port/linux/src/xbox_textures.c']
     originals = {p: (ROOT/p).read_bytes() for p in paths}
@@ -94,7 +96,9 @@ def main():
                  'source/physics/collision_bsp.h', 'source/physics/collision_models.c',
                  'source/physics/collision_models.h', 'port/linux/game/lighting_config.c']:
         manifest['production_hashes'][path]=hashlib.sha256((ROOT/path).read_bytes()).hexdigest()
-    for path in ['port/linux/game/plasma_collision_scene.c', 'port/linux/game/ammo_counter_falloff.c']:
+    for path in ['port/linux/game/plasma_collision_scene.c', 'port/linux/game/ammo_counter_falloff.c',
+                 'port/linux/game/modern_shadows.c', 'port/linux/src/modern_shadows_gl.c',
+                 'port/linux/include/modern_shadows.h', 'source/render/render.c']:
         manifest['production_hashes'][path]=hashlib.sha256((ROOT/path).read_bytes()).hexdigest()
     diagnostic_sources=[]
     if args.diagnose or args.resources:
@@ -125,6 +129,15 @@ def main():
         # A previous diagnostic variant may have a newer object file. Preserve
         # contents, not timestamps, so Ninja recompiles the selected fixture.
         shutil.copyfile(ROOT/'tools/fixtures/lighting_performance.c', fixture)
+        if args.campaign_control:
+            text = fixture.read_text()
+            control = (ROOT/'tools/fixtures/lighting_campaign_control.inc').read_text()
+            text = text.replace('int lighting_performance_input(XINPUT_GAMEPAD *pad)', control+'\nint lighting_performance_input(XINPUT_GAMEPAD *pad)', 1)
+            text = text.replace('\tif (!advance) return FALSE;', '\tif (campaign_route_input(pad)) return TRUE;\n\tif (!advance) return FALSE;', 1)
+            text = text.replace('\tif (origin) stationary_shield_scene(now - origin);', '\tcampaign_route_state();\n\tif (origin) stationary_shield_scene(now - origin);', 1)
+            fixture.write_text(text)
+            manifest['campaign_control'] = True
+            manifest['campaign_control_sha256'] = hashlib.sha256(control.encode()).hexdigest()
         input_source = ROOT/'port/linux/src/xinput_sdl.c'
         text = input_source.read_text()
         marker = 'static void test_input_gamepad(XINPUT_GAMEPAD *pad)'
@@ -198,6 +211,42 @@ def main():
                 assert text.count(before)==1, (path,before)
                 path.write_text(text.replace(before,after))
             declarations='void lighting_profile_begin(int);\nvoid lighting_profile_end(int);\n'
+            # Wrap whole functions so early fallback returns are timed as well.
+            shadow = ROOT/'port/linux/game/modern_shadows.c'
+            text = shadow.read_text()
+            for name, phase, signature, call, result in (
+                ('modern_shadows_prepare', 12, 'void modern_shadows_prepare(int primary)', 'primary', 'void'),
+                ('world_casters', 13, 'static int world_casters(struct structure_bsp const *bsp, real_point3d const *origin, real radius)', 'bsp, origin, radius', 'int'),
+                ('object_casters', 14, 'static int object_casters(real_point3d const *origin, real radius)', 'origin, radius', 'int'),
+            ):
+                body = function(text, name)
+                timed = body.replace(name+'(', 'lighting_timed_'+name+'(', 1)
+                wrapper = '\n'+signature+'\n{\n'
+                if result != 'void': wrapper += '\tint result;\n'
+                wrapper += f'\tlighting_profile_begin({phase});\n\t'
+                if result != 'void': wrapper += 'result = '
+                wrapper += f'lighting_timed_{name}({call});\n\tlighting_profile_end({phase});\n'
+                if result != 'void': wrapper += '\treturn result;\n'
+                text = text.replace(body, timed+wrapper+'}\n', 1)
+            shadow.write_text(declarations+text)
+            replace(shadow, '\tfor (index = 0; index < MIN(rasterizer_lights.light_count, SHADOW_LIGHTS); index++)',
+                    '\tlighting_profile_begin(18);\n\tfor (index = 0; index < MIN(rasterizer_lights.light_count, SHADOW_LIGHTS); index++)')
+            replace(shadow, '\tif (previous != NONE && previous_score >= best * 0.8f)',
+                    '\tlighting_profile_end(18);\n\tif (previous != NONE && previous_score >= best * 0.8f)')
+            shadow_gl = ROOT/'port/linux/src/modern_shadows_gl.c'
+            text = shadow_gl.read_text()
+            body = function(text, 'modern_shadow_end')
+            timed = body.replace('modern_shadow_end(', 'lighting_timed_shadow_end(', 1)
+            wrapper = ('\nint modern_shadow_end(void)\n{\n\tint result;\n'
+                       '\tlighting_profile_begin(15);\n\tlighting_gpu_shadow_begin();\n'
+                       '\tresult = lighting_timed_shadow_end();\n\tlighting_gpu_shadow_end();\n'
+                       '\tlighting_profile_end(15);\n\treturn result;\n}\n')
+            shadow_gl.write_text(declarations+'void lighting_gpu_shadow_begin(void);\nvoid lighting_gpu_shadow_end(void);\n'+
+                                 text.replace(body, timed+wrapper, 1))
+            # Phase 16 remains zero after removing synchronous GL state saves,
+            # keeping older profile CSVs comparable by column name.
+            replace(shadow_gl, '\tfailed = !create_resources();',
+                    '\tlighting_profile_begin(17);\n\tfailed = !create_resources();\n\tlighting_profile_end(17);')
             occlusion.write_text(declarations+occlusion.read_text())
             replace(occlusion, '\t\ttrace_depths(extent,', '\t\tlighting_profile_begin(0);\n\t\ttrace_depths(extent,')
             replace(occlusion, '\t\tfield->traced = now;', '\t\tlighting_profile_end(0);\n\t\tfield->traced = now;')

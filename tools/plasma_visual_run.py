@@ -15,8 +15,10 @@ import statistics
 parser = argparse.ArgumentParser()
 parser.add_argument('--data-root', required=True, type=Path)
 parser.add_argument('--capture-dir', type=Path, help='Directory containing halo-capture.exe and its build manifest')
+parser.add_argument('--mcc-package', type=Path, help='Read-only Digsite Workshop package used by --map mcc-digsite')
 parser.add_argument('--fps', required=True, type=int, choices=[30, 60, 120, 240])
 parser.add_argument('--enabled', required=True, type=int, choices=[0, 1])
+parser.add_argument('--modern-shadows', choices=['off', 'hard', 'soft'], default='off')
 parser.add_argument('--label', default='')
 parser.add_argument('--map', choices=['bloodgulch', 'carousel', 'a10', 'b40', 'c40', 'ce-deathisland', 'mcc-digsite', 'mcc-ruby-c40'])
 parser.add_argument('--kind', choices=['rifle','pistol','charged','rocket','needle','ghost','banshee','banshee-fuel','shade','fuel','wraith','mp-needle','mp-banshee-fuel','mp-shade','ce-fuel','grenade'], default='rifle')
@@ -56,6 +58,8 @@ parser.add_argument('--height', type=float)
 parser.add_argument('--drop', type=float)
 parser.add_argument('--receiver-distance', type=float)
 args = parser.parse_args()
+if args.mcc_package and args.map != 'mcc-digsite':
+    parser.error('--mcc-package requires --map mcc-digsite')
 if args.prong_lighting:
     if not args.combat or args.kind not in ('rifle', 'pistol') or args.weapon_glow or args.muzzle:
         parser.error('--prong-lighting requires rifle/pistol --combat, without other weapon-light options')
@@ -96,7 +100,10 @@ elif args.map=='mcc-digsite':
     for name in ['1.map','bitmaps.map','sounds.map']:
         target=out/'mcc_maps'/'DigsiteMP'/name
         target.parent.mkdir(parents=True,exist_ok=True)
-        shutil.copy2(args.data_root/'mcc_maps'/'DigsiteMP'/name,target)
+        source = args.data_root/'mcc_maps'/'DigsiteMP'/name
+        if args.mcc_package:
+            source = args.mcc_package/('maps' if name == '1.map' else 'halo1/maps')/name
+        shutil.copy2(source,target)
     level=r'mcc_maps\DigsiteMP\1'
 elif args.map=='mcc-ruby-c40':
     for name in ['RubyRebalanced/c40.map', '_shared/singleplayer/bitmaps.map']:
@@ -113,6 +120,7 @@ if args.specular_only:
         init.write('(set rasterizer_environment_diffuse_lights false)\n')
 
 env = {k:v for k,v in os.environ.items() if not k.startswith('HALO_')}
+env['HALO_MODERN_SHADOWS'] = args.modern_shadows
 env['PATH'] = str(root / 'build/windows') + os.pathsep + env.get('PATH', '')
 env.update(HALO_DATA_ROOT=str(out), HALO_SAVE_ROOT=str(out/'saves'), HALO_HIDDEN_WINDOW='1',
            HALO_NO_AUDIO='1', HALO_MAX_FPS=str(args.fps), HALO_NO_VSYNC='1', HALO_EXIT_AFTER='25' if args.door else '13',
@@ -221,6 +229,9 @@ logs = '\n'.join(p.read_text(errors='replace') for p in out.glob('*.log'))
 times = [int(x) for x in re.findall(r'PLASMA frame (\d+)', logs)]
 deltas = [b-a for a,b in zip(times, times[1:]) if b>a]
 report = dict(kind=args.kind, mixed=args.mixed, cap=args.fps, enabled=args.enabled, exit=process.returncode,
+              modern_shadows=args.modern_shadows,
+              shadow_active_samples=len(re.findall(r'SHADOW selected \d+ complete 1 active 1', logs)),
+              shadow_incomplete_samples=len(re.findall(r'SHADOW selected \d+ complete 0', logs)),
               screenshots=len(list((out/'screenshots').glob('*.bmp'))), frames=len(times),
               selected_frames=len(re.findall(r'selected [1-9]', logs)),
               average_fps=1000*(len(times)-1)/(times[-1]-times[0]) if len(times)>1 else None,
@@ -293,7 +304,13 @@ if args.enabled and args.specular_only:
     elif not report['specular_draws']:
         raise SystemExit('Capture never reached a selected specular draw')
 
-if args.enabled and args.occlusion and not report['occlusion_updates']:
+if args.modern_shadows == 'off' and report['shadow_active_samples']:
+    raise SystemExit('Disabled modern shadows still rendered maps')
+if args.modern_shadows != 'off' and report['selected_frames'] and not report['shadow_active_samples']:
+    raise SystemExit('Selected lighting never produced a complete modern shadow map')
+if report['shadow_incomplete_samples']:
+    raise SystemExit('Modern shadow caster collection was incomplete; inspect fallback diagnostics')
+if args.enabled and args.occlusion and not (report['occlusion_updates'] or report['shadow_active_samples']):
     raise SystemExit('Capture did not update any occlusion fields')
 
 if args.combat and 'PLASMA combat equipped' not in logs:

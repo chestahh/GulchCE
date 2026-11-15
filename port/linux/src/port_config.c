@@ -663,6 +663,9 @@ static const struct config_setting config_settings[] =
 	{ "display.dynamic_lighting_reset", _config_boolean, "true", "HALO_DYNAMIC_LIGHTING_RESET", _environment_value, _platform_all,
 		"Migration marker: old saved dynamic-lighting preferences were reset to off.\n"
 		"Leave true to retain lighting choices made after that one-time reset." },
+	{ "display.modern_shadows", _config_string, "\"off\"", "HALO_MODERN_SHADOWS", _environment_value, _platform_desktop,
+		"Experimental rendered shadows for one enabled dynamic light: \"off\",\n"
+		"\"hard\" or \"soft\". Classic shadows remain unchanged. Desktop only." },
 	{ "display.plasma_occlusion", _config_boolean, "false", "HALO_PLASMA_OCCLUSION", _environment_value, _platform_desktop,
 		"Collision-filtered projectile, Covenant emitter and Shield Glow visibility.\n"
 		"Off preserves unoccluded plasma lighting. At most eight occluded lights." },
