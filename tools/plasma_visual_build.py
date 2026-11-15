@@ -13,6 +13,7 @@ import json
 import hashlib
 import argparse
 from lighting_trace_check import instrument, instrument_collision
+from harness import function
 
 ROOT = Path(__file__).resolve().parents[1]
 parser = argparse.ArgumentParser(description=__doc__)
@@ -205,6 +206,10 @@ try:
     if args.shadow_reuse:
         text = text.replace(marker, marker + '\n\t\tmodern_shadow_reuse_probe();')
     text = text.replace(marker, marker + '\n\t\t{ static int frames; if (!(frames++ % 30)) platform_log("SHADOW MAPS views %d draws %d", 1 + map->view_map, draw_count); }')
+    body = function(text, 'modern_shadow_dispose')
+    logged = body.replace('int i;', 'int i, freed = !!maps[0].depth_cube[0] + !!maps[0].depth_cube[1] + !!maps[1].depth_cube[0] + !!maps[1].depth_cube[1];', 1)
+    logged = logged.replace('framebuffer = program = vao = alpha_sampler = 0;', 'framebuffer = program = vao = alpha_sampler = 0;\n\tplatform_log("SHADOW FREE cubes %d remaining %d meshes %d", freed, !!maps[0].depth_cube[0] + !!maps[0].depth_cube[1] + !!maps[1].depth_cube[0] + !!maps[1].depth_cube[1], mesh_count);')
+    text = text.replace(body, logged)
     shadow_gl.write_text(text)
     manifest['source_hashes']['port/linux/game/modern_shadows.c'] = hashlib.sha256(shadow_original).hexdigest()
     for name in ['port/linux/src/modern_shadows_gl.c', 'port/linux/include/modern_shadows.h', 'source/render/render.c',

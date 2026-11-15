@@ -18,6 +18,8 @@ parser.add_argument('--capture-dir', type=Path, help='Directory containing halo-
 parser.add_argument('--mcc-package', type=Path, help='Read-only Digsite Workshop package used by --map mcc-digsite')
 parser.add_argument('--fps', required=True, type=int, choices=[30, 60, 120, 240])
 parser.add_argument('--enabled', required=True, type=int, choices=[0, 1])
+parser.add_argument('--shadow-switch', action='store_true', help='Cycle Off/Hard/Soft in the isolated capture config')
+parser.add_argument('--shadow-view-switch', action='store_true', help='Switch first/third/first person during the shadow capture')
 parser.add_argument('--modern-shadows', choices=['off', 'hard', 'soft'], default='off')
 parser.add_argument('--label', default='')
 parser.add_argument('--map', choices=['bloodgulch', 'carousel', 'a10', 'b40', 'c40', 'ce-deathisland', 'mcc-digsite', 'mcc-ruby-c40'])
@@ -122,7 +124,13 @@ if args.specular_only:
         init.write('(set rasterizer_environment_diffuse_lights false)\n')
 
 env = {k:v for k,v in os.environ.items() if not k.startswith('HALO_')}
-env['HALO_MODERN_SHADOWS'] = args.modern_shadows
+if args.shadow_switch:
+    env['HALO_SHADOW_CAPTURE_SWITCH'] = '1'
+    (out/'config.toml').write_text('[display]\nmodern_shadows="off"\ndynamic_lighting_reset=true\n')
+else:
+    env['HALO_MODERN_SHADOWS'] = args.modern_shadows
+if args.shadow_view_switch:
+    env.update(HALO_SHADOW_CAPTURE_VIEW_SWITCH='1', HALO_SESSION_COMPATIBILITY='gulchce_third_person', HALO_CAMERA_POLICY='player_choice')
 env['PATH'] = str(root / 'build/windows') + os.pathsep + env.get('PATH', '')
 env.update(HALO_DATA_ROOT=str(out), HALO_SAVE_ROOT=str(out/'saves'), HALO_HIDDEN_WINDOW='1',
            HALO_NO_AUDIO='1', HALO_MAX_FPS=str(args.fps), HALO_NO_VSYNC='1', HALO_EXIT_AFTER='25' if args.door else '13',
@@ -220,6 +228,9 @@ if args.per_pixel:
 env['HALO_EXIT_AFTER'] = str(int(env['HALO_EXIT_AFTER']) + args.startup_grace)
 with (out/'stdout.log').open('wb') as so, (out/'stderr.log').open('wb') as se:
     capture_executable = capture_dir/'halo-capture.exe'
+    if args.shadow_switch or args.shadow_view_switch:
+        shutil.copy2(capture_executable, out/'halo-capture.exe')
+        capture_executable = out/'halo-capture.exe'
     process = subprocess.Popen([str(capture_executable)], cwd=out,
                                env=env, stdout=so, stderr=se, creationflags=subprocess.CREATE_NO_WINDOW)
     try:
@@ -308,7 +319,7 @@ if args.enabled and args.specular_only:
     elif not report['specular_draws']:
         raise SystemExit('Capture never reached a selected specular draw')
 
-if args.modern_shadows == 'off' and report['shadow_active_samples']:
+if not args.shadow_switch and args.modern_shadows == 'off' and report['shadow_active_samples']:
     raise SystemExit('Disabled modern shadows still rendered maps')
 if args.modern_shadows != 'off' and report['selected_frames'] and not report['shadow_active_samples']:
     raise SystemExit('Selected lighting never produced a complete modern shadow map')
@@ -377,3 +388,18 @@ if args.prong_lighting and args.enabled:
     expected = 'weapons\\plasma '+args.kind+'\\plasma '+args.kind
     if expected not in report['selected_tags']:
         raise SystemExit('Prong capture never selected the intended weapon attachment')
+
+if args.shadow_switch:
+    intervals = re.split(r'SHADOW MODE tick (\d+) value (off|hard|soft)', logs)
+    assert [intervals[i+1] for i in range(1,len(intervals),3)] == ['off','hard','soft']*3
+    for i in range(1,len(intervals),3):
+        if intervals[i+1] == 'off':
+            assert not re.search(r'SHADOW selected[^\r\n]+ active 1', intervals[i+2])
+    assert re.search(r'SHADOW FREE cubes [1-4] remaining 0 meshes 0', logs)
+    assert report['shadow_active_samples'] > 0
+
+if args.shadow_view_switch:
+    assert re.findall(r'SHADOW CAMERA tick (\d+) third (\d+)', logs) == [('110','1'),('170','0')]
+    intervals = re.split(r'SHADOW CAMERA tick \d+ third [01]', logs)
+    assert all(re.search(r'SHADOW selected[^\r\n]+ view_weapon (?!-1\b)-?\d+', intervals[i]) for i in (0,2))
+    assert re.search(r'SHADOW selected[^\r\n]+ view_weapon -1 view_hands -1', intervals[1])

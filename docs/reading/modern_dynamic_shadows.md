@@ -1,10 +1,19 @@
 # Modern dynamic shadow prototype
 
 This branch adds optional rendered shadow maps to GulchCE's dynamic lighting.
-It leaves the original object shadow projection in place. Set
-`display.modern_shadows` to `"hard"` or `"soft"` (environment override
-`HALO_MODERN_SHADOWS`); the default is `"off"`. This initial desktop prototype
-has no menu entry. Android and web compile no-op implementations.
+It leaves the original object shadow projection in place. Choose **Off**, **Hard**
+or **Soft** under Video Setup → Dynamic Lighting → Modern Shadows. The modern
+Settings frontend exposes the same control under Advanced Graphics → Lighting
+and Shields. The default is **Off**. The corresponding configuration key is
+`display.modern_shadows` (`"off"`, `"hard"`, `"soft"`); `HALO_MODERN_SHADOWS`
+remains its environment override. Android and web omit this control and compile
+no-op implementations.
+
+Changing the spinner stages a preference; Save applies it and Cancel discards
+the edit. Defaults stages Off along with the lighting page's other defaults.
+The saved choice survives a restart. Selecting Hard or Soft does not enable
+any lighting category: shadows need an independently enabled, eligible light.
+Host lighting policy remains authoritative.
 
 ## Scope and light eligibility
 
@@ -483,3 +492,127 @@ index, GPU checks, build logs and cleanup report are in `build/modern-m3`.
 The `*-m3-*` visual folders retain screenshots and failures. Saves are
 archived and verified before disposable test maps and executables are removed;
 the normal Windows executable and original configuration remain available.
+
+## Milestone 4: settings and integration acceptance
+
+The shared settings inventory now registers the desktop-only Modern Shadows
+spinner. Both generated frontends use the existing setting transaction
+handlers; no separate shadow preference store or new menu event implementation
+is necessary. The classic page fits its existing layout, and the modern page
+uses its existing scrolling list. The configuration comment now describes the
+two-light budget. No production renderer, vendor workaround, Android, host-policy
+or networking code changes in this milestone; the wire protocol is unchanged.
+
+The isolated menu executable drives the real classic menu handlers through
+staged edits, Cancel/reopen, Save, Defaults/Cancel, Defaults/Save and a process
+restart. Hard and Soft persist without enabling the lighting categories. Native
+2560x1440 captures also verify the modern frontend's scrolled row, three values
+and help panel. The small menu regression harness exercises the production
+setting functions. Diagnostic hooks are inserted only by the explicit test
+builders and restored before the normal build.
+
+Runtime Off/Hard/Soft cycles at 30, 60 and 120 FPS average 30.0, 60.0 and 119.7
+FPS in the three-projectile capture. Each Off interval stops shadow rendering;
+the GL-owner probe observes depth images and mesh storage released, and later
+Hard/Soft intervals render complete maps again. The shader-isolation checks cover
+non-shadow receiver variants, and stock variants when lighting is also disabled. Retained program
+cache entries are not active shadow resources and do not require recompiling
+every shader after each toggle.
+
+The compatibility harness now marks its copied settings as deliberate choices
+so the one-time lighting migration cannot reset them. It checks the preferences
+actually used at runtime, the received host policy and active shadow maps. The
+original scripted damage probe does not fire a weapon; an optional test-only
+controller pulse now supplies real muzzle flashes. Enabled CE client coverage
+requires observed shadow maps, not merely a saved Soft preference.
+
+Initial Xbox/MCC comparisons flagged brief position differences around the
+forced pickup teleport at tick 360 and the following regroup. These test actions
+can straddle the peers' sampled state: the probe teleports on both machines and
+the host then gathers the players. Their original logs are retained. The final
+firing scenarios place the artificial pickup in the initial setup period before
+the unchanged synchronization comparison window. Inventory changes and respawns
+must still be observed by both peers; comparison tolerances are not relaxed.
+The separate MCC shadows-Off control passes. These checks are local two-peer
+multiplayer coverage, not public-internet transport or full-campaign acceptance.
+
+| Scenario | Host / client shadow choice | Result |
+| --- | --- | --- |
+| Xbox Blood Gulch | Hard / Off | 81 seconds of paired snapshots; respawns, inventory changes and forced Shield Glow policy agree; Off client has no maps |
+| CE Death Island, real firing | Off / Soft | 80 seconds paired; client renders shadows while respecting the host's stock Shield Glow policy |
+| MCC Digsite, real firing | Hard / Soft | 76 seconds paired; host renders shadows, client with lighting categories off renders none; player-choice policy preserved |
+| MCC control | Off / Off | 72 seconds paired; no shadow maps on either peer |
+| Xbox c40 → MCC Digsite → CE Death Island → Xbox Blood Gulch | Soft, one process | Three simulation resets, both family loaders observed, shadow preference and lighting choices retained, no exceptions |
+
+The representative visual captures also pass: Warthog exterior at 30 FPS,
+Scorpion exterior at 60 FPS, stationary shield damage/recovery at 120 FPS,
+crouched/standing Needler holder and world powerup at 60 FPS, and MCC overlapping
+projectiles/model/specular receivers at 120 FPS. The camera sequence switches
+first → third → first person at 60 FPS and observes the viewmodel caster owners
+disappear and return appropriately. All ten M4 capture scenarios average within
+5% of their cap, with complete active maps. Captures show retained chassis
+blocking, shield damage colours, held glow and stock effects. This is sampled
+coverage, not every emitter on every map at every cap.
+
+### Pacing diagnosis and release performance
+
+The bounded 120 FPS diagnostic pair uses 30 seconds from the same copied c40
+checkpoint, Soft mode and no captures. Only application shader binaries are
+carried into the warm run; the NVIDIA driver cache is not cleared. Both average
+119.8 FPS. The first measured nonzero frame is 55.44 ms cold and 56.57 ms warm;
+explicit compile/link work accounts for 2.16 ms and 0.19 ms respectively. Their
+coarse thread-CPU samples both report 15.625 ms. After the first second, the
+worst frames are 13.00 / 13.03 ms. Warming the application cache does not remove
+this entry delay. It does not justify a shader-cache rewrite or establish the
+cause of the earlier capture hitches. Diagnostic startup overhead remains part
+of these observations; they are not normal-release performance measurements.
+
+Release acceptance uses the normal `--portable --release` LTO/PGO executable,
+RTX 5070 Ti, native 2560x1440, the copied pre-snowy-fight checkpoint, all lighting
+categories, the controlled route and invulnerable test player, 25 seconds warmup
+and 120 measured seconds. No build, capture or second game runs alongside it.
+Both maps are active in 100% of measured frames in every run below.
+
+| Run | Average FPS | Minute averages | Mean / max selected lights | Worst frame (ms) |
+| --- | ---: | --- | --- | ---: |
+| Initial Hard — target missed | 117.3 | 120.6 / 113.9 | 14.55 / 24 | 272.18 |
+| Soft | 312.4 | 317.7 / 307.1 | 7.91 / 16 | 12.72 |
+| Unchanged-binary Hard repeat | 290.9 | 300.8 / 281.0 | 14.85 / 26 | 9.59 |
+
+The initial Hard result is retained as an unresolved performance outlier, not
+silently replaced by the repeat. No competing game/build or GPU thermal
+throttling was observed. Discord had background CPU activity; the user reported
+no streaming/recording and closed it before the Hard repeat. Soft was already
+fast before that reply, so Discord is not an established cause. The repeat has
+a similar mean light load to the slow Hard run. The same executable and unchanged
+renderer/shadow source hashes rule out a code change between these runs, but
+do not identify the environmental or runtime cause. The passing Hard and Soft
+runs exceed 240 FPS in each measured minute and have no frames over 50 ms;
+this is not a claim that the intermittent slowdown or long-term memory behavior
+is solved. No speculative renderer optimisation was made to explain it away.
+
+### Review, platform checks and evidence
+
+The combined review keeps the production change limited to the settings
+inventory, generated menus and corrected configuration comment. The existing
+transaction, resource lifetime and host-policy paths suffice. Test improvements
+verify actual runtime settings, real firing and active maps, preserve failed
+attempts, and record the cache source for warm comparisons.
+
+The final focused suite has **169 passes** and one pre-existing failure:
+`test_generated_assets_routes_and_platform_filter` finds a regenerated
+`title_0.png` pixel mismatch. The same mismatch was reproduced using the
+pre-M4 settings inventory from `dee3dd0c6`; unrelated artwork is preserved.
+Windows and web build successfully. Android again fails before completion at
+the Windows NDK wrapper launch and SDL configuration; no APK/device validation
+is claimed. Android exclusion tests pass. AMD hardware is unavailable, and
+vendor workarounds remain unchanged.
+
+`build/modern-m4/validation.json` indexes results, including the failed Hard
+target. Build/test logs and menu captures are alongside it; runtime captures are
+in `build/plasma-visual/*-m4-*`, multiplayer records in
+`build/lighting-compatibility/m4-*`, and passive measurements in
+`build/lighting-performance/modern-m4-*`. Original maps and saves remain intact.
+The cleanup records document verified save archives, lossless screenshot
+conversion and removal of disposable test maps and executables. The normal
+Windows executable and original release configuration are retained.

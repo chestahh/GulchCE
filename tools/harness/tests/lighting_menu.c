@@ -1,6 +1,7 @@
 #include "harness.h"
 #include <string.h>
 static int values[7], writes;
+static char shadow_mode[16]="off";
 static const char *keys[] = {"display.weapon_glow", "display.fuel_rod_lighting",
 	"display.ammo_counter_lighting", "display.needler_lighting",
 	"display.jackal_shield_lighting", "display.covenant_shield_lighting", "display.plasma_prong_lighting"};
@@ -13,6 +14,7 @@ int config_boolean(const char *name)
 int config_write(const char *name, const char *value)
 {
 	int i;
+	if (!strcmp(name,"display.modern_shadows")) { snprintf(shadow_mode,sizeof(shadow_mode),"%s",value);writes++;return 1; }
 	for (i = 0; i < 7; i++) if (!strcmp(keys[i], name))
 	{
 		values[i] = !strcmp(value, "true"); writes++; return 1;
@@ -39,15 +41,16 @@ static struct {char const *name;short field;long default_value;} profile_setting
 static struct player_profile *player_ui_get_edit_player_profile(void) { return NULL; }
 static byte *profile_setting_field(struct player_profile *p,short f) { return p->fields+f; }
 static boolean profile_setting_boolean(short f) { return FALSE; }
-static boolean config_default(const char *n,char *t,unsigned int size) { snprintf(t,size,"false");return TRUE; }
-static boolean config_text(const char *n,char *t,unsigned int size) { snprintf(t,size,"%s",config_boolean(n)?"true":"false");return TRUE; }
+static boolean config_default(const char *n,char *t,unsigned int size) { snprintf(t,size,"%s",!strcmp(n,"display.modern_shadows")?"off":"false");return TRUE; }
+static boolean config_text(const char *n,char *t,unsigned int size) { snprintf(t,size,"%s",!strcmp(n,"display.modern_shadows")?shadow_mode:config_boolean(n)?"true":"false");return TRUE; }
 static void platform_log(const char *format,...) {}
 static int player_link_needed_master(void) { return -1; }
 static int player_link_begin(int master) { return 0; }
 static void player_link_unlink(void) {}
 static struct pc_menu_setting group_setting={7,"lighting.weapon_glow",2,{"false","true"},NONE};
 static struct pc_menu_setting prong_setting={8,"display.plasma_prong_lighting",2,{"false","true"},NONE};
-static struct pc_menu_setting *pc_menu_setting_get(long i) { return i==7?&group_setting:i==8?&prong_setting:NULL; }
+static struct pc_menu_setting shadow_setting={9,"display.modern_shadows",3,{"off","hard","soft"},NONE};
+static struct pc_menu_setting *pc_menu_setting_get(long i) { return i==7?&group_setting:i==8?&prong_setting:i==9?&shadow_setting:NULL; }
 static boolean main_menu_is_active(void) { return FALSE; }
 static boolean network_game_is_active(void) { return FALSE; }
 static void main_goto_main_menu(void) { CHECK(0,"lighting must not reload the frontend"); }
@@ -103,5 +106,19 @@ int main(int argc, char **argv)
 	CHECK(setting_default_show(&spinner,&prong_setting)&&values[6],"Defaults stages prongs without writing");
 	CHECK(setting_load(&spinner)&&spinner.parameters.list.selected_index==1,"Cancel defaults preserves prongs");
 	CHECK(setting_default_show(&spinner,&prong_setting)&&setting_save(&spinner)&&!values[6],"Save defaults disables prongs");
+	spinner.definition_tag_index=9;spinner.parameters.list.number_of_items=3;
+	CHECK(setting_load(&spinner)&&spinner.parameters.list.selected_index==0,"modern shadows default off");
+	for(i=1;i<=2;i++) {
+		int before=writes;
+		spinner.parameters.list.selected_index=(short)i;
+		CHECK(setting_load(&spinner)&&spinner.parameters.list.selected_index==i-1&&writes==before,"Cancel discards shadow edit");
+		spinner.parameters.list.selected_index=(short)i;
+		CHECK(setting_changed_save(&spinner,&shadow_setting)&&writes==before+1,"Save writes selected shadow mode only");
+		CHECK(setting_load(&spinner)&&spinner.parameters.list.selected_index==i,"reopen retains shadow mode");
+	}
+	CHECK(!values[6]&&!values[0]&&values[4],"shadow changes do not enable light categories");
+	CHECK(setting_default_show(&spinner,&shadow_setting)&&!strcmp(shadow_mode,"soft"),"shadow defaults are staged");
+	CHECK(setting_load(&spinner)&&spinner.parameters.list.selected_index==2,"Cancel defaults retains saved Soft");
+	CHECK(setting_default_show(&spinner,&shadow_setting)&&setting_changed_save(&spinner,&shadow_setting)&&!strcmp(shadow_mode,"off"),"Save defaults restores Off");
 	return 0;
 }

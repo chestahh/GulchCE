@@ -144,6 +144,7 @@ def main():
     parser.add_argument('--build-dir', type=Path, default=ROOT/'build/lighting-performance-build')
     parser.add_argument('--dump-shaders', action='store_true', help='Retain GLSL instead of screenshots for cache diagnosis; not an FPS acceptance run')
     parser.add_argument('--no-captures', action='store_true', help='Disable screenshot allocations/readback for memory and stall diagnostics')
+    parser.add_argument('--shader-cache-from', type=Path, help='Warm-cache diagnostic: copy only shader binaries from a previous test-saves.zip')
     args=parser.parse_args()
     if (args.map == 'c40') != bool(args.checkpoint_root):
         parser.error('c40 requires --checkpoint-root; bot maps do not use a campaign save')
@@ -223,6 +224,18 @@ def main():
         invulnerable_player=args.invulnerable_player,
         snowy_route=args.snowy_route,
         shader_dump=args.dump_shaders, captures=not (args.dump_shaders or args.no_captures), display=settings),indent=2))
+    if args.shader_cache_from:
+        copied = []
+        with ZipFile(args.shader_cache_from) as archive:
+            for name in archive.namelist():
+                if not re.fullmatch(r'saves/shader_cache/[0-9a-fA-F]+\.bin', name): continue
+                target = safe(out/name, out)
+                target.parent.mkdir(parents=True, exist_ok=True)
+                content = archive.read(name)
+                target.write_bytes(content)
+                copied.append(dict(path=name, sha256=hashlib.sha256(content).hexdigest()))
+        assert copied, 'No shader binaries in the supplied test archive'
+        (out/'shader-cache-source.json').write_text(json.dumps(dict(source=str(args.shader_cache_from.resolve()), files=copied), indent=2))
     memory=[]; start=time.monotonic(); process=None
     try:
         if args.checkpoint_root:

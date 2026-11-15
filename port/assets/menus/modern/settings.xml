@@ -1813,9 +1813,10 @@
 		<child widget="modern/lighting/row_display_vehicle_lighting5" x="28" y="287" platform="desktop web" />
 		<child widget="modern/lighting/row_display_world_lighting6" x="28" y="317" platform="desktop web" />
 		<child widget="modern/lighting/row_display_plasma_occlusion7" x="28" y="347" platform="desktop web" />
-		<child widget="modern/lighting/row_display_shield_glow8" x="28" y="377" platform="desktop web" />
-		<child widget="modern/lighting/row_display_shield_glow_intensity9" x="28" y="407" platform="desktop web" />
-		<child widget="modern/lighting/row_link_6" x="28" y="437" />
+		<child widget="modern/lighting/row_display_modern_shadows8" x="28" y="377" platform="desktop" />
+		<child widget="modern/lighting/row_display_shield_glow9" x="28" y="407" platform="desktop web" />
+		<child widget="modern/lighting/row_display_shield_glow_intensity10" x="28" y="437" platform="desktop web" />
+		<child widget="modern/lighting/row_link_6" x="28" y="467" />
 		<child widget="modern/lighting/button_bar" x="26" y="414" />
 	</widget>
 	<widget name="modern/lighting/tabs" type="column_list" width="584" height="26" flags="pass_unhandled_to_focused_child left_right_tabs_items">
@@ -1920,20 +1921,28 @@
 	<widget name="modern/lighting/spinner_display_plasma_occlusion7" type="spinner" width="140" height="20" flags="pass_unhandled_to_focused_child left_right_tabs_items" strings="ON|OFF" values="true|false" setting="display.plasma_occlusion" font="ui\large_ui" color="#FF2896FF" align="center" header_bitmap="bitmaps/arrow_sm_left" footer_bitmap="bitmaps/arrow_sm_right" header_bounds="4 -10 16 -4" footer_bounds="4 144 16 150">
 		<on event="created" run="port setting load" />
 	</widget>
-	<widget name="modern/lighting/row_display_shield_glow8" width="336" height="26" bitmap="modern/row" platform="desktop web" flags="pass_unhandled_to_focused_child nifty_fx">
-		<child widget="modern/lighting/label_display_shield_glow8" x="12" y="3" />
-		<child widget="modern/lighting/spinner_display_shield_glow8" x="180" y="3" />
+	<widget name="modern/lighting/row_display_modern_shadows8" width="336" height="26" bitmap="modern/row" platform="desktop" flags="pass_unhandled_to_focused_child nifty_fx">
+		<child widget="modern/lighting/label_display_modern_shadows8" x="12" y="3" />
+		<child widget="modern/lighting/spinner_display_modern_shadows8" x="180" y="3" />
 	</widget>
-	<widget name="modern/lighting/label_display_shield_glow8" type="text" controller="1" width="152" height="24" string_list="modern/lighting/labels" string_index="8" font="ui\large_ui" color="#FF2896FF" />
-	<widget name="modern/lighting/spinner_display_shield_glow8" type="spinner" width="140" height="20" flags="pass_unhandled_to_focused_child left_right_tabs_items" strings="ON|OFF" values="true|false" setting="display.shield_glow" font="ui\large_ui" color="#FF2896FF" align="center" header_bitmap="bitmaps/arrow_sm_left" footer_bitmap="bitmaps/arrow_sm_right" header_bounds="4 -10 16 -4" footer_bounds="4 144 16 150">
+	<widget name="modern/lighting/label_display_modern_shadows8" type="text" controller="1" width="152" height="24" string_list="modern/lighting/labels" string_index="8" font="ui\large_ui" color="#FF2896FF" />
+	<widget name="modern/lighting/spinner_display_modern_shadows8" type="spinner" width="140" height="20" flags="pass_unhandled_to_focused_child left_right_tabs_items" strings="OFF|HARD|SOFT" values="off|hard|soft" setting="display.modern_shadows" font="ui\large_ui" color="#FF2896FF" align="center" header_bitmap="bitmaps/arrow_sm_left" footer_bitmap="bitmaps/arrow_sm_right" header_bounds="4 -10 16 -4" footer_bounds="4 144 16 150">
 		<on event="created" run="port setting load" />
 	</widget>
-	<widget name="modern/lighting/row_display_shield_glow_intensity9" width="336" height="26" bitmap="modern/row" platform="desktop web" flags="pass_unhandled_to_focused_child nifty_fx">
-		<child widget="modern/lighting/label_display_shield_glow_intensity9" x="12" y="3" />
-		<child widget="modern/lighting/spinner_display_shield_glow_intensity9" x="180" y="3" />
+	<widget name="modern/lighting/row_display_shield_glow9" width="336" height="26" bitmap="modern/row" platform="desktop web" flags="pass_unhandled_to_focused_child nifty_fx">
+		<child widget="modern/lighting/label_display_shield_glow9" x="12" y="3" />
+		<child widget="modern/lighting/spinner_display_shield_glow9" x="180" y="3" />
 	</widget>
-	<widget name="modern/lighting/label_display_shield_glow_intensity9" type="text" controller="1" width="152" height="24" string_list="modern/lighting/labels" string_index="9" font="ui\large_ui" color="#FF2896FF" />
-	<widget name="modern/lighting/spinner_display_shield_glow_intensity9" type="spinner" width="140" height="20" flags="pass_unhandled_to_focused_child left_right_tabs_items" strings="DEFAULT|LIGHT SHOW" values="default|light_show" setting="display.shield_glow_intensity" font="ui\large_ui" color="#FF2896FF" align="center" header_bitmap="bitmaps/arrow_sm_left" footer_bitmap="bitmaps/arrow_sm_right" header_bounds="4 -10 16 -4" footer_bounds="4 144 16 150">
+	<widget name="modern/lighting/label_display_shield_glow9" type="text" controller="1" width="152" height="24" string_list="modern/lighting/labels" string_index="9" font="ui\large_ui" color="#FF2896FF" />
+	<widget name="modern/lighting/spinner_display_shield_glow9" type="spinner" width="140" height="20" flags="pass_unhandled_to_focused_child left_right_tabs_items" strings="ON|OFF" values="true|false" setting="display.shield_glow" font="ui\large_ui" color="#FF2896FF" align="center" header_bitmap="bitmaps/arrow_sm_left" footer_bitmap="bitmaps/arrow_sm_right" header_bounds="4 -10 16 -4" footer_bounds="4 144 16 150">
+		<on event="created" run="port setting load" />
+	</widget>
+	<widget name="modern/lighting/row_display_shield_glow_intensity10" width="336" height="26" bitmap="modern/row" platform="desktop web" flags="pass_unhandled_to_focused_child nifty_fx">
+		<child widget="modern/lighting/label_display_shield_glow_intensity10" x="12" y="3" />
+		<child widget="modern/lighting/spinner_display_shield_glow_intensity10" x="180" y="3" />
+	</widget>
+	<widget name="modern/lighting/label_display_shield_glow_intensity10" type="text" controller="1" width="152" height="24" string_list="modern/lighting/labels" string_index="10" font="ui\large_ui" color="#FF2896FF" />
+	<widget name="modern/lighting/spinner_display_shield_glow_intensity10" type="spinner" width="140" height="20" flags="pass_unhandled_to_focused_child left_right_tabs_items" strings="DEFAULT|LIGHT SHOW" values="default|light_show" setting="display.shield_glow_intensity" font="ui\large_ui" color="#FF2896FF" align="center" header_bitmap="bitmaps/arrow_sm_left" footer_bitmap="bitmaps/arrow_sm_right" header_bounds="4 -10 16 -4" footer_bounds="4 144 16 150">
 		<on event="created" run="port setting load" />
 	</widget>
 	<widget name="modern/lighting/row_link_6" width="336" height="26" bitmap="modern/row" flags="nifty_fx">
@@ -1942,7 +1951,7 @@
 		<on event="left_mouse" run="mouse emit accept event" />
 		<child widget="modern/lighting/label_link_6" x="12" y="3" />
 	</widget>
-	<widget name="modern/lighting/label_link_6" type="text" controller="1" width="312" height="24" string_list="modern/lighting/labels" string_index="10" font="ui\large_ui" color="#FF2896FF" />
+	<widget name="modern/lighting/label_link_6" type="text" controller="1" width="312" height="24" string_list="modern/lighting/labels" string_index="11" font="ui\large_ui" color="#FF2896FF" />
 	<strings name="modern/lighting/labels">
 		<string text="PROJECTILE LIGHTS" />
 		<string text="MUZZLE LIGHTS" />
@@ -1952,6 +1961,7 @@
 		<string text="VEHICLE LIGHTS" />
 		<string text="WORLD EMITTERS" />
 		<string text="LIGHT OCCLUSION" />
+		<string text="MODERN SHADOWS" />
 		<string text="SHIELD GLOW" />
 		<string text="GLOW INTENSITY" />
 		<string text="&lt; BACK" />
@@ -1966,6 +1976,7 @@
 		<string text="Engine glow and directional headlights illuminate vehicles and nearby surfaces." />
 		<string text="Visible powerups and teleporters cast soft light. Stock effects and gameplay remain unchanged." />
 		<string text="Block projectile and emitter light behind walls. Muzzle and vehicle lights always use blocking." />
+		<string text="Shadows from up to two enabled dynamic lights. Stock shadows remain; host lighting rules apply." />
 		<string text="Shields light their surroundings as they flare. Online: the host's choice." />
 		<string text="Light Show: three times as far, at full from a third of the flare. Online: the host's choice." />
 		<string text="Return to the parent page, keeping pending changes." />

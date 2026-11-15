@@ -419,12 +419,14 @@ SCREENS["video_settings/dynamic_lighting"] = {
          "Visible powerups and teleporters cast soft light.\nStock effects and gameplay remain unchanged.", None),
         ("LIGHT OCCLUSION:", "display.plasma_occlusion", ON_OFF,
          "Block projectile and emitter light behind walls.\nMuzzle and vehicle lights always use blocking.", None),
+        ("MODERN SHADOWS:", "display.modern_shadows", [("OFF", "off"), ("HARD", "hard"), ("SOFT", "soft")],
+         "Shadows from up to two enabled dynamic lights.\nStock shadows remain; host lighting rules apply.", "desktop"),
     ] + _shield_rows,
 }
 # Android builds omit this renderer. Keep both the entry and its controls
 # unavailable; existing configuration values cannot activate its inert hooks.
 SCREENS["video_settings/dynamic_lighting"]["rows"] = [
-    (*row[:4], "desktop web") for row in SCREENS["video_settings/dynamic_lighting"]["rows"]
+    (*row[:4], row[4] or "desktop web") for row in SCREENS["video_settings/dynamic_lighting"]["rows"]
 ]
 SCREENS["video_settings/fov_viewmodels"] = {
     "screen": "fov_viewmodel_settings_screen", "header": _video["header"], "spacing": 30,

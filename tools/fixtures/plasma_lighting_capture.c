@@ -461,6 +461,8 @@ static int capture_kind(void)
 	return 0;
 }
 int config_write_boolean(const char *name, int value);
+int config_write(const char *name, const char *value);
+const char *config_string(const char *name);
 static real capture_distance, capture_height, capture_receiver_distance, capture_span;
 static real capture_option(const char *name, real fallback)
 {
@@ -580,6 +582,19 @@ void plasma_capture_tick(void)
 		cheat.deathless_player = TRUE;
 	}
 	capture_ticks++;
+	if (getenv("HALO_SHADOW_CAPTURE_VIEW_SWITCH") && (capture_ticks == 110 || capture_ticks == 170))
+	{
+		config_write_boolean("display.third_person", capture_ticks == 110);
+		platform_log("SHADOW CAMERA tick %ld third %d", capture_ticks, capture_ticks == 110);
+	}
+	if (getenv("HALO_SHADOW_CAPTURE_SWITCH") && capture_ticks >= 70 && capture_ticks <= 230 && capture_ticks % 20 == 10)
+	{
+		static const char *modes[] = {"off", "hard", "soft"};
+		const char *mode = modes[((capture_ticks - 70) / 20) % 3];
+		config_write("display.modern_shadows", mode);
+		platform_log("SHADOW MODE tick %ld value %s", capture_ticks, config_string("display.modern_shadows"));
+	}
+
 	if (getenv("HALO_WEAPON_GLOW") && capture_ticks % 15 == 0)
 	{
 		long holder = player_control_get_unit_index(0);

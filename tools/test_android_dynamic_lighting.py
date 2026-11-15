@@ -140,7 +140,7 @@ def test_android_menu_and_default_config_exclude_dynamic_lighting():
                     if row[1] == 'video_settings/dynamic_lighting')
     assert category[3] == 'desktop web'
     for _, setting, _, _, platform in spec['rows']:
-        assert platform == 'desktop web'
+        assert platform == ('desktop' if setting == 'display.modern_shadows' else 'desktop web')
         groups = {
             'lighting.weapon_glow': ['display.weapon_glow', 'display.fuel_rod_lighting',
                                     'display.ammo_counter_lighting', 'display.needler_lighting'],
@@ -149,7 +149,10 @@ def test_android_menu_and_default_config_exclude_dynamic_lighting():
         for member in groups.get(setting, [setting]):
             declaration = re.search(r'\{ "' + re.escape(member) + r'",[^\n]+', config)[0]
             assert '_platform_desktop,' in declaration
-            assert '"false"' in declaration or member == 'display.shield_glow_intensity'
+            if member == 'display.modern_shadows':
+                assert r'\"off\"' in declaration
+            else:
+                assert '"false"' in declaration or member == 'display.shield_glow_intensity'
     for name, lines in port_settings.settings_files().items():
         if name.endswith(('video_settings.xml', 'dynamic_lighting.xml')):
             assert (ROOT / 'port/assets/menus/ce' / name).read_text() == '\n'.join(lines)

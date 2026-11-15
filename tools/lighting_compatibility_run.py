@@ -55,6 +55,12 @@ def main():
     parser.add_argument('--data-root',type=Path,required=True)
     parser.add_argument('--case',choices=CASES,required=True)
     parser.add_argument('--label',help='Unique evidence folder for a revised scenario')
+    parser.add_argument('--build-dir',type=Path,default=ROOT/'build/lighting-compatibility-build')
+    parser.add_argument('--host-shadows',choices=['off','hard','soft'],default='off')
+    parser.add_argument('--client-shadows',choices=['off','hard','soft'],default='off')
+    parser.add_argument('--mcc-package',type=Path)
+    parser.add_argument('--fire',action='store_true',help='Use real trigger input as well as the scripted damage/respawn probes')
+    parser.add_argument('--pickup-at',type=int,default=12,help='Game seconds before the forced weapon-pickup setup')
     args=parser.parse_args()
     level,host_enabled,policy,delay=CASES[args.case]
     label=args.label or args.case
@@ -62,7 +68,7 @@ def main():
     base=(ROOT/'build/lighting-compatibility'/label).resolve()
     assert base.is_relative_to((ROOT/'build').resolve())
     base.mkdir(parents=True,exist_ok=False)
-    build=ROOT/'build/lighting-compatibility-build'
+    build=args.build_dir.resolve()
     manifest=json.loads((build/'manifest.json').read_text())
     assert hashlib.sha256((build/'halo-compatibility.exe').read_bytes()).hexdigest()==manifest['executable_sha256']
     assert hashlib.sha256((ROOT/'port/linux/game/plasma_lighting.c').read_bytes()).hexdigest()==manifest['source_sha256']
@@ -76,14 +82,18 @@ def main():
             out=base/role;out.mkdir();outputs.append(out)
             for name in copies:
                 target=out/name;target.parent.mkdir(parents=True,exist_ok=True)
-                shutil.copy2(args.data_root/name,target)
+                source=args.data_root/name
+                if args.mcc_package and name.startswith('mcc_maps/DigsiteMP/'):
+                    source=args.mcc_package/('maps' if target.name=='1.map' else 'halo1/maps')/target.name
+                shutil.copy2(source,target)
             (out/'screenshots').mkdir()
             shutil.copy2(build/'halo-compatibility.exe',out/'halo-performance.exe')
             shutil.copy2(ROOT/'build/windows/SDL3.dll',out/'SDL3.dll')
             shutil.copy2(build/'manifest.json',out/'build-manifest.json')
             enabled=host_enabled if role=='host' else 1-host_enabled
             display={key:bool(enabled) for key in LIGHTS}
-            display.update(overshield_effect=bool(enabled),per_pixel_lighting=True,shield_glow_intensity='default')
+            display.update(overshield_effect=bool(enabled),per_pixel_lighting=True,shield_glow_intensity='default',dynamic_lighting_reset=True)
+            display['modern_shadows']=args.host_shadows if role=='host' else args.client_shadows
             settings[role]=display
             (out/'config.toml').write_text('[display]\n'+''.join(f'{k} = {json.dumps(v)}\n' for k,v in display.items()))
         started=time.monotonic()
@@ -98,7 +108,7 @@ def main():
                 HALO_NET_ADDRESS=address,HALO_NET_BROADCAST=peer,
                 HALO_NETWORK_TEST='host:'+level if role=='host' else 'join',HALO_NETWORK_TEST_START='12',
                 HALO_NETWORK_TEST_SCORE='10000',HALO_NETWORK_TEST_SHOOT='7',HALO_NETWORK_TEST_KILL='25',
-                HALO_NETWORK_TEST_PICKUP='12',HALO_NETWORK_TEST_PICKUP_WEAPON='',
+                HALO_NETWORK_TEST_PICKUP=str(args.pickup_at),HALO_NETWORK_TEST_PICKUP_WEAPON='',
                 HALO_NETWORK_TEST_CUE_PLAYERS='2',
                 HALO_NETWORK_TEST_CUES=f'30 {DEATH_CUE}|60 {DEATH_CUE}' if role=='host' else '',
                 HALO_NETWORK_TEST_NAME='LightingHost' if role=='host' else 'LightingPeer',
@@ -106,6 +116,7 @@ def main():
                 HALO_NET_SHIELD_EFFECTS=policy if role=='host' else ('stock' if policy!='stock' else 'glow_overshield'),
                 HALO_UPDATE_ANSWER='never',HALO_CRASH_REPORTS='no',
                 HALO_SCREENSHOT_DIR=str(out/'screenshots'),HALO_SCREENSHOT_EVERY='1800')
+            if args.fire:env['HALO_SHADOW_COMPAT_FIRE']='1'
             (out/'test-settings.json').write_text(json.dumps(dict(display=settings[role],environment={k:v for k,v in env.items() if k.startswith('HALO_')}),indent=2))
             stdout=(out/'stdout.log').open('wb');stderr=(out/'stderr.log').open('wb');handles += [stdout,stderr]
             children[role]=subprocess.Popen([str(out/'halo-performance.exe')],cwd=out,env=env,
@@ -135,6 +146,10 @@ def main():
         expected_shield=int(settings[role]['shield_glow']) if policy=='players' else int(policy!='stock')
         correct=[r for r in stable if r['policy']==expected_policy and r['shield_enabled']==expected_shield]
         failures=errors+re.findall(r'(?im)^.*(?:crash: exception|exception halt|assertion failed|shader.*(?:error|failed)|GL_INVALID).*$',log)
+        if not stable or any(r['local_plasma'] != int(settings[role]['plasma_lighting']) or
+                             r['local_needler'] != int(settings[role]['needler_lighting']) or
+                             r['local_shield'] != int(settings[role]['shield_glow']) for r in stable):
+            failures.append('Runtime lighting preferences differ from the requested settings')
         debug=(out/'debug.txt').read_text(errors='replace') if (out/'debug.txt').exists() else ''
         failures += re.findall(r'(?im)^.*(?:i expected a function name|not while playing in another).*$',debug)
         config_paths=re.findall(r'^halo-linux: settings: ([^\r\n]*config\.toml)\s*$',log,re.M)
@@ -145,6 +160,16 @@ def main():
             shoot_events=log.count('shoots player'),kill_events=log.count('first player kills'),
             pickup_events=log.count('stands on weapon'),policy_samples=len(stable),correct_policy_samples=len(correct),
             policy_values=sorted(set(r['policy'] for r in stable)),config_verified=config_ok,failures=failures)
+    for role in ('host','client'):
+        path=base/role/'shadow-state.csv'
+        rows=list(csv.DictReader(path.open())) if path.exists() else []
+        expected={'off':0,'hard':1,'soft':2}[settings[role]['modern_shadows']]
+        good=bool(rows) and all(int(row['mode'])==expected and (expected or int(row['maps'])==0) for row in rows)
+        result['peers'][role]['shadow_mode_correct']=good
+        result['peers'][role]['shadow_active_samples']=sum(int(row['maps'])!=0 for row in rows)
+        if not good:result['peers'][role]['failures'].append('Shadow setting or disabled GPU isolation mismatch')
+        if expected and settings[role]['plasma_lighting'] and not result['peers'][role]['shadow_active_samples']:
+            result['peers'][role]['failures'].append('Enabled shadow peer never rendered a shadow map')
     result['agreement']=judge_run(base/'host/stderr.log',base/'client/stderr.log',SimpleNamespace(seconds=45,skip=8),TOLERANCES)
     result['paired_snapshot_seconds']=result['agreement'].get('figures',{}).get('seconds',0)
     result['passed']=report_passed(result)
