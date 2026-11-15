@@ -76,4 +76,3 @@ int main(void){
     assert(draws==227);
     printf("Drawable enemy frames keep fresh rays at 30/60/120/240 Hz; 227 identical draws\n");return 0;
 }
-
