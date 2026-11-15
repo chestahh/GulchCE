@@ -33,10 +33,15 @@ unchanged. A muzzle flash participates through the same selection interface.
 1. [modern_shadows.c](../../port/linux/game/modern_shadows.c):
    `modern_shadows_submitted` records stable light identities;
    `modern_shadows_prepare` selects from existing feature lighting.
-2. `world_casters`, `object_casters` and `mesh_get` collect rendered triangles,
+2. `world_casters`, `object_casters`, `viewmodel_casters` and `mesh_get` collect rendered triangles,
    material alpha tests and interpolated world-model poses. The map owns its
    original buffers. The feature owns only its converted copies. Existing
    CE/MCC palette accessors retain ownership of their family-specific data.
+   `model_caster` shares the skinning and material path between world models
+   and first-person models. The latter read the current interpolated pose
+   through [modern_shadows_first_person.inl](../../port/linux/game/modern_shadows_first_person.inl),
+   included by the owner of the private weapon/hand remapping tables. It
+   copies poses without advancing animation or modifying game state.
 3. [modern_shadows_gl.c](../../port/linux/src/modern_shadows_gl.c):
    `modern_shadow_begin`, `modern_shadow_draw` and `modern_shadow_end` build a
    six-face depth cube: a depth image looking in each direction from the light.
@@ -64,7 +69,14 @@ are changed.
 
 ## Lifecycle and bounds
 
-The depth cube is 512 by 512 pixels per face. Mesh storage is bounded to
+Each depth cube is 512 by 512 pixels per face. A visible first-person model
+adds a second cube, allocated lazily and rendered only while those casters
+are present. World receivers use the complete world body and weapon; the
+first-person receiver uses the arms/weapon pose and excludes their hidden
+world counterparts. Other casters participate in both maps. This prevents
+double silhouettes without removing the player's body shadow from the world.
+Both cubes share converted meshes and the frame's copied bone matrices;
+the extra depth storage is 6 MiB. Mesh storage is bounded to
 2,048 parts and 32 MiB; a frame holds at most 256 caster draws with 64 bones
 per draw. Incomplete caster collection falls back instead of displaying a
 partially populated shadow map. Initialization is lazy. Disabling shadows,
@@ -94,12 +106,26 @@ shadow quality. The fixed scene is not busy-combat acceptance.
 
 ## Prototype limits and validation
 
-World models, including animated casters and their self-shadowing, are the
-initial caster source. First-person arms/weapon caster submission is not
-implemented; receiving light in first person does not establish that support.
-Transparent materials do not cast solid shadows. Broad material batches,
-map/mesh capacity, animated alpha materials, selection changes and grazing
-surfaces need explicit visual coverage before expanding the budget.
+World models and first-person arms/weapons cast using their interpolated
+poses and original inverse bind matrices. Hidden viewmodels, zoom, mirrors
+and third-person views do not add first-person casters. Missing or invalid
+remapping tables cannot borrow a previous weapon's pose. A map which omits
+hands still excludes the hidden body from its weapon's receiver map.
+
+Model/environment cutouts use the original bitmap permutation, alpha
+threshold and texture animation evaluation, including object function
+values and render time. Opaque materials skip the alpha evaluation.
+Transparent materials and alpha-blended decals do not cast solid shadows.
+Removed model regions retain the engine's signed `NONE` interpretation.
+Broad material batches, map/mesh capacity, selection changes and grazing
+surfaces still need quality acceptance before expanding the light budget.
+
+The two small additions in `source/` are required because private first-person
+remapping tables and the actual receiver draw boundary are not accessible
+from a standalone game module. The included pose accessor owns feature
+logic; `_rasterizer_model_begin`/`_rasterizer_model_end` only select and clear
+the receiver kind. Off/GLES paths perform no shadow GPU work. The world/first-
+person distinction does not alter the AMD/NVIDIA workarounds or map adapters.
 
 Use the real shader selection/failure harness and renderer translation tests
 for disabled-path and GLES checks. Use `tools/plasma_visual_build.py` and
@@ -114,7 +140,7 @@ Recurring stalls still need reporting, while an isolated 1% low is not by
 itself a failure. Completed coverage is listed below. CStencil and a
 production multi-light budget are separate work.
 
-## Current validation (2026-11-15)
+## Initial prototype validation (2026-11-15)
 
 The focused suite passes 82 checks, including actual selection and shader
 dispatch, host/local eligibility, GLES exclusion, failure fallback, state
@@ -156,3 +182,55 @@ the evidence for removing binding queries. First-use mesh/shader construction
 is outside these warmed measurements. Two-minute runs do not establish
 long-term memory stability. This is a one-light prototype, not sign-off of
 the final multi-light shadow system or all material and multiplayer cases.
+
+## Milestone 1: caster coverage (2026-11-15)
+
+First-person casting now uses the same interpolated remapping as the visible
+weapon and hands. Regression fixtures exercise missing models, zoom/hidden
+views, mirrors, respawn ownership, invalid remaps, inverse bind matrices,
+removed regions, material permutations, animated cutouts, receiver separation,
+lazy second-map allocation, failure fallback and disposal of both cubes.
+The final focused suite passes 137 checks, including the existing host/local
+eligibility, stock-shader isolation and Android exclusion tests.
+Windows and web release builds pass. The configured Android build is blocked
+by the existing Windows build environment: its generated command launches a
+non-Windows compiler wrapper, and SDL configuration also fails. No APK or
+Android device validation is claimed; the GLES no-op path and Android
+exclusion checks remain green. The original configure options were restored.
+
+Representative NVIDIA captures cover Xbox first-person hard/soft shadows at
+30/60/120 FPS, a crouching/standing player at 120 FPS, Warthog firing at 60 FPS,
+CE Death Island muzzle flashes at 60 FPS and MCC Digsite model receiving at
+30 FPS. The capture-only diagnostics confirm two maps for visible first-person
+casters, one for the exterior vehicle view, and no incomplete-map fallback in
+these successful captures. Animated cutout transforms and transparent-material
+rejection have asset-free regression coverage; this is not exhaustive visual
+acceptance of every material, map or render effect. One initial MCC run failed
+its sandboxed loopback connection before loading; the same local-match check
+passed with local networking available.
+
+The following fresh combat runs use the same checkpoint, route, native
+2560x1440 resolution and passive measurement method described above: all dynamic
+lighting categories enabled, 25 seconds warmup and 120 measured seconds, with
+no screenshots or concurrent build. Each mode uses the same Windows release
+executable (`--pgo=off --lto=off`).
+
+| Mode | Average FPS | Minute averages | Mean / maximum selected lights | Frames with a shadow map |
+| --- | ---: | --- | --- | ---: |
+| Modern shadows off | 296.2 | 320.9 / 271.6 | 18.20 / 31 | 0% |
+| Hard | 303.1 | 312.0 / 294.1 | 8.66 / 16 | 100% |
+| Soft | 291.0 | 300.6 / 281.5 | 11.88 / 22 | 100% |
+
+Every measured minute exceeds the 240 FPS average target. No measured frame
+exceeds 50 ms. The live fight's differing light counts preclude a claim that
+Hard is faster than Off, or a percentage comparison with earlier combat runs.
+These are bounded, warmed runs, not long-term memory or first-use acceptance.
+Reports and source manifests are in `build/lighting-performance/modern-m1-combat-*`;
+visual evidence is in `build/plasma-visual/*-m1-*`, and check/build logs are in
+`build/modern-m1`. AMD hardware was not available; vendor workarounds are unchanged.
+
+The final review shared the world/viewmodel collector rather than duplicating
+skinning or material handling. Converted meshes and bone submissions are reused
+between receiver maps. Further caching or depth-pass optimisations need measured
+evidence; the multi-light budget, menu integration and broader quality acceptance
+remain later milestones.

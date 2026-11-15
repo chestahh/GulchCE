@@ -43,7 +43,8 @@ static void plasma_falloff_begin(long light) { rebound_stage=2; rebound_light=li
 static void plasma_falloff_specular_begin(long light) { rebound_stage=1; rebound_light=light; }
 static int modern_shadow_end(void) { return !failed; }
 static int world_casters(const struct structure_bsp *b,const real_point3d *p,float r) { return complete; }
-static int object_casters(const real_point3d *p,float r) { return complete; }
+static int viewmodel_casters(long owners[2]) { owners[0]=owners[1]=NONE; return complete; }
+static int object_casters(const real_point3d *p,float r,const long owners[2]) { return complete; }
 #include "under_test.inc"
 int main(int argc,char **argv)
 {
@@ -77,7 +78,10 @@ int main(int argc,char **argv)
  modern_shadows_submitted(200,0); rasterizer_lights.lights[1].color.red=2;
  mode="soft"; modern_shadows_prepare(1);
  CHECK(selected_identity==101 && mode_soft, "new identity and stronger light are reconsidered");
+ modern_shadows_receiver(1);
+ CHECK(modern_shadows_view_receiver(), "first-person receiver selects its depth map");
  modern_shadows_world_begin(1,1);
+ CHECK(!modern_shadows_view_receiver(), "world illumination cannot sample viewmodel depth");
  CHECK(modern_shadows_world_stage()==1 && modern_shadows_world_extent()==8, "specular coordinates retain their extent");
  complete=0; modern_shadows_prepare(1);
  CHECK(!active && !modern_shadows_selected(1), "incomplete casters retain collision visibility");
@@ -97,5 +101,6 @@ int main(int argc,char **argv)
  CHECK(disposals==before+1 && !cached_bsp && !active, "disable releases resources");
  modern_shadows_window();
  CHECK(identities[0]==NONE && slots[0]==NONE, "window transition clears light identities and slots");
+ CHECK(!modern_shadows_view_receiver(), "window transition clears receiver kind");
  return 0;
 }

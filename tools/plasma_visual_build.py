@@ -24,6 +24,8 @@ fixture = ROOT / 'port/linux/game/plasma_capture_fixture.c'
 original = source.read_bytes()
 shadow = ROOT / 'port/linux/game/modern_shadows.c'
 shadow_original = shadow.read_bytes()
+shadow_gl = ROOT/'port/linux/src/modern_shadows_gl.c'
+shadow_gl_original = shadow_gl.read_bytes()
 main = ROOT / 'source/main/main.c'
 backend = ROOT / 'port/linux/src/d3d8_gl.c'
 main_original = main.read_bytes()
@@ -189,11 +191,19 @@ try:
     text = shadow_original.decode().replace('\r\n', '\n')
     marker = '\tactive = modern_shadow_end() && complete;'
     assert text.count(marker) == 1
-    text = 'void platform_log(const char *, ...);\n' + text.replace(marker, marker + '\n\t{ static int frames; if (!(frames++ % 30)) platform_log("SHADOW selected %ld complete %d active %d parts %d", selected_rasterizer, complete, active, part_count); }')
+    text = 'void platform_log(const char *, ...);\n' + text.replace(marker, marker + '\n\t{ static int frames; if (!(frames++ % 30)) platform_log("SHADOW selected %ld complete %d active %d parts %d view_weapon %ld view_hands %ld", selected_rasterizer, complete, active, part_count, owners[0], owners[1]); }')
     shadow.write_text(text)
+    text = shadow_gl_original.decode().replace('\r\n', '\n')
+    marker = '\t\tvalid = 1;'
+    assert text.count(marker) == 1
+    text = text.replace(marker, marker + '\n\t\t{ static int frames; if (!(frames++ % 30)) platform_log("SHADOW MAPS views %d draws %d", 1 + view_map, draw_count); }')
+    shadow_gl.write_text(text)
     manifest['source_hashes']['port/linux/game/modern_shadows.c'] = hashlib.sha256(shadow_original).hexdigest()
-    for name in ['port/linux/src/modern_shadows_gl.c', 'port/linux/include/modern_shadows.h', 'source/render/render.c']:
+    for name in ['port/linux/src/modern_shadows_gl.c', 'port/linux/include/modern_shadows.h', 'source/render/render.c',
+                 'port/linux/game/modern_shadows_first_person.inl', 'source/interface/first_person_weapons.c',
+                 'source/rasterizer/xbox/rasterizer_xbox_models.c']:
         manifest['source_hashes'][name] = hashlib.sha256((ROOT/name).read_bytes()).hexdigest()
+    manifest['source_hashes']['port/linux/src/modern_shadows_gl.c'] = hashlib.sha256(shadow_gl_original).hexdigest()
     subprocess.run([sys.executable, 'configure.py', *saved_args], cwd=ROOT, check=True)
     subprocess.run(['ninja', 'windows'], cwd=ROOT, check=True)
     shutil.copy2(ROOT / 'build/windows/halo.exe', out / 'halo-capture.exe')
@@ -203,6 +213,7 @@ try:
     (out/'build-manifest.json').write_text(json.dumps(manifest, indent=2))
 finally:
     shadow.write_bytes(shadow_original)
+    shadow_gl.write_bytes(shadow_gl_original)
     shield.write_bytes(shield_original)
     emitter.write_bytes(emitter_original)
     covenant.write_bytes(covenant_original)

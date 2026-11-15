@@ -98,7 +98,9 @@ def main():
         manifest['production_hashes'][path]=hashlib.sha256((ROOT/path).read_bytes()).hexdigest()
     for path in ['port/linux/game/plasma_collision_scene.c', 'port/linux/game/ammo_counter_falloff.c',
                  'port/linux/game/modern_shadows.c', 'port/linux/src/modern_shadows_gl.c',
-                 'port/linux/include/modern_shadows.h', 'source/render/render.c']:
+                 'port/linux/include/modern_shadows.h', 'source/render/render.c',
+                 'port/linux/game/modern_shadows_first_person.inl', 'source/interface/first_person_weapons.c',
+                 'source/rasterizer/xbox/rasterizer_xbox_models.c']:
         manifest['production_hashes'][path]=hashlib.sha256((ROOT/path).read_bytes()).hexdigest()
     diagnostic_sources=[]
     if args.diagnose or args.resources:
@@ -217,7 +219,7 @@ def main():
             for name, phase, signature, call, result in (
                 ('modern_shadows_prepare', 12, 'void modern_shadows_prepare(int primary)', 'primary', 'void'),
                 ('world_casters', 13, 'static int world_casters(struct structure_bsp const *bsp, real_point3d const *origin, real radius)', 'bsp, origin, radius', 'int'),
-                ('object_casters', 14, 'static int object_casters(real_point3d const *origin, real radius)', 'origin, radius', 'int'),
+                ('object_casters', 14, 'static int object_casters(real_point3d const *origin, real radius, long const owners[2])', 'origin, radius, owners', 'int'),
             ):
                 body = function(text, name)
                 timed = body.replace(name+'(', 'lighting_timed_'+name+'(', 1)

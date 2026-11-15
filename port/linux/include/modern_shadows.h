@@ -4,6 +4,8 @@
 #define MODERN_SHADOWS_H
 
 void modern_shadows_prepare(int primary);
+void modern_shadows_receiver(int first_person);
+int modern_shadows_view_receiver(void);
 void modern_shadows_reset(void);
 void modern_shadows_window(void);
 void modern_shadows_submitted(long identity, long rasterizer_index);
@@ -24,12 +26,20 @@ struct modern_shadow_vertex
 	float uv[2];
 };
 
+enum { MODERN_SHADOW_WORLD = 1, MODERN_SHADOW_VIEW = 2, MODERN_SHADOW_BOTH = 3 };
+
+struct real_matrix4x3;
+/* Read the already-interpolated pose through the first-person owner's
+   private remapping tables. 0 means absent, -1 means unsupported. */
+int modern_shadows_viewmodel(int hands, long *model, long *owner,
+    struct real_matrix4x3 *nodes);
+
 /* Meshes are immutable until reset. Matrices are column-major world poses;
    each draw copies them, so no borrowed object state survives the frame. */
 int modern_shadow_mesh_create(const struct modern_shadow_vertex *vertices, int vertex_count,
 	const unsigned short *indices, int index_count);
 int modern_shadow_draw(int mesh, const float *matrices, int node_count,
-	const void *alpha_texture, const float uv_scale[2]);
+	const void *alpha_texture, const float uv_transform[8], int views);
 int modern_shadow_begin(const float position[3], float radius, int soft);
 int modern_shadow_end(void);
 void modern_shadow_dispose(void);

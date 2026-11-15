@@ -19,6 +19,7 @@
 #include "scenario/scenario.h"
 #include "structures/structure_bsp_definitions.h"
 #include "shaders/shader_definitions.h"
+#include "shaders/shaders.h"
 #include "bitmaps/bitmap_group.h"
 #include "bitmaps/bitmap_group_lookup.h"
 #include "cache/texture_cache.h"
@@ -52,6 +53,8 @@ struct shadow_model_shader
 	byte reserved[0x72];
 	float u_scale, v_scale;
 	struct tag_reference base_map;
+	byte reserved_b4[0x48];
+	struct shader_texture_animation animation;
 };
 struct shadow_environment_shader
 {
@@ -62,6 +65,7 @@ struct shadow_environment_shader
 };
 typedef char shadow_part_size[sizeof(struct shadow_part) == 0x68 ? 1 : -1];
 typedef char shadow_model_map_offset[offsetof(struct shadow_model_shader, base_map) == 0xA4 ? 1 : -1];
+typedef char shadow_model_animation_offset[offsetof(struct shadow_model_shader, animation) == 0xFC ? 1 : -1];
 typedef char shadow_environment_map_offset[offsetof(struct shadow_environment_shader, base_map) == 0x88 ? 1 : -1];
 
 static struct
@@ -77,6 +81,7 @@ static long identities[SHADOW_LIGHTS];
 static long selected_identity = NONE, selected_rasterizer = NONE;
 static long slots[2] = {NONE, NONE};
 static int active, world_stage, receiver_failed;
+static int view_receiver;
 static float world_extent;
 static const float identity[16] = {1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1};
 
@@ -91,6 +96,7 @@ void modern_shadows_reset(void)
 	modern_shadow_dispose();
 	memset(parts, 0, sizeof(parts));
 	part_count = active = world_stage = receiver_failed = 0;
+	view_receiver = 0;
 	cached_bsp = NULL;
 	selected_identity = selected_rasterizer = slots[0] = slots[1] = NONE;
 }
@@ -99,6 +105,7 @@ void modern_shadows_window(void)
 {
 	int i;
 	active = world_stage = 0;
+	view_receiver = 0;
 	selected_rasterizer = slots[0] = slots[1] = NONE;
 	for (i = 0; i < SHADOW_LIGHTS; i++) identities[i] = NONE;
 	modern_shadow_clear_draws();
@@ -120,6 +127,9 @@ unsigned int modern_shadows_model_mask(void)
 	if (!active) return 0;
 	return (slots[0] == selected_rasterizer ? 1 : 0) | (slots[1] == selected_rasterizer ? 2 : 0);
 }
+
+void modern_shadows_receiver(int first_person) { view_receiver = active && first_person; }
+int modern_shadows_view_receiver(void) { return view_receiver && !world_stage; }
 
 int modern_shadows_selected(long rasterizer_index)
 {
@@ -269,10 +279,13 @@ done:
 
 /* Alpha testing follows the material's base map. Transparent shells, effects
    and decals do not become opaque blockers. No material name heuristics. */
-static int material(struct shader const *shader, short permutation, void const **alpha, float scale[2])
+static int material(struct shader const *shader, short permutation, void const **alpha,
+	float const scale[2], real const *values, float uv[8])
 {
 	long bitmap_index = NONE;
 	int tested = 0;
+	memset(uv, 0, 8 * sizeof(float));
+	uv[0] = scale[0]; uv[5] = scale[1];
 	*alpha = NULL;
 	if (shader->base.type == 4)
 	{
@@ -280,14 +293,23 @@ static int material(struct shader const *shader, short permutation, void const *
 		if (s->flags & (1 << 3)) return 0;
 		tested = !(s->flags & (1 << 2));
 		bitmap_index = s->base_map.index;
-		scale[0] *= s->u_scale;
-		scale[1] *= s->v_scale;
+		if (tested)
+		{
+			struct render_animation animation;
+			animation.colors = NULL;
+			animation.values = values;
+			shader_texture_animation_evaluate(&s->animation, values ? &animation : NULL,
+				scale[0] * s->u_scale, scale[1] * s->v_scale, 0, 0, 0,
+				global_frame_parameters.game_time_sec, (real_vector4d *)uv, (real_vector4d *)(uv + 4));
+		}
 	}
 	else if (shader->base.type == 3)
 	{
 		struct shadow_environment_shader const *s = (void const *)shader;
 		tested = s->flags & 1;
 		bitmap_index = s->base_map.index;
+		if (tested) shader_environment_texture_animation_evaluate(shader,
+			global_frame_parameters.game_time_sec, &uv[3], &uv[7]);
 	}
 	else return 0;
 	if (tested && bitmap_index != NONE)
@@ -314,11 +336,11 @@ static int world_casters(struct structure_bsp const *bsp, real_point3d const *or
 			struct structure_material const *m = TAG_BLOCK_GET_ELEMENT(&lm->materials, index, struct structure_material);
 			struct structure_surface const *surfaces;
 			void const *alpha;
-			float scale[2] = {1,1}, distance = 0;
+			float scale[2] = {1,1}, uv[8], distance = 0;
 			int part, axis, type;
 			if (m->surface_count == 0 || m->shader.index == NONE) continue;
 			if (m->breakable_surface_index != NONE && !breakable_surface_extant(m->breakable_surface_index)) continue;
-			type = material(shader_definition_get(m->shader.index), m->permutation_index, &alpha, scale);
+			type = material(shader_definition_get(m->shader.index), m->permutation_index, &alpha, scale, NULL, uv);
 			if (!type) continue;
 			if (type < 0 || m->surface_count < 0 || m->surface_count > 65535 || m->first_surface_index < 0 ||
 				m->first_surface_index > bsp->surfaces.count - m->surface_count) return 0;
@@ -332,13 +354,81 @@ static int world_casters(struct structure_bsp const *bsp, real_point3d const *or
 				distance += d * d;
 			}
 			if (distance > radius * radius) continue;
-			if (!modern_shadow_draw(parts[part].mesh, identity, 1, alpha, scale)) return 0;
+			if (!modern_shadow_draw(parts[part].mesh, identity, 1, alpha, uv, MODERN_SHADOW_BOTH)) return 0;
 		}
 	}
 	return 1;
 }
 
-static int object_casters(real_point3d const *origin, real radius)
+/* Both model sources share conversion, skinning and material evaluation. */
+static int model_caster(struct model const *model, real_matrix4x3 const *nodes,
+	byte const *permutations, short forced_permutation, real const *values, int views)
+{
+	float matrices[64 * 16];
+	int node, region;
+	if (model->nodes.count < 1) return 1;
+	if (model->nodes.count > 64 || !nodes) return 0;
+	for (node = 0; node < model->nodes.count; node++)
+	{
+		struct model_node const *n = TAG_BLOCK_GET_ELEMENT(&model->nodes, node, struct model_node);
+		real_matrix4x3 relative;
+		matrix4x3_multiply(&nodes[node], &n->runtime_default_inverse_matrix, &relative);
+		matrix_to_gl(&relative, matrices + node * 16);
+	}
+	for (region = 0; region < MIN(model->regions.count, MAXIMUM_REGIONS_PER_OBJECT); region++)
+	{
+		struct model_region const *r = TAG_BLOCK_GET_ELEMENT(&model->regions, region, struct model_region);
+		struct model_region_permutation const *permutation;
+		struct shadow_geometry const *geometry;
+		int index = permutations ? (signed char)permutations[region] : 0, geometry_index, part_index;
+		if (index == NONE) continue;
+		if (!VALID_INDEX(index, r->permutations.count)) return 0;
+		permutation = TAG_BLOCK_GET_ELEMENT(&r->permutations, index, struct model_region_permutation);
+		geometry_index = model_detail_geometry_index(model, permutation, 4, _model_detail_rules_outside);
+		if (geometry_index == NONE) continue;
+		if (!VALID_INDEX(geometry_index, model->geometries.count)) return 0;
+		geometry = TAG_BLOCK_GET_ELEMENT(&model->geometries, geometry_index, struct shadow_geometry);
+		for (part_index = 0; part_index < geometry->parts.count; part_index++)
+		{
+			struct shadow_part const *p = TAG_BLOCK_GET_ELEMENT(&geometry->parts, part_index, struct shadow_part);
+			struct shadow_shader_reference const *reference;
+			void const *alpha;
+			float scale[2] = {model->base_map_scale.i, model->base_map_scale.j}, uv[8];
+			int part, type;
+			if ((p->flags & 1) || !p->triangle_buffer.count) continue;
+			if (!VALID_INDEX(p->shader_index, model->shaders.count)) return 0;
+			reference = TAG_BLOCK_GET_ELEMENT(&model->shaders, p->shader_index, struct shadow_shader_reference);
+			if (reference->shader.index == NONE) continue;
+			type = material(shader_definition_get(reference->shader.index), forced_permutation ? forced_permutation : reference->permutation, &alpha, scale, values, uv);
+			if (!type) continue;
+			if (type < 0) return 0;
+			part = mesh_get(&p->vertex_buffer, &p->triangle_buffer, &p->triangle_buffer, NULL, 0, model->nodes.count);
+			if (part == NONE || !modern_shadow_draw(parts[part].mesh, matrices, model->nodes.count, alpha, uv, views)) return 0;
+		}
+	}
+	return 1;
+}
+
+static int viewmodel_casters(long owners[2])
+{
+	int hands;
+	owners[0] = owners[1] = NONE;
+	for (hands = 0; hands < 2; hands++)
+	{
+		real_matrix4x3 nodes[64];
+		real values[NUMBER_OF_OUTGOING_OBJECT_FUNCTIONS];
+		long model_index, owner;
+		int result = modern_shadows_viewmodel(hands, &model_index, &owner, nodes);
+		if (result < 0) return 0;
+		owners[hands] = owner;
+		if (!result) continue;
+		object_function_values_for_render(owner, values);
+		if (!model_caster(model_definition_get(model_index), nodes, NULL, 0, values, MODERN_SHADOW_VIEW)) return 0;
+	}
+	return 1;
+}
+
+static int object_casters(real_point3d const *origin, real radius, long const owners[2])
 {
 	struct object_iterator iterator;
 	struct object_datum *object;
@@ -347,57 +437,22 @@ static int object_casters(real_point3d const *origin, real radius)
 	{
 		struct object_definition const *definition;
 		struct model *model;
-		real_matrix4x3 const *nodes;
-		float matrices[64 * 16], range;
-		int node, region;
+		real values[NUMBER_OF_OUTGOING_OBJECT_FUNCTIONS];
+		float range;
+		int views;
 		if (object->object.flags & FLAG(_object_invisible_bit)) continue;
 		range = radius + object->object.bounding_sphere_radius;
 		if (distance_squared3d(origin, &object->object.bounding_sphere_center) > range * range) continue;
 		definition = object_definition_get(object->definition_index);
 		if (definition->object.model.index == NONE) continue;
 		model = model_definition_get(definition->object.model.index);
-		if (model->nodes.count < 1) continue;
-		if (model->nodes.count > 64 || object->object.node_matrices.size / sizeof(real_matrix4x3) < (unsigned long)model->nodes.count) return 0;
-		nodes = object_get_node_matrices(iterator.index);
-		if (!nodes) return 0;
-		for (node = 0; node < model->nodes.count; node++)
-		{
-			struct model_node const *n = TAG_BLOCK_GET_ELEMENT(&model->nodes, node, struct model_node);
-			real_matrix4x3 relative;
-			matrix4x3_multiply(&nodes[node], &n->runtime_default_inverse_matrix, &relative);
-			matrix_to_gl(&relative, matrices + node * 16);
-		}
-		for (region = 0; region < MIN(model->regions.count, MAXIMUM_REGIONS_PER_OBJECT); region++)
-		{
-			struct model_region const *r = TAG_BLOCK_GET_ELEMENT(&model->regions, region, struct model_region);
-			struct model_region_permutation const *permutation;
-			struct shadow_geometry const *geometry;
-			int index = object->object.region_permutations[region], geometry_index, part_index;
-			if (index == NONE) continue;
-			if (!VALID_INDEX(index, r->permutations.count)) return 0;
-			permutation = TAG_BLOCK_GET_ELEMENT(&r->permutations, index, struct model_region_permutation);
-			geometry_index = model_detail_geometry_index(model, permutation, 4, _model_detail_rules_outside);
-			if (geometry_index == NONE) continue;
-			if (!VALID_INDEX(geometry_index, model->geometries.count)) return 0;
-			geometry = TAG_BLOCK_GET_ELEMENT(&model->geometries, geometry_index, struct shadow_geometry);
-			for (part_index = 0; part_index < geometry->parts.count; part_index++)
-			{
-				struct shadow_part const *p = TAG_BLOCK_GET_ELEMENT(&geometry->parts, part_index, struct shadow_part);
-				struct shadow_shader_reference const *reference;
-				void const *alpha;
-				float scale[2] = {model->base_map_scale.i, model->base_map_scale.j};
-				int part, type;
-				if ((p->flags & 1) || !p->triangle_buffer.count) continue;
-				if (!VALID_INDEX(p->shader_index, model->shaders.count)) return 0;
-				reference = TAG_BLOCK_GET_ELEMENT(&model->shaders, p->shader_index, struct shadow_shader_reference);
-				if (reference->shader.index == NONE) continue;
-				type = material(shader_definition_get(reference->shader.index), reference->permutation, &alpha, scale);
-				if (!type) continue;
-				if (type < 0) return 0;
-				part = mesh_get(&p->vertex_buffer, &p->triangle_buffer, &p->triangle_buffer, NULL, 0, model->nodes.count);
-				if (part == NONE || !modern_shadow_draw(parts[part].mesh, matrices, model->nodes.count, alpha, scale)) return 0;
-			}
-		}
+		if (object->object.node_matrices.size / sizeof(real_matrix4x3) < (unsigned long)model->nodes.count) return 0;
+		/* Preserve the complete body and held weapon in world shadows, but
+		   never project their hidden geometry onto their viewmodels. */
+		views = iterator.index == owners[0] || iterator.index == owners[1] ? MODERN_SHADOW_WORLD : MODERN_SHADOW_BOTH;
+		object_function_values_for_render(iterator.index, values);
+		if (!model_caster(model, object_get_node_matrices(iterator.index), object->object.region_permutations,
+			object->object.forced_shader_permutation_index, values, views)) return 0;
 	}
 	return 1;
 }
@@ -409,6 +464,7 @@ void modern_shadows_prepare(int primary)
 	float best = 0, previous_score = 0, radius;
 	long best_index = NONE, previous = NONE, index;
 	int mode = setting(), complete;
+	long owners[2];
 	active = world_stage = 0;
 	if (!mode) { if (cached_bsp) modern_shadows_reset(); return; }
 	if (!primary) return;
@@ -437,11 +493,14 @@ void modern_shadows_prepare(int primary)
 	   same map and need blockers throughout their full authored extent. */
 	radius = light->radius * MAX(1.f, plasma_occlusion_specular_scale(best_index));
 	if (!modern_shadow_begin((float const *)&light->position, radius, mode == 2)) return;
-	complete = world_casters(bsp, &light->position, radius) && object_casters(&light->position, radius);
+	complete = viewmodel_casters(owners) && world_casters(bsp, &light->position, radius) &&
+		object_casters(&light->position, radius, owners);
 	active = modern_shadow_end() && complete;
 	if (!active) modern_shadow_clear_draws();
 }
 #else
+void modern_shadows_receiver(int first_person) {}
+int modern_shadows_view_receiver(void) { return 0; }
 void modern_shadows_prepare(int primary) {}
 void modern_shadows_reset(void) {}
 void modern_shadows_window(void) {}

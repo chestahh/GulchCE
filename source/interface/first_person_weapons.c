@@ -2436,3 +2436,6 @@ static short first_person_weapon_index_from_unit_index(
 
 	return NONE;
 }
+
+/* port: read-only access to private poses for optional shadow casting. */
+#include "modern_shadows_first_person.inl"

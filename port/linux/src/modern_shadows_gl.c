@@ -11,15 +11,31 @@ enum { SHADOW_SIZE = 512, SHADOW_MESHES = 2048, SHADOW_DRAWS = 256,
 static struct { GLuint vertices, indices; int count; } meshes[SHADOW_MESHES];
 static struct
 {
-	int mesh, nodes;
-	float matrices[SHADOW_NODES * 16], uv_scale[2];
+	int mesh, nodes, views;
+	float matrices[SHADOW_NODES * 16], uv_transform[8];
 	GLuint alpha;
 } draws[SHADOW_DRAWS];
 static int mesh_count, draw_count, mesh_bytes, failed, valid, soft_filter, resource_failed;
-static GLuint depth_cube, framebuffer, program, vao, alpha_sampler;
+static GLuint depth_cube[2], framebuffer, program, vao, alpha_sampler;
 static GLint light_uniform, face_uniform, bones_uniform, alpha_uniform, uv_uniform;
 static float light[4];
-static int drawing;
+static int drawing, view_map;
+
+static void create_depth_cube(GLuint *texture)
+{
+	int face;
+	glGenTextures(1, texture);
+	glActiveTexture(GL_TEXTURE0 + 8);
+	glBindTexture(GL_TEXTURE_CUBE_MAP, *texture);
+	for (face = 0; face < 6; face++)
+		glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + face, 0, GL_DEPTH_COMPONENT32F,
+			SHADOW_SIZE, SHADOW_SIZE, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+}
 
 static int create_resources(void)
 {
@@ -30,10 +46,10 @@ static int create_resources(void)
 		"layout(location=2) in float weight;\n"
 		"layout(location=3) in vec2 uv;\n"
 		"uniform mat4 bones[64]; uniform vec4 light; uniform int face;\n"
-		"uniform vec2 uv_scale; out vec3 delta; out vec2 texcoord;\n"
+		"uniform vec4 uv_transform[2]; out vec3 delta; out vec2 texcoord;\n"
 		"void main() {\n"
 		" vec4 p = mix(bones[int(nodes.y)]*vec4(position,1), bones[int(nodes.x)]*vec4(position,1),weight);\n"
-		" delta=p.xyz-light.xyz; texcoord=uv*uv_scale;\n"
+		" delta=p.xyz-light.xyz; texcoord=vec2(dot(vec4(uv,0,1),uv_transform[0]),dot(vec4(uv,0,1),uv_transform[1]));\n"
 		" vec3 d=delta; vec3 v;\n"
 		" if(face==0) v=vec3(-d.z,-d.y,d.x);\n"
 		" else if(face==1) v=vec3(d.z,-d.y,-d.x);\n"
@@ -48,10 +64,9 @@ static int create_resources(void)
 		"in vec3 delta; in vec2 texcoord; uniform vec4 light;\n"
 		"uniform sampler2D alpha_map; uniform int alpha_test;\n"
 		"void main() {\n"
-		" if(alpha_test!=0 && texture(alpha_map,texcoord).a < 0.5) discard;\n"
+		" if(alpha_test!=0 && texture(alpha_map,texcoord).a <= (127.0/255.0)) discard;\n"
 		" gl_FragDepth=min(length(delta)/light.w,1.0);\n}\n";
 	GLuint vs, fs;
-	int face;
 	GLenum none = GL_NONE;
 	if (program) return 1;
 	vs = xgpu_compile_shader(GL_VERTEX_SHADER, vertex, "modern shadow caster");
@@ -66,20 +81,10 @@ static int create_resources(void)
 	glSamplerParameteri(alpha_sampler, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	glSamplerParameteri(alpha_sampler, GL_TEXTURE_WRAP_S, GL_REPEAT);
 	glSamplerParameteri(alpha_sampler, GL_TEXTURE_WRAP_T, GL_REPEAT);
-	glGenTextures(1, &depth_cube);
-	glActiveTexture(GL_TEXTURE0 + 8);
-	glBindTexture(GL_TEXTURE_CUBE_MAP, depth_cube);
-	for (face = 0; face < 6; face++)
-		glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + face, 0, GL_DEPTH_COMPONENT32F,
-			SHADOW_SIZE, SHADOW_SIZE, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
-	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+	create_depth_cube(&depth_cube[0]);
 	glGenFramebuffers(1, &framebuffer);
 	glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
-	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_CUBE_MAP_POSITIVE_X, depth_cube, 0);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_CUBE_MAP_POSITIVE_X, depth_cube[0], 0);
 	glDrawBuffers(1, &none);
 	glReadBuffer(GL_NONE);
 	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE || glGetError() != GL_NO_ERROR) return 0;
@@ -87,7 +92,7 @@ static int create_resources(void)
 	face_uniform = glGetUniformLocation(program, "face");
 	bones_uniform = glGetUniformLocation(program, "bones");
 	alpha_uniform = glGetUniformLocation(program, "alpha_test");
-	uv_uniform = glGetUniformLocation(program, "uv_scale");
+	uv_uniform = glGetUniformLocation(program, "uv_transform");
 	glUseProgram(program);
 	glUniform1i(glGetUniformLocation(program, "alpha_map"), 9);
 	return 1;
@@ -145,13 +150,13 @@ int modern_shadow_mesh_create(const struct modern_shadow_vertex *vertices, int v
 }
 
 int modern_shadow_draw(int mesh, const float *matrices, int node_count,
-	const void *alpha_texture, const float uv_scale[2])
+	const void *alpha_texture, const float uv_transform[8], int views)
 {
 	GLuint alpha = 0;
 	GLenum target;
 	struct xgpu_texture_description description;
 	if (mesh < 1 || mesh > mesh_count || node_count < 1 || node_count > SHADOW_NODES ||
-		draw_count == SHADOW_DRAWS || !drawing) { failed = 1; return 0; }
+		draw_count == SHADOW_DRAWS || !drawing || views < 1 || views > MODERN_SHADOW_BOTH) { failed = 1; return 0; }
 	if (alpha_texture)
 	{
 		glActiveTexture(GL_TEXTURE0 + 9);
@@ -160,17 +165,32 @@ int modern_shadow_draw(int mesh, const float *matrices, int node_count,
 	}
 	draws[draw_count].mesh = mesh - 1;
 	draws[draw_count].nodes = node_count;
+	draws[draw_count].views = views;
 	draws[draw_count].alpha = alpha;
 	memcpy(draws[draw_count].matrices, matrices, node_count * 16 * sizeof(float));
-	memcpy(draws[draw_count].uv_scale, uv_scale, 2 * sizeof(float));
+	memcpy(draws[draw_count].uv_transform, uv_transform, 8 * sizeof(float));
 	draw_count++;
 	return 1;
 }
 
 int modern_shadow_end(void)
 {
-	int face, draw;
+	int face, draw, pass;
 	if (!drawing) return 0;
+	view_map = 0;
+	for (draw = 0; draw < draw_count; draw++)
+		if (draws[draw].views == MODERN_SHADOW_VIEW) view_map = 1;
+	if (!failed && view_map && !depth_cube[1])
+	{
+		glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
+		create_depth_cube(&depth_cube[1]);
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_CUBE_MAP_POSITIVE_X, depth_cube[1], 0);
+		if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE || glGetError() != GL_NO_ERROR)
+		{
+			failed = resource_failed = 1;
+			platform_log("GPU: viewmodel shadow map unavailable; retaining existing lighting until reset");
+		}
+	}
 	if (!failed)
 	{
 		glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
@@ -193,14 +213,16 @@ int modern_shadow_end(void)
 		glBindVertexArray(vao);
 		glActiveTexture(GL_TEXTURE0 + 9);
 		glBindSampler(9, alpha_sampler);
+		for (pass = 0; pass < 1 + view_map; pass++)
 		for (face = 0; face < 6; face++)
 		{
-			glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_CUBE_MAP_POSITIVE_X + face, depth_cube, 0);
+			glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_CUBE_MAP_POSITIVE_X + face, depth_cube[pass], 0);
 			glClear(GL_DEPTH_BUFFER_BIT);
 			glUniform1i(face_uniform, face);
 			for (draw = 0; draw < draw_count; draw++)
 			{
 				int mesh = draws[draw].mesh;
+				if (!(draws[draw].views & (1 << pass))) continue;
 				glBindBuffer(GL_ARRAY_BUFFER, meshes[mesh].vertices);
 				glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, meshes[mesh].indices);
 				glEnableVertexAttribArray(0); glEnableVertexAttribArray(1);
@@ -210,7 +232,7 @@ int modern_shadow_end(void)
 				glVertexAttribPointer(2, 1, GL_FLOAT, GL_FALSE, sizeof(struct modern_shadow_vertex), (void *)offsetof(struct modern_shadow_vertex, weight));
 				glVertexAttribPointer(3, 2, GL_FLOAT, GL_FALSE, sizeof(struct modern_shadow_vertex), (void *)offsetof(struct modern_shadow_vertex, uv));
 				glUniformMatrix4fv(bones_uniform, draws[draw].nodes, GL_FALSE, draws[draw].matrices);
-				glUniform2f(uv_uniform, draws[draw].uv_scale[0], draws[draw].uv_scale[1]);
+				glUniform4fv(uv_uniform, 2, draws[draw].uv_transform);
 				glUniform1i(alpha_uniform, draws[draw].alpha != 0);
 				glBindTexture(GL_TEXTURE_2D, draws[draw].alpha);
 				glDrawElements(GL_TRIANGLES, meshes[mesh].count, GL_UNSIGNED_SHORT, NULL);
@@ -239,13 +261,14 @@ void modern_shadow_dispose(void)
 		glDeleteBuffers(1, &meshes[i].vertices);
 		glDeleteBuffers(1, &meshes[i].indices);
 	}
-	if (depth_cube) glDeleteTextures(1, &depth_cube);
+	glDeleteTextures(2, depth_cube);
+	depth_cube[0] = depth_cube[1] = 0;
 	if (framebuffer) glDeleteFramebuffers(1, &framebuffer);
 	if (program) glDeleteProgram(program);
 	if (vao) glDeleteVertexArrays(1, &vao);
 	if (alpha_sampler) glDeleteSamplers(1, &alpha_sampler);
-	mesh_count = mesh_bytes = draw_count = valid = resource_failed = 0;
-	depth_cube = framebuffer = program = vao = alpha_sampler = 0;
+	mesh_count = mesh_bytes = draw_count = valid = resource_failed = view_map = 0;
+	framebuffer = program = vao = alpha_sampler = 0;
 }
 
 void modern_shadow_emit(struct xgpu_text *text)
@@ -288,7 +311,7 @@ void modern_shadow_bind(const struct modern_shadow_uniforms *uniforms)
 {
 	unsigned int slots = valid ? modern_shadows_model_mask() : 0;
 	if (uniforms->light < 0 || !valid) return;
-	glBindTextures(8, 1, &depth_cube);
+	glBindTextures(8, 1, &depth_cube[view_map && modern_shadows_view_receiver() ? 1 : 0]);
 	glBindSampler(8, 0);
 	glUniform4fv(uniforms->light, 1, light);
 	glUniform2f(uniforms->slots, slots & 1 ? 1.f : 0.f, slots & 2 ? 1.f : 0.f);
@@ -297,7 +320,7 @@ void modern_shadow_bind(const struct modern_shadow_uniforms *uniforms)
 }
 #else
 int modern_shadow_mesh_create(const struct modern_shadow_vertex *v, int nv, const unsigned short *i, int ni) { return 0; }
-int modern_shadow_draw(int mesh, const float *m, int n, const void *a, const float uv[2]) { return 0; }
+int modern_shadow_draw(int mesh, const float *m, int n, const void *a, const float uv[8], int views) { return 0; }
 int modern_shadow_begin(const float p[3], float r, int soft) { return 0; }
 int modern_shadow_end(void) { return 0; }
 void modern_shadow_clear_draws(void) {}
