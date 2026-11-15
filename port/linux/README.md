@@ -899,6 +899,10 @@ Each frame shows the world between the last two ticks
   one shot to the next when they were too close to tell for a cut (the
   Captain's bridge in a10's opening), and what the script moved for the new
   shot slid there (Sergeant Johnson's next walk).
+- The first-person weapon's animations the game starts without blending
+  into them (a melee, the weapon readied or overheated) are not mixed into
+  either: the pose cuts, as on the Xbox. Mixed, the shotgun's melee swept
+  the gun and the arm across the view.
 - After a long frame (several ticks in one frame), the camera mixes the
   last tick only, as the objects do.
 - In cinematics, a camera that moves with an object (the lifepod in a30,
@@ -2122,6 +2126,7 @@ Other changes:
 | `interface/first_person_weapons.c`, `rasterizer/xbox/rasterizer_xbox_plasma_energy.c` | The hands are drawn with the unit's shield flare (`display.viewmodel_shield`, `viewmodel_shield.c`), which stands off them by at most a share of the view: the plasma offset of a flare drawn with the hands' values is limited, any other its own. |
 | `render/render_objects.c`, `objects/objects.c`, `models/models.c` | The local player's own body is drawn in its first-person view with the legs' pose and feature-owned triangle buffers (`display.first_person_legs`, `first_person_legs.c`), without its widgets and children; a map's load and unload forget the legs found. |
 | `objects/widgets/flags.c` | A flag's cloth steps a tick at a time, as on the Xbox, not every frame (eight steps a tick at 240 frames a second held it eight times as stiff), and is drawn as far from where the frame that stepped it hung it as its first attachment marker has moved since, so that it stays on a running carrier's pole. |
+| `interface/first_person_weapons.c` | An authored animation cut also cuts first-person pose interpolation for that player. |
 | `render/render_objects.c` | An object's shadow map is centered where the frame draws the object between the ticks (`display.interpolation`, `render_interpolation_object_point`), as its model is drawn into the map, not where the tick left it: a fast vehicle (a Ghost) stood up to a tick's travel off its map's center, and the map's edge and corner fade cut its shadow's trailing side, flickering. |
 | `render/render_particles.c` | A particle is drawn with the first-person weapon, whose pass draws it away from the weapon without the depth test, only while it is stuck to the weapon or shown only in first person. A casing the weapon threw off (a pistol's, an assault rifle's, a sniper rifle's) keeps the weapon's flag, and drawn with it, it showed through floors and walls; free in the world, it is drawn in the world, as on the Xbox. |
 | `objects/objects.c` | A structure bsp switched to forgets the cluster the scripts activate objects from (`object_pvs_set_camera`), which is the old bsp's: the players' pvs read that cluster of the new bsp, an assertion's halt where the new bsp has fewer clusters (d20's captain cinematic, `switch_bsp 4`, with one still set). Reloading the original BSP after a failed switch preserves its cluster. Object-based activation follows the object across a switch. |

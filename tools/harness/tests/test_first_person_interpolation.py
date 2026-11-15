@@ -14,7 +14,7 @@ from harness import function, mutated, read, structure
 
 CASES = ["fast-motion", "weapon-change", "graph-change", "same-tick-change",
          "node-count", "gap", "disabled", "reset", "players", "camera", "invalid", "capacity", "missing",
-         "chamber-reset", "large-rotation"]
+         "chamber-reset", "large-rotation", "animation-cut", "same-tick-cut"]
 
 
 def generated():
@@ -34,7 +34,7 @@ def generated():
     cutoff = re.search(r"^#define FIRST_PERSON_HALF_TURN_COSINE .*", source, re.M).group(0)
     return cutoff + "\n" + matrices + "\n" + types + "\n" + blend + "\n" + (
         "static struct interpolated_first_person interpolated_first_person[MAXIMUM_LOCAL_PLAYERS];\n"
-    ) + function(source, "render_interpolation_reset") + "\n" + function(source, "render_interpolation_first_person")
+    ) + function(source, "render_interpolation_first_person_cut") + "\n" + function(source, "render_interpolation_reset") + "\n" + function(source, "render_interpolation_first_person")
 
 
 def compile_fixture(work, source):

@@ -88,6 +88,8 @@ int main(int argc, char **argv)
         tick(12, 0.8f);
         expect(0.75f); /* Previous is the raw 0.6 pose, never the last blend. */
     }
+    CASE("animation-cut") { render_interpolation_first_person_cut(local); tick(11,.2f); expect(.2f); tick(12,.4f); expect(.3f); }
+    CASE("same-tick-cut") { tick(11,.1f); render_interpolation_first_person_cut(local); tick(11,.2f); expect(.2f); }
     CASE("weapon-change") { weapon += 0x10000; tick(11, .1f); expect(.1f); tick(12,.2f); expect(.15f); }
     CASE("graph-change") { graph++; tick(11,.1f); expect(.1f); }
     CASE("same-tick-change")
