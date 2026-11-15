@@ -75,7 +75,9 @@ static char mcc_share_install_tried[64];
 /* where Steam installs it: the item's own folder (mcc_maps\<item id>\<map>),
 which the host's may not be (a package the host downloaded from another
 host is in a dl_ folder of its own) */
+#if defined(HALO_ANDROID)
 static char mcc_share_install_level[64];
+#endif
 /* Once it is in, the package is checked here against the host's identity, as
  * a download from the host is (mcc_share_identity_check), not by asking the
  * host for a second validation window: a host gives each machine one a join
@@ -85,9 +87,13 @@ static char mcc_share_install_level[64];
  * its request, a game in progress), since a machine with neither a player
  * nor a transfer is refused. */
 static struct mcc_validation_check *mcc_share_install_check;
+#if defined(HALO_ANDROID)
 static struct mcc_validation_proof mcc_share_install_proof;
+#endif
 static boolean mcc_share_install_joining;
+#if defined(HALO_ANDROID)
 static unsigned long mcc_share_install_joining_at;
+#endif
 #define MCC_SHARE_INSTALL_JOIN_MS 3000u
 /* Manual guidance outlives the refused join, but never a new session. */
 static enum {
@@ -625,7 +631,9 @@ int host_steam_take_rescan(void);
 often (a host gives an offer not taken up two minutes, and while it lives
 counts the joiner as fetching the package, starting the game without it) */
 #define MCC_SHARE_INSTALL_RENEW_MS 90000u
+#if defined(HALO_ANDROID)
 static unsigned long mcc_share_install_renewed_at;
+#endif
 
 /* (the host's offer in) a package that is a Workshop item, with a Steam
 sign-in: its whole item installed from the Workshop, MCC's shared sets too
@@ -683,15 +691,15 @@ static void mcc_share_install_end(void)
 }
 
 /* (the host's offer asked again before it lapses) */
+#if defined(HALO_ANDROID)
 static void mcc_share_install_renew(void)
 {
-#if defined(HALO_ANDROID)
     if (system_milliseconds()-mcc_share_install_renewed_at<MCC_SHARE_INSTALL_RENEW_MS) return;
     mcc_share_install_renewed_at=system_milliseconds();
     mcc_share_client_cancel(&mcc_share_globals);
     mcc_share_client_begin(&mcc_share_globals,mcc_share_install_tried,mcc_share_digest);
-#endif
 }
+#endif
 
 /* (each frame while installing) installed: the package checked here against
 the host's identity, and, the host's, this machine's players let join, the

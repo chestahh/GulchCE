@@ -13,6 +13,7 @@ def test_workshop_identity(tmp_path):
     source.write_text(r'''
 #include "cseries.h"
 #include "mcc_workshop.h"
+int mcc_manifest_package_root(char const *name,char root[1024]){(void)name;(void)root;return 0;}
 #include <stdio.h>
 #include <string.h>
 static char steam_title[64];
@@ -89,7 +90,8 @@ int main(void) {
 }
 ''')
     game = ROOT / "port/linux/game"
-    exe = compile_tool(tmp_path, [source, game / "mcc_workshop.c", game / "mcc_package.c"])
+    exe = compile_tool(tmp_path, [source, game / "mcc_workshop.c", game / "mcc_package.c",
+                                  ROOT / "port/linux/src/server_json.c", ROOT / "port/linux/src/posix_mcc_preview.c"])
     result = subprocess.run([str(exe)], capture_output=True, text=True)
     assert result.returncode == 0, result.stderr
 
@@ -116,6 +118,7 @@ def test_workshop_sidecar_files(tmp_path):
     source = tmp_path / "sidecar.c"
     source.write_text(r'''
 #include "mcc_workshop.h"
+int mcc_manifest_package_root(char const *name,char root[1024]){(void)name;(void)root;return 0;}
 #include <stdio.h>
 #include <string.h>
 #undef fopen
@@ -153,6 +156,7 @@ int main(void) {
 }
 ''')
     game = ROOT / "port/linux/game"
-    exe = compile_tool(tmp_path, [source, game / "mcc_workshop.c", game / "mcc_package.c"])
+    exe = compile_tool(tmp_path, [source, game / "mcc_workshop.c", game / "mcc_package.c",
+                                  ROOT / "port/linux/src/server_json.c", ROOT / "port/linux/src/posix_mcc_preview.c"])
     result = subprocess.run([str(exe)], cwd=tmp_path, capture_output=True, text=True)
     assert result.returncode == 0, result.stderr

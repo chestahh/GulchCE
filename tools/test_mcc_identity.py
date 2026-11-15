@@ -438,7 +438,8 @@ int main(void){
 ''')
     exe = compile_tool(tmp_path, [source, ROOT / "port/linux/game/mcc_identity.c",
                                   ROOT / "port/linux/game/mcc_package.c",
-                                  ROOT / "port/linux/game/mcc_workshop.c"])
+                                  ROOT / "port/linux/game/mcc_workshop.c",
+                                  ROOT / "port/linux/src/server_json.c", ROOT / "port/linux/src/posix_mcc_preview.c"])
     result = subprocess.run([str(exe)], capture_output=True, text=True)
     assert result.returncode == 0, result.stderr
 
@@ -455,6 +456,7 @@ def test_fingerprint_settings_keep_host_and_fragment_checks(tmp_path):
 #include <stdio.h>
 #include "mcc_workshop.h"
 typedef int boolean;typedef unsigned char byte;typedef uint16_t word;
+int mcc_manifest_package_root(char const *name,char root[1024]){(void)name;(void)root;return 0;}
 int mcc_maps_workshop_title(char const *id,char *title,unsigned size) {
  (void)id;(void)title;(void)size;return 0;
 }
@@ -517,7 +519,8 @@ int main(void){
 }
 ''')
     exe = compile_tool(tmp_path, [source, ROOT / "port/linux/game/mcc_workshop.c",
-                                 ROOT / "port/linux/game/mcc_package.c"])
+                                 ROOT / "port/linux/game/mcc_package.c",
+                                 ROOT / "port/linux/src/server_json.c", ROOT / "port/linux/src/posix_mcc_preview.c"])
     result = subprocess.run([str(exe)], capture_output=True, text=True)
     assert result.returncode == 0, result.stderr
 

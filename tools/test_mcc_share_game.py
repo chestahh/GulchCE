@@ -186,7 +186,8 @@ void fixture_ce_download(int downloading,int downloaded){
                              "-Wno-unused-parameter", *includes, str(DRIVER), str(hooks), *map(str, objects),
                              *[str(GAME / n) for n in ("mcc_share_session.c", "mcc_share_stage.c", "mcc_share_list.c",
                                                        "mcc_share_rules.c", "mcc_package.c", "mcc_sha256.c")],
-                             str(workshop), str(ROOT / "port/linux/src/posix_mcc_share.c"), "-o", str(exe)],
+                             str(workshop), str(ROOT / "port/linux/src/server_json.c"),
+                             str(ROOT / "port/linux/src/posix_mcc_preview.c"), str(ROOT / "port/linux/src/posix_mcc_share.c"), "-o", str(exe)],
                             capture_output=True, text=True)
     assert result.returncode == 0, result.stderr
     return exe

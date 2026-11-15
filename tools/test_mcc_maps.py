@@ -367,6 +367,7 @@ int main(int argc,char **argv) {
                str(ROOT / ("port/windows/src/win32_files.c" if sys.platform == "win32" else "port/linux/src/posix_files.c")),
                str(ROOT / "port/linux/game/mcc_maps.c"),
                str(ROOT / "port/linux/game/mcc_workshop.c"),
+               str(ROOT / "port/linux/src/server_json.c"), str(ROOT / "port/linux/src/posix_mcc_preview.c"),
                str(ROOT / "port/linux/game/mcc_package.c"), str(ROOT / "port/linux/src/workshop_collections.c"),
                str(ROOT / "port/linux/game/mcc_cache_format.c"), str(ROOT / "port/linux/game/mcc_resources.c"), str(ROOT / "port/linux/game/mcc_errors.c"), str(ROOT / "port/linux/game/mcc_sha256.c"), str(ROOT / "port/third_party/zlib/crc32.c"), "-o", str(output)]
     if sys.platform == "win32":
