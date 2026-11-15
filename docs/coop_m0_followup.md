@@ -18,8 +18,15 @@ from the unchanged baseline evidence and does not start M1.
 The [14 November active-world pass](coop_m0_active_world.md) adds staged BSP
 travel, selected door state/collision/recovery, active Xbox/CE/MCC gameplay and
 a controlled vehicle-seat restore. It distinguishes the bare-switch unsupported
-placement from the unconfirmed natural grav-lift/door reports, and records an
-A10 fast-entry failure. The full-system gate and platform blockers remain open.
+placement from the unconfirmed natural grav-lift/door reports. The
+[15 November ordinary-entry pass](coop_m0_campaign_entry.md) follows A10 from
+the host menus and corrects the stationary fast-entry interpretation: client
+tutorial input permits the authored cryotube exit and second player spawn.
+It also records client Confirm/Back failing host script checks, host-local
+positive controls, completed opening tutorials, natural checkpoint creation
+and both players traversing the cryo-room exit. Restoration from those natural
+checkpoints and later mission progression remain unqualified.
+The full-system gate and platform blockers remain open.
 
 ## Baseline and revision reconciliation
 

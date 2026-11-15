@@ -2,11 +2,14 @@
 
 A JSON specification supplies sources and environment overrides. Its optional
 control file is a list of {id, at, peer, button/controller or command} actions.
-Menu events require the generated M0 trace build. Console commands use the
-existing loopback telnet console. No production implementation is changed.
+Menu events require the generated M0 trace build. Optional motion actions
+require the campaign diagnostic build and are ordinary player input blobs.
+Console commands use the existing loopback telnet console. No production
+implementation is changed.
 """
 import hashlib
 import json
+import math
 import os
 from pathlib import Path
 import shutil
@@ -19,6 +22,27 @@ import time
 def sha(path):
     with path.open('rb') as stream:
         return hashlib.file_digest(stream, 'sha256').hexdigest()
+
+
+def write_control(target, content):
+    """Replace a complete request, tolerating a brief Windows reader lock."""
+    temporary = target.with_suffix('.tmp')
+    temporary.write_text(content)
+    for attempt in range(50):
+        try:
+            temporary.replace(target)
+            return
+        except PermissionError as error:
+            if getattr(error, 'winerror', None) not in (5, 32, 33) or attempt == 49:
+                raise
+            time.sleep(.01)
+
+
+def motion_buttons(names):
+    allowed = dict(accept=1, back=2, jump=4, crouch=8, fire=16)
+    if not isinstance(names, list) or any(not isinstance(name, str) or name not in allowed for name in names):
+        raise ValueError('Unknown private input button')
+    return sum(allowed[name] for name in set(names))
 
 
 def main():
@@ -88,7 +112,10 @@ def main():
                         job['connection'] = socket.create_connection(('127.0.0.1', job['port']), .1)
                         job['connection'].settimeout(.001)
                     data = job['connection'].recv(65536)
-                    if data: job['transcript'].extend(data)
+                    if data:
+                        job['transcript'].extend(data)
+                        with (job['folder']/'console.log').open('ab') as stream:
+                            stream.write(data)
                 except (OSError, TimeoutError):
                     pass
             control = Path(spec['control']) if spec.get('control') else None
@@ -100,9 +127,20 @@ def main():
                     job = next(j for j in jobs if j['name'] == action['peer'])
                     if 'button' in action:
                         target = job['folder']/'input.txt'
-                        temporary = target.with_suffix('.tmp')
-                        temporary.write_text(f"{action['id']} {action.get('controller',0)} {buttons[action['button']]}\n")
-                        temporary.replace(target)
+                        write_control(target,
+                            f"{action['id']} {action.get('controller',0)} {buttons[action['button']]}\n")
+                    elif 'motion' in action:
+                        motion = action['motion']
+                        if len(motion) != 6 or not all(math.isfinite(v) for v in motion):
+                            raise ValueError('Expected duration, forward, strafe, yaw, pitch, action')
+                        duration, forward, strafe, yaw, pitch, use = motion
+                        if not (0 < duration <= 5 and abs(forward) <= 1 and abs(strafe) <= 1
+                                and abs(yaw) <= 3 and abs(pitch) <= 3 and use in (0, 1)):
+                            raise ValueError('Motion exceeds private input bounds')
+                        target = job['folder']/'motion.txt'
+                        write_control(target, ' '.join(map(str, [action['id'], duration,
+                            forward, strafe, yaw, pitch, int(use),
+                            motion_buttons(action.get('buttons', []))])) + '\n')
                     elif 'command' in action:
                         if job['connection'] is None: continue
                         job['connection'].sendall((action['command']+'\r\n').encode('ascii'))

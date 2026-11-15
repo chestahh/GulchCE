@@ -204,9 +204,12 @@ handoff, standing riders, sustained driving or a rendered vehicle playtest.
   a product fade bug or completed mission progression.
 - The unskipped Xbox A10 fast-network-entry case never reached two player units
   within 300 seconds. A subsequent ordinary skip-vote case also retained one
-  unit in a cryotube with input disabled. These are observed failures of this
-  entry path, not a claim that all A10 launch paths are broken. Neither qualifies
-  normal intro completion or two-player door traversal.
+  unit in a cryotube with input disabled. The subsequent
+  [ordinary-entry investigation](coop_m0_campaign_entry.md) observes the normal
+  look tutorial and advances it through client input, allowing both units to
+  spawn. These stationary probes therefore did not establish a softlock.
+  Neither earlier probe qualifies normal intro completion or two-player door
+  traversal.
 - The first A10 selected door was outside the final loaded BSP. The first C10
   control-room probe selected BSP 1 and both teleports were rejected. Their
   all-zero collision rays cannot qualify passage. Corrected fixtures select

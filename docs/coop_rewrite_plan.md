@@ -250,7 +250,9 @@ the reports apply identically to Xbox, CE and MCC.
 
 The [active-world M0 pass](coop_m0_active_world.md) records bounded BSP/device,
 movement, vehicle, AI and combat probes, including failed setups and remaining
-natural-progression gaps. Continue ordinary progression, then checkpoint/restart and
+natural-progression gaps. The [ordinary-entry continuation](coop_m0_campaign_entry.md)
+begins with A10's host menu entry and input-driven tutorial. Continue ordinary
+progression, then checkpoint/restart and
 join timing; these reports are not restricted to checkpoint recovery. Capture
 host/client BSP identity and readiness, player transforms and collision,
 script progress, device identity/group target and actual state, and relevant
@@ -365,6 +367,13 @@ Classify every script side effect identified at M0. Keep host-only script
 execution and existing more-than-two-player script adaptation in their proper
 owners. Define prerequisite resolution, deadlines, supersession and bounded
 retry. Invalid cyclic attachments or impossible object references fail safely.
+
+Include script-facing player-input predicates, not only world mutations. The
+[ordinary A10 baseline](coop_m0_campaign_entry.md) observes client Confirm/Back
+being consumed locally without satisfying host tutorial checks, while host-local
+requests advance the same stage. M4 and M6 must agree on authorized input
+ownership, transport and one-shot consumption; validate equivalent authored
+scripts without map identity checks, with local and remote positive controls.
 
 **Gate:** The demonstrated loss, missing-object, sequence-gap, removal and
 overflow failures have desired-behavior regressions that pass and meaningful

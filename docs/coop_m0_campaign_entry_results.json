@@ -1,0 +1,1195 @@
+{
+  "schema": 1,
+  "date": "2026-11-15",
+  "milestone": "M0",
+  "status": "open",
+  "m1_started": false,
+  "published": false,
+  "scope": "All 19 co-op domains in coop_m0.md remain in scope.",
+  "report": "coop_m0_campaign_entry.md",
+  "branch": "investigate-coop-rewrite",
+  "runtime": {
+    "platform": "Windows",
+    "family": "Xbox",
+    "level": "A10",
+    "difficulty": "Normal",
+    "peers": 2,
+    "host_entry": "ordinary menus",
+    "client_entry": "automated LAN join",
+    "intro_skipped": false,
+    "transport_faults": false,
+    "audio": false,
+    "render_size": [
+      2560,
+      1440
+    ],
+    "hidden": true,
+    "input": "bounded input blob before action processing; physical bindings not tested"
+  },
+  "platform_blockers": {
+    "Linux runtime": "No runner available",
+    "Android runtime": "No device/runner available"
+  },
+  "new_runtime_coverage_excludes": [
+    "Web",
+    "Custom Edition",
+    "MCC",
+    "public internet",
+    "four players"
+  ],
+  "findings": [
+    {
+      "id": "ordinary-entry",
+      "status": "bounded observation",
+      "result": "Client input advances the opening tutorial and permits the host second player to spawn; stationary entry did not establish a softlock."
+    },
+    {
+      "id": "remote-confirmation",
+      "status": "observed failure with local positive controls",
+      "result": "Client Confirm and Back set local action flags but fail host script checks. Host Back changes the look branch and host Confirm advances look-choice and shield stages.",
+      "case": "menu-a10-confirm",
+      "client_requests": [
+        72,
+        76,
+        116
+      ],
+      "host_controls": [
+        79,
+        85,
+        120
+      ]
+    },
+    {
+      "id": "opening-progression",
+      "status": "bounded observation",
+      "result": "Opening tutorials complete, both players traverse the authored cryo-room exit, and the client reaches the next explosion trigger. The later damaged door and remaining mission are not qualified."
+    },
+    {
+      "id": "natural-checkpoints",
+      "status": "creation observed; restore open",
+      "host_ticks": [
+        22442,
+        30808
+      ],
+      "initial_save_tick": 1,
+      "result": "Checkpoint-saved callback follows successful writes; no fixture save command. No restore or resumed progression tested."
+    },
+    {
+      "id": "aiming",
+      "status": "unresolved comparison",
+      "result": "One target remains yellow despite camera alignment until a small ordinary step aligns head/look direction. Solo/local comparison remains open."
+    },
+    {
+      "id": "session-predicate",
+      "status": "source and runtime contract distinction",
+      "result": "game_is_cooperative uses local player_spawn_count, not network roster count; do not replace it with a map-specific override."
+    }
+  ],
+  "excluded_pilots": {
+    "menu-a10": "setup only",
+    "menu-a10-input": "premature menu scheduling",
+    "menu-a10-progression": "private file reader lock; bounded retry added"
+  },
+  "cases": [
+    {
+      "name": "menu-a10-render",
+      "revision": "493abb5e9d4ef77b5b45be7571ae3f6843734974",
+      "peers": {
+        "host": {
+          "binary_sha256": "cbe5f65949b1cfc527723e86295c50973e36d8c4093b86bac195f4c779a24c36",
+          "frames": 3038,
+          "last_sample": {
+            "wall": 16674.019773,
+            "tick": 9114,
+            "bsp": 0,
+            "cinematic": false,
+            "input": false,
+            "players": {
+              "-328204288": {
+                "handle": -470285943,
+                "xyz": [
+                  -0.0989532470703125,
+                  0.43663671612739563,
+                  8.940696716308594e-08
+                ],
+                "body": 1.0,
+                "shield": 0.0,
+                "parent": -491323320,
+                "seat": 0,
+                "cluster": -1,
+                "damage_flags": 0,
+                "floor": [
+                  1.0,
+                  3.0,
+                  -491323320.0,
+                  0.3602002263069153
+                ],
+                "control": 0,
+                "throttle": [
+                  0.0,
+                  0.0,
+                  0.0
+                ]
+              }
+            },
+            "device": null
+          },
+          "script_wakes": null,
+          "checkpoint_ticks": [
+            1
+          ]
+        },
+        "client": {
+          "binary_sha256": "cbe5f65949b1cfc527723e86295c50973e36d8c4093b86bac195f4c779a24c36",
+          "frames": 3039,
+          "last_sample": {
+            "wall": 16674.155865,
+            "tick": 9117,
+            "bsp": 0,
+            "cinematic": false,
+            "input": false,
+            "players": {
+              "-328204288": {
+                "handle": -470285943,
+                "xyz": [
+                  -0.0989532470703125,
+                  0.43663671612739563,
+                  8.940696716308594e-08
+                ],
+                "body": 1.0,
+                "shield": 0.0,
+                "parent": -491323320,
+                "seat": 0,
+                "cluster": -1,
+                "damage_flags": 0,
+                "floor": [
+                  1.0,
+                  3.0,
+                  -491323320.0,
+                  0.3602002263069153
+                ],
+                "control": 0,
+                "throttle": [
+                  0.0,
+                  0.0,
+                  0.0
+                ]
+              }
+            },
+            "device": null
+          },
+          "script_wakes": null,
+          "checkpoint_ticks": []
+        }
+      }
+    },
+    {
+      "name": "menu-a10-input-v2",
+      "revision": "493abb5e9d4ef77b5b45be7571ae3f6843734974",
+      "peers": {
+        "host": {
+          "binary_sha256": "67fccf7c5556b9ccf6bd5dc642cfb09c5a7c502ca43e9871f2027db23b20b1c8",
+          "frames": 6047,
+          "last_sample": {
+            "wall": 17522.269464,
+            "tick": 18141,
+            "bsp": 0,
+            "cinematic": false,
+            "input": true,
+            "players": {
+              "-328138751": {
+                "handle": -448528371,
+                "xyz": [
+                  -52.8852424621582,
+                  0.0065867966040968895,
+                  -2.2649765014648438e-06
+                ],
+                "body": 1.0,
+                "shield": 0.0,
+                "parent": -1,
+                "seat": -1,
+                "cluster": 0,
+                "damage_flags": 0,
+                "floor": [
+                  1.0,
+                  2.0,
+                  -1,
+                  -2.2649765014648438e-06
+                ],
+                "control": 0,
+                "throttle": [
+                  0.0,
+                  0.0,
+                  0.0
+                ]
+              },
+              "-328204288": {
+                "handle": -470285943,
+                "xyz": [
+                  -56.68453598022461,
+                  -3.6604747772216797,
+                  -2.2649765014648438e-06
+                ],
+                "body": 1.0,
+                "shield": 0.0,
+                "parent": -1,
+                "seat": -1,
+                "cluster": 0,
+                "damage_flags": 0,
+                "floor": [
+                  1.0,
+                  2.0,
+                  -1,
+                  -2.2649765014648438e-06
+                ],
+                "control": 0,
+                "throttle": [
+                  0.0,
+                  0.0,
+                  0.0
+                ]
+              }
+            },
+            "device": null
+          },
+          "script_wakes": [
+            {
+              "script": "x10_crew_salute_1",
+              "tick": 1867
+            },
+            {
+              "script": "x10_crew_salute_2",
+              "tick": 1867
+            },
+            {
+              "script": "x10_crew_walk_1",
+              "tick": 2297
+            },
+            {
+              "script": "x10_crew_walk_2",
+              "tick": 2297
+            },
+            {
+              "script": "x10_crew_walk_3",
+              "tick": 2297
+            },
+            {
+              "script": "x10_crew_walk_4",
+              "tick": 2297
+            },
+            {
+              "script": "x10_crew_panic_1",
+              "tick": 2933
+            },
+            {
+              "script": "x10_crew_panic_3",
+              "tick": 2933
+            },
+            {
+              "script": "x10_crew_panic_4",
+              "tick": 2983
+            },
+            {
+              "script": "x10_crew_panic_2",
+              "tick": 3008
+            },
+            {
+              "script": "x10_crew_panic_5",
+              "tick": 3112
+            },
+            {
+              "script": "x10_crew_panic_6",
+              "tick": 3295
+            },
+            {
+              "script": "x10_tankpel",
+              "tick": 3581
+            },
+            {
+              "script": "x10_hog_2",
+              "tick": 3706
+            },
+            {
+              "script": "x10_hog_3",
+              "tick": 3706
+            },
+            {
+              "script": "x10_hog_1",
+              "tick": 3901
+            },
+            {
+              "script": "tank_run_1",
+              "tick": 3961
+            },
+            {
+              "script": "tank_run_2",
+              "tick": 4061
+            },
+            {
+              "script": "x10_hog_4",
+              "tick": 5198
+            },
+            {
+              "script": "x10_hog_5",
+              "tick": 5606
+            },
+            {
+              "script": "x10_post",
+              "tick": 6701
+            },
+            {
+              "script": "tutorial_setup",
+              "tick": 6701
+            },
+            {
+              "script": "mission_bsp",
+              "tick": 6701
+            },
+            {
+              "script": "music_a10",
+              "tick": 6701
+            },
+            {
+              "script": "linkage",
+              "tick": 6701
+            },
+            {
+              "script": "music_a10_01",
+              "tick": 6702
+            },
+            {
+              "script": "music_a10_03",
+              "tick": 6702
+            },
+            {
+              "script": "music_a10_04",
+              "tick": 6702
+            },
+            {
+              "script": "music_a10_05",
+              "tick": 6702
+            },
+            {
+              "script": "music_a10_06",
+              "tick": 6702
+            },
+            {
+              "script": "music_a10_07",
+              "tick": 6702
+            },
+            {
+              "script": "title_training",
+              "tick": 6702
+            },
+            {
+              "script": "tutorial_introduction",
+              "tick": 6762
+            },
+            {
+              "script": "tutorial_looking",
+              "tick": 7231
+            },
+            {
+              "script": "tutorial_hud_health",
+              "tick": 8258
+            },
+            {
+              "script": "tutorial_action",
+              "tick": 8527
+            },
+            {
+              "script": "tutorial_moving_1",
+              "tick": 9445
+            }
+          ],
+          "checkpoint_ticks": [
+            1
+          ]
+        },
+        "client": {
+          "binary_sha256": "67fccf7c5556b9ccf6bd5dc642cfb09c5a7c502ca43e9871f2027db23b20b1c8",
+          "frames": 6048,
+          "last_sample": {
+            "wall": 17522.367555,
+            "tick": 18144,
+            "bsp": 0,
+            "cinematic": false,
+            "input": true,
+            "players": {
+              "-328138751": {
+                "handle": -448528371,
+                "xyz": [
+                  -52.849609375,
+                  0.007403330411761999,
+                  -2.2649765014648438e-06
+                ],
+                "body": 1.0,
+                "shield": 0.0,
+                "parent": -1,
+                "seat": -1,
+                "cluster": 0,
+                "damage_flags": 0,
+                "floor": [
+                  1.0,
+                  2.0,
+                  -1,
+                  -2.2649765014648438e-06
+                ],
+                "control": 0,
+                "throttle": [
+                  0.0,
+                  0.0,
+                  0.0
+                ]
+              },
+              "-328204288": {
+                "handle": -470285943,
+                "xyz": [
+                  -56.68453598022461,
+                  -3.6604747772216797,
+                  -2.2649765014648438e-06
+                ],
+                "body": 1.0,
+                "shield": 0.0,
+                "parent": -1,
+                "seat": -1,
+                "cluster": 0,
+                "damage_flags": 0,
+                "floor": [
+                  1.0,
+                  2.0,
+                  -1,
+                  -2.2649765014648438e-06
+                ],
+                "control": 0,
+                "throttle": [
+                  0.0,
+                  0.0,
+                  0.0
+                ]
+              }
+            },
+            "device": null
+          },
+          "script_wakes": null,
+          "checkpoint_ticks": []
+        }
+      }
+    },
+    {
+      "name": "menu-a10-progression-v2",
+      "revision": "493abb5e9d4ef77b5b45be7571ae3f6843734974",
+      "peers": {
+        "host": {
+          "binary_sha256": "67fccf7c5556b9ccf6bd5dc642cfb09c5a7c502ca43e9871f2027db23b20b1c8",
+          "frames": 9207,
+          "last_sample": {
+            "wall": 18864.552351,
+            "tick": 27621,
+            "bsp": 0,
+            "cinematic": false,
+            "input": true,
+            "players": {
+              "-328138751": {
+                "handle": -448528371,
+                "xyz": [
+                  -52.8874397277832,
+                  0.006314536556601524,
+                  -2.2649765014648438e-06
+                ],
+                "body": 1.0,
+                "shield": 0.0,
+                "parent": -1,
+                "seat": -1,
+                "cluster": 0,
+                "damage_flags": 0,
+                "floor": [
+                  1.0,
+                  2.0,
+                  -1,
+                  -2.2649765014648438e-06
+                ],
+                "control": 0,
+                "throttle": [
+                  0.0,
+                  0.0,
+                  0.0
+                ]
+              },
+              "-328204288": {
+                "handle": -470285943,
+                "xyz": [
+                  -57.40353012084961,
+                  -2.233088493347168,
+                  -0.050002098083496094
+                ],
+                "body": 1.0,
+                "shield": 0.0,
+                "parent": -1,
+                "seat": -1,
+                "cluster": 0,
+                "damage_flags": 0,
+                "floor": [
+                  1.0,
+                  2.0,
+                  -1,
+                  -0.050002098083496094
+                ],
+                "control": 0,
+                "throttle": [
+                  0.0,
+                  0.0,
+                  0.0
+                ]
+              }
+            },
+            "device": null
+          },
+          "script_wakes": [
+            {
+              "script": "x10_crew_salute_1",
+              "tick": 1867
+            },
+            {
+              "script": "x10_crew_salute_2",
+              "tick": 1867
+            },
+            {
+              "script": "x10_crew_walk_1",
+              "tick": 2297
+            },
+            {
+              "script": "x10_crew_walk_2",
+              "tick": 2297
+            },
+            {
+              "script": "x10_crew_walk_3",
+              "tick": 2297
+            },
+            {
+              "script": "x10_crew_walk_4",
+              "tick": 2297
+            },
+            {
+              "script": "x10_crew_panic_1",
+              "tick": 2933
+            },
+            {
+              "script": "x10_crew_panic_3",
+              "tick": 2933
+            },
+            {
+              "script": "x10_crew_panic_4",
+              "tick": 2983
+            },
+            {
+              "script": "x10_crew_panic_2",
+              "tick": 3008
+            },
+            {
+              "script": "x10_crew_panic_5",
+              "tick": 3112
+            },
+            {
+              "script": "x10_crew_panic_6",
+              "tick": 3295
+            },
+            {
+              "script": "x10_tankpel",
+              "tick": 3581
+            },
+            {
+              "script": "x10_hog_2",
+              "tick": 3706
+            },
+            {
+              "script": "x10_hog_3",
+              "tick": 3706
+            },
+            {
+              "script": "x10_hog_1",
+              "tick": 3901
+            },
+            {
+              "script": "tank_run_1",
+              "tick": 3960
+            },
+            {
+              "script": "tank_run_2",
+              "tick": 4060
+            },
+            {
+              "script": "x10_hog_4",
+              "tick": 5197
+            },
+            {
+              "script": "x10_hog_5",
+              "tick": 5605
+            },
+            {
+              "script": "x10_post",
+              "tick": 6701
+            },
+            {
+              "script": "tutorial_setup",
+              "tick": 6701
+            },
+            {
+              "script": "mission_bsp",
+              "tick": 6701
+            },
+            {
+              "script": "music_a10",
+              "tick": 6701
+            },
+            {
+              "script": "linkage",
+              "tick": 6701
+            },
+            {
+              "script": "music_a10_01",
+              "tick": 6702
+            },
+            {
+              "script": "music_a10_03",
+              "tick": 6702
+            },
+            {
+              "script": "music_a10_04",
+              "tick": 6702
+            },
+            {
+              "script": "music_a10_05",
+              "tick": 6702
+            },
+            {
+              "script": "music_a10_06",
+              "tick": 6702
+            },
+            {
+              "script": "music_a10_07",
+              "tick": 6702
+            },
+            {
+              "script": "title_training",
+              "tick": 6702
+            },
+            {
+              "script": "tutorial_introduction",
+              "tick": 6762
+            },
+            {
+              "script": "tutorial_looking",
+              "tick": 7231
+            },
+            {
+              "script": "tutorial_hud_health",
+              "tick": 8256
+            },
+            {
+              "script": "tutorial_action",
+              "tick": 8525
+            },
+            {
+              "script": "tutorial_moving_1",
+              "tick": 9445
+            },
+            {
+              "script": "tutorial_looking_targeted",
+              "tick": 14064
+            },
+            {
+              "script": "tutorial_looking_choose",
+              "tick": 20928
+            },
+            {
+              "script": "tutorial_moving_2",
+              "tick": 26307
+            },
+            {
+              "script": "dialog_flavor_cortana",
+              "tick": 26499
+            }
+          ],
+          "checkpoint_ticks": [
+            1,
+            26340
+          ]
+        },
+        "client": {
+          "binary_sha256": "67fccf7c5556b9ccf6bd5dc642cfb09c5a7c502ca43e9871f2027db23b20b1c8",
+          "frames": 9209,
+          "last_sample": {
+            "wall": 18864.693592,
+            "tick": 27627,
+            "bsp": 0,
+            "cinematic": false,
+            "input": true,
+            "players": {
+              "-328138751": {
+                "handle": -448528371,
+                "xyz": [
+                  -52.872528076171875,
+                  0.0064790151081979275,
+                  -2.2649765014648438e-06
+                ],
+                "body": 1.0,
+                "shield": 0.0,
+                "parent": -1,
+                "seat": -1,
+                "cluster": 0,
+                "damage_flags": 0,
+                "floor": [
+                  1.0,
+                  2.0,
+                  -1,
+                  -2.2649765014648438e-06
+                ],
+                "control": 0,
+                "throttle": [
+                  0.0,
+                  0.0,
+                  0.0
+                ]
+              },
+              "-328204288": {
+                "handle": -470285943,
+                "xyz": [
+                  -57.40353012084961,
+                  -2.233088493347168,
+                  -0.050002098083496094
+                ],
+                "body": 1.0,
+                "shield": 0.0,
+                "parent": -1,
+                "seat": -1,
+                "cluster": 0,
+                "damage_flags": 0,
+                "floor": [
+                  1.0,
+                  2.0,
+                  -1,
+                  -0.050002098083496094
+                ],
+                "control": 0,
+                "throttle": [
+                  0.0,
+                  0.0,
+                  0.0
+                ]
+              }
+            },
+            "device": null
+          },
+          "script_wakes": null,
+          "checkpoint_ticks": []
+        }
+      }
+    },
+    {
+      "name": "menu-a10-confirm",
+      "revision": "493abb5e9d4ef77b5b45be7571ae3f6843734974",
+      "peers": {
+        "host": {
+          "binary_sha256": "caad35cd35550fd005b7cb15a57f759244d228a860d37680b6b154ac31f5de20",
+          "frames": 12720,
+          "last_sample": {
+            "wall": 20381.945997,
+            "tick": 38160,
+            "bsp": 0,
+            "cinematic": false,
+            "input": true,
+            "players": {
+              "-328138751": {
+                "handle": -448528371,
+                "xyz": [
+                  -50.69379806518555,
+                  -0.7108310461044312,
+                  -2.2649765014648438e-06
+                ],
+                "body": 1.0,
+                "shield": 1.0,
+                "parent": -1,
+                "seat": -1,
+                "cluster": 7,
+                "damage_flags": 0,
+                "floor": [
+                  1.0,
+                  2.0,
+                  -1,
+                  -2.2649765014648438e-06
+                ],
+                "control": 0,
+                "throttle": [
+                  0.0,
+                  0.0,
+                  0.0
+                ]
+              },
+              "-328204288": {
+                "handle": -470285943,
+                "xyz": [
+                  -50.49684524536133,
+                  -5.358320713043213,
+                  -2.2649765014648438e-06
+                ],
+                "body": 1.0,
+                "shield": 1.0,
+                "parent": -1,
+                "seat": -1,
+                "cluster": 7,
+                "damage_flags": 0,
+                "floor": [
+                  1.0,
+                  2.0,
+                  -1,
+                  -2.2649765014648438e-06
+                ],
+                "control": 0,
+                "throttle": [
+                  0.0,
+                  0.0,
+                  0.0
+                ]
+              }
+            },
+            "device": null
+          },
+          "script_wakes": [
+            {
+              "script": "x10_crew_salute_1",
+              "tick": 1867
+            },
+            {
+              "script": "x10_crew_salute_2",
+              "tick": 1867
+            },
+            {
+              "script": "x10_crew_walk_1",
+              "tick": 2297
+            },
+            {
+              "script": "x10_crew_walk_2",
+              "tick": 2297
+            },
+            {
+              "script": "x10_crew_walk_3",
+              "tick": 2297
+            },
+            {
+              "script": "x10_crew_walk_4",
+              "tick": 2297
+            },
+            {
+              "script": "x10_crew_panic_1",
+              "tick": 2933
+            },
+            {
+              "script": "x10_crew_panic_3",
+              "tick": 2933
+            },
+            {
+              "script": "x10_crew_panic_4",
+              "tick": 2983
+            },
+            {
+              "script": "x10_crew_panic_2",
+              "tick": 3008
+            },
+            {
+              "script": "x10_crew_panic_5",
+              "tick": 3112
+            },
+            {
+              "script": "x10_crew_panic_6",
+              "tick": 3295
+            },
+            {
+              "script": "x10_tankpel",
+              "tick": 3581
+            },
+            {
+              "script": "x10_hog_2",
+              "tick": 3706
+            },
+            {
+              "script": "x10_hog_3",
+              "tick": 3706
+            },
+            {
+              "script": "x10_hog_1",
+              "tick": 3901
+            },
+            {
+              "script": "tank_run_1",
+              "tick": 3961
+            },
+            {
+              "script": "tank_run_2",
+              "tick": 4061
+            },
+            {
+              "script": "x10_hog_4",
+              "tick": 5198
+            },
+            {
+              "script": "x10_hog_5",
+              "tick": 5606
+            },
+            {
+              "script": "x10_post",
+              "tick": 6701
+            },
+            {
+              "script": "tutorial_setup",
+              "tick": 6701
+            },
+            {
+              "script": "mission_bsp",
+              "tick": 6701
+            },
+            {
+              "script": "music_a10",
+              "tick": 6701
+            },
+            {
+              "script": "linkage",
+              "tick": 6701
+            },
+            {
+              "script": "music_a10_01",
+              "tick": 6702
+            },
+            {
+              "script": "music_a10_03",
+              "tick": 6702
+            },
+            {
+              "script": "music_a10_04",
+              "tick": 6702
+            },
+            {
+              "script": "music_a10_05",
+              "tick": 6702
+            },
+            {
+              "script": "music_a10_06",
+              "tick": 6702
+            },
+            {
+              "script": "music_a10_07",
+              "tick": 6702
+            },
+            {
+              "script": "title_training",
+              "tick": 6702
+            },
+            {
+              "script": "tutorial_introduction",
+              "tick": 6762
+            },
+            {
+              "script": "tutorial_looking",
+              "tick": 7231
+            },
+            {
+              "script": "tutorial_hud_health",
+              "tick": 7712
+            },
+            {
+              "script": "tutorial_action",
+              "tick": 7981
+            },
+            {
+              "script": "tutorial_moving_1",
+              "tick": 8838
+            },
+            {
+              "script": "tutorial_looking_targeted",
+              "tick": 11560
+            },
+            {
+              "script": "tutorial_looking_choose",
+              "tick": 13549
+            },
+            {
+              "script": "tutorial_moving_2",
+              "tick": 22409
+            },
+            {
+              "script": "dialog_flavor_cortana",
+              "tick": 22601
+            },
+            {
+              "script": "tutorial_hud_shield",
+              "tick": 26823
+            },
+            {
+              "script": "dialog_flavor_cortana",
+              "tick": 27883
+            },
+            {
+              "script": "tutorial_asst_kill",
+              "tick": 29815
+            },
+            {
+              "script": "tutorial_first_contact",
+              "tick": 30697
+            },
+            {
+              "script": "main_setup",
+              "tick": 30697
+            },
+            {
+              "script": "mission_cryo_explosion",
+              "tick": 30697
+            },
+            {
+              "script": "mission_blam_burn",
+              "tick": 30697
+            },
+            {
+              "script": "mission_blam_scare",
+              "tick": 30697
+            },
+            {
+              "script": "mission_containment_1",
+              "tick": 30697
+            },
+            {
+              "script": "mission_crossfire",
+              "tick": 30697
+            },
+            {
+              "script": "mission_bridge",
+              "tick": 30697
+            },
+            {
+              "script": "mission_containment_1_post",
+              "tick": 30698
+            },
+            {
+              "script": "containment_1_slam",
+              "tick": 30698
+            },
+            {
+              "script": "mission_crossfire_post",
+              "tick": 30698
+            },
+            {
+              "script": "dialog_flavor_cortana",
+              "tick": 31083
+            },
+            {
+              "script": "dialog_flavor_cortana",
+              "tick": 33892
+            },
+            {
+              "script": "dialog_flavor_cortana",
+              "tick": 36094
+            }
+          ],
+          "checkpoint_ticks": [
+            1,
+            22442,
+            30808
+          ]
+        },
+        "client": {
+          "binary_sha256": "caad35cd35550fd005b7cb15a57f759244d228a860d37680b6b154ac31f5de20",
+          "frames": 12722,
+          "last_sample": {
+            "wall": 20382.110551,
+            "tick": 38166,
+            "bsp": 0,
+            "cinematic": false,
+            "input": true,
+            "players": {
+              "-328138751": {
+                "handle": -448528371,
+                "xyz": [
+                  -50.69544219970703,
+                  -0.7169695496559143,
+                  -2.2649765014648438e-06
+                ],
+                "body": 1.0,
+                "shield": 1.0,
+                "parent": -1,
+                "seat": -1,
+                "cluster": 7,
+                "damage_flags": 0,
+                "floor": [
+                  1.0,
+                  2.0,
+                  -1,
+                  -2.2649765014648438e-06
+                ],
+                "control": 0,
+                "throttle": [
+                  0.0,
+                  0.0,
+                  0.0
+                ]
+              },
+              "-328204288": {
+                "handle": -470285943,
+                "xyz": [
+                  -50.49684524536133,
+                  -5.358320713043213,
+                  -2.2649765014648438e-06
+                ],
+                "body": 1.0,
+                "shield": 1.0,
+                "parent": -1,
+                "seat": -1,
+                "cluster": 7,
+                "damage_flags": 0,
+                "floor": [
+                  1.0,
+                  2.0,
+                  -1,
+                  -2.2649765014648438e-06
+                ],
+                "control": 0,
+                "throttle": [
+                  0.0,
+                  0.0,
+                  0.0
+                ]
+              }
+            },
+            "device": null
+          },
+          "script_wakes": null,
+          "checkpoint_ticks": []
+        }
+      }
+    }
+  ],
+  "validation": {
+    "tests": 124,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "windows_diagnostic_build": "passed",
+    "production_changes": false,
+    "review": "self-review of combined tooling and documentation",
+    "normal_configure_args": "--release --portable --pgo=off --lto=off"
+  },
+  "cleanup": {
+    "disposable_bytes_removed": 16420695142,
+    "archived_evidence_bytes": 5309710676,
+    "archived_files": 2125,
+    "original_inputs_verified": 6,
+    "source_copies_verified": 14,
+    "archive_members_hash_verified": true,
+    "owned_game_processes_stopped": true
+  },
+  "next_gates": [
+    "Swap host/client player ordering and test ordinary client browser entry",
+    "Compare solo/local tutorial aiming and relevant difficulties",
+    "Restore natural checkpoints and continue authored progression",
+    "Later doors, BSP travel, combat, mission completion and next-level entry",
+    "CE/MCC semantics, faults and native/browser coverage"
+  ]
+}
