@@ -709,7 +709,7 @@ static const struct config_setting config_settings[] =
 		"The overshield as this machine draws it: its flare rising up the body as\n"
 		"it charges (2 seconds, 3 from a shield that was down) and staying lit,\n"
 		"its energy slower: green above 200% shields, reddish-pink below.\n"
-		"Arms also require Arm Shields. A hit on it plays\n"
+		"The flare fades with active camouflage. Arms also require Arm Shields. A hit on it plays\n"
 		"what the projectile plays on an Elite's shield. Only what is drawn\n"
 		"and heard changes. Online, the host decides through network.shield_effects,\n"
 		"unless it is \"players\" or the game is co-op (each player's own)." },
