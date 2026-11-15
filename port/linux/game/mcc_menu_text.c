@@ -61,8 +61,9 @@ static unsigned long mcc_text_config = (unsigned long)-1;
 
 void mcc_menu_text_clear(void)
 {
-    free(mcc_text_rows); mcc_text_rows=NULL;
-    free(mcc_text_layouts); mcc_text_layouts=NULL;
+    if (mcc_text_rows) free(mcc_text_rows);
+    if (mcc_text_layouts) free(mcc_text_layouts);
+    mcc_text_rows=NULL; mcc_text_layouts=NULL;
     mcc_text_stamp=0;
 }
 

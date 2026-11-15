@@ -42,6 +42,7 @@ struct rasterizer_dynamic_screen_geometry_parameters {int unused;};
 static int live,loads,draws,text_draws,current_font,fail_image,portrait,measures;
 static unsigned long settings_version;
 static unsigned long config_changes(void) {return settings_version;}
+static void cache_free(void *p) {assert(p);free(p);}
 static rectangle2d drawn,clipped,drawn_texels;
 static wchar_t drawn_text[512];
 static const char *tag_name="ui\\shell\\bitmaps\\mp_map_grafix";
@@ -77,7 +78,10 @@ static void rasterizer_draw_unicode_string(const rectangle2d *b,const rectangle2
 '''
     code = preamble
     for name in ("mcc_menu_preview.c", "mcc_menu_text.c"):
+        if name == "mcc_menu_text.c":
+            code += "\n#define free cache_free\n"
         code += re.sub(r'^#include[^\n]*\n', '', (ROOT / "port/linux/game" / name).read_text(), flags=re.M)
+    code += "\n#undef free\n"
     # Compile the production pure fit routine, with no decoder dependency.
     from harness import function
     code += function((ROOT / "port/linux/src/mcc_preview_image.c").read_text(), "mcc_preview_fit")
