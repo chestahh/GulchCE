@@ -424,12 +424,12 @@ On a large screen, a shadow's 128 texels show as steps along its edge, which
 crawl as the object moves. The two maps, the game's only R5G6B5 render
 targets (rasterizer_xbox.c), can be drawn larger as the screen's targets are
 (render_target_get): the game's viewports, clears and quads, in its 128 units,
-scale up with them. The scale is a power of two up to 8 (1024x1024), which
+scale up with them. The scale is a power of two up to 32 (4096x4096), which
 the blur needs to cover the same part of the map as the Xbox's
 (rasterizer_shadow_convolve); 1, the default, draws them as the Xbox did. It
 changes only between frames (halo_screen_commit). */
 #define SHADOW_MAP_SIZE 128
-#define SHADOW_MAP_MAXIMUM_SCALE 8
+#define SHADOW_MAP_MAXIMUM_SCALE 32
 
 /* 0 until first asked */
 static long shadow_scale;
@@ -554,6 +554,9 @@ struct vertex_shader_object
 	GLuint plasma_shader[2], plasma_lit_shader[2];
 	BOOL plasma_lighting_failed;
 	BOOL plasma_model;
+	/* Instruction-verified lighting for optional receivers, including lit
+	   transparent model passes not registered for stock per-pixel lighting. */
+	struct nv2a_vertex_lighting plasma_lighting;
 #endif
 #ifndef HALO_GLES
 	unsigned int modern_shadow_failed;
@@ -3769,10 +3772,10 @@ HRESULT WINAPI D3DDevice_CreateVertexShader(CONST DWORD *declaration, CONST DWOR
 #ifndef HALO_ANDROID
 	if (object->instructions)
 	{
-		struct nv2a_vertex_lighting lighting;
 		/* Keep the feature's instruction-based recognition independent of
 		   which programs the game marks for per-pixel lighting. */
-		object->plasma_model = nv2a_vertex_shader_lighting(object->instructions, object->instruction_count, &lighting) && lighting.lights == 2;
+		object->plasma_model = nv2a_vertex_shader_lighting(object->instructions, object->instruction_count,
+			&object->plasma_lighting) && object->plasma_lighting.lights == 2;
 	}
 #endif
 	/* odd values are FVF codes; programmable shader handles are even */
@@ -3968,8 +3971,14 @@ static GLuint vertex_shader_get(struct vertex_shader_object *program, BOOL immed
 #endif
 	if (!*shader && !(program->shaders_tried & tried))
 	{
-		char *source = nv2a_vertex_shader_to_glsl(program->instructions, program->instruction_count,
-			immediate ? 0 : device.vertex_shader->packed_mask, lit ? &program->lighting : NULL, plasma_model);
+		struct nv2a_vertex_lighting const *lighting = lit ? &program->lighting : NULL;
+		char *source;
+#ifndef HALO_GLES
+		if (lit && plasma_model && !program->lighting.lights)
+			lighting = &program->plasma_lighting;
+#endif
+		source = nv2a_vertex_shader_to_glsl(program->instructions, program->instruction_count,
+			immediate ? 0 : device.vertex_shader->packed_mask, lighting, plasma_model);
 
 		program->shaders_tried |= tried;
 		*shader = xgpu_compile_shader(GL_VERTEX_SHADER, source, "vertex");
@@ -4253,11 +4262,12 @@ static struct program_entry *draw_program_get(struct vertex_shader_object *progr
 	key->modern_shadow = 0;
 #ifndef HALO_GLES
 	key->modern_shadow = (unsigned char)modern_shadows_world_stage();
-	if (program->plasma_model && program->lighting.lights == 2 && modern_shadows_model_mask()) key->modern_shadow = 3;
+	if (plasma_model && modern_shadows_model_mask()) key->modern_shadow = 3;
 	if (key->modern_shadow && !(program->modern_shadow_failed & (1U << key->modern_shadow)))
 	{
-		BOOL lit = program->lighting.lights && !*failed && (per_pixel_lighting() || key->modern_shadow == 3);
-		key->per_pixel_lighting = lit ? (unsigned char)program->lighting.lights : 0;
+		int lights = key->modern_shadow == 3 ? 2 : program->lighting.lights;
+		BOOL lit = lights && !*failed && (per_pixel_lighting() || key->modern_shadow == 3);
+		key->per_pixel_lighting = lit ? (unsigned char)lights : 0;
 		key->plasma_model = lit ? (unsigned char)plasma_model : 0;
 		entry = program_get(vertex_shader_get(program, immediate, lit, plasma_model), fragment_shader_get(key), plasma_model, TRUE);
 		if (entry) return entry;

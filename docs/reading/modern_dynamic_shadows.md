@@ -1,5 +1,68 @@
 # Modern dynamic shadows
 
+## Refined shadow behaviour
+
+The [refinement milestones and reproducible baseline](modern_shadow_refinement.md)
+track the renewed acceptance work, including held-weapon shadows on the player
+body and helmet/visor self-shadowing.
+
+Sidewinder playtesting in both Hard and Soft exposed incorrect Warthog/Ghost
+silhouettes, one-sided Jackal shield illumination, missing corpse shadows,
+missing player self-shadowing and overlapping stock character
+shadows. The earlier controlled checks and passing CI do not establish visual
+acceptance for these cases. The refinement retains the off default and now uses
+an eight-light budget with the shared 128–4096 shadow-resolution setting.
+The current quality, performance and delivery evidence is in the refinement
+guide; older milestone measurements below describe the original two-light
+implementation. Self-shadowing acceptance covers
+all applicable objects, players and NPCs under every supported dynamic-light
+category, including their own continuous weapon glows and firing effects.
+The revised Jackal/Ghost agreement is an owner-only exception: shield and engine
+lights illuminate their own owner without casting or receiving modern shadows
+from that light. Other objects still cast and receive from those lights, and
+external lights still shadow the Jackal and Ghost normally. This supersedes the
+earlier requirement for shield-on-Jackal and engine-on-hull self-shadowing.
+
+### Visual reference and acceptance criteria
+
+The user-provided Halo 2 pstencil-era images and the
+[Halopedia gallery](https://www.halopedia.org/Pstencil) are the visual reference
+for this refinement. They supplement the cases above; they do not change the
+implementation to stencil volumes or bring CStencil into scope. The aim is
+recognisable silhouettes, convincing self-shadowing and a clear relationship
+between each emitter, blocker and receiving surface. The screenshots are visual
+targets, not evidence of how this implementation should calculate shadows.
+
+- Under an external light, the Warthog's wheels, chassis and cabin must produce
+  recognisable, correctly oriented silhouettes on the ground and on the vehicle.
+  The Ghost must pass the same geometry and motion checks. A nearby onboard
+  emitter need not project the complete vehicle silhouette.
+- Moving weapon and projectile lights must move character and vehicle shadows
+  coherently across floors, walls and other models. Living and dead bipeds,
+  player bodies, NPCs and applicable first-person geometry need explicit checks.
+- Jackal shields retain radial colour spill and damage colours, illuminating
+  their Jackal without projecting its body/shield silhouette. Other objects
+  remain shadowed; another dynamic light can still shadow that Jackal.
+- Ghost engines retain their existing local illumination without projecting
+  their own hull's strips and wedges. This applies to campaign and multiplayer
+  engine emitters only; external lights still cast the Ghost's silhouette.
+- These exceptions do not extend to passengers, held weapons, other vehicles,
+  stationary shields or other light categories.
+- Hard mode must retain crisp, stable edges; Soft mode must preserve the same
+  silhouette and contact while softening edges. Detached shadows, surface acne,
+  conspicuous cube seams and popping fail acceptance in either mode.
+- Shadowing must attenuate the relevant dynamic light, preserving unrelated
+  lights and baked illumination. The reference's darkest areas are not a reason
+  to force black shadows everywhere or suppress the level's ambient lighting.
+
+Use matched before/after video with identical cameras, light placement and
+settings, including motion at 30, 60 and 120 FPS. Consult the refinement guide
+for the tested cases and remaining device/capture limitations. Busy Two
+Betrayals validation must retain the agreed 240+ average FPS target with the
+refined effects and bounded eight-light budget. Off-default behavior, host
+policy, AMD/NVIDIA workarounds, Android exclusion and Xbox/CE/MCC ownership
+remain requirements throughout.
+
 This branch adds optional rendered shadow maps to GulchCE's dynamic lighting.
 It leaves the original object shadow projection in place. Choose **Off**, **Hard**
 or **Soft** under Video Setup → Dynamic Lighting → Modern Shadows. The modern
@@ -24,9 +87,9 @@ name does not restrict selection to plasma or projectiles. Existing local
 toggles and host policy remain authoritative; shadows do not create lights
 or enable a disabled lighting category.
 
-The current budget renders **two selected lights per primary view**. This
+The refinement budget renders **eight selected lights per primary view**. This
 is a bounded implementation, not a promise that every eligible light is shadowed
-simultaneously. Vacancies and the weaker incumbent are considered first;
+simultaneously. Vacancies and weaker incumbents are considered first;
 a surviving light keeps its map slot when scores reorder. The score favours
 bright, nearby lights with useful radii; an incumbent identity stays selected
 while its score is at least 80% of its best available challenger. Recycled rasterizer
@@ -63,6 +126,10 @@ or replace the original vehicle shadow.
 3. [modern_shadows_gl.c](../../port/linux/src/modern_shadows_gl.c):
    `modern_shadow_begin`, `modern_shadow_draw` and `modern_shadow_end` build a
    six-face depth cube: a depth image looking in each direction from the light.
+   Casters use reversed floating-point perspective depth and zero-to-one
+   clipping, without writing fragment depth. Receivers decode it to radial
+   distance for the existing plane comparison. The 0.005-unit near plane
+   must agree between the caster projection and receiver decoding.
    Each selected light has its own maps; hard and soft modes share their format. Soft mode uses four visibility
    samples with bilinear comparison weights to soften the edge; it does not
    blur baked lighting. Samples reproject across cube faces explicitly.
@@ -91,15 +158,28 @@ are changed.
 
 ## Lifecycle and bounds
 
-Each depth cube is 512 by 512 pixels per face. A visible first-person model
-adds a second cube, allocated lazily and rendered only while those casters
-are present. World receivers use the complete world body and weapon; the
+Each depth cube uses `display.shadow_resolution` pixels per face (128 through
+4096). The unchanged default is 128; 1024 is the recommended modern-shadow
+quality/performance balance. Hard and Soft use the same selected resolution.
+Higher resolution improves silhouette detail but does not reproduce the
+resolution-independent edges of shadow volumes. A visible first-person model
+intersecting the light's range adds a second cube, allocated lazily and rendered
+only while those casters are present. World receivers use the complete world body and weapon; the
 first-person receiver uses the arms/weapon pose and excludes their hidden
 world counterparts. Other casters participate in both maps. This prevents
 double silhouettes without removing the player's body shadow from the world.
 Each light's two cubes share the frame's copied bone matrices. Converted
-meshes and the draw queue are shared between lights. Each cube takes 6 MiB:
-two world maps use 12 MiB, or 24 MiB with both first-person maps allocated.
+meshes and the draw queue are shared between lights. At 1024, each cube takes 24 MiB: eight world maps use up to 192 MiB,
+or 384 MiB with all first-person maps allocated. Each doubling quadruples
+this depth storage: the equivalent maximum is 1.5 GiB at 2048 and 6 GiB at
+4096, excluding other renderer resources. These are explicit quality choices,
+not a promise of 240 FPS at every resolution. Changing resolution releases
+old cubes before lazily creating replacements; converted meshes are retained.
+Only selected lights allocate cubes. Conservative posed mesh bounds reject
+geometry outside the light and skip cube faces it cannot intersect; unsupported
+bounds retain the original submission. The local eight-light Soft/1024 combat
+run now clears 240 average FPS. See the [refinement measurements and limits](modern_shadow_refinement.md#conservative-caster-submission);
+later emitter-placement and edge-stability acceptance remain separate gates.
 Mesh storage is bounded to
 2,048 parts and 32 MiB; each selected light holds at most 256 caster draws with 64 bones
 per draw in the reused queue. Incomplete caster collection falls back instead of displaying a
@@ -277,7 +357,8 @@ does not hide acne by lifting the entire shadow away from its caster.
 
 `tools/modern_shadow_quality.py` runs the actual emitted receiver GLSL in a
 hidden Windows OpenGL context against independently constructed analytic
-depth cubes. It requires NumPy and Pillow, but no game assets or production
+depth cubes, and rasterizes the production caster into all six faces to
+check the projection/receiver agreement. It requires NumPy and Pillow, but no game assets or production
 instrumentation. Run it with `--output build/shadow-quality`; use `--source`
 and `--record` to retain a pre-fix comparison. It checks front-facing and
 grazing planes, positive/negative cube seams, a cube corner, close receivers,

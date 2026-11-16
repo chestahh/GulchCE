@@ -15,6 +15,7 @@
 #include "physics/collisions.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 static FILE *timings;
 static double origin, previous, flushed, next_capture;
@@ -84,6 +85,8 @@ static int lighting_snowy_route(XINPUT_GAMEPAD *pad, double elapsed)
 	};
 	int i;
 	if (elapsed < 0) return FALSE;
+	/* The benchmark owns its complete input, including after the route. */
+	memset(pad, 0, sizeof(*pad));
 	for (i = 0; i < NUMBEROF(steps); i++)
 	{
 		if (elapsed < steps[i].seconds)
@@ -93,6 +96,12 @@ static int lighting_snowy_route(XINPUT_GAMEPAD *pad, double elapsed)
 			break;
 		}
 		elapsed -= steps[i].seconds;
+	}
+	if (i == NUMBEROF(steps) && getenv("HALO_LIGHTING_BENCH_TURN"))
+	{
+		double turn = atof(getenv("HALO_LIGHTING_BENCH_TURN"));
+		if (elapsed < (turn < 0 ? -turn : turn))
+			pad->sThumbRX = turn < 0 ? -32767 : 32767;
 	}
 	return TRUE;
 }
@@ -109,8 +118,12 @@ int lighting_performance_input(XINPUT_GAMEPAD *pad)
 	elapsed = lighting_performance_seconds();
 	if (elapsed < 2) return FALSE;
 	if (elapsed < 2 + atof(advance)) pad->sThumbLY = 32767;
-	else if (getenv("HALO_LIGHTING_BENCH_TURN") && elapsed < 2 + atof(advance) + atof(getenv("HALO_LIGHTING_BENCH_TURN")))
-		pad->sThumbRX = 32767;
+	else if (getenv("HALO_LIGHTING_BENCH_TURN"))
+	{
+		double turn = atof(getenv("HALO_LIGHTING_BENCH_TURN"));
+		if (elapsed < 2 + atof(advance) + (turn < 0 ? -turn : turn))
+			pad->sThumbRX = turn < 0 ? -32767 : 32767;
+	}
 	return TRUE;
 }
 

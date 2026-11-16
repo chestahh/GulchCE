@@ -50,8 +50,8 @@ typedef float real;
 #define NONE (-1)
 ''')
     (tmp_path / 'real_math.h').write_text('''
-typedef struct { float x, y, z; } real_point3d;
-typedef struct { float i, j, k; } real_vector3d;
+typedef union real_point3d { struct { float x, y, z; }; } real_point3d;
+typedef union real_vector3d { struct { float i, j, k; }; } real_vector3d;
 typedef struct { float red, green, blue; } real_rgb_color;
 ''')
     (tmp_path / 'plasma_model_shader.h').write_text(
@@ -69,8 +69,8 @@ int main(void)
 {
     int map;
     real_rgb_color color = {0.2f, 0.7f, 0.3f}, saved = color;
-    real_point3d position = {1, 2, 3}, old_position = position;
-    real_vector3d direction = {0, 0, 1}, old_direction = direction;
+    real_point3d position = {{1, 2, 3}}, old_position = position;
+    real_vector3d direction = {{0, 0, 1}}, old_direction = direction;
     unsigned long pixel[64], old_pixel[64];
     float radius = 2.5f, axis[3] = {0, 0, 1}, origin[3] = {1, 2, 3};
     memset(pixel, 0x5a, sizeof(pixel));
@@ -117,6 +117,8 @@ int main(void)
         if (muzzle_lighting_vehicle_occlusion(17) || plasma_lighting_vehicle_occlusion(17) ||
             covenant_emitter_lighting_vehicle_occlusion(17) ||
             covenant_emitter_lighting_occlusion_ignore(17) != NONE ||
+            covenant_emitter_lighting_shadow_owner(17) != NONE ||
+            plasma_lighting_shadow_owner(17) != NONE ||
             covenant_emitter_lighting_cone(1, axis, origin, &radius) || radius != 2.5f) return 6;
         plasma_lighting_frame_end(); muzzle_lighting_frame_end(); covenant_lighting_frame_end();
         covenant_emitter_lighting_frame_end(); rocket_lighting_frame_end(); shield_glow_frame_end();

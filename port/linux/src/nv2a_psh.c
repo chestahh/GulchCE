@@ -772,8 +772,8 @@ char *nv2a_pixel_shader_to_glsl(const struct nv2a_pixel_shader_key *key)
 	/* Only this light's attenuation is shadowed, preserving baked light. */
 #ifndef HALO_GLES
 	if (key->modern_shadow == 1 || key->modern_shadow == 2)
-		xgpu_text_append(&text, "\tt%d *= modern_visibility((xT%d.xyz-vec3(0.5))*modern_extent);\n",
-			key->modern_shadow, key->modern_shadow);
+		xgpu_text_append(&text, "\tt%d *= modern_world((xT%d.xyz-vec3(0.5))*modern_extent,t%d);\n",
+			key->modern_shadow, key->modern_shadow, key->modern_shadow);
 #endif
 
 	/* the fog register: rgb is the fog color, alpha the fog factor */

@@ -27,7 +27,7 @@ boolean light_port_glow_move(long light, real_point3d const *position);
 enum { EMITTER_LIGHTS = 8 };
 static struct emitter_light
 {
-	int active, connected, seen, kind, component;
+	int active, connected, seen, kind, component, owner_unshadowed;
 	long object, light, rasterizer;
 	real strength, last_time, radius;
 	real_point3d position;
@@ -82,6 +82,7 @@ static int emitter_sample(long index, int component, struct emitter_sample *samp
 	short player;
 	int counter_pose;
 	sample->view_gain = 1.0f;
+	sample->owner_unshadowed = FALSE;
 	if (!object || TEST_FLAG(object->object.flags, _object_invisible_bit) ||
 		object->object.node_matrices.size < sizeof(real_matrix4x3))
 		return FALSE;
@@ -98,6 +99,7 @@ static int emitter_sample(long index, int component, struct emitter_sample *samp
 	{
 		sample->kind = object->object.type == _object_type_scenery ? 2 : 0;
 		sample->radius = sample->kind == 2 ? 2.8f : 3.6f;
+		sample->owner_unshadowed = sample->kind == 0;
 		marker_name = "shield light";
 		/* The stock shield shader's colour source is change colour C. */
 		sample->color = object->object.outgoing_change_colors[2];
@@ -181,6 +183,17 @@ static int emitter_sample(long index, int component, struct emitter_sample *samp
 		if (!object_get_marker_by_name(index, marker_name, &marker, 1))
 			return FALSE;
 		sample->position = marker.matrix.position;
+		if (sample->kind == 0)
+		{
+			/* Clear the forearm/hub around the point-source approximation.
+			   This retains radial emission; it does not
+			   approximate visibility across the shield's emitting area. */
+			real up = 0.06f * marker.matrix.scale;
+			real forward = 0.08f * marker.matrix.scale;
+			sample->position.x += up * marker.matrix.up.i + forward * marker.matrix.forward.i;
+			sample->position.y += up * marker.matrix.up.j + forward * marker.matrix.forward.j;
+			sample->position.z += up * marker.matrix.up.k + forward * marker.matrix.forward.k;
+		}
 	}
 	for (player = local_player_get_next(NONE); player != NONE; player = local_player_get_next(player))
 	{
@@ -288,6 +301,7 @@ void covenant_emitter_lighting_update(void)
 			sample.position = emitter->position;
 		}
 		emitter->radius = sample.radius;
+		emitter->owner_unshadowed = sample.owner_unshadowed;
 		if (sample.kind == 3 || sample.kind == 4)
 		{
 			emitter->position = sample.position;
@@ -385,6 +399,19 @@ float covenant_emitter_lighting_radius(long light, float radius)
 		if (emitters[i].active && emitters[i].light == light && light != NONE && emitter_kind_enabled(emitters[i].kind))
 			return MAX(radius, emitters[i].radius);
 	return radius;
+}
+
+/* Jackal shields and Ghost engines illuminate their owner without projecting
+   its point-source silhouette. Other lights still shadow that same object. */
+long covenant_emitter_lighting_shadow_owner(long light)
+{
+	int i;
+	if (light == NONE) return NONE;
+	for (i = 0; i < EMITTER_LIGHTS; i++)
+		if (emitters[i].active && emitters[i].connected && emitters[i].light == light &&
+			emitters[i].owner_unshadowed && emitter_kind_enabled(emitters[i].kind) &&
+			object_try_and_get(emitters[i].object)) return emitters[i].object;
+	return NONE;
 }
 
 long covenant_emitter_lighting_occlusion_ignore(long light)

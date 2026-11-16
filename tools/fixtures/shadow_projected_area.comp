@@ -1,0 +1,139 @@
+#version 430 core
+#ifndef INTERVAL_CAPACITY
+#define INTERVAL_CAPACITY 32
+#endif
+// Project triangle shadows onto finite source strips, then integrate their union.
+// Diagnostic only: storage overflow is an explicit failure, never missing shadow.
+layout(local_size_x = 64) in;
+struct Node { vec4 low; vec4 high; ivec4 range; };
+struct Triangle { vec4 origin; vec4 edge1; vec4 edge2; vec4 plane; };
+struct Strip { vec4 first; vec4 last; };
+layout(std430, binding = 0) readonly buffer Tree { Node nodes[]; };
+layout(std430, binding = 1) readonly buffer Mesh { Triangle triangles[]; };
+layout(std430, binding = 2) readonly buffer Emitters { Strip strips[]; };
+layout(std430, binding = 3) readonly buffer Receivers { vec4 receivers[]; };
+layout(std430, binding = 4) writeonly buffer Result { float visibility[]; };
+layout(std430, binding = 5) writeonly buffer Statistics { uint interval_peaks[]; };
+uniform int receiver_count, strip_count, first_receiver, output_offset;
+shared float lane_sum[64];
+shared uint lane_peak[64];
+
+bool clip_interval(float value, float slope, inout vec2 span) {
+    if (slope > 1.e-12) span.x = max(span.x, -value/slope);
+    else if (slope < -1.e-12) span.y = min(span.y, -value/slope);
+    else if (value < 0.0) return false;
+    return span.y > span.x;
+}
+
+bool projected_interval(Triangle tri, vec3 receiver, vec3 start, vec3 along, out vec2 span) {
+    float side = dot(tri.plane.xyz, receiver) - tri.plane.w;
+    if (abs(side) <= 1.e-6 || dot(tri.plane.xyz,tri.plane.xyz) == 0.0) return false;
+    vec3 a = tri.origin.xyz - receiver;
+    vec3 b = a + tri.edge1.xyz, c = a + tri.edge2.xyz;
+    vec3 normals[3] = vec3[3](cross(b,c), cross(c,a), cross(a,b));
+    float orientation = sign(dot(a,normals[0]));
+    if (orientation == 0.0) return false;
+    span = vec2(0.0,1.0);
+    for (int edge = 0; edge < 3; ++edge) {
+        float magnitude = length(normals[edge]);
+        if (magnitude <= 1.e-12) return false;
+        vec3 normal = normals[edge] * (orientation / magnitude);
+        if (!clip_interval(dot(normal,start-receiver),dot(normal,along),span)) return false;
+    }
+    float facing = -sign(side);
+    return clip_interval(facing*(dot(tri.plane.xyz,start)-tri.plane.w)-1.e-6,
+                         facing*dot(tri.plane.xyz,along),span);
+}
+
+vec4 edge_plane(vec3 normal, vec3 a, vec3 b, vec3 opposite) {
+    vec3 h = cross(normal,b-a);
+    h *= sign(dot(h,opposite-a));
+    float magnitude = length(h);
+    if (magnitude > 1.e-12) h /= magnitude;
+    return vec4(h,-dot(h,a));
+}
+
+bool beam_hit(Node node, vec3 low, vec3 high, vec4 plane, vec4 sides[3]) {
+    if (any(greaterThan(node.low.xyz, high+vec3(1.e-6))) ||
+        any(lessThan(node.high.xyz, low-vec3(1.e-6)))) return false;
+    vec3 center = (node.low.xyz+node.high.xyz)*.5;
+    vec3 extent = (node.high.xyz-node.low.xyz)*.5;
+    if (abs(dot(plane.xyz,center)+plane.w) > dot(abs(plane.xyz),extent)+1.e-6) return false;
+    for (int edge = 0; edge < 3; ++edge)
+        if (dot(sides[edge].xyz,center)+sides[edge].w+dot(abs(sides[edge].xyz),extent) < -1.e-6)
+            return false;
+    return true;
+}
+
+float strip_visibility(vec3 receiver, Strip strip, out uint peak) {
+    peak = 0u;
+    vec3 a = strip.first.xyz, b = strip.last.xyz;
+    vec3 normal = cross(a-receiver,b-receiver);
+    float magnitude = length(normal);
+    if (magnitude > 1.e-12) normal /= magnitude;
+    else normal = vec3(0.0); // Collinear beam: retain conservative AABB traversal.
+    vec4 plane = vec4(normal,-dot(normal,receiver));
+    vec4 sides[3] = vec4[3](edge_plane(normal,receiver,a,b),
+                            edge_plane(normal,a,b,receiver),edge_plane(normal,b,receiver,a));
+    vec3 low = min(receiver,min(a,b)), high = max(receiver,max(a,b));
+    vec2 intervals[INTERVAL_CAPACITY];
+    int count = 0, index = 0;
+    while (index < nodes.length()) {
+        Node node = nodes[index];
+        if (!beam_hit(node,low,high,plane,sides)) {
+            index = node.range.z;
+            continue;
+        }
+        for (int triangle = 0; triangle < node.range.y; ++triangle) {
+            vec2 span;
+            if (!projected_interval(triangles[node.range.x+triangle],receiver,a,b-a,span)) continue;
+            // Maintain a disjoint union; swapping removes a merged interval.
+            int slot = 0;
+            while (slot < count) {
+                vec2 old = intervals[slot];
+                if (span.x <= old.y && span.y >= old.x) {
+                    span = vec2(min(span.x,old.x),max(span.y,old.y));
+                    --count;
+                    intervals[slot] = intervals[count];
+                } else ++slot;
+            }
+            if (span.x <= 0.0 && span.y >= 1.0) return 0.0;
+            if (count == INTERVAL_CAPACITY) return -1.0;
+            intervals[count++] = span;
+            peak = max(peak,uint(count));
+        }
+        index = node.range.y == 0 ? index+1 : node.range.z;
+    }
+    float covered = 0.0;
+    for (int slot = 0; slot < count; ++slot) covered += intervals[slot].y-intervals[slot].x;
+    return clamp(1.0-covered,0.0,1.0);
+}
+
+void main() {
+    int pixel = first_receiver + int(gl_WorkGroupID.x);
+    if (pixel >= receiver_count) return;
+    uint lane = gl_LocalInvocationID.x;
+    float result = 0.0;
+    uint peak = 0u;
+    for (int strip = int(lane); strip < strip_count; strip += 64) {
+        uint strip_peak;
+        float visible = strip_visibility(receivers[pixel].xyz,strips[strip],strip_peak);
+        peak = max(peak,strip_peak);
+        if (visible < 0.0) { result = -100000.0; break; }
+        result += visible * strips[strip].first.w;
+    }
+    lane_sum[lane] = result;
+    lane_peak[lane] = peak;
+    barrier();
+    for (uint step = 32u; step > 0u; step >>= 1u) {
+        if (lane < step) {
+            lane_sum[lane] += lane_sum[lane+step];
+            lane_peak[lane] = max(lane_peak[lane],lane_peak[lane+step]);
+        }
+        barrier();
+    }
+    if (lane == 0u) {
+        visibility[output_offset+pixel] = lane_sum[0];
+        interval_peaks[output_offset+pixel] = lane_peak[0];
+    }
+}

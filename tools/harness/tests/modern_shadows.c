@@ -2,7 +2,7 @@
 #define MIN(a,b) ((a)<(b)?(a):(b))
 #define MAX(a,b) ((a)>(b)?(a):(b))
 #define SHADOW_LIGHTS 128
-#define MODERN_SHADOW_LIGHTS 2
+#include "budget.inc"
 struct structure_bsp { int identity; } map_a, map_b;
 static struct structure_bsp *map = &map_a;
 static int parts[1], begins, disposals, failed, complete = 1, mode_soft;
@@ -20,7 +20,7 @@ static struct { int light_count; struct rasterizer_light_submit_parameters light
 /* Dependencies stand in for each category's existing local/host eligibility.
    The dispatcher and shadow selection below are the real production code. */
 static unsigned int allowed;
-static int shield_glow_selected(long i) { return i==0 && (allowed & 1); }
+static int shield_glow_selected(long i) { return (i==0 || (i>=7 && i<10)) && (allowed & (1U<<i)); }
 static int muzzle_lighting_selected(long i) { return i==1 && (allowed & 2); }
 static int covenant_emitter_lighting_selected(long i) { return i==2 && (allowed & 4); }
 static int covenant_lighting_selected(long i) { return i==3 && (allowed & 8); }
@@ -46,7 +46,9 @@ static void plasma_falloff_specular_begin(long light) { rebound_stage=1; rebound
 static int modern_shadow_end(void) { return !failed; }
 static int world_casters(const struct structure_bsp *b,const real_point3d *p,float r) { return complete; }
 static int viewmodel_casters(long owners[2]) { owners[0]=owners[1]=NONE; return complete; }
-static int object_casters(const real_point3d *p,float r,const long owners[2]) { return complete; }
+static int object_casters(const real_point3d *p,float r,const long owners[2],long unshadowed_owner) { return complete; }
+static long exempt_light=NONE, exempt_owner=NONE;
+static long plasma_lighting_shadow_owner(long light) { return light==exempt_light ? exempt_owner : NONE; }
 #include "under_test.inc"
 static int selection_stability(void)
 {
@@ -96,6 +98,39 @@ static int selection_stability(void)
  }
  return 0;
 }
+static int full_budget(void)
+{
+ int i,j,original[8];
+ modern_shadows_reset(); modern_shadows_window();
+ rasterizer_lights.light_count=10; allowed=1023; mode="hard";
+ for(i=0;i<10;i++) {
+  rasterizer_lights.lights[i].radius=2;
+  rasterizer_lights.lights[i].color.red=i<8?2.f:1.f;
+  modern_shadows_submitted(100+i,i);
+ }
+ modern_shadows_prepare(1);
+ CHECK(active==255,"eight eligible lights receive complete maps");
+ for(i=0;i<8;i++) {
+  original[i]=map_for(i); CHECK(original[i]!=NONE,"all eight lights are covered");
+  for(j=0;j<i;j++) CHECK(original[i]!=original[j],"no light shares another light's map");
+ }
+ CHECK(!modern_shadows_selected(8) && !modern_shadows_selected(9),"over-budget lights retain ordinary lighting");
+ modern_shadows_model_slot(7,0);modern_shadows_model_slot(6,1);
+ CHECK(modern_shadows_model_mask()==3 && modern_shadows_map(0)==original[7] &&
+  modern_shadows_map(1)==original[6],"receivers can bind the final two maps");
+ failed_slot=original[7];modern_shadows_prepare(1);
+ CHECK(!modern_shadows_selected(7) && modern_shadows_selected(6),"failure in the eighth map does not invalidate seven others");
+ failed_slot=-1;modern_shadows_prepare(1);
+ allowed&=~(1U<<3);modern_shadows_prepare(1);
+ CHECK(!modern_shadows_selected(3) && modern_shadows_selected(8),"policy rejection releases its slot immediately");
+ CHECK(map_for(8)==original[3],"vacancy reused without reshuffling surviving maps");
+ for(i=0;i<8;i++) if(i!=3) CHECK(map_for(i)==original[i],"surviving maps remain stable");
+ rasterizer_lights.lights[9].color.red=20;modern_shadows_prepare(1);
+ CHECK(modern_shadows_selected(9) && !modern_shadows_selected(8),"dominant flash replaces weakest incumbent");
+ allowed=0;modern_shadows_prepare(1);
+ CHECK(!active,"host rejection clears every slot");
+ return 0;
+}
 int main(int argc,char **argv)
 {
  int i, before;
@@ -120,7 +155,23 @@ int main(int argc,char **argv)
   allowed=0; modern_shadows_prepare(1);
   CHECK(!active, "disabled or policy-rejected categories cannot keep a map");
  }
- allowed=3; modern_shadows_prepare(1);
+ allowed=3; exempt_light=100; exempt_owner=0x10001; modern_shadows_prepare(1);
+ modern_shadows_model_slot(0,0);modern_shadows_model_slot(1,1);
+ modern_shadows_receiver(0,exempt_owner);
+ CHECK(modern_shadows_model_mask()==2 && modern_shadows_map(0)==NONE && modern_shadows_map(1)!=NONE,
+       "own light is unshadowed while external light still shadows the owner");
+ CHECK(modern_shadows_selected(0),"owner exemption must not enable collision-mask fallback");
+ modern_shadows_world_begin(0,2);
+ CHECK(modern_shadows_map(0)!=NONE,"own light still shadows the world");modern_shadows_world_end();
+ modern_shadows_receiver(0,0x20001);
+ CHECK(modern_shadows_model_mask()==3,"another or recycled receiver retains both shadow maps");
+ modern_shadows_receiver(1,exempt_owner);
+ CHECK(modern_shadows_model_mask()==3,"first-person identity is not an object-owner exception");
+ modern_shadows_receiver(0,NONE);
+ CHECK(modern_shadows_model_mask()==3,"receiver end clears exception");
+ exempt_light=NONE;modern_shadows_prepare(1);modern_shadows_receiver(0,exempt_owner);
+ CHECK(modern_shadows_model_mask()==3,"removed exception cannot survive map preparation");
+ modern_shadows_receiver(0,NONE);
  CHECK(modern_shadows_selected(0) && modern_shadows_selected(1), "initial pair is deterministic");
  failed_slot=1;modern_shadows_prepare(1);
  CHECK(modern_shadows_selected(0) && !modern_shadows_selected(1), "one failed map preserves the other and cannot reuse old depth");
@@ -131,7 +182,7 @@ int main(int argc,char **argv)
  modern_shadows_submitted(200,0); rasterizer_lights.lights[1].color.red=2;
  mode="soft"; modern_shadows_prepare(1);
  CHECK(modern_shadows_selected(1) && mode_soft, "new identity and stronger light are reconsidered");
- modern_shadows_receiver(1);
+ modern_shadows_receiver(1, NONE);
  CHECK(modern_shadows_view_receiver(), "first-person receiver selects its depth map");
  modern_shadows_world_begin(1,1);
  CHECK(!modern_shadows_view_receiver(), "world illumination cannot sample viewmodel depth");
@@ -154,6 +205,6 @@ int main(int argc,char **argv)
  CHECK(disposals==before+1 && !cached_bsp && !active, "disable releases resources");
  modern_shadows_window();
  CHECK(identities[0]==NONE && slots[0]==NONE, "window transition clears light identities and slots");
- CHECK(!modern_shadows_view_receiver(), "window transition clears receiver kind");
- return selection_stability();
+ CHECK(!modern_shadows_view_receiver() && receiver_object==NONE, "window transition clears receiver kind and identity");
+ return MODERN_SHADOW_LIGHTS==2 ? selection_stability() : full_budget();
 }

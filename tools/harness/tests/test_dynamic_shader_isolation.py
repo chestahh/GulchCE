@@ -28,7 +28,7 @@ def executable(android=False, fault=None):
 
 
 @pytest.mark.parametrize('android', [False, True])
-@pytest.mark.parametrize('case', ['toggle', 'failure', 'unmarked', 'gpu', 'shadows'])
+@pytest.mark.parametrize('case', ['toggle', 'failure', 'unmarked', 'gpu', 'shadows', 'unmarked_shadow'])
 def test_isolation(case, android):
     status, output = run(executable(android), case)
     assert status == 0, output
@@ -39,6 +39,8 @@ def test_isolation(case, android):
     (('failed = &program->plasma_lighting_failed;', 'failed = &program->lighting_failed;'), 'failure'),
     (('if (plasma_model)\n\t{\n\t\tentry->plasma_model_slots', 'if (TRUE)\n\t{\n\t\tentry->plasma_model_slots'), 'gpu'),
     (('if (plasma_mask && entry->plasma_model_slots >= 0)', 'if (entry->plasma_model_slots >= 0)'), 'gpu'),
+    (('if (plasma_model && modern_shadows_model_mask())',
+      'if (plasma_model && program->lighting.lights == 2 && modern_shadows_model_mask())'), 'unmarked_shadow'),
 ])
 def test_negative_control(fault, case):
     status, output = run(executable(fault=fault), case)

@@ -19,10 +19,12 @@ static unsigned modern_shadows_model_mask(void) { return shadow_mask; }
 static void modern_shadow_bind(const struct modern_shadow_uniforms *u) { gpu_calls++; }
 static void modern_shadows_cancel(void) {}
 static float mask0, mask1;
+static const struct nv2a_vertex_lighting *translated_lighting;
 static char *nv2a_vertex_shader_to_glsl(const DWORD *words, unsigned long count,
  unsigned long packed, const struct nv2a_vertex_lighting *lighting, BOOL plasma)
 {
  char *result = malloc(3);
+ translated_lighting=lighting;
  result[0] = plasma ? '1' : '0'; result[1] = lighting ? '1' : '0'; result[2] = 0;
  return result;
 }
@@ -66,7 +68,27 @@ int main(int argc, char **argv)
  program.lighting.lights=2; device.vertex_shader=&program;
 #ifndef HALO_ANDROID
  program.plasma_model=TRUE;
+ program.plasma_lighting.lights=2;
 #endif
+ if (!strcmp(argv[1], "unmarked_shadow"))
+ {
+  program.lighting.lights=0; pp=0;
+  stock=draw_program_get(&program,FALSE,&key,0);
+  CHECK(stock && !key.modern_shadow && !key.per_pixel_lighting,"unregistered stock program stays per-vertex");
+  shadow_mask=1;
+  enhanced=draw_program_get(&program,FALSE,&key,1);
+#ifndef HALO_GLES
+  CHECK(enhanced && key.modern_shadow==3 && key.per_pixel_lighting==2,"verified transparent receiver uses pixel shadows");
+  CHECK(translated_lighting==&program.plasma_lighting,"optional shader gets verified normal and position metadata");
+  CHECK(!program.lighting.lights,"shadow reception does not register the stock program");
+  CHECK(draw_program_get(&program,FALSE,&key,0)==stock && !key.modern_shadow,"disabled lighting restores exact stock program despite stale shadow slots");
+  shadow_mask=0;
+  CHECK(draw_program_get(&program,FALSE,&key,1) && !key.per_pixel_lighting,"lighting alone preserves established vertex behavior");
+#else
+  CHECK(enhanced==stock && !key.modern_shadow && !key.per_pixel_lighting,"Android keeps unregistered shaders stock");
+#endif
+  return 0;
+ }
  if (!strcmp(argv[1], "gpu"))
  {
   initialize(&entry, FALSE); bind_model(&entry, 0);

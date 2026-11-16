@@ -97,6 +97,8 @@ def main():
                  'source/physics/collision_models.h', 'port/linux/game/lighting_config.c']:
         manifest['production_hashes'][path]=hashlib.sha256((ROOT/path).read_bytes()).hexdigest()
     for path in ['port/linux/game/plasma_collision_scene.c', 'port/linux/game/ammo_counter_falloff.c',
+                 'source/objects/object_lights.c', 'port/linux/game/plasma_lighting.h',
+                 'port/linux/game/authored_emitter_lighting.h', 'port/android/guest/dynamic_lighting_disabled.c',
                  'port/linux/game/modern_shadows.c', 'port/linux/src/modern_shadows_gl.c',
                  'port/linux/include/modern_shadows.h', 'source/render/render.c',
                  'port/linux/game/modern_shadows_first_person.inl', 'source/interface/first_person_weapons.c',

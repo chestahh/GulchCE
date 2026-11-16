@@ -26,8 +26,8 @@ static struct
 	long light_index;
 	long object_index;
 	long rasterizer_index;
-	int was_dynamic, category;
-	float radius_scale, saved_radius;
+	int was_dynamic, category, owner_unshadowed;
+	float radius_scale, saved_radius, forward_offset;
 } plasma_lighting_attachments[PLASMA_LIGHTING_MAXIMUM];
 static int plasma_lighting_count;
 static unsigned int	plasma_model_mask;
@@ -62,8 +62,8 @@ void plasma_lighting_prepare(long light_index, long object_index, long definitio
 {
 	struct object_datum *object;
 	const char *name;
-	int index, category;
-	float covenant_scale, authored_scale = 1.0f;
+	int index, category, owner_unshadowed;
+	float covenant_scale, authored_scale = 1.0f, forward_offset = 0.f;
 
 	if ((!lighting_config_boolean("display.plasma_lighting") && !authored_emitter_lighting_enabled()) || object_index == NONE)
 		return;
@@ -72,7 +72,7 @@ void plasma_lighting_prepare(long light_index, long object_index, long definitio
 	object = object_try_and_get(object_index);
 	if (!object)
 		return;
-	category = authored_emitter_lighting_profile(object_index, definition_index, &authored_scale);
+	category = authored_emitter_lighting_profile(object_index, definition_index, &authored_scale, &forward_offset, &owner_unshadowed);
 	if (!category && (!lighting_config_boolean("display.plasma_lighting") || object->object.type != _object_type_projectile))
 		return;
 	name = tag_get_name(object->definition_index);
@@ -104,6 +104,8 @@ void plasma_lighting_prepare(long light_index, long object_index, long definitio
 		!strcmp(name, "weapons\\plasma pistol\\bolt") ? 2.25f :
 		!strcmp(name, "weapons\\plasma rifle\\charged bolt") ? 2.75f : 1.75f;
 	plasma_lighting_attachments[plasma_lighting_count].category = category;
+	plasma_lighting_attachments[plasma_lighting_count].owner_unshadowed = owner_unshadowed;
+	plasma_lighting_attachments[plasma_lighting_count].forward_offset = forward_offset;
 	plasma_lighting_count++;
 	if (!light_port_refresh_attachment(light_index, object_index))
 	{
@@ -112,6 +114,29 @@ void plasma_lighting_prepare(long light_index, long object_index, long definitio
 		light_port_dynamic_set(light_index, object_index,
 			plasma_lighting_attachments[plasma_lighting_count].was_dynamic);
 	}
+}
+
+/* Apply at the marker-to-world boundary, before cluster reconnection. CPU
+   selection, shadow maps and illumination must share one render-time origin.
+   Only registered attachments can move; cleanup clears the offset before
+   reconnecting their stock simulation pose. */
+void plasma_lighting_attachment_position(long light_index, long object_index,
+	real_point3d *position, real_vector3d const *forward, float scale)
+{
+	int index;
+	for (index = 0; index < plasma_lighting_count; index++)
+		if (plasma_lighting_attachments[index].light_index == light_index &&
+			plasma_lighting_attachments[index].object_index == object_index)
+		{
+			float offset = plasma_lighting_attachments[index].forward_offset * scale;
+			if (offset && authored_emitter_lighting_category_enabled(plasma_lighting_attachments[index].category))
+			{
+				position->x += offset * forward->i;
+				position->y += offset * forward->j;
+				position->z += offset * forward->k;
+			}
+			return;
+		}
 }
 
 float plasma_lighting_radius(long light_index, long object_index, float radius)
@@ -125,6 +150,22 @@ float plasma_lighting_radius(long light_index, long object_index, float radius)
 			authored_emitter_lighting_category_enabled(plasma_lighting_attachments[index].category))
 			return radius * plasma_lighting_attachments[index].radius_scale;
 	return radius;
+}
+
+/* Full datum identities keep this exception local to one live light/owner
+   pair. The shadow collector resolves it once per selected map, not per draw. */
+long plasma_lighting_shadow_owner(long light)
+{
+	int i;
+	long owner = covenant_emitter_lighting_shadow_owner(light);
+	if (owner != NONE || light == NONE) return owner;
+	for (i = 0; i < plasma_lighting_count; i++)
+		if (plasma_lighting_attachments[i].light_index == light &&
+			plasma_lighting_attachments[i].owner_unshadowed &&
+			authored_emitter_lighting_category_enabled(plasma_lighting_attachments[i].category) &&
+			object_try_and_get(plasma_lighting_attachments[i].object_index))
+			return plasma_lighting_attachments[i].object_index;
+	return NONE;
 }
 
 void plasma_lighting_frame_end(void)
@@ -142,6 +183,7 @@ void plasma_lighting_frame_end(void)
 	for (index = 0; index < plasma_lighting_count; index++)
 	{
 		plasma_lighting_attachments[index].radius_scale = 1.0f;
+		plasma_lighting_attachments[index].forward_offset = 0.f;
 		light_port_attachment_radius(plasma_lighting_attachments[index].light_index,
 			plasma_lighting_attachments[index].object_index,
 			&plasma_lighting_attachments[index].saved_radius, TRUE);

@@ -4,7 +4,7 @@
 #define MODERN_SHADOWS_H
 
 void modern_shadows_prepare(int primary);
-void modern_shadows_receiver(int first_person);
+void modern_shadows_receiver(int first_person, long object);
 int modern_shadows_view_receiver(void);
 int modern_shadows_map(int slot);
 void modern_shadows_reset(void);
@@ -27,7 +27,7 @@ struct modern_shadow_vertex
 	float uv[2];
 };
 
-enum { MODERN_SHADOW_LIGHTS = 2, MODERN_SHADOW_WORLD = 1, MODERN_SHADOW_VIEW = 2, MODERN_SHADOW_BOTH = 3 };
+enum { MODERN_SHADOW_LIGHTS = 8, MODERN_SHADOW_WORLD = 1, MODERN_SHADOW_VIEW = 2, MODERN_SHADOW_BOTH = 3 };
 
 struct real_matrix4x3;
 /* Read the already-interpolated pose through the first-person owner's

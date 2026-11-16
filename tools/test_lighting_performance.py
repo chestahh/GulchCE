@@ -98,3 +98,34 @@ def test_240_fps_budget_counts_sub_120_stalls():
     assert result['budget_ms'] == pytest.approx(1000 / 240)
     assert result['over_budget_percent'] == 50
     assert result['over_1_5_budget_percent'] == 25
+
+
+def test_campaign_route_owns_and_releases_input(tmp_path):
+    import subprocess
+    from test_mcc_identity import compile_tool
+    source = tmp_path / 'route.c'
+    source.write_text(r'''
+#include <string.h>
+#include <stdlib.h>
+#define TRUE 1
+#define FALSE 0
+#define NUMBEROF(a) ((int)(sizeof(a)/sizeof((a)[0])))
+#define XINPUT_GAMEPAD_X 2
+typedef struct { short sThumbLX,sThumbLY,sThumbRX,sThumbRY; unsigned short wButtons;
+ unsigned char bAnalogButtons[8]; } XINPUT_GAMEPAD;
+''' + function((ROOT/'tools/fixtures/lighting_performance.c').read_text(), 'lighting_snowy_route') + r'''
+int main(void) {
+ XINPUT_GAMEPAD pad, original, zero;
+ memset(&zero,0,sizeof(zero)); memset(&pad,0x7f,sizeof(pad)); original=pad;
+ if(lighting_snowy_route(&pad,-1) || memcmp(&pad,&original,sizeof(pad))) return 1;
+ if(!lighting_snowy_route(&pad,0) || memcmp(&pad,&zero,sizeof(pad))) return 2;
+ memset(&pad,0x7f,sizeof(pad));
+ if(!lighting_snowy_route(&pad,3) || pad.sThumbLY!=32767 || pad.sThumbRY ||
+    pad.wButtons || pad.bAnalogButtons[6] || pad.bAnalogButtons[7]) return 3;
+ memset(&pad,0x7f,sizeof(pad));
+ if(!lighting_snowy_route(&pad,1000) || memcmp(&pad,&zero,sizeof(pad))) return 4;
+ return 0;
+}
+''')
+    result = subprocess.run([str(compile_tool(tmp_path, [source]))], capture_output=True)
+    assert result.returncode == 0, result.stderr

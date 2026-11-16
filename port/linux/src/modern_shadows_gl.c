@@ -6,12 +6,18 @@
 #include <string.h>
 
 #ifndef HALO_GLES
-enum { SHADOW_SIZE = 512, SHADOW_MESHES = 2048, SHADOW_DRAWS = 256,
+enum { SHADOW_MESHES = 2048, SHADOW_DRAWS = 256,
 	SHADOW_BYTES = 32 * 1024 * 1024, SHADOW_NODES = 64 };
-static struct { GLuint vertices, indices; int count; } meshes[SHADOW_MESHES];
+static struct shadow_mesh
+{
+	GLuint vertices, indices;
+	int count, bounded;
+	unsigned int nodes[2];
+	float minimum[3], maximum[3];
+} meshes[SHADOW_MESHES];
 static struct
 {
-	int mesh, nodes, views;
+	int mesh, nodes, views, faces;
 	float matrices[SHADOW_NODES * 16], uv_transform[8];
 	GLuint alpha;
 } draws[SHADOW_DRAWS];
@@ -26,6 +32,110 @@ static struct shadow_map *map = &maps[0];
 static GLuint framebuffer, program, vao, alpha_sampler;
 static GLint light_uniform, face_uniform, bones_uniform, alpha_uniform, uv_uniform;
 static int drawing;
+static int shadow_size;
+extern long halo_shadow_map_scale(void);
+
+/* A blend of two transformed vertices stays in the union's bounding box.
+   Retaining all used bones makes this conservative for animated models too. */
+static void mesh_bounds(struct shadow_mesh *mesh, const struct modern_shadow_vertex *vertices, int count)
+{
+	int i, axis, node;
+	mesh->nodes[0] = mesh->nodes[1] = 0;
+	mesh->bounded = 0;
+	for (i = 0; i < count; i++)
+	{
+		const struct modern_shadow_vertex *v = &vertices[i];
+		if (!(v->weight >= 0 && v->weight <= 1)) return;
+		for (axis = 0; axis < 3; axis++)
+		{
+			float p = v->position[axis];
+			if (!(p > -1.e30f && p < 1.e30f)) return;
+			if (!i || p < mesh->minimum[axis]) mesh->minimum[axis] = p;
+			if (!i || p > mesh->maximum[axis]) mesh->maximum[axis] = p;
+		}
+		for (axis = 0; axis < 2; axis++)
+		{
+			if (!(v->nodes[axis] >= 0 && v->nodes[axis] < SHADOW_NODES)) return;
+			node = (int)v->nodes[axis];
+			if ((axis ? 1.f - v->weight : v->weight) > 0)
+				mesh->nodes[node / 32] |= 1U << (node % 32);
+		}
+	}
+	mesh->bounded = count > 0;
+}
+
+/* Reject only when the complete posed box misses the light or a face.
+   Unknown bounds retain the original six-face submission. The margin
+   covers CPU/GPU rounding at clip seams; it never moves rendered vertices. */
+static int mesh_faces(const struct shadow_mesh *mesh, const float *matrices, int count, const float light[4])
+{
+	float minimum[3] = {0}, maximum[3] = {0}, distance = 0;
+	int node, axis, j, first = 1, face, faces = 0;
+	if (!mesh->bounded) return 63;
+	for (node = 0; node < SHADOW_NODES; node++)
+	{
+		const float *m;
+		if (!(mesh->nodes[node / 32] & (1U << (node % 32)))) continue;
+		if (node >= count) return 63;
+		m = matrices + node * 16;
+		if (m[3] != 0 || m[7] != 0 || m[11] != 0 || m[15] != 1) return 63;
+		for (axis = 0; axis < 3; axis++)
+		{
+			float low = m[12 + axis], high = low, margin;
+			for (j = 0; j < 3; j++)
+			{
+				float a = m[j * 4 + axis] * mesh->minimum[j];
+				float b = m[j * 4 + axis] * mesh->maximum[j];
+				low += a < b ? a : b;
+				high += a > b ? a : b;
+			}
+			if (!(low > -1.e30f && high < 1.e30f)) return 63;
+			margin = .0001f * (1.f + (low < 0 ? -low : low) + (high < 0 ? -high : high));
+			low -= light[axis] + margin;
+			high -= light[axis] - margin;
+			if (first || low < minimum[axis]) minimum[axis] = low;
+			if (first || high > maximum[axis]) maximum[axis] = high;
+		}
+		first = 0;
+	}
+	if (first) return 63;
+	for (axis = 0; axis < 3; axis++)
+	{
+		float d = minimum[axis] > 0 ? minimum[axis] : maximum[axis] < 0 ? -maximum[axis] : 0;
+		distance += d * d;
+	}
+	if (distance > light[3] * light[3]) return 0;
+	for (face = 0; face < 6; face++)
+	{
+		float depth;
+		axis = face / 2;
+		depth = face & 1 ? -minimum[axis] : maximum[axis];
+		if (depth < .005f) continue;
+		for (j = 0; j < 3; j++)
+			if (j != axis && (depth + maximum[j] < 0 || depth - minimum[j] < 0)) break;
+		if (j == 3) faces |= 1 << face;
+	}
+	return faces;
+}
+
+static void release_maps(void)
+{
+	int i;
+	for (i = 0; i < MODERN_SHADOW_LIGHTS; i++)
+		if (maps[i].depth_cube[0] || maps[i].depth_cube[1]) glDeleteTextures(2, maps[i].depth_cube);
+	memset(maps, 0, sizeof(maps));
+}
+
+/* The shared setting is committed between frames. Keep immutable meshes
+   and programs, but release every old-resolution cube before allocating
+   any new one. A setting change can retry a failed allocation. */
+static void resize_maps(int size)
+{
+	if (shadow_size == size) return;
+	release_maps();
+	shadow_size = size;
+	resource_failed = 0;
+}
 
 static void create_depth_cube(GLuint *texture)
 {
@@ -35,7 +145,7 @@ static void create_depth_cube(GLuint *texture)
 	glBindTexture(GL_TEXTURE_CUBE_MAP, *texture);
 	for (face = 0; face < 6; face++)
 		glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + face, 0, GL_DEPTH_COMPONENT32F,
-			SHADOW_SIZE, SHADOW_SIZE, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+			shadow_size, shadow_size, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
 	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -52,11 +162,11 @@ static int create_resources(void)
 		"layout(location=2) in float weight;\n"
 		"layout(location=3) in vec2 uv;\n"
 		"uniform mat4 bones[64]; uniform vec4 light; uniform int face;\n"
-		"uniform vec4 uv_transform[2]; out vec3 delta; out vec2 texcoord;\n"
+		"uniform vec4 uv_transform[2]; out vec2 texcoord;\n"
 		"void main() {\n"
 		" vec4 p = mix(bones[int(nodes.y)]*vec4(position,1), bones[int(nodes.x)]*vec4(position,1),weight);\n"
-		" delta=p.xyz-light.xyz; texcoord=vec2(dot(vec4(uv,0,1),uv_transform[0]),dot(vec4(uv,0,1),uv_transform[1]));\n"
-		" vec3 d=delta; vec3 v;\n"
+		" texcoord=vec2(dot(vec4(uv,0,1),uv_transform[0]),dot(vec4(uv,0,1),uv_transform[1]));\n"
+		" vec3 d=p.xyz-light.xyz; vec3 v;\n"
 		" if(face==0) v=vec3(-d.z,-d.y,d.x);\n"
 		" else if(face==1) v=vec3(d.z,-d.y,-d.x);\n"
 		" else if(face==2) v=vec3(d.x,d.z,d.y);\n"
@@ -64,14 +174,14 @@ static int create_resources(void)
 		" else if(face==4) v=vec3(d.x,-d.y,d.z);\n"
 		" else v=vec3(-d.x,-d.y,-d.z);\n"
 		" float n=0.005; float f=light.w;\n"
-		" gl_Position=vec4(v.xy,((f+n)*v.z-2.0*f*n)/(f-n),v.z);\n}\n";
+		" gl_Position=vec4(v.xy,n*(f-v.z)/(f-n),v.z);\n}\n";
 	static const char fragment[] =
 		"#version 330 core\n"
-		"in vec3 delta; in vec2 texcoord; uniform vec4 light;\n"
+		"in vec2 texcoord;\n"
 		"uniform sampler2D alpha_map; uniform int alpha_test;\n"
 		"void main() {\n"
 		" if(alpha_test!=0 && texture(alpha_map,texcoord).a <= (127.0/255.0)) discard;\n"
-		" gl_FragDepth=min(length(delta)/light.w,1.0);\n}\n";
+		"}\n";
 	GLuint vs, fs;
 	GLenum none = GL_NONE;
 	if (program) return 1;
@@ -104,10 +214,12 @@ static int create_resources(void)
 int modern_shadow_begin(int slot, const float position[3], float radius, int soft)
 {
 	if (slot < 0 || slot >= MODERN_SHADOW_LIGHTS || drawing) return 0;
+	if (!xgpu_gl_ready() || radius <= 0.01f) return 0;
+	resize_maps(128 * (int)halo_shadow_map_scale());
 	map = &maps[slot];
 	map->valid = 0;
 	draw_count = 0;
-	if (!xgpu_gl_ready() || radius <= 0.01f || resource_failed) return 0;
+	if (resource_failed) return 0;
 	drawing = 1;
 	failed = !create_resources();
 	if (!failed && !map->depth_cube[0])
@@ -140,6 +252,7 @@ int modern_shadow_mesh_create(const struct modern_shadow_vertex *vertices, int v
 	size = vertex_count * sizeof(*vertices) + index_count * sizeof(*indices);
 	if (size > SHADOW_BYTES - mesh_bytes) return 0;
 	for (index = 0; index < index_count; index++) if (indices[index] >= vertex_count) return 0;
+	mesh_bounds(&meshes[mesh_count], vertices, vertex_count);
 	glBindVertexArray(vao);
 	glGenBuffers(1, &meshes[mesh_count].vertices);
 	glBindBuffer(GL_ARRAY_BUFFER, meshes[mesh_count].vertices);
@@ -167,8 +280,11 @@ int modern_shadow_draw(int mesh, const float *matrices, int node_count,
 	GLuint alpha = 0;
 	GLenum target;
 	struct xgpu_texture_description description;
+	int faces;
 	if (mesh < 1 || mesh > mesh_count || node_count < 1 || node_count > SHADOW_NODES ||
 		draw_count == SHADOW_DRAWS || !drawing || views < 1 || views > MODERN_SHADOW_BOTH) { failed = 1; return 0; }
+	faces = mesh_faces(&meshes[mesh - 1], matrices, node_count, map->light);
+	if (!faces) return 1;
 	if (alpha_texture)
 	{
 		glActiveTexture(GL_TEXTURE0 + 9);
@@ -178,6 +294,7 @@ int modern_shadow_draw(int mesh, const float *matrices, int node_count,
 	draws[draw_count].mesh = mesh - 1;
 	draws[draw_count].nodes = node_count;
 	draws[draw_count].views = views;
+	draws[draw_count].faces = faces;
 	draws[draw_count].alpha = alpha;
 	memcpy(draws[draw_count].matrices, matrices, node_count * 16 * sizeof(float));
 	memcpy(draws[draw_count].uv_transform, uv_transform, 8 * sizeof(float));
@@ -206,12 +323,14 @@ int modern_shadow_end(void)
 	if (!failed)
 	{
 		glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
-		glViewport(0, 0, SHADOW_SIZE, SHADOW_SIZE);
-		glClipControl(GL_LOWER_LEFT, GL_NEGATIVE_ONE_TO_ONE);
+		glViewport(0, 0, shadow_size, shadow_size);
+		/* Reversed floating-point depth keeps distant precision and permits
+		   early depth rejection without a fragment-depth override. */
+		glClipControl(GL_LOWER_LEFT, GL_ZERO_TO_ONE);
 		glDepthRange(0, 1);
-		glClearDepth(1);
+		glClearDepth(0);
 		glEnable(GL_DEPTH_TEST);
-		glDepthFunc(GL_LESS);
+		glDepthFunc(GL_GREATER);
 		glDepthMask(GL_TRUE);
 		glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
 		glDisable(GL_SCISSOR_TEST);
@@ -235,6 +354,7 @@ int modern_shadow_end(void)
 			{
 				int mesh = draws[draw].mesh;
 				if (!(draws[draw].views & (1 << pass))) continue;
+				if (!(draws[draw].faces & (1 << face))) continue;
 				glBindBuffer(GL_ARRAY_BUFFER, meshes[mesh].vertices);
 				glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, meshes[mesh].indices);
 				glEnableVertexAttribArray(0); glEnableVertexAttribArray(1);
@@ -252,6 +372,9 @@ int modern_shadow_end(void)
 		}
 		map->valid = 1;
 	}
+	/* Do not retain a partially allocated high-resolution set after a
+	   resource failure. Receivers fall back until reset or a size change. */
+	if (resource_failed) release_maps();
 	/* Match the renderer's external-pass handoff. Draws and clears bind
 	   their own targets; invalidation reapplies the untouched D3D viewport,
 	   depth range and render state. Only clip convention is context-global. */
@@ -278,9 +401,7 @@ void modern_shadow_dispose(void)
 		glDeleteBuffers(1, &meshes[i].vertices);
 		glDeleteBuffers(1, &meshes[i].indices);
 	}
-	for (i = 0; i < MODERN_SHADOW_LIGHTS; i++)
-		if (maps[i].depth_cube[0] || maps[i].depth_cube[1]) glDeleteTextures(2, maps[i].depth_cube);
-	memset(maps, 0, sizeof(maps));
+	release_maps();
 	map = &maps[0];
 	if (framebuffer) glDeleteFramebuffers(1, &framebuffer);
 	if (program) glDeleteProgram(program);
@@ -300,7 +421,8 @@ void modern_shadow_emit(struct xgpu_text *text)
 		"float modern_compare(samplerCube depth, float radius, vec3 sample_direction, vec3 receiver, vec3 normal) {\n"
 		" vec3 a=abs(sample_direction); float major=max(a.x,max(a.y,a.z));\n"
 		" vec3 d=sample_direction/major;\n"
-		" vec3 q=(clamp(floor((d*0.5+0.5)*512.0),vec3(0),vec3(511))+0.5)/256.0-1.0;\n"
+		" float size=float(textureSize(depth,0).x);\n"
+		" vec3 q=(clamp(floor((d*0.5+0.5)*size),vec3(0),vec3(size-1.0))+0.5)*(2.0/size)-1.0;\n"
 		" if(a.x>=a.y && a.x>=a.z) q.x=sign(d.x); else if(a.y>=a.z) q.y=sign(d.y); else q.z=sign(d.z);\n"
 		" float distance=length(receiver); float denominator=dot(q,normal);\n"
 		" float numerator=dot(receiver,normal);\n"
@@ -309,15 +431,19 @@ void modern_shadow_emit(struct xgpu_text *text)
 		   A ray facing away from the plane has no receiver to occlude. */
 		" if(dot(normal,normal)>0.5 && numerator*denominator<=0.0) return 1.0;\n"
 		" float plane=abs(denominator)>0.000001?numerator/denominator*length(q):distance;\n"
-		/* Empty texels contain 1 even when the plane intersection is beyond
-		   the light's range; they must not become artificial blockers. */
+		/* An empty texel decodes to 1 even when the plane intersection is
+		   beyond the light's range; it must not become an artificial blocker. */
 		" float z=min((plane-max(0.0005,plane*0.00001))/radius,1.0);\n"
-		" return step(z,texture(depth,q).r);\n}\n"
-		"float modern_visibility_map(samplerCube depth, vec4 light, vec3 d) {\n"
+		/* Recover radial distance / radius from hardware perspective depth.
+		   Clear depth zero remains an empty ray (distance at least radius). */
+		" float stored=min(0.005*length(q)/(0.005+texture(depth,q).r*(radius-0.005)),1.0);\n"
+		" return step(z,stored);\n}\n"
+		"float modern_visibility_map(samplerCube depth, vec4 light, vec3 d, bool contributes) {\n"
 		/* Viewmodels and high-resolution receivers have very small screen
-		   derivatives. Test only degeneracy, not world-space triangle size. */
+		   derivatives. Test only degeneracy, not world-space triangle size.
+		   Evaluate them before skipping a zero-attenuation world fragment. */
 		" vec3 n=cross(dFdx(d),dFdy(d)); float nl=length(n); n=nl>1.0e-20?n/nl:vec3(0);\n"
-		" float distance=length(d); if(distance<0.01 || distance>=light.w) return 1.0;\n"
+		" float distance=length(d); if(!contributes || distance<0.01 || distance>=light.w) return 1.0;\n"
 		" if(modern_soft==0) return modern_compare(depth,light.w,d,d,n);\n"
 		/* Bilinear comparison weights move continuously across texels. The
 		   four taps cross cube edges through the same ray/plane comparison;
@@ -326,12 +452,14 @@ void modern_shadow_emit(struct xgpu_text *text)
 		" if(a.x>=a.y && a.x>=a.z) { u=vec3(0,1,0); v=vec3(0,0,1); f=direction.yz; }\n"
 		" else if(a.y>=a.z) { u=vec3(1,0,0); v=vec3(0,0,1); f=direction.xz; }\n"
 		" else { u=vec3(1,0,0); v=vec3(0,1,0); f=direction.xy; }\n"
-		" f=fract(f*256.0+255.5); u/=256.0; v/=256.0; direction-=u*f.x+v*f.y;\n"
+		" float half_size=float(textureSize(depth,0).x)*0.5;\n"
+		" f=fract(f*half_size+half_size-0.5); u/=half_size; v/=half_size; direction-=u*f.x+v*f.y;\n"
 		" return mix(mix(modern_compare(depth,light.w,direction,d,n),modern_compare(depth,light.w,direction+u,d,n),f.x),\n"
 		" mix(modern_compare(depth,light.w,direction+v,d,n),modern_compare(depth,light.w,direction+u+v,d,n),f.x),f.y);\n}\n"
-		"float modern_visibility(vec3 d) { return modern_visibility_map(modern_depth,modern_light,d); }\n"
+		"float modern_visibility(vec3 d) { return modern_visibility_map(modern_depth,modern_light,d,true); }\n"
+		"float modern_world(vec3 d,vec4 attenuation) { return modern_visibility_map(modern_depth,modern_light,d,any(notEqual(attenuation,vec4(0)))); }\n"
 		"float modern_model(int slot,vec3 p) { if(modern_slots[slot]<0.5) return 1.0;\n"
-		" return slot==0?modern_visibility(p-modern_light.xyz):modern_visibility_map(modern_depth_other,modern_light_other,p-modern_light_other.xyz); }\n");
+		" return slot==0?modern_visibility(p-modern_light.xyz):modern_visibility_map(modern_depth_other,modern_light_other,p-modern_light_other.xyz,true); }\n");
 }
 
 void modern_shadow_uniforms_initialize(unsigned long linked, struct modern_shadow_uniforms *uniforms)

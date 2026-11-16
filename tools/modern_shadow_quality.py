@@ -22,7 +22,9 @@ def main():
     parser.add_argument('--source', type=Path, default=ROOT/'port/linux/src/modern_shadows_gl.c')
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--record', action='store_true')
+    parser.add_argument('--size', type=int, choices=[512, 1024], default=1024)
     args = parser.parse_args()
+    size = args.size
     args.output.mkdir(parents=True, exist_ok=True)
     user, gdi, ogl = C.WinDLL('user32'), C.WinDLL('gdi32'), C.WinDLL('opengl32')
 
@@ -74,28 +76,35 @@ def main():
         return obj
 
     source = args.source.read_text()
+    reversed_depth = 'glDepthFunc(GL_GREATER)' in source
     body = source.split('void modern_shadow_emit(struct xgpu_text *text)', 1)[1].split('\nvoid modern_shadow_uniforms_initialize', 1)[0]
     body = re.sub(r'/\*.*?\*/', '', body, flags=re.S)
     receiver = ''.join(ast.literal_eval(s) for s in re.findall(r'"(?:\\.|[^"\\])*"', body))
-    vertex = '''#version 330 core
+    vertex = '''#version 450 core
     out vec2 uv; void main() {
       uv=vec2((gl_VertexID<<1)&2,gl_VertexID&2)*2.0-1.0;
       gl_Position=vec4(uv,0,1);
     }'''
-    fragment = '#version 330 core\n' + receiver + '''
+    fragment = '#version 450 core\n' + receiver + '''
     in vec2 uv; out vec4 color;
-    uniform vec3 center, along, up; uniform int model_slot;
+    uniform vec3 center, along, up; uniform int model_slot, world_receiver;
     void main() { vec3 p=center+uv.x*along+uv.y*up;
-      color=vec4(vec3(model_slot<0?modern_visibility(p):modern_model(model_slot,p)),1); }
+      float visibility=model_slot<0?modern_visibility(p):modern_model(model_slot,p);
+      if(world_receiver>0) visibility=modern_world(p,vec4(world_receiver==1?0.0:1.0));
+      color=vec4(vec3(visibility),1); }
     '''
-    program = gl('CreateProgram', u)()
-    attach = gl('AttachShader', None, u, u)
-    for kind, text in ((0x8B31, vertex), (0x8B30, fragment)):
-        obj = compile_stage(kind, text); attach(program, obj)
-        gl('DeleteShader', None, u)(obj)
-    gl('LinkProgram', None, u)(program)
-    status = i(); gl('GetProgramiv', None, u, u, C.POINTER(i))(program, 0x8B82, C.byref(status))
-    assert status.value, 'receiver link failed'
+    def link(vertex, fragment):
+        program = gl('CreateProgram', u)()
+        attach = gl('AttachShader', None, u, u)
+        for kind, text in ((0x8B31, vertex), (0x8B30, fragment)):
+            obj = compile_stage(kind, text); attach(program, obj)
+            gl('DeleteShader', None, u)(obj)
+        gl('LinkProgram', None, u)(program)
+        status = i(); gl('GetProgramiv', None, u, u, C.POINTER(i))(program, 0x8B82, C.byref(status))
+        assert status.value, 'shadow shader link failed'
+        return program
+
+    program = link(vertex, fragment)
     gl('UseProgram', None, u)(program)
     location = gl('GetUniformLocation', i, u, C.c_char_p)
     def uniform(name): return location(program, name.encode())
@@ -122,7 +131,7 @@ def main():
     read = gl('ReadPixels', None, i, i, i, i, u, u, p)
     draw = gl('DrawArrays', None, u, i, i)
     gl('Viewport', None, i, i, i, i)(0, 0, 256, 256)
-    s, t = np.meshgrid((np.arange(512)+.5)/256-1, (np.arange(512)+.5)/256-1)
+    s, t = np.meshgrid((np.arange(size)+.5)*2/size-1, (np.arange(size)+.5)*2/size-1)
     one = np.ones_like(s)
     rays = [np.stack(v,axis=-1) for v in ((one,-t,-s),(-one,-t,s),(s,one,t),(s,-one,-t),(s,-t,one),(-s,-t,-one))]
 
@@ -135,8 +144,14 @@ def main():
                 # Half-plane halfway to the front-facing receiver: a crisp
                 # geometric edge, independent of the shader's sampling code.
                 depth = np.where((ray@blocker>0)&(scale>0), depth*.5, depth)
-            data = np.ascontiguousarray(np.clip(depth/100,0,1), dtype=np.float32)
-            upload(0x8515+face,0,0x8CAC,512,512,0,0x1902,0x1406,data.ctypes.data)
+            if reversed_depth:
+                axis = depth / np.linalg.norm(ray, axis=-1)
+                depth = np.where((scale > 0) & (axis < 100),
+                                 .005 * (100-axis) / (axis*(100-.005)), 0)
+            else:
+                depth /= 100
+            data = np.ascontiguousarray(np.clip(depth,0,1), dtype=np.float32)
+            upload(0x8515+face,0,0x8CAC,size,size,0,0x1902,0x1406,data.ctypes.data)
 
     def capture(center, along, up, soft):
         for name, value in (('center',center),('along',along),('up',up)):
@@ -168,13 +183,15 @@ def main():
     depth_plane(np.array((0,0,1)), 5, np.array((1,0,0)))
     # Traverse one edge at subtexel increments in a single image. Weighted
     # filtering should interpolate instead of taking quarter-intensity steps.
-    edge = capture((0,0,5),(.05,0,0),(0,.01,0),1)
+    # Keep the same subtexel sampling density at each cube resolution.
+    edge_span = .05 * 512 / size
+    edge = capture((0,0,5),(edge_span,0,0),(0,.01,0),1)
     Image.fromarray(edge).save(args.output/'soft-edge.png')
     metrics['soft-edge'] = {'largest_step':int(np.abs(np.diff(edge[128].astype(int))).max()),
                             'levels':int(len(np.unique(edge[128])))}
     # Hard remains binary, and both modes retain fully shadowed and lit
     # interiors. A shader returning white everywhere cannot pass this test.
-    hard = capture((0,0,5),(.05,0,0),(0,.01,0),0)
+    hard = capture((0,0,5),(edge_span,0,0),(0,.01,0),0)
     assert set(np.unique(hard)) == {0,255}
     assert edge[128,0] == 255 and edge[128,-1] == 0
     depth_plane(np.array((1,0,1)),10,np.array((0,1,0)))
@@ -182,6 +199,14 @@ def main():
     Image.fromarray(seam).save(args.output/'occluder-seam.png')
     metrics['occluder-seam'] = {'largest_step':int(np.abs(np.diff(seam.astype(int),axis=1)).max()),
                                'lit':int(seam[:8].min()), 'shadow':int(seam[-8:].max())}
+    uniform1(uniform('world_receiver'),1)
+    absent = capture((5,0,5),(1,0,-1),(0,.08,0),1)
+    assert absent.min()==255, 'zero-contribution world pass must skip shadow filtering'
+    uniform1(uniform('world_receiver'),2)
+    present = capture((5,0,5),(1,0,-1),(0,.08,0),1)
+    uniform1(uniform('world_receiver'),0)
+    assert np.array_equal(present,capture((5,0,5),(1,0,-1),(0,.08,0),1)), 'world gate must preserve nonzero light'
+    metrics['world-contribution'] = dict(absent_minimum=int(absent.min()),identical_nonzero=True)
     # The second model light must sample its own cube, not the first light's
     # depth. Exercise both runtime slot branches and disabling either slot.
     other = u(); gl('GenTextures',None,i,C.POINTER(u))(1,C.byref(other))
@@ -189,8 +214,8 @@ def main():
     gl('BindTexture',None,u,u)(0x8513,other)
     for key,value in ((0x2801,0x2600),(0x2800,0x2600),(0x2802,0x812F),(0x2803,0x812F),(0x8072,0x812F)):
         parameter(0x8513,key,value)
-    clear = np.ones((512,512),dtype=np.float32)
-    for face in range(6): upload(0x8515+face,0,0x8CAC,512,512,0,0x1902,0x1406,clear.ctypes.data)
+    clear = np.full((size,size),0 if reversed_depth else 1,dtype=np.float32)
+    for face in range(6): upload(0x8515+face,0,0x8CAC,size,size,0,0x1902,0x1406,clear.ctypes.data)
     uniform1(uniform('modern_depth_other'),1)
     gl('Uniform4f',None,i,f,f,f,f)(uniform('modern_light_other'),0,0,0,100)
     gl('Uniform2f',None,i,f,f)(uniform('modern_slots'),1,1)
@@ -203,8 +228,138 @@ def main():
     disabled = capture((5,0,5),(1,0,-1),(0,.08,0),1)
     metrics['model-pair'] = {'first_shadow':int(first[-8:].max()),
                              'second_lit':int(second.min()),'disabled_lit':int(disabled.min())}
-    report = {'renderer':gl('GetString',C.c_char_p,u)(0x1F01).decode(),
-              'shader_sha256':hashlib.sha256(receiver.encode()).hexdigest(), 'metrics':metrics}
+    # Exercise the actual caster too: analytic uploads alone cannot detect
+    # a mismatched projection, depth test, clear value or fragment encoding.
+    stages = []
+    for name in ('vertex', 'fragment'):
+        definition = re.search(r'static const char '+name+r'\[\] =\s*((?:"(?:\\.|[^"\\])*"\s*)+);', source)
+        assert definition, name
+        stages.append(''.join(ast.literal_eval(s) for s in re.findall(r'"(?:\\.|[^"\\])*"', definition[1])))
+    caster = link(*stages)
+    buffer = u(); gl('GenBuffers',None,i,C.POINTER(u))(1,C.byref(buffer))
+    gl('BindBuffer',None,u,u)(0x8892,buffer)
+    gl('EnableVertexAttribArray',None,u)(0)
+    gl('VertexAttribPointer',None,u,i,u,C.c_ubyte,i,p)(0,3,0x1406,0,12,None)
+    gl('VertexAttrib2f',None,u,f,f)(1,0,0)
+    gl('VertexAttrib1f',None,u,f)(2,1)
+    gl('VertexAttrib2f',None,u,f,f)(3,0,0)
+    depth_fbo = u(); gl('GenFramebuffers',None,i,C.POINTER(u))(1,C.byref(depth_fbo))
+    gl('ActiveTexture',None,u)(0x84C0)
+    gl('BindTexture',None,u,u)(0x8513,cube)
+    uniform1(uniform('model_slot'),-1)
+    identity = np.eye(4,dtype=np.float32)
+    for name, center, along, up in (
+        ('front',(0,0,5),(2,0,0),(0,2,0)),
+        ('back',(0,0,-5),(2,0,0),(0,2,0)),
+        ('right',(5,0,0),(0,0,2),(0,2,0)),
+        ('left',(-5,0,0),(0,0,2),(0,2,0)),
+        ('top',(0,5,0),(2,0,0),(0,0,2)),
+        ('bottom',(0,-5,0),(2,0,0),(0,0,2)),
+        ('seam',(5,0,5),(1,0,-1),(0,2,0)),
+        ('grazing',(5,0,.02),(1,0,0),(0,1,0))):
+        center,along,up = map(np.asarray,(center,along,up))
+        vertices = np.asarray([center+x*along*3+y*up*3 for x,y in
+                               ((-1,-1),(1,-1),(1,1),(-1,-1),(1,1),(-1,1))],dtype=np.float32)
+        gl('BufferData',None,u,C.c_ssize_t,p,u)(0x8892,vertices.nbytes,vertices.ctypes.data,0x88E0)
+        gl('UseProgram',None,u)(caster)
+        gl('UniformMatrix4fv',None,i,i,C.c_ubyte,p)(location(caster,b'bones'),1,0,identity.ctypes.data)
+        gl('Uniform4f',None,i,f,f,f,f)(location(caster,b'light'),0,0,0,100)
+        gl('BindFramebuffer',None,u,u)(0x8D40,depth_fbo)
+        gl('DrawBuffer',None,u)(0); gl('ReadBuffer',None,u)(0)
+        gl('ClipControl',None,u,u)(0x8CA1,0x935F if reversed_depth else 0x935E)
+        gl('Viewport',None,i,i,i,i)(0,0,size,size)
+        gl('Enable',None,u)(0x0B71)
+        gl('DepthFunc',None,u)(0x0204 if reversed_depth else 0x0201)
+        gl('ClearDepth',None,C.c_double)(0 if reversed_depth else 1)
+        for face in range(6):
+            gl('FramebufferTexture2D',None,u,u,u,u,i)(0x8D40,0x8D00,0x8515+face,cube,0)
+            assert gl('CheckFramebufferStatus',u,u)(0x8D40)==0x8CD5
+            gl('Clear',None,u)(0x00000100)
+            uniform1(location(caster,b'face'),face)
+            draw(0x0004,0,6)
+        gl('Disable',None,u)(0x0B71)
+        gl('BindFramebuffer',None,u,u)(0x8D40,framebuffer)
+        gl('Viewport',None,i,i,i,i)(0,0,256,256)
+        gl('UseProgram',None,u)(program)
+        for soft in (0,1):
+            result = capture(center,along,up,soft)
+            key = f'caster-{name}-{soft}'
+            metrics[key] = {'shadowed_fraction':float(np.mean(result<250)), 'minimum':int(result.min())}
+            Image.fromarray(result).save(args.output/(key+'.png'))
+        if name == 'front':
+            blocked = capture(center*2,along,up,1)
+            assert blocked.max()==0, 'actual caster must shadow a receiver behind it'
+    # A separate blocker must project to distance_ratio times its width.
+    # Exercise every cube face, nonidentity weighted bones, world translation
+    # and close emitters. The expected rectangle follows similar triangles,
+    # independently of cube projection or depth reconstruction.
+    gl('Uniform2f',None,i,f,f)(uniform('modern_slots'),1,1)
+    pixel = (np.arange(256)+.5)*2/256-1
+    px, py = np.meshgrid(pixel,pixel)
+    expected = (abs(px)<.25/.36)&(abs(py)<.18/.30)
+    edge_distance = np.minimum(abs(abs(px)-.25/.36),abs(abs(py)-.18/.30))
+    interior = edge_distance>.025
+    quad = np.array([[-.25,-.18,1],[.25,-.18,1],[.25,.18,1],
+                     [-.25,-.18,1],[.25,.18,1],[-.25,.18,1]],dtype=np.float32)
+    gl('BufferData',None,u,C.c_ssize_t,p,u)(0x8892,quad.nbytes,quad.ctypes.data,0x88E0)
+    gl('VertexAttrib2f',None,u,f,f)(1,0,1)
+    gl('VertexAttrib1f',None,u,f)(2,.35)
+    projection_cases = []
+    for direction in ((1,0,0),(-1,0,0),(0,1,0),(0,-1,0),(0,0,1),(0,0,-1),(1,1,1)):
+        forward = np.asarray(direction,dtype=float)
+        forward /= np.linalg.norm(forward)
+        right = np.cross(forward,(0,0,1) if abs(forward[2])<.9 else (0,1,0))
+        right /= np.linalg.norm(right)
+        basis = np.column_stack((right,np.cross(forward,right),forward))
+        for scale, ratio in ((1.,1.5),(1.,4.),(.02,12.)):
+            translation = np.array((370.,-693.,65.))
+            bones = np.repeat(np.eye(4)[None],2,axis=0)
+            bones[0,:3,:3] = basis * scale
+            # Different transforms and a nontrivial blend detect ignored
+            # weights, swapped node indices and row/column mistakes.
+            bones[1,:3,:3] = basis @ np.array([[.9,-.2,0],[.2,1.1,0],[0,0,1.2]]) * scale
+            bones[:,:3,3] = translation
+            transform = .35*bones[0]+.65*bones[1]
+            packed = np.ascontiguousarray(bones.transpose(0,2,1),dtype=np.float32)
+            gl('UseProgram',None,u)(caster)
+            gl('UniformMatrix4fv',None,i,i,C.c_ubyte,p)(location(caster,b'bones'),2,0,packed.ctypes.data)
+            gl('Uniform4f',None,i,f,f,f,f)(location(caster,b'light'),*translation,100)
+            gl('BindFramebuffer',None,u,u)(0x8D40,depth_fbo)
+            gl('Viewport',None,i,i,i,i)(0,0,size,size)
+            gl('Enable',None,u)(0x0B71)
+            for face in range(6):
+                gl('FramebufferTexture2D',None,u,u,u,u,i)(0x8D40,0x8D00,0x8515+face,cube,0)
+                gl('Clear',None,u)(0x00000100)
+                uniform1(location(caster,b'face'),face)
+                draw(0x0004,0,6)
+            gl('Disable',None,u)(0x0B71)
+            gl('BindFramebuffer',None,u,u)(0x8D40,framebuffer)
+            gl('Viewport',None,i,i,i,i)(0,0,256,256)
+            gl('UseProgram',None,u)(program)
+            gl('Uniform4f',None,i,f,f,f,f)(uniform('modern_light'),*translation,100)
+            center = transform[:3,2]*ratio
+            along = transform[:3,0]*(.36*ratio)
+            up = transform[:3,1]*(.30*ratio)
+            for model in (False,True):
+                uniform1(uniform('model_slot'),0 if model else -1)
+                for soft in (0,1):
+                    result = capture(center+translation if model else center,along,up,soft)
+                    blocked = result<128
+                    error = float(np.mean(blocked[interior]!=expected[interior]))
+                    area_error = abs(float(blocked.mean()-expected.mean()))
+                    assert error==0 and area_error<.015, (direction,scale,ratio,model,soft,error,area_error)
+                    projection_cases.append(dict(direction=direction,scale=scale,distance_ratio=ratio,
+                                                 model=model,soft=soft,interior_error=error,area_error=area_error))
+    metrics['projection'] = projection_cases
+    assert gl('GetError',u)()==0, 'GPU quality test generated an OpenGL error'
+    gl('DisableVertexAttribArray',None,u)(0)
+    gl('DeleteBuffers',None,i,C.POINTER(u))(1,C.byref(buffer))
+    gl('DeleteFramebuffers',None,i,C.POINTER(u))(1,C.byref(depth_fbo))
+    gl('DeleteProgram',None,u)(caster)
+    report = {'renderer':gl('GetString',C.c_char_p,u)(0x1F01).decode(), 'size':size,
+              'shader_sha256':hashlib.sha256(receiver.encode()).hexdigest(),
+              'caster_shader_sha256':hashlib.sha256('\0'.join(stages).encode()).hexdigest(),
+              'source_sha256':hashlib.sha256(args.source.read_bytes()).hexdigest(), 'metrics':metrics}
     (args.output/'report.json').write_text(json.dumps(report,indent=2)+'\n')
     print(json.dumps(report,indent=2))
     gl('DeleteTextures',None,i,C.POINTER(u))(1,C.byref(cube))

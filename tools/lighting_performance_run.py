@@ -137,7 +137,7 @@ def main():
     parser.add_argument('--snowy-route', action='store_true', help='Walk the archived exterior-door checkpoint into the c40 snowy fight; test route only')
     parser.add_argument('--stationary-shield', action='store_true', help='Isolated stationary emitter, no bots or other enhanced lights')
     parser.add_argument('--advance-seconds', type=float, default=0, help='Walk forward in the copied campaign checkpoint with normal controller input')
-    parser.add_argument('--turn-seconds', type=float, default=0, help='Route inspection: turn right after walking, using normal controller input')
+    parser.add_argument('--turn-seconds', type=float, default=0, help='Turn after walking or the snowy route; negative turns left, positive right')
     parser.add_argument('--route-captures', action='store_true', help='Route inspection only: capture every two seconds instead of once a minute')
     parser.add_argument('--bots', type=int, default=15)
     parser.add_argument('--label', required=True)
@@ -150,14 +150,14 @@ def main():
         parser.error('c40 requires --checkpoint-root; bot maps do not use a campaign save')
     if args.invulnerable_player and not args.checkpoint_root:
         parser.error('--invulnerable-player requires a copied campaign checkpoint')
-    if args.snowy_route and (not args.checkpoint_root or args.advance_seconds or args.turn_seconds):
-        parser.error('--snowy-route requires a copied campaign checkpoint and cannot combine with advance/turn')
+    if args.snowy_route and (not args.checkpoint_root or args.advance_seconds):
+        parser.error('--snowy-route requires a copied campaign checkpoint and cannot combine with advance')
     if args.stationary_shield and args.map != 'c40':
         parser.error('--stationary-shield requires c40, which contains the shield tag')
     if args.advance_seconds and (args.map != 'c40' or not 0 < args.advance_seconds <= 30):
         parser.error('--advance-seconds requires c40 and a duration up to 30 seconds')
-    if args.turn_seconds and (not args.advance_seconds or not 0 < args.turn_seconds <= 3):
-        parser.error('--turn-seconds requires --advance-seconds and a duration up to three seconds')
+    if args.turn_seconds and (not (args.advance_seconds or args.snowy_route) or not 0 < abs(args.turn_seconds) <= 3):
+        parser.error('--turn-seconds requires --advance-seconds or --snowy-route and a magnitude up to three seconds')
     assert re.fullmatch(r'[A-Za-z0-9_-]+', args.label)
     assert re.fullmatch(r'[1-9][0-9]*x[1-9][0-9]*', args.resolution)
     assert args.seconds>=30 and args.warmup>=0 and 1<=args.bots<=15

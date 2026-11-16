@@ -51,6 +51,10 @@ int main(int argc,char **argv) {
        "hands use their own remapping and unit owner");
  first.node_matrices[0].marker=7;
  CHECK(modern_shadows_viewmodel(1,&index,&owner,nodes)==1 && nodes[0].marker==7,"current frame pose, not a cached tick");
+ first.weapon_index=21;definition.weapon.interface_definition.first_person_model.index=31;
+ first.weapon_node_remapping_table[0]=0;
+ CHECK(modern_shadows_viewmodel(0,&index,&owner,nodes)==1 && index==31 && owner==21 && nodes[0].marker==7,
+       "weapon changes select the new model, owner and pose without an AR-specific cache");
  n=copies;visible=0;
  CHECK(modern_shadows_viewmodel(0,&index,&owner,nodes)==0 && copies==n,"hidden/third-person view has no viewmodel casters");
  visible=1;first.visible=0;

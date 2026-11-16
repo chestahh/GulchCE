@@ -80,13 +80,14 @@ static struct structure_bsp const *cached_bsp;
 static long identities[SHADOW_LIGHTS];
 static struct shadow_selection
 {
-	long identity, rasterizer, challenger;
+	long identity, rasterizer, challenger, unshadowed_owner;
 	float since, time;
-} selections[MODERN_SHADOW_LIGHTS] = {{NONE,NONE,NONE,0,0}, {NONE,NONE,NONE,0,0}};
+} selections[MODERN_SHADOW_LIGHTS];
 static int world_map;
 static long slots[2] = {NONE, NONE};
 static int active, world_stage, receiver_failed;
 static int view_receiver;
+static long receiver_object = NONE;
 static float world_extent;
 static const float identity[16] = {1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1};
 
@@ -103,11 +104,12 @@ void modern_shadows_reset(void)
 	memset(parts, 0, sizeof(parts));
 	part_count = active = world_stage = receiver_failed = 0;
 	view_receiver = 0;
+	receiver_object = NONE;
 	cached_bsp = NULL;
 	slots[0] = slots[1] = NONE;
 	memset(selections, 0, sizeof(selections));
 	for (i = 0; i < MODERN_SHADOW_LIGHTS; i++)
-		selections[i].identity = selections[i].rasterizer = selections[i].challenger = NONE;
+		selections[i].identity = selections[i].rasterizer = selections[i].challenger = selections[i].unshadowed_owner = NONE;
 }
 
 void modern_shadows_window(void)
@@ -115,8 +117,9 @@ void modern_shadows_window(void)
 	int i;
 	active = world_stage = 0;
 	view_receiver = 0;
+	receiver_object = NONE;
 	slots[0] = slots[1] = NONE;
-	for (i = 0; i < MODERN_SHADOW_LIGHTS; i++) selections[i].rasterizer = NONE;
+	for (i = 0; i < MODERN_SHADOW_LIGHTS; i++) selections[i].rasterizer = selections[i].unshadowed_owner = NONE;
 	for (i = 0; i < SHADOW_LIGHTS; i++) identities[i] = NONE;
 	modern_shadow_clear_draws();
 }
@@ -141,20 +144,33 @@ static int map_for(long rasterizer)
 	return NONE;
 }
 
+/* Keep the map selected globally: other receivers use it, and the ordinary
+   collision mask must not reintroduce the owner's self-shadow on this draw. */
+static int model_map(int slot)
+{
+	int map = map_for(slots[slot]);
+	return map != NONE && receiver_object != NONE &&
+		selections[map].unshadowed_owner == receiver_object ? NONE : map;
+}
+
 unsigned int modern_shadows_model_mask(void)
 {
-	return (map_for(slots[0]) != NONE ? 1 : 0) | (map_for(slots[1]) != NONE ? 2 : 0);
+	return (model_map(0) != NONE ? 1 : 0) | (model_map(1) != NONE ? 2 : 0);
 }
 
 /* World attenuation binds one map; each of the two model light slots can
-   independently name either map. Slot identities never follow array order. */
+   independently name any map. Slot identities never follow array order. */
 int modern_shadows_map(int slot)
 {
 	if (world_stage) return slot == 0 ? world_map : NONE;
-	return slot >= 0 && slot < 2 ? map_for(slots[slot]) : NONE;
+	return slot >= 0 && slot < 2 ? model_map(slot) : NONE;
 }
 
-void modern_shadows_receiver(int first_person) { view_receiver = active && first_person; }
+void modern_shadows_receiver(int first_person, long object)
+{
+	view_receiver = active && first_person;
+	receiver_object = active && !first_person ? object : NONE;
+}
 int modern_shadows_view_receiver(void) { return view_receiver && !world_stage; }
 int modern_shadows_selected(long rasterizer_index) { return map_for(rasterizer_index) != NONE; }
 
@@ -452,7 +468,7 @@ static int viewmodel_casters(long owners[2])
 	return 1;
 }
 
-static int object_casters(real_point3d const *origin, real radius, long const owners[2])
+static int object_casters(real_point3d const *origin, real radius, long const owners[2], long unshadowed_owner)
 {
 	struct object_iterator iterator;
 	struct object_datum *object;
@@ -464,7 +480,7 @@ static int object_casters(real_point3d const *origin, real radius, long const ow
 		real values[NUMBER_OF_OUTGOING_OBJECT_FUNCTIONS];
 		float range;
 		int views;
-		if (object->object.flags & FLAG(_object_invisible_bit)) continue;
+		if (iterator.index == unshadowed_owner || (object->object.flags & FLAG(_object_invisible_bit))) continue;
 		range = radius + object->object.bounding_sphere_radius;
 		if (distance_squared3d(origin, &object->object.bounding_sphere_center) > range * range) continue;
 		definition = object_definition_get(object->definition_index);
@@ -513,8 +529,8 @@ static void select_lights(void)
 {
 	float scores[SHADOW_LIGHTS] = {0}, retained[MODERN_SHADOW_LIGHTS] = {0};
 	long index;
-	int i, order, first = 0;
-	for (i = 0; i < MODERN_SHADOW_LIGHTS; i++) selections[i].rasterizer = NONE;
+	int i, order, ordered[MODERN_SHADOW_LIGHTS];
+	for (i = 0; i < MODERN_SHADOW_LIGHTS; i++) selections[i].rasterizer = selections[i].unshadowed_owner = NONE;
 	for (index = 0; index < MIN(rasterizer_lights.light_count, SHADOW_LIGHTS); index++)
 	{
 		struct rasterizer_light_submit_parameters const *light = &rasterizer_lights.lights[index];
@@ -530,15 +546,28 @@ static void select_lights(void)
 	}
 	/* Fill vacancies / replace the weaker incumbent first, without moving a
 	   surviving light between maps. A pending challenger cannot own two slots. */
-	if (retained[1] < retained[0]) first = 1;
+	for (i = 0; i < MODERN_SHADOW_LIGHTS; i++)
+	{
+		int j = i;
+		while (j && retained[ordered[j - 1]] > retained[i])
+		{
+			ordered[j] = ordered[j - 1];
+			j--;
+		}
+		ordered[j] = i;
+	}
 	for (order = 0; order < MODERN_SHADOW_LIGHTS; order++)
 	{
-		int slot = order ^ first, other = slot ^ 1;
+		int slot = ordered[order];
 		float best = 0;
 		long best_index = NONE;
 		for (index = 0; index < MIN(rasterizer_lights.light_count, SHADOW_LIGHTS); index++)
 		{
-			if (selections[other].rasterizer != NONE && identities[index] == selections[other].identity) continue;
+			int other;
+			for (other = 0; other < MODERN_SHADOW_LIGHTS; other++)
+				if (other != slot && selections[other].rasterizer != NONE &&
+					identities[index] == selections[other].identity) break;
+			if (other < MODERN_SHADOW_LIGHTS) continue;
 			if (scores[index] > best) { best = scores[index]; best_index = index; }
 		}
 		best_index = select_light(&selections[slot], best_index, selections[slot].rasterizer, best, retained[slot]);
@@ -565,18 +594,19 @@ void modern_shadows_prepare(int primary)
 		struct rasterizer_light_submit_parameters const *light;
 		float radius;
 		if (index == NONE) continue;
+		selections[slot].unshadowed_owner = plasma_lighting_shadow_owner(selections[slot].identity);
 		light = &rasterizer_lights.lights[index];
 		/* Diffuse and specular share the map, including the larger extent. */
 		radius = light->radius * MAX(1.f, plasma_occlusion_specular_scale(index));
 		if (!modern_shadow_begin(slot, (float const *)&light->position, radius, mode == 2)) continue;
 		complete = viewmodel_casters(owners) && world_casters(bsp, &light->position, radius) &&
-			object_casters(&light->position, radius, owners);
+			object_casters(&light->position, radius, owners, selections[slot].unshadowed_owner);
 		if (modern_shadow_end() && complete) active |= 1 << slot;
 	}
 }
 
 #else
-void modern_shadows_receiver(int first_person) {}
+void modern_shadows_receiver(int first_person, long object) {}
 int modern_shadows_view_receiver(void) { return 0; }
 int modern_shadows_map(int slot) { return -1; }
 void modern_shadows_prepare(int primary) {}

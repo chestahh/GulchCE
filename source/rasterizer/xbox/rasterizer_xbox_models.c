@@ -624,7 +624,7 @@ void _rasterizer_model_end(
 			viewmodel_projection_end();	/* port: (view_fov.c) */
 			rasterizer_set_frustum_z(0.0f, 0.0f);
 		}
-		modern_shadows_receiver(FALSE); /* port: end receiver-specific shadows */
+		modern_shadows_receiver(FALSE, NONE); /* port: end receiver-specific shadows */
 		local_parameters = NULL;
 	}
 
@@ -658,8 +658,8 @@ void _rasterizer_model_begin(
 				rasterizer_globals.first_person_weapon_far_clip_distance);
 		}
 
-		/* port: the viewmodel uses its own casters, without the hidden body. */
-		modern_shadows_receiver(TEST_FLAG(parameters->geometry_flags, _rasterizer_geometry_first_person_bit));
+		/* port: receiver identity keeps optional light-owner shadow exceptions local to this model. */
+		modern_shadows_receiver(TEST_FLAG(parameters->geometry_flags, _rasterizer_geometry_first_person_bit), parameters->unique_identifier);
 		local_parameters = parameters;
 		local_parameters_queued_flag = FALSE;
 		local_do_not_change_z_stencil_states =
