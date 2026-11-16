@@ -75,6 +75,7 @@ int main(int argc, char **argv)
   program.lighting.lights=0; pp=0;
   stock=draw_program_get(&program,FALSE,&key,0);
   CHECK(stock && !key.modern_shadow && !key.per_pixel_lighting,"unregistered stock program stays per-vertex");
+  CHECK(!translated_lighting,"unregistered stock shader receives no lighting translation metadata");
   shadow_mask=1;
   enhanced=draw_program_get(&program,FALSE,&key,1);
 #ifndef HALO_GLES

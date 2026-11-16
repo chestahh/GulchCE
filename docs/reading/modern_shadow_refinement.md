@@ -1449,3 +1449,11 @@ tests, menu captures, build logs, video provenance, CI results and package
 identities. Runtime reports are in `build/lighting-compatibility/refinement-m5-*`
 and `build/modern-shadow-menu/m5-*`. Disposable map copies are removed and test
 saves are archived with content hashes verified before loose copies are removed.
+
+The first publication's Linux CI compiled the game, then rejected the Android
+shader-isolation harness under Clang 22: its recorded translation metadata was
+set but never checked in that build. The harness now checks that an unregistered
+stock shader receives no lighting translation metadata on either platform.
+This strengthens stock-path coverage without changing production code or
+disabling compiler warnings; all 17 isolation and negative-control cases pass
+locally. The corrected publication reruns the platform CI gates.
