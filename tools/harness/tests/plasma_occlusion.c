@@ -50,7 +50,10 @@ static long last_ignore;
 static unsigned long last_flags;
 static int directional_on, vehicle_only;
 static int prong_on;
-static long modern_selected = NONE;
+static long modern_selected = NONE, chassis_owner = NONE;
+long modern_shadows_collision_owner(long index) { return index==modern_selected ? chassis_owner : NONE; }
+static int chassis_queries;
+void plasma_collision_object_depths(long owner,const real_point3d *p,const real_vector3d *v,int count,float *depths) { int i;CHECK(owner==42,"exact chassis datum");chassis_queries+=count;for(i=0;i<count;i++)depths[i]=.2f; }
 int modern_shadows_selected(long index) { return index != NONE && index == modern_selected; }
 struct plasma_collision_scene { int unused; };
 int plasma_lighting_prong_cone(long r,float axis[3],float origin[3],float *radius)
@@ -586,12 +589,21 @@ int main(int argc, char **argv)
 		transform[0]==0 && transform[3]==.5f,
 		"rendered model shadows retain mask coordinates");
 	CHECK(queries==n,"rendered shadows skip redundant collision tracing");
+
 	directional_on=0;
 	CHECK(!plasma_occlusion_texture(0,0) && !plasma_occlusion_model_texture(0,transform) && queries==n,
 		"omnidirectional rendered lights use the normal radial fallback without collision fields");
 	modern_selected=NONE;
 	CHECK(plasma_occlusion_texture(0,0) && queries>n,
 		"losing the rendered map restores existing collision visibility");
+	plasma_occlusion_reset();
+	modern_selected=0;n=queries;
+	chassis_owner=42;time_ms+=20;plasma_occlusion_window();plasma_occlusion_submit(500,0);
+	CHECK(plasma_occlusion_texture(0,0) && chassis_queries==1536 && queries==n,"hybrid shadows trace only the own chassis");
+	f=field_for(0);CHECK(f && f->collision_owner==42 && f->visibility[4095]<.1f,"owner collision field blocks the receiver");
+	modern_selected=NONE;
+	CHECK(plasma_occlusion_texture(0,0) && queries>n && field_for(0)->collision_owner==NONE,"same-view map failure rebuilds full collision visibility");
+	chassis_owner=NONE;
 	plasma_occlusion_reset();
 	CHECK(!allocations,"rendered mask fallback cleanup releases textures");
 	return 0;

@@ -30,6 +30,7 @@ static int authored_emitter_lighting_enabled(void) { return (allowed & 0x60)!=0;
 static int authored_emitter_lighting_category_enabled(int category) { return (allowed & (1U<<category))!=0; }
 static struct { long rasterizer_index; int category; } plasma_lighting_attachments[2] = {{5,5},{6,6}};
 static int plasma_lighting_count=2;
+static int unshadowed_object(long owner,long object) { return owner!=NONE && owner==object; }
 static const char *config_string(const char *s) { return mode; }
 static struct structure_bsp *global_structure_bsp_get(void) { return map; }
 static float distance_squared3d(const real_point3d *a,const real_point3d *b) {
@@ -46,7 +47,9 @@ static void plasma_falloff_specular_begin(long light) { rebound_stage=1; rebound
 static int modern_shadow_end(void) { return !failed; }
 static int world_casters(const struct structure_bsp *b,const real_point3d *p,float r) { return complete; }
 static int viewmodel_casters(long owners[2]) { owners[0]=owners[1]=NONE; return complete; }
-static int object_casters(const real_point3d *p,float r,const long owners[2],long unshadowed_owner) { return complete; }
+static int object_casters(const real_point3d *p,float r,const long owners[2],long unshadowed_owner, long collision_owner) { return complete; }
+static long chassis_light=NONE, chassis_owner=NONE;
+static long muzzle_lighting_vehicle_owner(long light) { return light==chassis_light ? chassis_owner : NONE; }
 static long exempt_light=NONE, exempt_owner=NONE;
 static long plasma_lighting_shadow_owner(long light) { return light==exempt_light ? exempt_owner : NONE; }
 #include "under_test.inc"
@@ -155,6 +158,15 @@ int main(int argc,char **argv)
   allowed=0; modern_shadows_prepare(1);
   CHECK(!active, "disabled or policy-rejected categories cannot keep a map");
  }
+ allowed=3;chassis_light=101;chassis_owner=0x10002;modern_shadows_prepare(1);
+ CHECK(modern_shadows_collision_owner(1)==chassis_owner && modern_shadows_collision_owner(0)==NONE,
+       "collision supplement belongs only to its own muzzle light");
+ modern_shadows_model_slot(1,0);modern_shadows_receiver(0,chassis_owner);
+ CHECK(modern_shadows_map(0)!=NONE,"chassis still receives shadows from other casters in its muzzle map");
+ complete=0;modern_shadows_prepare(1);
+ CHECK(modern_shadows_collision_owner(1)==NONE,"failed map returns to full collision visibility");
+ complete=1;chassis_light=NONE;modern_shadows_prepare(1);
+ CHECK(modern_shadows_collision_owner(1)==NONE,"removed pulse cannot leave collision ownership");
  allowed=3; exempt_light=100; exempt_owner=0x10001; modern_shadows_prepare(1);
  modern_shadows_model_slot(0,0);modern_shadows_model_slot(1,1);
  modern_shadows_receiver(0,exempt_owner);

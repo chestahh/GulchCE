@@ -15,6 +15,7 @@ void modern_shadows_world_begin(long rasterizer_index, int stage);
 void modern_shadows_world_end(void);
 unsigned int modern_shadows_model_mask(void);
 int modern_shadows_selected(long rasterizer_index);
+long modern_shadows_collision_owner(long rasterizer_index);
 void modern_shadows_cancel(void);
 int modern_shadows_world_stage(void);
 float modern_shadows_world_extent(void);

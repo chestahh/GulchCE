@@ -23,13 +23,13 @@ def check_selection(budget, fault=False):
     for name in ('setting', 'modern_shadows_reset', 'modern_shadows_window',
                  'modern_shadows_submitted', 'modern_shadows_model_slot',
                  'map_for', 'model_map', 'modern_shadows_map', 'modern_shadows_model_mask', 'modern_shadows_selected',
-                 'modern_shadows_receiver', 'modern_shadows_view_receiver',
+                 'modern_shadows_receiver', 'modern_shadows_view_receiver', 'modern_shadows_collision_owner',
                  'modern_shadows_cancel', 'modern_shadows_world_begin',
                  'modern_shadows_world_end', 'modern_shadows_world_stage',
                  'modern_shadows_world_extent', 'select_light', 'select_lights', 'modern_shadows_prepare'):
         code += function(source, name)
     if fault:
-        code = code.replace('selections[map].unshadowed_owner == receiver_object', 'FALSE')
+        code = code.replace('unshadowed_object(selections[map].unshadowed_owner, receiver_object)', 'FALSE')
     status, output = run(build('modern_shadows', (('under_test.inc', code),
                         ('budget.inc', f'#define MODERN_SHADOW_LIGHTS {budget}\n'))), 'all')
     assert status == (CHECK_FAILED if fault else 0), output
@@ -81,7 +81,8 @@ def test_materials_and_animated_casters():
 
 
 def test_player_and_npc_held_objects():
-    code = function(read('port/linux/game/modern_shadows.c'), 'object_casters')
+    source = read('port/linux/game/modern_shadows.c')
+    code = function(source, 'unshadowed_object') + function(source, 'object_casters')
     status, output = run(build('modern_shadow_objects', (('under_test.inc', code),)), 'objects')
     assert status == 0, output
 
@@ -91,7 +92,16 @@ def test_owner_receiver_exemption_is_required():
 
 
 def test_owner_caster_exemption_is_required():
-    code = function(read('port/linux/game/modern_shadows.c'), 'object_casters')
-    code = code.replace('iterator.index == unshadowed_owner || ', '')
+    source = read('port/linux/game/modern_shadows.c')
+    code = function(source, 'unshadowed_object') + function(source, 'object_casters')
+    code = code.replace('unshadowed_object(unshadowed_owner, iterator.index)', 'FALSE')
+    status, output = run(build('modern_shadow_objects', (('under_test.inc', code),)), 'objects')
+    assert status == CHECK_FAILED, output
+
+
+def test_seated_occupant_exemption_is_required():
+    source = read('port/linux/game/modern_shadows.c')
+    code = function(source, 'unshadowed_object') + function(source, 'object_casters')
+    code = code.replace('unit->unit.parent_seat_index != NONE', 'unit->unit.parent_seat_index == NONE')
     status, output = run(build('modern_shadow_objects', (('under_test.inc', code),)), 'objects')
     assert status == CHECK_FAILED, output

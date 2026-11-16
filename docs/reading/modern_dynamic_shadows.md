@@ -17,11 +17,13 @@ guide; older milestone measurements below describe the original two-light
 implementation. Self-shadowing acceptance covers
 all applicable objects, players and NPCs under every supported dynamic-light
 category, including their own continuous weapon glows and firing effects.
-The revised Jackal/Ghost agreement is an owner-only exception: shield and engine
+The revised Jackal/Ghost agreement is an emitter-local exception: shield and engine
 lights illuminate their own owner without casting or receiving modern shadows
 from that light. Other objects still cast and receive from those lights, and
 external lights still shadow the Jackal and Ghost normally. This supersedes the
 earlier requirement for shield-on-Jackal and engine-on-hull self-shadowing.
+Ghost engine lights also exempt seated occupants and their attached gear;
+dismounting immediately restores their ordinary shadow participation.
 
 ### Visual reference and acceptance criteria
 
@@ -46,8 +48,9 @@ targets, not evidence of how this implementation should calculate shadows.
 - Ghost engines retain their existing local illumination without projecting
   their own hull's strips and wedges. This applies to campaign and multiplayer
   engine emitters only; external lights still cast the Ghost's silhouette.
-- These exceptions do not extend to passengers, held weapons, other vehicles,
-  stationary shields or other light categories.
+- The Ghost engine exception includes its seated occupants and their attached
+  gear. The Jackal exception remains exact-owner only. Neither extends to nearby
+  characters, dropped weapons, other vehicles, stationary shields or other lights.
 - Hard mode must retain crisp, stable edges; Soft mode must preserve the same
   silhouette and contact while softening edges. Detached shadows, surface acne,
   conspicuous cube seams and popping fail acceptance in either mode.
@@ -104,10 +107,14 @@ enabled, a stationary shield can supply the selected light. Opaque world and
 model triangles block its illumination. The translucent shield surface is
 not turned into an opaque wall. Other lighting and baked illumination remain
 unchanged. A muzzle flash participates through the same selection interface.
-When the Warthog turret flash obtains a shadow slot, the chassis and turret
-geometry can block its light on the ground and nearby surfaces. This removes
-the flash contribution behind blockers; it does not darken baked illumination
-or replace the original vehicle shadow.
+For the Warthog turret and both Scorpion triggers, the firing vehicle's own
+collision hull blocks its muzzle light. A selected modern map omits only that
+vehicle's rendered caster and still shadows other objects, including occupants.
+The vehicle remains a receiver, and external lights still cast its full rendered
+shadow. This removes the flash contribution behind blockers; it does not darken
+baked illumination or replace the original vehicle shadow. Collision blocking
+uses the existing coarse visibility field, so it is not a detailed silhouette of
+the turret or barrel. The Ghost engine-light occupant exemption is separate.
 
 ## Reading route and ownership
 
@@ -142,6 +149,11 @@ or replace the original vehicle shadow.
    large constant offset that would detach shadows from feet.
 5. [plasma_occlusion.c](../../port/linux/game/plasma_occlusion.c): a complete
    rendered map replaces the chosen light's coarse collision visibility.
+   Vehicle muzzle lights are the exception: `modern_shadows_collision_owner`
+   requests an owner-only collision field alongside the rendered map.
+   `plasma_collision_object_depths` traces the current chassis pose without
+   tracing world geometry or unrelated objects a second time. A changed owner
+   or failed map invalidates that field before restoring full-scene visibility.
    Existing directional/height masks still come from
    [ammo_counter_falloff.c](../../port/linux/game/ammo_counter_falloff.c).
    Other lights retain their existing occlusion. Failed/incomplete maps use

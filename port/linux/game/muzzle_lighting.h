@@ -11,5 +11,6 @@ int muzzle_lighting_selected(long rasterizer_index);
 float muzzle_lighting_radius(long light_index, float radius);
 
 int muzzle_lighting_vehicle_occlusion(long light);
+long muzzle_lighting_vehicle_owner(long light);
 
 #endif

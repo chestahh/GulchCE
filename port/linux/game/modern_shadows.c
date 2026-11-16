@@ -12,6 +12,7 @@
 #include "objects/objects.h"
 #include "objects/object_definitions.h"
 #include "objects/object_types.h"
+#include "units/units.h"
 #include "rasterizer/rasterizer_geometry.h"
 #include "rasterizer/rasterizer.h"
 #include "rasterizer/rasterizer_model_types.h"
@@ -26,6 +27,7 @@
 #include "model_detail.h"
 #include "plasma_lighting.h"
 #include "plasma_occlusion.h"
+#include "muzzle_lighting.h"
 #include "physics/breakable_surfaces.h"
 #include "objects/light_definitions.h"
 
@@ -80,7 +82,7 @@ static struct structure_bsp const *cached_bsp;
 static long identities[SHADOW_LIGHTS];
 static struct shadow_selection
 {
-	long identity, rasterizer, challenger, unshadowed_owner;
+	long identity, rasterizer, challenger, unshadowed_owner, collision_owner;
 	float since, time;
 } selections[MODERN_SHADOW_LIGHTS];
 static int world_map;
@@ -144,13 +146,38 @@ static int map_for(long rasterizer)
 	return NONE;
 }
 
+/* Vehicle-local engine lights also exempt seated occupants and their gear.
+   Follow live parent identities, not proximity; dismounting restores casting
+   immediately. A non-vehicle owner retains the exact-object exception. */
+static int unshadowed_object(long owner, long object)
+{
+	int depth;
+	if (owner == NONE || object == NONE) return FALSE;
+	if (object == owner) return TRUE;
+	for (depth = 0; depth < MAXIMUM_OBJECTS_PER_MAP; depth++)
+	{
+		struct object_datum *datum = object_try_and_get(object);
+		struct unit_datum *unit;
+		long parent;
+		if (!datum || (parent = datum->object.parent_object_index) == NONE) return FALSE;
+		if (parent == owner)
+		{
+			unit = unit_try_and_get(object);
+			return unit && unit->unit.parent_seat_index != NONE &&
+				object_try_and_get_and_verify_type(owner, _object_mask_vehicle) != NULL;
+		}
+		object = parent;
+	}
+	return FALSE;
+}
+
 /* Keep the map selected globally: other receivers use it, and the ordinary
    collision mask must not reintroduce the owner's self-shadow on this draw. */
 static int model_map(int slot)
 {
 	int map = map_for(slots[slot]);
 	return map != NONE && receiver_object != NONE &&
-		selections[map].unshadowed_owner == receiver_object ? NONE : map;
+		unshadowed_object(selections[map].unshadowed_owner, receiver_object) ? NONE : map;
 }
 
 unsigned int modern_shadows_model_mask(void)
@@ -173,6 +200,13 @@ void modern_shadows_receiver(int first_person, long object)
 }
 int modern_shadows_view_receiver(void) { return view_receiver && !world_stage; }
 int modern_shadows_selected(long rasterizer_index) { return map_for(rasterizer_index) != NONE; }
+/* The owner's collision field complements this map; other lights keep their
+   complete rendered casters and ordinary collision-replacement behaviour. */
+long modern_shadows_collision_owner(long rasterizer_index)
+{
+	int slot = map_for(rasterizer_index);
+	return slot != NONE ? selections[slot].collision_owner : NONE;
+}
 
 void modern_shadows_cancel(void)
 {
@@ -468,7 +502,7 @@ static int viewmodel_casters(long owners[2])
 	return 1;
 }
 
-static int object_casters(real_point3d const *origin, real radius, long const owners[2], long unshadowed_owner)
+static int object_casters(real_point3d const *origin, real radius, long const owners[2], long unshadowed_owner, long collision_owner)
 {
 	struct object_iterator iterator;
 	struct object_datum *object;
@@ -480,7 +514,8 @@ static int object_casters(real_point3d const *origin, real radius, long const ow
 		real values[NUMBER_OF_OUTGOING_OBJECT_FUNCTIONS];
 		float range;
 		int views;
-		if (iterator.index == unshadowed_owner || (object->object.flags & FLAG(_object_invisible_bit))) continue;
+		if ((object->object.flags & FLAG(_object_invisible_bit)) || iterator.index == collision_owner ||
+			unshadowed_object(unshadowed_owner, iterator.index)) continue;
 		range = radius + object->object.bounding_sphere_radius;
 		if (distance_squared3d(origin, &object->object.bounding_sphere_center) > range * range) continue;
 		definition = object_definition_get(object->definition_index);
@@ -595,12 +630,13 @@ void modern_shadows_prepare(int primary)
 		float radius;
 		if (index == NONE) continue;
 		selections[slot].unshadowed_owner = plasma_lighting_shadow_owner(selections[slot].identity);
+		selections[slot].collision_owner = muzzle_lighting_vehicle_owner(selections[slot].identity);
 		light = &rasterizer_lights.lights[index];
 		/* Diffuse and specular share the map, including the larger extent. */
 		radius = light->radius * MAX(1.f, plasma_occlusion_specular_scale(index));
 		if (!modern_shadow_begin(slot, (float const *)&light->position, radius, mode == 2)) continue;
 		complete = viewmodel_casters(owners) && world_casters(bsp, &light->position, radius) &&
-			object_casters(&light->position, radius, owners, selections[slot].unshadowed_owner);
+			object_casters(&light->position, radius, owners, selections[slot].unshadowed_owner, selections[slot].collision_owner);
 		if (modern_shadow_end() && complete) active |= 1 << slot;
 	}
 }
@@ -618,6 +654,7 @@ void modern_shadows_world_begin(long index, int stage) {}
 void modern_shadows_world_end(void) {}
 unsigned int modern_shadows_model_mask(void) { return 0; }
 int modern_shadows_selected(long index) { return 0; }
+long modern_shadows_collision_owner(long index) { return -1; }
 void modern_shadows_cancel(void) {}
 int modern_shadows_world_stage(void) { return 0; }
 float modern_shadows_world_extent(void) { return 0; }

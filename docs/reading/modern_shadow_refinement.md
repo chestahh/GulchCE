@@ -1457,3 +1457,233 @@ stock shader receives no lighting translation metadata on either platform.
 This strengthens stock-path coverage without changing production code or
 disabling compiler warnings; all 17 isolation and negative-control cases pass
 locally. The corrected publication reruns the platform CI gates.
+
+## Sidewinder vehicle acceptance follow-up
+
+The player's post-M5 captures reopen visual acceptance for occupied vehicles.
+Both shadow modes and every resolution show large angular ground silhouettes
+from Warthog/Scorpion muzzle flashes, and smaller wedges under a stationary,
+non-firing Ghost. Earlier acceptance views did not catch these presentation
+problems; passing CI alone does not close them.
+
+The capture runner now accepts `--shadow-omit vehicle` or `occupants` for vehicle
+muzzle fixtures and `ghost-engine`. These diagnostic controls remove only
+casters, retaining visible geometry and lighting; normal builds exclude them.
+Sidewinder comparisons establish that:
+
+- Omitting the Ghost occupant and attachments removes the residual wedges.
+  The existing exact-Ghost exclusion was already working.
+- Omitting the Warthog/Scorpion hull removes the large silhouettes but allows
+  muzzle light under the chassis. That is not an accepted turret fix.
+- An earlier retained Warthog mesh/pose capture places its light just beyond
+  the barrel, approximately 0.009 world units from the nearest triangle.
+  Near-source magnification is plausible; this does not establish a matrix
+  defect or justify arbitrary source offsets.
+
+With the player's explicit agreement, `unshadowed_object` extends a vehicle's
+existing engine-light exception to seated occupants and their attached gear.
+Caster collection and receiver selection use the same predicate. It follows
+live datum/parent identities and requires a seated unit under a vehicle owner,
+with a bounded walk for malformed cycles. Dismounting restores ordinary shadow
+participation immediately. Jackal exceptions remain exact-owner only. External
+lights, nearby characters and unrelated attachments retain their behaviour.
+No muzzle-light exception was added.
+
+The focused suite passes 34 cases, including a negative control that reverses
+the seat predicate. Sidewinder captures at 30/60/120 FPS exercise the stationary
+Ghost in Hard/Soft modes; a moving external-light control retains the Ghost
+silhouette. CE Death Island also reaches the live Ghost fixture. MCC Digsite
+reaches gameplay, but the fixture reports `SHADOW SCENE failed no floor`;
+that run does not validate Ghost rendering on MCC.
+These bounded visual checks do not establish sustained-combat performance.
+Windows Release and Web builds pass. The local Android build remains blocked
+before compilation by its missing POSIX `sed` command; Android exclusion tests
+pass. Initial MCC setup attempts failed their loopback join under restricted
+network access; the permitted rerun reaches gameplay. Failed attempts are retained.
+
+The runtime change remains inside `HALO_GLES` exclusion. Host policy, off
+defaults, resolution, eight-light budget and vendor shader paths are unchanged.
+Turret source placement/extent and own-hull projections remain open acceptance
+work; this follow-up is not modern shadows 1.0 sign-off. Evidence and source
+identities are under `build/modern-refinement/vehicle-review/`; comparisons are
+the `build/plasma-visual/*-vehicle-review-*` runs.
+
+## Finite-source turret experiment
+
+The player's request to compare two and four sources is implemented only by
+`tools/turret_shadow_probe.py`, installed temporarily by
+`plasma_visual_build.py --turret-prototype` or
+`lighting_performance_build.py --turret-prototype`. Both builders restore the
+original sources in `finally` and rebuild the normal Windows executable.
+No multi-source code or setting is added to a production build. The preceding
+Ghost occupant fix is independent and remains in the worktree.
+
+The probe retains eight logical shadow lights, all chassis geometry and a
+single unchanged lighting contribution. For a vehicle muzzle light it renders
+independent cube-array layers and averages their visibility. Two positions are
+above/below the muzzle axis; four add left/right positions. The experimental
+disk radius and forward distance are each 0.06 world units, explicitly supplied
+rather than inferred from tags. The one-source control retains the original
+position. This approximates finite-emitter visibility; it does not integrate
+near-field radiance or the material response over the disk. A conservative
+caster bound and union of per-source face masks avoid dropping blockers.
+
+The initial prototype allocates the requested layer capacity for every active
+map, including non-turret maps that use only one layer. At 1024, 32-bit depth
+storage is 24 MiB per cube, or 48/96 MiB for two/four sources per world map;
+viewmodel-specific copies are additional. These are allocation calculations,
+not measured VRAM residency. Do not extrapolate this prototype's memory layout
+to an eventual production implementation or qualify 2048/4096 from this test.
+
+Sidewinder's Warthog and both Scorpion triggers were captured at 2560x1440 and
+1024 shadow resolution for one, two and four sources at 30/60/120 FPS. Hard was
+used at 60 and Soft at 30/120. All 18 runs met the existing 5% cap tolerance,
+with complete shadow maps and no reported shader failures. Native images and
+comparison sheets show retained chassis blocking but doubled/stepped edges,
+especially behind the Warthog. The broad central silhouette remains. This is
+not an accepted visual fix, and no production adoption has been made.
+
+The timing fixture suppresses per-frame capture logs and screenshots, buffers
+whole-frame times, excludes ten seconds of warmup, and records actual selected
+turret maps. Capped visual checks still validate muzzle profiles and fades.
+The first two uncapped runs retained valid frame data but failed an obsolete
+verbose-log assertion; timing mode now relies on its active-map CSV instead.
+The game binaries did not change for that runner correction.
+
+Evidence is under `build/modern-refinement/turret-area/`, with individual
+captures in `build/plasma-visual/*-turret-area-*`. These are bounded Windows
+experiments on the local NVIDIA GPU, not AMD hardware, Android runtime,
+multiplayer or full map-family acceptance. The ordinary renderer and vendor
+paths are restored; no turret collision-based alternative is implemented by
+this experiment.
+
+Uncapped measurements use 30-second vehicle windows after ten seconds warmup,
+with capture readback disabled. The initial averages on the RTX 5070 Ti are:
+
+| Fixture | One source | Two sources | Four sources |
+| --- | ---: | ---: | ---: |
+| Warthog, whole window | 867.7 FPS | 727.9 FPS | 581.5 FPS |
+| Warthog, active-map frames | 832.6 FPS | 681.3 FPS | 518.2 FPS |
+| Scorpion, whole window (maps active throughout) | 707.3 FPS | 625.8 FPS | 473.7 FPS |
+
+Active Warthog frame means are 1.20/1.47/1.93 ms; Scorpion means are
+1.41/1.60/2.11 ms. These are whole-frame costs, not isolated GPU timestamps.
+The Warthog fixture cycles firing, so its active-frame statistic is more useful
+than mixing lit frames with idle frames. All stay above 240 FPS in this bounded
+vehicle scene; that is not busy-combat acceptance or an eight-turret stress test.
+
+Three sequential Two Betrayals snowy-fight runs used the copied fresh checkpoint,
+25 seconds warmup, 60 seconds measured, 1440p/1024 Soft, AA and per-pixel lighting
+off, all enhanced light groups on and controlled player invulnerability. Raw
+averages were 284.6/202.6/243.3 FPS for one/two/four-source capacity respectively;
+mean selected shadow maps were 8.00/7.98/7.88. The two-source run fails the average
+240 FPS target. Their non-monotonic ordering and live encounter variation do not
+establish a causal per-source cost. These passive runs also do not record active
+vehicle-muzzle counts: do not treat them as evidence of sustained multi-source
+vehicle firing. Use the dedicated vehicle fixture for that comparison. No
+consistent busy-combat 240+ qualification is claimed.
+
+The visual result already fails acceptance, so further sampling counts or broad
+optimisation are not justified by this experiment. The recommendation remains
+to evaluate collision-based blocking for the firing vehicle's own chassis while
+retaining modern maps for other casters and external-light shadows. That is a
+separate implementation decision, not a completed change or a blanket vehicle
+shadow exemption.
+
+A reverse-order Warthog control repeat gives two/one-source whole-window
+averages of 722.5/834.0 FPS and active-frame averages of 677.5/801.6 FPS
+(1.48/1.25 ms). It supports a roughly 0.23-0.27 ms two-source increment in
+this fixture; it is not a precise universal GPU cost. Both repeats pass the
+corrected timing validator. Final focused shadow, shader-isolation and lighting
+configuration checks pass 28 cases; the five affected Python tools compile.
+All 33 production-source hashes in the performance manifest match after
+restoration, and the normal Windows rebuild passes. No additional production
+renderer change or platform-build claim is made for these Windows-only probes.
+
+## Collision-based turret chassis blocking
+
+The approved follow-up replaces only the firing Warthog/Scorpion's rendered
+caster for its own enhanced muzzle pulse with collision-based blocking. It
+does not exempt the vehicle from external light shadows. Both Scorpion
+triggers use their existing profile and independent pulse lifetimes. Occupants
+and other objects remain rendered casters and receivers; the earlier Ghost
+engine-light occupant exemption is separate.
+
+`muzzle_lighting_vehicle_owner` resolves the live full datum identity using
+the existing vehicle-occlusion profile flag and host-aware feature setting.
+`modern_shadows_prepare` records that owner for the selected map and omits
+only its rendered caster. `plasma_occlusion` retains its visibility field for
+that light, tracing only the current owner's collision model through
+`plasma_collision_object_depths`. Other casters stay in the modern map, so the
+collision batch does not trace world geometry or unrelated objects again.
+Changing owner or losing a complete map invalidates the field history before
+returning to the established full-scene fallback. No collision pose is retained
+beyond the synchronous batch.
+
+This preserves the existing coarse field resolution, fading, update limits,
+light positions, colours and falloff. Collision blocking is deliberately not a
+pixel-accurate turret/barrel silhouette. No additional light, shadow layer or
+resolution setting is introduced. The eight-light budget, off defaults, host
+policy, GLES/Android exclusion and AMD/NVIDIA shader code remain unchanged.
+All runtime changes are within the lighting feature modules and platform stubs;
+the shared engine and renderer backend are unchanged.
+
+Sidewinder checks at 2560x1440 and 1024 shadows cover both vehicles in Hard and
+Soft at 30/60/120 FPS: all twelve complete within the existing 5% cap tolerance,
+with no incomplete maps or reported shader failures. Native captures show the
+oversized hard chassis projections removed while muzzle spill remains. External
+projectile-light controls retain rendered vehicle shadows. Both shadow-off
+controls pass, and lighting-off controls produce no enhanced light submissions,
+shadow maps or occlusion updates on serial retry. The first concurrent off
+attempts stopped with a Windows invalid-handle exception before gameplay;
+their logs are retained rather than counted as passes.
+
+The CE Scorpion control passes at 60 FPS. The initial CE Warthog fixture failed
+to find its vehicle and captured rifle fire instead; the fixture now also
+accepts the existing multiplayer Warthog tag. The corrected Warthog capture
+passes at 60 FPS, with active chassis collision and complete modern maps.
+MCC Digsite reaches gameplay but
+does not equip the requested vehicles in these captures, so those attempts do
+not qualify MCC turret rendering. Initial CE/MCC captures overlapped a platform
+build and are not used for performance acceptance. Evidence is retained under
+`build/modern-refinement/turret-chassis/` and
+`build/plasma-visual/*-turret-chassis-*`.
+
+The normal Windows release and Web builds pass. The Android refresh is blocked
+by the local Windows invocation of NDK/CMake and Unix shell prerequisites;
+even the guest-only check stops in prerequisite generation before compiling
+the changed stub. No Android runtime, AMD hardware or multiplayer acceptance
+is claimed from these bounded local checks.
+
+Uncapped measurements use the normal renderer, buffered whole-frame timing,
+no screenshots or per-frame capture logs, and no concurrent builds/game tests.
+At 2560x1440, AA off, 1024 Soft shadows, the 30-second Warthog firing window
+averages 802.9 FPS (763.8 on frames with an active turret map, 85.1% of frames).
+The Scorpion averages 720.2 FPS with a turret map active throughout. These are
+controlled vehicle fixtures, not busy combat measurements or universal speedup
+claims against the earlier finite-source prototypes.
+
+The fresh copied Two Betrayals exterior checkpoint, with the established snowy
+route and explicitly invulnerable test player, averages 263.7 FPS over 120 seconds
+after 25 seconds of warmup. Its two minute averages are 268.8 and 258.6 FPS;
+eight modern maps are active throughout, with up to 27 scene lights. This meets
+the requested average-FPS target in this run. P99 is 5.863 ms and one frame takes
+84.135 ms: it does not establish a hitch-free 4.167 ms frame budget. Private
+memory window averages rise from 714.4 to 719.3 MiB; this short check does not
+settle the previously documented long-session memory question. The unchanged
+production renderer hashes match the passive performance build manifest.
+
+Final review covers owner identity/lifetime, caster/receiver separation,
+map-failure fallback, bounded trace reuse, platform stubs and restoration of
+the normal build. All 65 focused shadow, muzzle, collision, model-batch,
+occlusion, shader-isolation and host-configuration checks pass; five Python
+tools compile and `git diff --check` passes. One earlier harness invocation
+overlapped temporary capture-source instrumentation and is retained separately
+as invalid validation; the final run follows production-hash verification.
+No further production refactoring was warranted by this focused change.
+
+Disposable map copies and duplicate test executables/PDBs were removed.
+Test saves were archived and hash-verified; original maps and saves were not
+modified. Native captures, timing CSVs, reports and the current test builds
+remain as local evidence. This change is local to `modern-dynamic-shadows`;
+no testing/main push or CI claim is made by this acceptance record.

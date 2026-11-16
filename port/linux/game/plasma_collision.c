@@ -17,6 +17,25 @@
 
 extern boolean debug_collision_skip_vectors, debug_collision_skip_objects;
 
+/* Owner-only visibility for a turret whose other casters use rendered maps.
+   Borrow the current collision pose for this synchronous batch only. */
+void plasma_collision_object_depths(long owner, real_point3d const *point,
+	real_vector3d const *vectors, int count, float *depths)
+{
+	struct collision_model_instance model;
+	struct object_datum *object;
+	unsigned int pending[PLASMA_COLLISION_WORDS];
+	int i;
+	if (count < 1 || count > PLASMA_COLLISION_RAYS) return;
+	for (i = 0; i < count; i++) depths[i] = 1.0f;
+	if (debug_collision_skip_vectors || debug_collision_skip_objects) return;
+	object = object_try_and_get_and_verify_type(owner, _object_mask_vehicle);
+	if (!object || TEST_FLAG(object->object.flags, _object_invisible_bit) ||
+		!collision_model_instance_new(&model, owner)) return;
+	memset(pending, 0xff, sizeof(pending));
+	plasma_collision_model_depths(&model, point, vectors, count, pending, depths);
+}
+
 enum { TRACE_OBJECTS = 512, TRACE_REFERENCES = 4096 };
 struct trace_object
 {

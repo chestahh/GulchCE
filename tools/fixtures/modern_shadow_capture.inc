@@ -291,7 +291,22 @@ void modern_capture_receiver(long object)
 int modern_capture_skip_caster(long object)
 {
 	const char *control = getenv("HALO_SHADOW_CAPTURE_OMIT");
-	if (!control || !shadow_ready || object == NONE) return FALSE;
+	long vehicle = shadow_ready ? shadow_subject : capture_vehicle;
+	struct object_datum *datum;
+	int depth;
+	if (!control || object == NONE) return FALSE;
+	if (!strcmp(control, "vehicle")) return vehicle != NONE && object == vehicle;
+	if (!strcmp(control, "occupants"))
+	{
+		if (vehicle == NONE || object == vehicle) return FALSE;
+		for (depth = 0; depth < 16 && (datum = object_try_and_get(object)) != NULL; depth++)
+		{
+			object = datum->object.parent_object_index;
+			if (object == vehicle) return TRUE;
+		}
+		return FALSE;
+	}
+	if (!shadow_ready) return FALSE;
 	return (!strcmp(control, "weapon") && object == shadow_weapon) ||
 		(!strcmp(control, "body") && object == shadow_subject);
 }

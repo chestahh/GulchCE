@@ -11,6 +11,8 @@ float plasma_collision_depth(unsigned long flags, union real_point3d const *poin
 void plasma_collision_end(void);
 void plasma_collision_depths(unsigned long flags, union real_point3d const *point,
 	union real_vector3d const *vectors, int count, long ignore, float *depths);
+void plasma_collision_object_depths(long owner, union real_point3d const *point,
+	union real_vector3d const *vectors, int count, float *depths);
 /* Internal model-major phase; all state and borrowed pointers are synchronous. */
 void plasma_collision_model_depths(struct collision_model_instance const *instance,
 	union real_point3d const *point, union real_vector3d const *vectors, int count,

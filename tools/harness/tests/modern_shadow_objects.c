@@ -1,6 +1,8 @@
 #include "harness.h"
 #define _object_invisible_bit 0
 #define _object_mask_all 255
+#define _object_mask_vehicle 2
+#define MAXIMUM_OBJECTS_PER_MAP 8
 #define NUMBER_OF_OUTGOING_OBJECT_FUNCTIONS 4
 #define MODERN_SHADOW_WORLD 1
 #define MODERN_SHADOW_BOTH 3
@@ -16,6 +18,14 @@ struct object_definition {struct {struct {int index;} model;} object;} definitio
 struct model {struct {int count;} nodes;} models[8];
 static real_matrix4x3 poses[8];
 static int submitted[8],views_used[8];
+static int vehicle[8],biped[8];
+static struct unit_datum {struct {int parent_seat_index;} unit;} units[8];
+static struct object_datum *object_try_and_get(long i) {return i>=0 && i<8 ? &objects[i] : NULL;}
+static struct unit_datum *unit_try_and_get(long i) {return i>=0 && i<8 && biped[i] ? &units[i] : NULL;}
+static void *object_try_and_get_and_verify_type(long i,int mask) {
+ CHECK(mask==_object_mask_vehicle,"only vehicle owners extend the exception");
+ return object_try_and_get(i) && vehicle[i] ? &objects[i] : NULL;
+}
 static void object_iterator_new(struct object_iterator *i,int mask,int flags) {
  CHECK(mask==_object_mask_all,"all object classes participate");i->index=-1;
 }
@@ -48,24 +58,46 @@ int main(int argc,char **argv) {
  objects[5].object.flags=FLAG(_object_invisible_bit);
  definitions[6].object.model.index=NONE;
  objects[7].object.bounding_sphere_center.x=10;
- CHECK(object_casters(&origin,2,owners,NONE),"player, NPC and dropped models collected");
+ CHECK(object_casters(&origin,2,owners,NONE,NONE),"player, NPC and dropped models collected");
  CHECK(submitted[0] && submitted[1] && views_used[0]==1 && views_used[1]==1,
        "local body and any held weapon cast into world while excluded from first-person map");
  CHECK(submitted[2] && submitted[3] && submitted[4] && views_used[2]==3 && views_used[3]==3 && views_used[4]==3,
        "NPC, its held weapon and a dropped weapon cast into both receiver maps");
  CHECK(!submitted[5] && !submitted[6] && !submitted[7],"hidden, non-model and distant objects do not cast");
  owners[0]=owners[1]=NONE;memset(submitted,0,sizeof(submitted));
- CHECK(object_casters(&origin,2,owners,NONE) && views_used[0]==3 && views_used[1]==3,
+ CHECK(object_casters(&origin,2,owners,NONE,NONE) && views_used[0]==3 && views_used[1]==3,
        "third-person and remote player weapons retain full coverage");
  memset(submitted,0,sizeof(submitted));
- CHECK(object_casters(&origin,2,owners,2),"owner-specific map collects remaining casters");
+ CHECK(object_casters(&origin,2,owners,2,NONE),"owner-specific map collects remaining casters");
  CHECK(!submitted[2] && submitted[3] && submitted[0] && submitted[1] && submitted[4],
        "only exact owner is omitted; held weapon, other bodies and dropped items still cast");
  memset(submitted,0,sizeof(submitted));
- CHECK(object_casters(&origin,2,owners,0x10002) && submitted[2],"recycled datum cannot exclude a new owner");
+ CHECK(object_casters(&origin,2,owners,0x10002,NONE) && submitted[2],"recycled datum cannot exclude a new owner");
  memset(submitted,0,sizeof(submitted));
- CHECK(object_casters(&origin,2,owners,NONE) && submitted[2],"external light still receives owner geometry");
+ CHECK(object_casters(&origin,2,owners,NONE,NONE) && submitted[2],"external light still receives owner geometry");
+ memset(submitted,0,sizeof(submitted));
+ CHECK(object_casters(&origin,2,owners,NONE,2) && !submitted[2] && submitted[0] && submitted[3],
+       "turret map omits only its collision chassis, retaining other objects");
+ memset(submitted,0,sizeof(submitted));
+ CHECK(object_casters(&origin,2,owners,NONE,NONE) && submitted[2],"external light restores rendered chassis");
+ vehicle[2]=1;biped[0]=1;units[0].unit.parent_seat_index=0;
+ objects[0].object.parent_object_index=2;
+ memset(submitted,0,sizeof(submitted));
+ CHECK(object_casters(&origin,2,owners,2,NONE),"occupied vehicle collection completes");
+ CHECK(!submitted[0] && !submitted[1] && !submitted[2] && submitted[3] && submitted[4],
+       "own engine light exempts seated rider and held gear but not arbitrary attachments or nearby items");
+ CHECK(unshadowed_object(2,0) && unshadowed_object(2,1),"same exception is available to body and gear receivers");
+ CHECK(!unshadowed_object(NONE,0) && !unshadowed_object(0x10002,1),"external and recycled light owners retain rider shadows");
+ vehicle[2]=0;
+ CHECK(!unshadowed_object(2,0) && !unshadowed_object(2,1),"non-vehicle exceptions stay exact-owner only");
+ vehicle[2]=1;units[0].unit.parent_seat_index=NONE;
+ CHECK(!unshadowed_object(2,1),"unseated child is not a passenger");
+ units[0].unit.parent_seat_index=0;objects[0].object.parent_object_index=NONE;
+ CHECK(!unshadowed_object(2,0) && !unshadowed_object(2,1),"dismount immediately restores rider and gear shadows");
+ objects[0].object.parent_object_index=1;
+ CHECK(!unshadowed_object(2,0),"malformed parent cycle terminates without excluding an unrelated object");
+ objects[0].object.parent_object_index=NONE;
  objects[3].object.node_matrices.size=0;
- CHECK(!object_casters(&origin,2,owners,NONE),"invalid held pose falls back rather than generating malformed silhouettes");
+ CHECK(!object_casters(&origin,2,owners,NONE,NONE),"invalid held pose falls back rather than generating malformed silhouettes");
  return 0;
 }

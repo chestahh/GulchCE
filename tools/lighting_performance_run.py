@@ -128,6 +128,7 @@ def main():
     parser.add_argument('--uncapped', action='store_true', help='Measure headroom without the limiter; --fps remains the reporting budget')
     parser.add_argument('--enabled', type=int, choices=[0,1], required=True)
     parser.add_argument('--modern-shadows', choices=['off', 'hard', 'soft'], default='off')
+    parser.add_argument('--turret-sources', type=int, choices=[1,2,4], help='Requires a turret-prototype timing build')
     parser.add_argument('--seconds', type=int, default=300)
     parser.add_argument('--warmup', type=int, default=30)
     parser.add_argument('--resolution', default='2560x1440')
@@ -214,10 +215,13 @@ def main():
     if args.no_captures:
         env['HALO_SCREENSHOT_DIR']=''
     build=args.build_dir.resolve()
+    if args.turret_sources:
+        assert json.loads((build/'manifest.json').read_text()).get('turret_prototype'), 'Wrong timing build'
+        env['HALO_TURRET_SOURCES']=str(args.turret_sources)
     assert build.is_relative_to((ROOT/'build').resolve())
     shutil.copy2(build/'manifest.json', out/'build-manifest.json')
     (out/'settings.json').write_text(json.dumps(dict(resolution=args.resolution, fps=args.fps, uncapped=args.uncapped,
-        frame_limit=int(env['HALO_MAX_FPS']),
+        frame_limit=int(env['HALO_MAX_FPS']), turret_sources=args.turret_sources,
         warmup=args.warmup, seconds=args.seconds, bots=0 if args.checkpoint_root else args.bots, map=args.map,
         stationary_shield=args.stationary_shield,
         campaign_advance_seconds=args.advance_seconds, campaign_turn_seconds=args.turn_seconds, route_captures=args.route_captures,

@@ -54,6 +54,7 @@ void muzzle_lighting_submitted(long light, long rasterizer) {}
 int muzzle_lighting_selected(long rasterizer) { return FALSE; }
 float muzzle_lighting_radius(long light, float radius) { return radius; }
 int muzzle_lighting_vehicle_occlusion(long light) { return FALSE; }
+long muzzle_lighting_vehicle_owner(long light) { return NONE; }
 
 void covenant_lighting_update(void) {}
 void covenant_lighting_forget(void) {}

@@ -29,6 +29,11 @@ parser.add_argument('--label', default='')
 parser.add_argument('--map', choices=['bloodgulch', 'sidewinder', 'carousel', 'a10', 'b40', 'c40', 'ce-deathisland', 'mcc-digsite', 'mcc-ruby-c40'])
 parser.add_argument('--kind', choices=['rifle','pistol','charged','rocket','needle','ghost','banshee','banshee-fuel','shade','fuel','wraith','mp-needle','mp-banshee-fuel','mp-shade','ce-fuel','grenade'], default='rifle')
 parser.add_argument('--muzzle', choices=['ar','handgun','shotgun','sniper','rifle','pistol','charged','needler','rocket','flamethrower','warthog','scorpion'])
+parser.add_argument('--muzzle-source-offset', type=float, help='Capture-only vehicle muzzle source distance ahead of the rendered marker, in world units')
+parser.add_argument('--turret-sources', type=int, choices=[1,2,4], help='Requires the turret-prototype capture build')
+parser.add_argument('--turret-radius', type=float, default=.06)
+parser.add_argument('--turret-ahead', type=float, default=.06)
+parser.add_argument('--turret-timing', type=int, help='Seconds of capture-only uncapped vehicle timing; excludes screenshots')
 parser.add_argument('--both-lighting', action='store_true')
 parser.add_argument('--prong-lighting', action='store_true', help='Isolate the standalone plasma prong spill in a rifle/pistol combat capture')
 parser.add_argument('--weapon-glow', action='store_true', help='Exercise authored sword and charge lights')
@@ -38,7 +43,7 @@ parser.add_argument('--shadow-light', action='store_true', help='Hold a real cha
 parser.add_argument('--shadow-scene', choices=['warthog', 'ghost', 'ghost-engine', 'jackal-wall', 'player', 'marine', 'corpse', 'first-person', 'dropped-weapon', 'frag-grenade', 'plasma-grenade'],
                     help='Fixed shadow acceptance subject and tick-indexed moving light; five baseline keyframes')
 parser.add_argument('--dump-shaders', action='store_true', help='Retain generated GPU programs for this isolated run')
-parser.add_argument('--shadow-omit', choices=['weapon', 'body'], help='Capture-only counterfactual: omit one caster, retaining its visible model')
+parser.add_argument('--shadow-omit', choices=['weapon', 'body', 'vehicle', 'occupants'], help='Capture-only counterfactual: omit selected casters, retaining their visible models')
 parser.add_argument('--shadow-motion', action='store_true', help='Capture every rendered frame during ticks 100-160 in a shadow scene')
 parser.add_argument('--shadow-camera-angle', type=float, help='Rotate only the acceptance camera around the subject, in degrees')
 parser.add_argument('--shadow-weapon', help='Loaded weapon tag path for a held-weapon shadow acceptance scene')
@@ -77,10 +82,18 @@ parser.add_argument('--drop', type=float)
 parser.add_argument('--receiver-distance', type=float)
 parser.add_argument('--shadow-wall-gap', type=float, default=.7, help='Jackal fixture distance from the wall in world units')
 args = parser.parse_args()
+if args.turret_sources and (args.muzzle not in ('warthog','scorpion') or not 0 <= args.turret_radius <= .2 or not 0 <= args.turret_ahead <= .2):
+    parser.error('--turret-sources requires a vehicle muzzle and disk dimensions in [0, 0.2]')
+if args.turret_timing and (args.muzzle not in ('warthog','scorpion') or not 30 <= args.turret_timing <= 120):
+    parser.error('--turret-timing requires a vehicle muzzle and 30..120 seconds')
+if args.muzzle_source_offset is not None and (args.muzzle not in ('warthog', 'scorpion') or not 0 <= args.muzzle_source_offset <= .5):
+    parser.error('--muzzle-source-offset requires a vehicle muzzle fixture and a value between 0 and 0.5')
 if not .1 <= args.shadow_wall_gap <= 2:
     parser.error('--shadow-wall-gap must be between 0.1 and 2 world units')
-if args.shadow_omit and args.shadow_scene not in ('player', 'marine', 'corpse'):
+if args.shadow_omit in ('weapon', 'body') and args.shadow_scene not in ('player', 'marine', 'corpse'):
     parser.error('--shadow-omit requires a world-space character --shadow-scene')
+if args.shadow_omit in ('vehicle', 'occupants') and args.shadow_scene != 'ghost-engine' and args.muzzle not in ('warthog', 'scorpion'):
+    parser.error('--shadow-omit vehicle/occupants requires ghost-engine or a vehicle muzzle fixture')
 if args.shadow_weapon and args.shadow_scene not in ('player', 'marine', 'corpse', 'first-person'):
     parser.error('--shadow-weapon requires a held-weapon --shadow-scene')
 if args.shadow_holder and args.shadow_scene != 'marine':
@@ -177,6 +190,10 @@ if args.shadow_resolution is not None:
 if args.shadow_view_switch:
     env.update(HALO_SHADOW_CAPTURE_VIEW_SWITCH='1', HALO_SESSION_COMPATIBILITY='gulchce_third_person', HALO_CAMERA_POLICY='player_choice')
 env['PATH'] = str(root / 'build/windows') + os.pathsep + env.get('PATH', '')
+if args.shadow_omit:
+    env['HALO_SHADOW_CAPTURE_OMIT'] = args.shadow_omit
+if args.muzzle_source_offset is not None:
+    env['HALO_MUZZLE_CAPTURE_OFFSET'] = str(args.muzzle_source_offset)
 env.update(HALO_DATA_ROOT=str(out), HALO_SAVE_ROOT=str(out/'saves'), HALO_HIDDEN_WINDOW='1',
            HALO_NO_AUDIO='1', HALO_MAX_FPS=str(args.fps), HALO_NO_VSYNC='1', HALO_EXIT_AFTER='25' if args.door else '13',
            HALO_NET_ONLINE='0', HALO_NET_PUBLIC_LOBBY='0', HALO_UPDATE_ANSWER='never',
@@ -282,8 +299,6 @@ if args.shadow_scene:
         env['HALO_SHADOW_CAPTURE_VEHICLE'] = args.shadow_vehicle
     if args.shadow_camera_angle is not None:
         env['HALO_SHADOW_CAPTURE_CAMERA_ANGLE'] = str(args.shadow_camera_angle)
-    if args.shadow_omit:
-        env['HALO_SHADOW_CAPTURE_OMIT'] = args.shadow_omit
     if args.shadow_motion:
         env['HALO_SHADOW_CAPTURE_MOTION'] = '1'
     env['HALO_SHADOW_CAPTURE_WALL_GAP'] = str(args.shadow_wall_gap)
@@ -292,12 +307,19 @@ if args.shadow_scene:
                HALO_CAMERA_POLICY='player_choice', HALO_THIRD_PERSON=str(int(args.shadow_scene == 'player')))
     if args.shadow_scene != 'first-person':
         env['HALO_VIEWMODEL_VISIBLE'] = '0'
+if args.turret_sources:
+    assert json.loads((capture_dir/'build-manifest.json').read_text()).get('turret_prototype'), 'Wrong capture build'
+    env.update(HALO_TURRET_SOURCES=str(args.turret_sources), HALO_TURRET_RADIUS=str(args.turret_radius), HALO_TURRET_AHEAD=str(args.turret_ahead))
+if args.turret_timing:
+    assert json.loads((capture_dir/'build-manifest.json').read_text()).get('vehicle_timing'), 'Wrong vehicle timing build'
+    env.update(HALO_TURRET_TIMING='1',HALO_MAX_FPS='-1',HALO_EXIT_AFTER=str(args.turret_timing+20),HALO_PLASMA_CAPTURE_NO_IMAGES='1',HALO_SCREENSHOT_DIR='')
+    args.no_images=True
 with (out/'stdout.log').open('wb') as so, (out/'stderr.log').open('wb') as se:
     capture_executable = capture_dir/'halo-capture.exe'
-    if args.shadow_switch or args.shadow_view_switch or args.shadow_scene:
+    if args.shadow_switch or args.shadow_view_switch or args.shadow_scene or args.turret_sources or args.turret_timing:
         shutil.copy2(capture_executable, out/'halo-capture.exe')
         capture_executable = out/'halo-capture.exe'
-    if args.shadow_scene:
+    if args.shadow_scene or args.turret_sources or args.turret_timing:
         (out/'scene-manifest.json').write_text(json.dumps(dict(
             environment={key: value for key, value in env.items() if key.startswith('HALO_')},
             executable_sha256=hashlib.sha256(capture_executable.read_bytes()).hexdigest(),
@@ -306,7 +328,7 @@ with (out/'stdout.log').open('wb') as so, (out/'stderr.log').open('wb') as se:
     process = subprocess.Popen([str(capture_executable)], cwd=out,
                                env=env, stdout=so, stderr=se, creationflags=subprocess.CREATE_NO_WINDOW)
     try:
-        process.wait(timeout=(145 if args.map in ('b40', 'c40', 'mcc-ruby-c40') else 45) + args.startup_grace)
+        process.wait(timeout=(args.turret_timing+45 if args.turret_timing else 145 if args.map in ('b40', 'c40', 'mcc-ruby-c40') else 45) + args.startup_grace)
     finally:
         if process.poll() is None:
             process.terminate()
@@ -364,6 +386,25 @@ report['both_lighting'] = args.both_lighting
 report['muzzle_submissions'] = len(re.findall('MUZZLE submit', logs))
 report['muzzle_fade_samples'] = sum(0 < float(x) < .99 for x in re.findall(r'MUZZLE sample[^\r\n]+ strength ([0-9.]+)', logs))
 report['shadow_scene'] = args.shadow_scene
+report['shadow_omit'] = args.shadow_omit
+report['muzzle_source_offset'] = args.muzzle_source_offset
+report['turret_sources'] = args.turret_sources
+report['turret_radius'] = args.turret_radius
+report['turret_ahead'] = args.turret_ahead
+if args.turret_timing:
+    import csv
+    from lighting_performance_run import distribution
+    rows=[{k:float(v) for k,v in row.items()} for row in csv.DictReader((out/'turret-frames.csv').open())]
+    rows=[r for r in rows if 10 <= r['seconds'] < 10+args.turret_timing]
+    assert len(rows)>100 and rows[-1]['seconds']-rows[0]['seconds']>args.turret_timing-1
+    report['timing']=distribution([r['frame_ms'] for r in rows],240)
+    active=[r for r in rows if r['turrets']>0]
+    assert active, 'No shadowed turret samples'
+    report['active_timing']=distribution([r['frame_ms'] for r in active],240)
+    report['turret_active_fraction']=len(active)/len(rows)
+    report['average_fps']=report['timing']['average_fps']
+    report['shadow_active_samples']=sum(r['shadowed']>0 for r in rows)
+    report['selected_frames']=len(active)
 report['shadow_wall_gap'] = args.shadow_wall_gap if args.shadow_scene == 'jackal-wall' else None
 report['shadow_scene_created'] = bool(re.search(r'SHADOW SCENE created ', logs))
 report['shadow_scene_ticks'] = [int(x) for x in re.findall(r'SHADOW SCENE sample (\d+)', logs)]
@@ -394,9 +435,9 @@ if args.emitter == 'sword-elite' and args.enabled and r'weapons\energy sword\ene
     raise SystemExit('Sword attachment never entered enhanced lighting')
 if args.crouch and not args.shield and report['holder_crouch_samples'] != [1.0, 1.0, 0.0]:
     raise SystemExit('Holder did not crouch and return to standing')
-if bool(report['selected_frames']) != bool(args.enabled or (args.muzzle and args.both_lighting)):
+if not args.turret_timing and bool(report['selected_frames']) != bool(args.enabled or (args.muzzle and args.both_lighting)):
     raise SystemExit('Lighting selection did not match the requested mode')
-if report['average_fps'] is None or report['average_fps'] < args.fps * .95:
+if not args.turret_timing and (report['average_fps'] is None or report['average_fps'] < args.fps * .95):
     raise SystemExit('Capture did not sustain the requested FPS within 5 percent')
 
 if args.enabled and args.model and not report['model_draws']:
@@ -419,7 +460,7 @@ if report['shadow_incomplete_samples']:
 if args.enabled and args.occlusion and not (report['occlusion_updates'] or report['shadow_active_samples']):
     raise SystemExit('Capture did not update any occlusion fields')
 
-if args.combat and 'PLASMA combat equipped' not in logs:
+if args.combat and not args.turret_timing and 'PLASMA combat equipped' not in logs:
     raise SystemExit('Combat fixture did not equip the requested weapon')
 if args.probe and args.enabled and report['max_selected'] < (min(args.burst, 8) if args.kind in ('needle', 'mp-needle', 'wraith') else args.burst):
     raise SystemExit('Stress capture did not select the requested simultaneous light count')
@@ -464,14 +505,15 @@ if not args.enabled and not (args.muzzle and args.both_lighting and args.occlusi
 if args.kind == 'charged' and args.model and not args.probe and not args.combat and report['homing_shots'] != 3:
     raise SystemExit('Charged-shot capture did not exercise the homing target')
 
-if args.muzzle and args.enabled and (not report['muzzle_submissions'] or not report['muzzle_fade_samples']):
+# Timing mode proves active turret maps from the buffered CSV; verbose fade/profile logs are suppressed.
+if not args.turret_timing and args.muzzle and args.enabled and (not report['muzzle_submissions'] or not report['muzzle_fade_samples']):
     raise SystemExit('Muzzle capture did not exercise submission and smooth fade')
 if args.muzzle and not args.enabled and report['muzzle_submissions']:
     raise SystemExit('Disabled muzzle feature still submitted lights')
 
-if args.muzzle == "warthog" and args.enabled and r"MUZZLE profile vehicles\warthog\warthog gun" not in logs:
+if not args.turret_timing and args.muzzle == "warthog" and args.enabled and r"MUZZLE profile vehicles\warthog\warthog gun" not in logs:
     raise SystemExit("Capture did not fire the Warthog turret")
-if args.muzzle == 'scorpion' and args.enabled:
+if not args.turret_timing and args.muzzle == 'scorpion' and args.enabled:
     if r'MUZZLE profile vehicles\scorpion\scorpion cannon' not in logs or set(re.findall(r'MUZZLE sample[^\r\n]+ trigger ([01])', logs)) != {'0', '1'}:
         raise SystemExit('Capture did not fire both Scorpion guns')
 

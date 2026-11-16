@@ -18,6 +18,8 @@ from harness import function
 ROOT = Path(__file__).resolve().parents[1]
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--output-dir', type=Path, default=ROOT/'build/plasma-visual')
+parser.add_argument('--vehicle-timing', action='store_true', help='Buffered timings for the normal vehicle muzzle renderer; no multi-source prototype')
+parser.add_argument('--turret-prototype', action='store_true', help='Capture-only one/two/four-source turret visibility comparison')
 parser.add_argument('--verify-traces', action='store_true')
 parser.add_argument('--shadow-reuse', action='store_true', help='Measure conservative cross-frame shadow reuse; diagnostic overhead only')
 parser.add_argument('--shadow-geometry', action='store_true', help='Dump actual shadow meshes and poses for geometry inspection; capture build only')
@@ -30,6 +32,8 @@ shadow = ROOT / 'port/linux/game/modern_shadows.c'
 shadow_original = shadow.read_bytes()
 shadow_gl = ROOT/'port/linux/src/modern_shadows_gl.c'
 shadow_gl_original = shadow_gl.read_bytes()
+shadow_header = ROOT/'port/linux/include/modern_shadows.h'
+shadow_header_original = shadow_header.read_bytes()
 main = ROOT / 'source/main/main.c'
 backend = ROOT / 'port/linux/src/d3d8_gl.c'
 main_original = main.read_bytes()
@@ -243,7 +247,13 @@ try:
     text = text.replace(marker, marker + '\n\t\t\tplatform_log("PLASMA prepare %ld owner %ld tag %s", light_index, covenant_lights[i].object_index, covenant_profiles[covenant_lights[i].profile].tag);')
     covenant.write_text(text)
     text = muzzle_original.decode().replace('\r\n','\n')
-    text = 'void platform_log(const char *format,...);\n' + text
+    text = '#include <stdlib.h>\nvoid platform_log(const char *format,...);\n' + text
+    # Source-placement comparisons keep visible flashes and all casters intact.
+    marker = '\tif (profile->forward_offset != 0.0f)'
+    assert text.count(marker) == 1
+    text = text.replace(marker, '\tif (profile->vehicle_occlusion && getenv("HALO_MUZZLE_CAPTURE_OFFSET"))\n'
+        '\t{\n\t\treal delta = (real)atof(getenv("HALO_MUZZLE_CAPTURE_OFFSET")) - profile->forward_offset;\n'
+        '\t\tposition->x += forward.i * delta; position->y += forward.j * delta; position->z += forward.k * delta;\n\t}\n' + marker)
     marker = '\t\tpulse->connected = TRUE;'
     assert text.count(marker) == 1
     text = text.replace(marker, marker+'\n\t\tplatform_log("MUZZLE sample tick %ld time %.6f strength %.6f position %.5f %.5f %.5f weapon %ld trigger %d", game_time_get(), now, strength, position.x, position.y, position.z, pulse->weapon, pulse->trigger);\n\t\tplatform_log("MUZZLE profile %s", muzzle_profiles[pulse->profile].tag);')
@@ -340,6 +350,25 @@ try:
         manifest['source_hashes'][name] = hashlib.sha256((ROOT/name).read_bytes()).hexdigest()
     manifest['source_hashes']['port/linux/src/modern_shadows_gl.c'] = hashlib.sha256(shadow_gl_original).hexdigest()
     manifest['source_hashes'][models.relative_to(ROOT).as_posix()] = hashlib.sha256(models_original).hexdigest()
+    if args.turret_prototype or args.vehicle_timing:
+        from turret_shadow_probe import install, quiet_logs
+        for path in [shadow, shadow_gl, muzzle, plasma, rocket, covenant, emitter, shield, occlusion, models, fixture]:
+            path.write_text(quiet_logs(path.read_text()))
+        if args.turret_prototype:
+            install(ROOT)
+        text = fixture.read_text()
+        text = text.replace('void plasma_capture_frame(void)\n{',
+            'static void turret_probe_frame(void);\nvoid plasma_capture_frame(void)\n{\n'
+            '\tif (getenv("HALO_TURRET_TIMING")) { turret_probe_frame(); return; }', 1)
+        text = text.replace('if (capture_ticks < 75 || capture_ticks > 240) return 0;',
+            'if (capture_ticks < 75 || (capture_ticks > 240 && !getenv("HALO_TURRET_TIMING"))) return 0;', 1)
+        selector = ('int turret_probe_basis(long,float *,float *);\nstatic int turret_timing_selected(long index) { float axis[3],up[3]; return turret_probe_basis(index,axis,up); }\n' if args.turret_prototype else '#include \"modern_shadows.h\"\nstatic int turret_timing_selected(long index) { return modern_shadows_collision_owner(index)!=-1; }\n')
+        text += '\n' + selector + (ROOT/'tools/fixtures/turret_shadow_timing.inc').read_text()
+        fixture.write_text(text)
+        manifest['turret_prototype'] = args.turret_prototype
+        manifest['vehicle_timing'] = True
+        manifest['turret_probe_hashes'] = {str(p): hashlib.sha256((ROOT/p).read_bytes()).hexdigest() for p in
+            ['tools/turret_shadow_probe.py','tools/fixtures/turret_shadow_probe.inc','tools/fixtures/turret_shadow_timing.inc']}
     subprocess.run([sys.executable, 'configure.py', *saved_args], cwd=ROOT, check=True)
     subprocess.run(['ninja', 'windows'], cwd=ROOT, check=True)
     shutil.copy2(ROOT / 'build/windows/halo.exe', out / 'halo-capture.exe')
@@ -348,6 +377,7 @@ try:
     manifest['capture_sha256'] = hashlib.sha256((out/'halo-capture.exe').read_bytes()).hexdigest()
     (out/'build-manifest.json').write_text(json.dumps(manifest, indent=2))
 finally:
+    shadow_header.write_bytes(shadow_header_original)
     if args.attachment_diagnostics:
         light_source.write_bytes(light_original)
         network_source.write_bytes(network_original)

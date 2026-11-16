@@ -55,6 +55,7 @@ def instrument_shader_stalls(text):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--output-dir', type=Path, default=ROOT/'build/lighting-performance-build')
+    parser.add_argument('--turret-prototype', action='store_true', help='Test-only finite-source turret shadow comparison')
     parser.add_argument('--profile', action='store_true', help='CPU phase timers and asynchronous sampled GPU draw queries')
     parser.add_argument('--campaign-control', action='store_true', help='Test-only expiring controller commands for recording a fresh checkpoint; not a timing variant')
     parser.add_argument('--diagnose', action='store_true', help='Collision phase timings and retained resource counts (not acceptance timings)')
@@ -77,6 +78,9 @@ def main():
              'port/linux/game/plasma_falloff.c', 'port/linux/game/plasma_collision.c',
              'port/linux/game/authored_emitter_lighting.c', 'port/linux/src/xinput_sdl.c']
     paths += ['port/linux/game/plasma_collision_models.c']
+    if args.turret_prototype:
+        from turret_shadow_probe import PATHS
+        paths += [p for p in PATHS if p not in paths]
     if args.profile:
         paths += ['source/objects/object_lights.c', 'port/linux/src/plasma_occlusion_gl.c',
                   'port/linux/game/modern_shadows.c', 'port/linux/src/modern_shadows_gl.c']
@@ -307,6 +311,12 @@ def main():
             collision.write_text(instrument_collision(collision.read_text()))
             collision = ROOT/'port/linux/game/plasma_collision_models.c'
             collision.write_text(instrument_collision(collision.read_text()))
+        if args.turret_prototype:
+            from turret_shadow_probe import install
+            install(ROOT)
+            manifest['turret_prototype'] = True
+            manifest['turret_probe_hashes'] = {p:hashlib.sha256((ROOT/p).read_bytes()).hexdigest() for p in
+                ['tools/turret_shadow_probe.py','tools/fixtures/turret_shadow_probe.inc']}
         subprocess.run([sys.executable, 'configure.py', *saved], cwd=ROOT, check=True)
         subprocess.run(['ninja', 'windows'], cwd=ROOT, check=True)
         shutil.copy2(ROOT/'build/windows/halo.exe', output/'halo-performance.exe')

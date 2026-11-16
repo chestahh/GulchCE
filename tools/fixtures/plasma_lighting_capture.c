@@ -693,7 +693,12 @@ void plasma_capture_tick(void)
 			if (role && !strncmp(role, "join", 4)) return;
 			tag = tag_loaded('vehi', scorpion ? "vehicles\\scorpion\\scorpion_mp" : "vehicles\\warthog\\warthog");
 			if (tag == NONE && scorpion) tag = tag_loaded('vehi', "vehicles\\scorpion\\scorpion");
-			if (tag == NONE || unit == NONE) return;
+			if (tag == NONE && !scorpion) tag = tag_loaded('vehi', "vehicles\\warthog\\mp_warthog");
+			if (tag == NONE || unit == NONE)
+			{
+				platform_log("PLASMA combat unavailable vehicle tag %ld unit %ld", tag, unit);
+				return;
+			}
 			object_placement_data_new(&placement, tag, NONE);
 			placement.position = capture_camera.position;
 			placement.position.x += capture_camera.forward.i * 4.0f;
