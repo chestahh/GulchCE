@@ -1341,7 +1341,7 @@ void android_ce_texture_gpu_forget(const void *resource)
 			*link = entry->next;
 			glDeleteTextures(1, &entry->texture);
 			if (entry->hud_upscale)
-				glDeleteTextures(1, &entry->hud_upscale);
+				hud_hires_upscale_release(entry->hud_upscale);
 			texture_drop_serial++;
 			free(entry);
 		}
@@ -1632,7 +1632,7 @@ GLuint xgpu_texture_get(const DWORD *resource, const D3DCOLOR *palette, GLenum *
 		/* (which bitmap is here may have changed with the pixels) */
 		if (entry->hud_upscale)
 		{
-			glDeleteTextures(1, &entry->hud_upscale);
+			hud_hires_upscale_release(entry->hud_upscale);
 			entry->hud_upscale = 0;
 			xgpu_gl_state_invalidate();
 		}
@@ -1736,7 +1736,7 @@ void xgpu_texture_cache_begin_frame(void)
 				*link = entry->next;
 				glDeleteTextures(1, &entry->texture);
 				if (entry->hud_upscale)
-					glDeleteTextures(1, &entry->hud_upscale);
+					hud_hires_upscale_release(entry->hud_upscale);
 				xgpu_gl_state_invalidate();
 				texture_drop_serial++;
 				free(entry);
