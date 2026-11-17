@@ -2118,9 +2118,6 @@ void light_reconnect_to_map(
 		light->position = markers[0].matrix.position;
 		light->forward = markers[0].matrix.forward;
 		light->up = markers[0].matrix.up;
-		/* port: optional render-only placement, before computing map bounds. */
-		plasma_lighting_attachment_position(light_index, light->object_index,
-			&light->position, &light->forward, markers[0].matrix.scale);
 	}
 	else if (object_try_and_get(light->object_index))
 	{

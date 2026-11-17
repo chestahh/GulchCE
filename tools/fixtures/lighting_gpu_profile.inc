@@ -14,7 +14,7 @@ static int lighting_gpu_active;
 static FILE *lighting_gpu_log;
 double lighting_performance_seconds(void);
 
-static void lighting_gpu_begin_kind(int kind)
+static void lighting_gpu_begin(void)
 {
 	struct lighting_gpu_sample *sample;
 	if (lighting_gpu_frame_number % 32 || lighting_gpu_write - lighting_gpu_read == LIGHTING_GPU_QUERIES)
@@ -23,7 +23,7 @@ static void lighting_gpu_begin_kind(int kind)
 	if (!sample->query) glGenQueries(1, &sample->query);
 	sample->frame = lighting_gpu_frame_number;
 	sample->seconds = lighting_performance_seconds();
-	sample->kind = kind;
+	sample->kind = lighting_profile_world ? lighting_profile_world : lighting_profile_model;
 	glBeginQuery(GL_TIME_ELAPSED, sample->query);
 	lighting_gpu_active = 1;
 }
@@ -35,15 +35,6 @@ static void lighting_gpu_end(void)
 	lighting_gpu_active = 0;
 	lighting_gpu_write++;
 }
-
-static void lighting_gpu_begin(void)
-{
-	lighting_gpu_begin_kind(lighting_profile_world ? lighting_profile_world : lighting_profile_model);
-}
-
-/* The depth-cube pass is outside the ordinary model/world draw dispatcher. */
-void lighting_gpu_shadow_begin(void) { lighting_gpu_begin_kind(4); }
-void lighting_gpu_shadow_end(void) { lighting_gpu_end(); }
 
 static void lighting_gpu_frame(unsigned long frame)
 {

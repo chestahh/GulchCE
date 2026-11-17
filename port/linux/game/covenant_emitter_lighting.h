@@ -10,7 +10,6 @@ void covenant_emitter_lighting_submitted(long light, long rasterizer);
 int covenant_emitter_lighting_selected(long rasterizer);
 int covenant_emitter_lighting_vehicle_occlusion(long light);
 long covenant_emitter_lighting_occlusion_ignore(long light);
-long covenant_emitter_lighting_shadow_owner(long light);
 float covenant_emitter_lighting_radius(long light, float radius);
 
 /* Returns 0 for no mask, 1 for the AR screen, 2 for exposed needles. */

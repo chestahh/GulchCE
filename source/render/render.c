@@ -343,9 +343,6 @@ static void render_window(
 		render_sky();
 		first_person_weapon_render_update();
 		lights_preprocess_scene();
-		/* port: feature-owned depth maps after submission, before lighting.
-		The original Classic shadow passes remain unchanged. */
-		modern_shadows_prepare(rasterizer_target == _render_target_primary);
 		render_objects();
 		structure_render_preprocess();
 		structure_render_lightmaps();

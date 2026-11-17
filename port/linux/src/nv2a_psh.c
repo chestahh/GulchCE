@@ -17,7 +17,6 @@ Register values are clamped to [-1, 1] between stages, as on the hardware.
 
 #include "xgpu.h"
 #include "plasma_model_shader.h"
-#include "modern_shadows.h"
 #include "port_config.h"
 #include "mcc_environment_shader.h"
 #include "shield_honeycomb_gl.h"
@@ -577,12 +576,9 @@ world position the vertex program hands on and the same constants
 terms, clamped where the programs clamp them. The diffuse alpha, which the
 programs write apart (0, or planar fog's), is kept. */
 
-static void model_lighting(struct xgpu_text *text, BOOL point_lights, BOOL plasma_model, BOOL modern_shadow)
+static void model_lighting(struct xgpu_text *text, BOOL point_lights, BOOL plasma_model)
 {
 	int light;
-#ifdef HALO_GLES
-	modern_shadow = FALSE;
-#endif
 
 #ifndef HALO_ANDROID
 	if (point_lights && plasma_model)
@@ -627,8 +623,6 @@ static void model_lighting(struct xgpu_text *text, BOOL point_lights, BOOL plasm
 #endif
 			xgpu_text_append(text,
 				"\t\tlight += max(1.0 - distance_squared * model_lights[%d].w, 0.0) * clamp(dot(l, n), 0.0, 1.0) *\n", first);
-		if (modern_shadow)
-			xgpu_text_append(text, "\t\t\tmodern_model(%d,xWorldPosition) *\n", light);
 		xgpu_text_append(text,
 			"\t\t\tclamp(dot(l, -model_lights[%d].xyz) * model_lights[%d].w + model_lights[%d].w, 0.0, 1.0) *\n"
 			"\t\t\tmodel_lights[%d].xyz;\n"
@@ -741,11 +735,8 @@ char *nv2a_pixel_shader_to_glsl(const struct nv2a_pixel_shader_key *key)
 		xgpu_text_append(&text, "uniform %s tex%d;\n", sampler_declaration(key->sampler_type[stage]), stage);
 	if (key->source_blend)
 		xgpu_text_append(&text, "uniform vec4 blend_constant;\n");
-#ifndef HALO_GLES
-	if (key->modern_shadow) modern_shadow_emit(&text);
-#endif
 	if (key->per_pixel_lighting)
-		model_lighting(&text, key->per_pixel_lighting == 2, key->plasma_model, key->modern_shadow == 3);
+		model_lighting(&text, key->per_pixel_lighting == 2, key->plasma_model);
 	xgpu_text_append(&text,
 		"float signed_byte(float x)\n"
 		"{\n"
@@ -769,12 +760,6 @@ char *nv2a_pixel_shader_to_glsl(const struct nv2a_pixel_shader_key *key)
 
 	for (stage = 0; stage < 4; stage++)
 		texture_stage(&text, key, stage);
-	/* Only this light's attenuation is shadowed, preserving baked light. */
-#ifndef HALO_GLES
-	if (key->modern_shadow == 1 || key->modern_shadow == 2)
-		xgpu_text_append(&text, "\tt%d *= modern_world((xT%d.xyz-vec3(0.5))*modern_extent,t%d);\n",
-			key->modern_shadow, key->modern_shadow, key->modern_shadow);
-#endif
 
 	/* the fog register: rgb is the fog color, alpha the fog factor */
 	if (key->fog_enable)

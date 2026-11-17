@@ -20,14 +20,12 @@ static const struct ambient_profile
 	const char *marker;
 	int function, second_marker;
 	real idle;
-	real forward_offset;
-	int owner_unshadowed;
 } ambient_profiles[] = {
 	{'vehi', "vehicles\\c_dropship\\c_dropship", EMITTER_VEHICLE, 3.5f, {0.25f, 0.45f, 1.0f}, "hover thrusters", 2, 4, 0.35f},
 	{'eqip', "powerups\\over shield", EMITTER_WORLD, 1.6f, {1.0f, 0.18f, 0.08f}, NULL, 0, 0, 0.0f},
 	{'eqip', "powerups\\active camouflage", EMITTER_WORLD, 1.6f, {0.15f, 0.35f, 1.0f}, NULL, 0, 0, 0.0f},
 	{'scen', "scenery\\teleporter_shield\\teleporter", EMITTER_WORLD, 2.4f, {0.2f, 1.0f, 0.35f}, NULL, 0, 0, 0.0f},
-	{'vehi', "vehicles\\ghost\\ghost_mp", EMITTER_VEHICLE, 1.8f, {0.15f, 0.35f, 1.0f}, "running lights", 0, 1, 0.0f, 0.02f, TRUE},
+	{'vehi', "vehicles\\ghost\\ghost_mp", EMITTER_VEHICLE, 1.8f, {0.15f, 0.35f, 1.0f}, "running lights", 0, 1, 0.0f},
 };
 static long ambient_identities[NUMBEROF(ambient_profiles)], flame_definition;
 static int ambient_ready;
@@ -120,7 +118,6 @@ int ambient_emitter_lighting_sample(long index, int component, struct emitter_sa
 			if (flames[i].owner == index)
 			{
 				sample->kind = EMITTER_FLAME;
-				sample->owner_unshadowed = FALSE;
 				sample->position.x = flames[i].sum.x / flames[i].count;
 				sample->position.y = flames[i].sum.y / flames[i].count;
 				sample->position.z = flames[i].sum.z / flames[i].count;
@@ -141,7 +138,6 @@ int ambient_emitter_lighting_sample(long index, int component, struct emitter_sa
 			!lighting_config_boolean(profile->kind == EMITTER_VEHICLE ? "display.vehicle_lighting" : "display.world_lighting"))
 			continue;
 		sample->kind = profile->kind;
-		sample->owner_unshadowed = profile->owner_unshadowed;
 		sample->radius = profile->radius;
 		sample->color = profile->color;
 		sample->strength = 0.8f;
@@ -153,15 +149,6 @@ int ambient_emitter_lighting_sample(long index, int component, struct emitter_sa
 			if (object_get_marker_by_name(index, profile->marker, markers, NUMBEROF(markers)) <= marker)
 				return FALSE;
 			sample->position = markers[marker].matrix.position;
-			/* Sample just outside the emitting surface. The marker's local
-			   normal follows either side of the animated/scaled vehicle. */
-			if (profile->forward_offset)
-			{
-				real offset = profile->forward_offset * markers[marker].matrix.scale;
-				sample->position.x += offset * markers[marker].matrix.forward.i;
-				sample->position.y += offset * markers[marker].matrix.forward.j;
-				sample->position.z += offset * markers[marker].matrix.forward.k;
-			}
 			/* Dropship thruster surfaces stay luminous at idle; C-out
 			   adds throttle intensity. Destroyed vehicles remain dark. */
 			sample->strength *= profile->idle + (1.0f - profile->idle) *

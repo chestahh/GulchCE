@@ -41,10 +41,7 @@ static long capture_target = NONE;
 static long capture_emitter = NONE;
 static long capture_emitter_holder = NONE;
 static long capture_vehicle = NONE;
-static long capture_shadow_light = NONE;
 static int capture_emitter_attached;
-static void modern_capture_tick(const char *scene);
-static struct observer_result const *modern_capture_view(struct observer_result const *source);
 int plasma_capture_skip_cinematic(void)
 {
 	return cinematic_globals && cinematic_in_progress();
@@ -121,7 +118,6 @@ struct observer_result const *plasma_capture_view(struct observer_result const *
 	real_vector3d right;
 	real distance;
 	const char *kind = getenv("HALO_AMBIENT_CAPTURE");
-	if (getenv("HALO_SHADOW_CAPTURE_SCENE")) return modern_capture_view(source);
 	if (!kind || capture_vehicle == NONE || !(vehicle = object_try_and_get(capture_vehicle))) return source;
 	view = *source;
 	target = vehicle->object.position;
@@ -148,8 +144,6 @@ static void capture_ground(real_point3d *position)
 		FLAG(_collision_test_front_facing_surfaces_bit), &from, &down, NONE, &ground))
 		position->z = ground.point.z + 0.03f;
 }
-
-/* MODERN_SHADOW_CAPTURE_FIXTURE */
 
 /* Create ordinary objects; exercise their stock functions and deletion. */
 static void ambient_capture_tick(const char *kind)
@@ -211,20 +205,6 @@ static void ambient_capture_tick(const char *kind)
 	}
 	if (capture_emitter != NONE && object_try_and_get(capture_emitter))
 	{
-		if (getenv("HALO_SHADOW_CAPTURE_LIGHT") && capture_vehicle != NONE)
-		{
-			struct object_placement_data placement;
-			struct object_datum *vehicle = object_get(capture_vehicle);
-			object_placement_data_new(&placement, tag_loaded('proj', "weapons\\plasma rifle\\charged bolt"), NONE);
-			placement.position = vehicle->object.position;
-			placement.position.x += vehicle->object.forward.i * 1.4f;
-			placement.position.y += vehicle->object.forward.j * 1.4f;
-			placement.position.z += 1.8f;
-			if (capture_shadow_light == NONE && placement.definition_index != NONE)
-				capture_shadow_light = object_new(&placement);
-			if (capture_shadow_light != NONE)
-				object_set_position(capture_shadow_light, &placement.position, NULL, NULL);
-		}
 		if (capture_ticks % 30 == 0)
 		{
 			struct object_datum *object = object_get(capture_emitter);
@@ -481,8 +461,6 @@ static int capture_kind(void)
 	return 0;
 }
 int config_write_boolean(const char *name, int value);
-int config_write(const char *name, const char *value);
-const char *config_string(const char *name);
 static real capture_distance, capture_height, capture_receiver_distance, capture_span;
 static real capture_option(const char *name, real fallback)
 {
@@ -509,7 +487,6 @@ void plasma_capture_specular_draw(void)
 int plasma_capture_hold_projectile(long index)
 {
 	int n;
-	if (index == capture_shadow_light) return 1;
 	for (n = 0; n < capture_burst; n++)
 		if (capture_probe && index == capture_bolts[n])
 			return 1;
@@ -603,19 +580,6 @@ void plasma_capture_tick(void)
 		cheat.deathless_player = TRUE;
 	}
 	capture_ticks++;
-	if (getenv("HALO_SHADOW_CAPTURE_VIEW_SWITCH") && (capture_ticks == 110 || capture_ticks == 170))
-	{
-		config_write_boolean("display.third_person", capture_ticks == 110);
-		platform_log("SHADOW CAMERA tick %ld third %d", capture_ticks, capture_ticks == 110);
-	}
-	if (getenv("HALO_SHADOW_CAPTURE_SWITCH") && capture_ticks >= 70 && capture_ticks <= 230 && capture_ticks % 20 == 10)
-	{
-		static const char *modes[] = {"off", "hard", "soft"};
-		const char *mode = modes[((capture_ticks - 70) / 20) % 3];
-		config_write("display.modern_shadows", mode);
-		platform_log("SHADOW MODE tick %ld value %s", capture_ticks, config_string("display.modern_shadows"));
-	}
-
 	if (getenv("HALO_WEAPON_GLOW") && capture_ticks % 15 == 0)
 	{
 		long holder = player_control_get_unit_index(0);
@@ -674,7 +638,6 @@ void plasma_capture_tick(void)
 					 capture_camera.position.y, capture_camera.position.z, capture_camera.forward.i,
 					 capture_camera.forward.j, capture_camera.forward.k);
 	}
-	if (getenv("HALO_SHADOW_CAPTURE_SCENE")) { modern_capture_tick(getenv("HALO_SHADOW_CAPTURE_SCENE")); return; }
 	if (getenv("HALO_AMBIENT_CAPTURE")) { ambient_capture_tick(getenv("HALO_AMBIENT_CAPTURE")); return; }
 	if (getenv("HALO_SHIELD_CAPTURE")) { shield_capture_tick(); return; }
 	if (getenv("HALO_EMITTER_CAPTURE"))
@@ -693,12 +656,7 @@ void plasma_capture_tick(void)
 			if (role && !strncmp(role, "join", 4)) return;
 			tag = tag_loaded('vehi', scorpion ? "vehicles\\scorpion\\scorpion_mp" : "vehicles\\warthog\\warthog");
 			if (tag == NONE && scorpion) tag = tag_loaded('vehi', "vehicles\\scorpion\\scorpion");
-			if (tag == NONE && !scorpion) tag = tag_loaded('vehi', "vehicles\\warthog\\mp_warthog");
-			if (tag == NONE || unit == NONE)
-			{
-				platform_log("PLASMA combat unavailable vehicle tag %ld unit %ld", tag, unit);
-				return;
-			}
+			if (tag == NONE || unit == NONE) return;
 			object_placement_data_new(&placement, tag, NONE);
 			placement.position = capture_camera.position;
 			placement.position.x += capture_camera.forward.i * 4.0f;
@@ -938,15 +896,6 @@ void plasma_capture_frame(void)
 int plasma_capture_should_capture(void)
 {
 	static long shield_captured_tick = -1;
-	if (getenv("HALO_SHADOW_CAPTURE_SCENE"))
-	{
-		if (getenv("HALO_SHADOW_CAPTURE_MOTION"))
-			return !getenv("HALO_PLASMA_CAPTURE_NO_IMAGES") && capture_ticks >= 100 && capture_ticks <= 160;
-		if (getenv("HALO_PLASMA_CAPTURE_NO_IMAGES") || capture_ticks < 100 || capture_ticks > 220 ||
-			capture_ticks % 30 != 10 || shield_captured_tick == capture_ticks) return FALSE;
-		shield_captured_tick = capture_ticks;
-		return TRUE;
-	}
 	if (getenv("HALO_SHIELD_CAPTURE") || getenv("HALO_LIGHTING_CAPTURE_SPARSE"))
 	{
 		if (getenv("HALO_PLASMA_CAPTURE_NO_IMAGES") || capture_ticks < 85 || capture_ticks > 240 ||

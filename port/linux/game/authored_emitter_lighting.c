@@ -15,8 +15,6 @@ static const struct authored_emitter_profile
 	const char *object, *light;
 	float scale;
 	int category;
-	float forward_offset;
-	int owner_unshadowed;
 } profiles[] = {
 	{'weap', "weapons\\energy sword\\energy sword", "weapons\\energy sword\\energy sword dynamic", 2.5f, 1},
 	{'proj', "weapons\\plasma grenade\\plasma grenade", "weapons\\plasma grenade\\plasma grenade", 1.5f, 3},
@@ -25,7 +23,7 @@ static const struct authored_emitter_profile
 	   authored pistol radius is 1.5, the rifle's 0.1: both reach 0.3 here. */
 	{'weap', "weapons\\plasma pistol\\plasma pistol", "weapons\\plasma pistol\\plasma pistol flare", 0.2f, 4},
 	{'weap', "weapons\\plasma rifle\\plasma rifle", "weapons\\plasma rifle\\plasma rifle flare", 3.0f, 4},
-	{'vehi', "vehicles\\ghost\\ghost", "vehicles\\ghost\\ghost running", 2.2f, 2, 0.02f, TRUE},
+	{'vehi', "vehicles\\ghost\\ghost", "vehicles\\ghost\\ghost running", 2.2f, 2},
 	{'vehi', "vehicles\\banshee\\banshee", "vehicles\\banshee\\banshee wing", 2.2f, 2},
 	{'vehi', "vehicles\\banshee\\banshee_mp", "vehicles\\banshee\\banshee wing", 2.2f, 2},
 	{'vehi', "vehicles\\warthog\\mp_warthog", "vehicles\\warthog\\headlights light", 1.0f, 2},
@@ -74,11 +72,10 @@ void authored_emitter_lighting_forget(void)
 	identities_ready = FALSE;
 }
 
-int authored_emitter_lighting_profile(long object_index, long definition, float *scale, float *forward_offset, int *owner_unshadowed)
+int authored_emitter_lighting_profile(long object_index, long definition, float *scale)
 {
 	struct object_datum *object;
 	int i;
-	*owner_unshadowed = FALSE;
 	if (!authored_emitter_lighting_enabled() && !lighting_config_boolean("display.plasma_lighting"))
 		return 0;
 	object = object_try_and_get(object_index);
@@ -98,8 +95,6 @@ int authored_emitter_lighting_profile(long object_index, long definition, float 
 			definition == identities[i].light && authored_emitter_lighting_category_enabled(profiles[i].category))
 		{
 			*scale = profiles[i].scale;
-			*forward_offset = profiles[i].forward_offset;
-			*owner_unshadowed = profiles[i].owner_unshadowed;
 			if (profiles[i].category == 4)
 			{
 				*scale *= prong_reach(object);

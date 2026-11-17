@@ -151,9 +151,6 @@ context has the extension, never required (gl_functions.c). On ES 3.0 and
 	X(glGetString) \
 	X(glGetIntegerv) \
 	X(glGetTexImage) \
-	X(glReadBuffer) \
-	X(glUniformMatrix4fv) \
-	X(glDeleteSamplers) \
 	X(glCopyImageSubData) \
 	X(glGenerateMipmap) \
 	X(glGetError) \
@@ -403,9 +400,6 @@ pointers, sees the declarations without these aliases */
 #define glGetString halo_glGetString
 #define glGetIntegerv halo_glGetIntegerv
 #define glGetTexImage halo_glGetTexImage
-#define glReadBuffer halo_glReadBuffer
-#define glUniformMatrix4fv halo_glUniformMatrix4fv
-#define glDeleteSamplers halo_glDeleteSamplers
 #define glCopyImageSubData halo_glCopyImageSubData
 #define glGenerateMipmap halo_glGenerateMipmap
 #define glGetError halo_glGetError

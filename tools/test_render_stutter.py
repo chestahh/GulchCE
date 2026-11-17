@@ -35,7 +35,6 @@ def test_honeycomb_translation(tmp_path, platform, omit):
     code += 'static char const *debug_expression="";\nstatic char const *config_string(char const *s){(void)s;return debug_expression;}\nstatic int config_boolean(char const *s){(void)s;return 0;}\n'
     code += (ROOT/'port/linux/src/shield_honeycomb_gl.h').read_text()
     code += function((ROOT/'port/linux/src/mcc_environment_shader_gl.c').read_text(),'mcc_environment_shader_emit')
-    code += function((ROOT/'port/linux/src/modern_shadows_gl.c').read_text(),'modern_shadow_emit')
     for name in ['xgpu_text','plasma_model_shader','nv2a_psh']:
         source=(ROOT/f'port/linux/src/{name}.c').read_text()
         if omit and name=='nv2a_psh': source=omit_honeycomb(source)

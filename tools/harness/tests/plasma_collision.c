@@ -40,8 +40,6 @@ static struct structure_bsp structure;
 static int roots[1024], root_count, stock_calls, reads, model_builds, cluster_reads;
 static float object_depth[1024], structure_depth;
 static int bad_leaf, debug_collision_skip_objects, debug_collision_skip_vectors;
-#define _object_mask_vehicle 4
-static struct object_datum *object_try_and_get_and_verify_type(long index,int mask) { return index>=0 && index<1024 && objects[index].object.type==2 ? &objects[index] : NULL; }
 static struct object_datum *object_get(long index) { reads++; return &objects[index]; }
 static struct structure_bsp *global_structure_bsp_get(void) { return &structure; }
 static struct collision_bsp *global_collision_bsp_get(void) { return &bsp; }
@@ -185,14 +183,6 @@ int main(int argc,char **argv)
   setup();vectors[PLASMA_COLLISION_RAYS]=vectors[0];
   plasma_collision_depths(flags,&p,vectors,PLASMA_COLLISION_RAYS+1,NONE,actual);
   for(i=0;i<=PLASMA_COLLISION_RAYS;i++)CHECK(actual[i]==.123f,"oversized batch uses scalar stock queries without bitset writes");
- }
- {
-  real depths[2];real_vector3d rays[2]={{1,0,0},{0,1,0}};
-  setup();objects[0].object.type=2;object_depth[0]=.6f;object_depth[1]=.1f;structure_depth=.05f;
-  plasma_collision_object_depths(0,&p,rays,2,depths);
-  CHECK(depths[0]==.6f && depths[1]==.6f && !cluster_reads && !stock_calls,"owner batch ignores closer world and unrelated blockers");
-  plasma_collision_object_depths(1024,&p,rays,2,depths);CHECK(depths[0]==1,"deleted or recycled owner stays clear");
-  debug_collision_skip_objects=1;plasma_collision_object_depths(0,&p,rays,2,depths);CHECK(depths[0]==1,"owner batch preserves debug skip");
  }
  return 0;
 }

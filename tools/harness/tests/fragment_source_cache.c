@@ -23,8 +23,7 @@ static GLuint xgpu_compile_shader(int type, const char *source, const char *what
 }
 static void *cache_malloc(size_t size) { return fail_allocation ? NULL : malloc(size); }
 static void cache_free(void *memory) { freed++; free(memory); }
-/* Only optional source sharing fails allocation. Mandatory device records use
-   the production calloc-or-abort contract included below. */
+static void *device_record_new(size_t size) { return cache_malloc(size); }
 #define malloc cache_malloc
 #define free cache_free
 #include "under_test.inc"

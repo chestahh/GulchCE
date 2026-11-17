@@ -88,7 +88,7 @@ int main(int argc, char **argv)
 	CHECK(recognized >= 2, "real two-point-light programs tested");
 	for (enabled = 0; enabled < 2; enabled++)
 	{
-		model_lighting(&pixel, 1, enabled, 0);
+		model_lighting(&pixel, 1, enabled);
 #ifdef HALO_ANDROID
 		CHECK(!strstr(pixel.buffer, "plasma_") && !strstr(pixel.buffer, "sampler3D"), "Android per-pixel lighting is stock");
 #else
@@ -104,7 +104,7 @@ int main(int argc, char **argv)
 		}
 		free(pixel.buffer);
 		memset(&pixel, 0, sizeof(pixel));
-		model_lighting(&pixel, 0, enabled, 0);
+		model_lighting(&pixel, 0, enabled);
 		CHECK(!strstr(pixel.buffer, "plasma_") && !strstr(pixel.buffer, "xWorldPosition"), "ambient-only models unchanged");
 		free(pixel.buffer);
 		memset(&pixel, 0, sizeof(pixel));

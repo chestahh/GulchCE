@@ -251,9 +251,8 @@ static const struct config_setting config_settings[] =
 		"and glow trails, including MCC. False keeps the central 4:3 framing." },
 	{ "display.shadow_resolution", _config_integer, "128", "HALO_SHADOW_RESOLUTION", _environment_value,
 		_platform_all,
-		"Shadow map size: 128 (Xbox default), 256, 512, 1024, 2048 or 4096.\n"
-		"Also sets each face of enabled modern dynamic shadow maps. Higher\n"
-		"resolutions use more GPU memory and rendering time." },
+		"The size the objects' shadows are drawn at, in pixels each way: 128 as\n"
+		"on the Xbox, or 256, 512 or 1024 for smoother edges, as soft." },
 	{ "display.menus", _config_string, "\"pc\"", "HALO_MENUS", _environment_value, _platform_all,
 		"The menus: \"pc\" for the PC version's main menu (port/assets/menus,\n"
 		"and a menus folder here for your own), \"xbox\" for the Xbox's." },
@@ -664,9 +663,6 @@ static const struct config_setting config_settings[] =
 	{ "display.dynamic_lighting_reset", _config_boolean, "true", "HALO_DYNAMIC_LIGHTING_RESET", _environment_value, _platform_all,
 		"Migration marker: old saved dynamic-lighting preferences were reset to off.\n"
 		"Leave true to retain lighting choices made after that one-time reset." },
-	{ "display.modern_shadows", _config_string, "\"off\"", "HALO_MODERN_SHADOWS", _environment_value, _platform_desktop,
-		"Rendered shadows for up to two enabled dynamic lights: \"off\",\n"
-		"\"hard\" or \"soft\". Classic shadows remain unchanged. Desktop only." },
 	{ "display.plasma_occlusion", _config_boolean, "false", "HALO_PLASMA_OCCLUSION", _environment_value, _platform_desktop,
 		"Collision-filtered projectile, Covenant emitter and Shield Glow visibility.\n"
 		"Off preserves unoccluded plasma lighting. At most eight occluded lights." },

@@ -1,7 +1,6 @@
 #include "harness.h"
 #define NUMBEROF(a) (sizeof(a)/sizeof((a)[0]))
 #include <string.h>
-#include <math.h>
 
 enum { _object_type_projectile = 5 };
 enum { _point_light_dynamic_bit = 0, _point_light_connects_to_map_bit = 1,
@@ -12,11 +11,8 @@ static struct object_datum projectile = { 1, { _object_type_projectile } };
 static const char *tag_name = "weapons\\plasma rifle\\bolt";
 static int muzzle_on, emitter_on, shield_on;
 static int enabled = 1, refreshes, present = 1, interpolation_rendering = 1;
-static int rendered_pose, authored_on;
-static float marker_scale = 1;
-void plasma_lighting_attachment_position(long, long, real_point3d *, real_vector3d const *, float);
+static int rendered_pose;
 static float connected_radius;
-static real_point3d connected_position;
 int lighting_config_boolean(const char *name) { return strcmp(name, "display.muzzle_lighting") ? enabled : muzzle_on; }
 static struct object_datum *object_try_and_get(long index) { return present ? &projectile : NULL; }
 static const char *tag_get_name(long index) { return tag_name; }
@@ -51,20 +47,13 @@ static void light_disconnect_from_map(long index)
 }
 static void light_reconnect_to_map(long index)
 {
-	struct light_datum *light = light_get(index);
-    light->position.x = light->position.y = light->position.z = 0;
-    light->forward.i = light->forward.k = 0; light->forward.j = 1;
-    plasma_lighting_attachment_position(index, light->object_index, &light->position, &light->forward, marker_scale);
-    refreshes++;
+	refreshes++;
 	if (TEST_FLAG(light_get(index)->flags, _point_light_connects_to_map_bit))
 		SET_FLAG(light_get(index)->flags, _point_light_connected_to_map_bit, TRUE);
 	rendered_pose = interpolation_rendering;
-	{ real_point3d p; light_compute_bounding_sphere(index, TRUE, FALSE, TRUE, &p, &connected_radius); connected_position=p; }
+	{ real_point3d p; light_compute_bounding_sphere(index, TRUE, FALSE, TRUE, &p, &connected_radius); }
 }
 void plasma_occlusion_model_slot(long i, short s) {}
-void modern_shadows_model_slot(long i, int s) {}
-void modern_shadows_window(void) {}
-void modern_shadows_submitted(long i, long r) {}
 static int visibility_resets;
 void plasma_occlusion_reset(void) { visibility_resets++; }
 void muzzle_lighting_frame_end(void) {}
@@ -100,9 +89,8 @@ void shield_glow_frame_end(void) {}
 void shield_glow_window_begin(void) {}
 void shield_glow_submitted(long l,long r) {}
 float shield_glow_radius(long l,float r) { return r; }
-int authored_emitter_lighting_enabled(void) { return authored_on && enabled; }
-int authored_emitter_lighting_profile(long o,long d,float *s,float *offset,int *owner_unshadowed) { *owner_unshadowed=0; if(!authored_on) return 0; *s=2.2f; *offset=.02f; *owner_unshadowed=1; return 2; }
-long covenant_emitter_lighting_shadow_owner(long light) { return NONE; }
+int authored_emitter_lighting_enabled(void) { return 0; }
+int authored_emitter_lighting_profile(long o,long d,float *s) { return 0; }
 int authored_emitter_lighting_category_enabled(int c) { return enabled; }
 #include "under_test.inc"
 
@@ -111,40 +99,7 @@ int main(int argc, char **argv)
 	int i;
 	const char *test = argv[1];
 
-	if (!strcmp(test, "placement"))
-    {
-        real_point3d point = {0,0,0};
-        real_vector3d forward = {1,0,0};
-        authored_on = 1; marker_scale = 2;
-        plasma_lighting_prepare(1,1,NONE);
-        CHECK(fabs(light_get(1)->position.y-.04f)<.00001f, "render attachment uses rotated scaled marker");
-        CHECK(plasma_lighting_shadow_owner(1)==1 && plasma_lighting_shadow_owner(2)==NONE && plasma_lighting_shadow_owner(NONE)==NONE,
-            "registered Ghost light identifies only its own owner");
-        present=0;CHECK(plasma_lighting_shadow_owner(1)==NONE,"deleted owner has no exception");present=1;
-        CHECK(fabs(connected_position.y-.04f)<.00001f, "cluster bounds use the same source as rendering");
-        plasma_lighting_submitted(1,3);
-        light_port_refresh_attachment(1,1);
-        CHECK(fabs(light_get(1)->position.y-.04f)<.00001f, "refresh never compounds placement");
-        plasma_lighting_attachment_position(1,2,&point,&forward,1);
-        CHECK(point.x==0, "wrong owner stays stock");
-        enabled=0;
-        CHECK(plasma_lighting_shadow_owner(1)==NONE,"policy disable removes exception immediately");
-        plasma_lighting_attachment_position(1,1,&point,&forward,1);
-        CHECK(point.x==0, "host or setting disable immediately blocks offset");
-        plasma_lighting_frame_end();
-        CHECK(light_get(1)->position.y==0 && connected_position.y==0 && plasma_lighting_count==0, "disabled frame restores simulation position");
-        enabled=1;
-        plasma_lighting_prepare(1,1,NONE);
-        plasma_lighting_frame_end();
-        CHECK(light_get(1)->position.y==0, "enabled frame also restores simulation position");
-        plasma_lighting_attachment_position(1,1,&point,&forward,1);
-        CHECK(point.x==0, "expired registration cannot move an attachment");
-        plasma_lighting_prepare(1,1,NONE);
-        plasma_lighting_reset();
-        plasma_lighting_attachment_position(1,1,&point,&forward,1);
-        CHECK(point.x==0 && plasma_lighting_shadow_owner(1)==NONE, "map reset forgets placement and owner exception");
-    }
-    else if (!strcmp(test, "shield"))
+	if (!strcmp(test, "shield"))
 	{
 		enabled = muzzle_on = emitter_on = 0; shield_on = 1;
 		CHECK(plasma_lighting_selected(23), "shield-only selection");
