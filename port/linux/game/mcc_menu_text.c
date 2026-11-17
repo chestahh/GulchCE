@@ -10,6 +10,7 @@
 #include "mcc_menu_text.h"
 #include "../src/port_config.h"
 #include <stdlib.h>
+#include "../src/workshop_authors.h"
 #include <string.h>
 
 static boolean field(long tag, short index)
@@ -43,6 +44,8 @@ static int width_of(wchar_t const *text)
  * Switch's map list near 7 fps. The result depends only on the text, the
  * font and the box, so the last few are kept, and a frame draws them as
  * they are. (Taken from the heap at their first use, not the image's.) */
+enum { AUTHOR_TEXT_SIZE=WORKSHOP_AUTHORS_NAME_SIZE+16 };
+
 #define MCC_TEXT_ROWS 24
 #define MCC_TEXT_LAYOUTS 8
 #define MCC_TEXT_CACHED 512
@@ -53,6 +56,7 @@ struct mcc_text_layout {
     int width, height;
     unsigned stamp;
     wchar_t text[MCC_TEXT_CACHED], wrapped[512];
+    char author[WORKSHOP_AUTHORS_NAME_SIZE];
 };
 static struct mcc_text_row *mcc_text_rows;
 static struct mcc_text_layout *mcc_text_layouts;
@@ -166,12 +170,47 @@ static int text_height(wchar_t const *text)
     return MAX(ink.y1,cursor.y1);
 }
 
+/* A Workshop map's author under its description in the map lists' panel
+ * (workshop_authors.c), once Steam has said: "Publisher" (the account that
+ * published the item), then the name on one
+ * line, cut short with "..." to fit the width in the current font. 0 for
+ * none. UTF-8 to the menus' UTF-16, a character it cannot hold a ?. */
+static int author_text(long tag, short index, int width, wchar_t text[AUTHOR_TEXT_SIZE],
+    char author[WORKSHOP_AUTHORS_NAME_SIZE])
+{
+    char const *name, *leaf, *at;
+    int used, start;
+    if (tag==NONE || index<MCC_MAPS_FIRST_DISPLAY_INDEX || index>=MCC_MAPS_FIRST_DISPLAY_INDEX+MCC_MAPS_MAXIMUM) return 0;
+    name=tag_get_name(tag); leaf=strrchr(name,'\\'); leaf=leaf ? leaf+1 : name;
+    if (strcmp(leaf,"mp_map_right_data")) return 0;
+    if (!workshop_authors_get(mcc_maps_item_id((short)(index-MCC_MAPS_FIRST_DISPLAY_INDEX)),author,WORKSHOP_AUTHORS_NAME_SIZE)) return 0;
+    for (used=0; "Publisher\r"[used]; used++) text[used]="Publisher\r"[used];
+    start=used;
+    for (at=author; *at && used<AUTHOR_TEXT_SIZE-4; ) {
+        unsigned char first=(unsigned char)*at++;
+        unsigned long c=first;
+        int following=first>=0xF0 ? 3 : first>=0xE0 ? 2 : first>=0xC0 ? 1 : 0;
+        if (first>=0x80) {
+            c=first&(0x3F>>following);
+            for (; following>0 && ((unsigned char)*at&0xC0)==0x80; following--) c=(c<<6)|((unsigned char)*at++&0x3F);
+            if (following || first<0xC0 || c>0xFFFF) c='?';
+        }
+        text[used++]=(wchar_t)c;
+    }
+    text[used]=0;
+    while (width_of(text+start)>width && used>start) {
+        used--; text[used]='.'; text[used+1]='.'; text[used+2]='.'; text[used+3]=0;
+    }
+    return 1;
+}
+
 boolean mcc_menu_text_draw(long tag, short index, wchar_t const *text, long font, short justification,
     real_argb_color const *color, rectangle2d const *bounds, rectangle2d const *parent_clip)
 {
-    wchar_t wrapped[512];
+    wchar_t wrapped[512], author[2+AUTHOR_TEXT_SIZE];
+    char author_key[WORKSHOP_AUTHORS_NAME_SIZE]={0};
     rectangle2d area=*bounds, clip;
-    int width=bounds->x1-bounds->x0-2, height=bounds->y1-bounds->y0, used;
+    int width=bounds->x1-bounds->x0-2, height=bounds->y1-bounds->y0, used, authored;
     long small;
     char const *name;
     if (!field(tag,index)) return FALSE;
@@ -185,8 +224,11 @@ boolean mcc_menu_text_draw(long tag, short index, wchar_t const *text, long font
     }
     clip=area;
     if (width<=0 || height<=0) return TRUE;
+    draw_string_set_draw_mode(font,NONE,0,0,color);
+    author[2]=0;
+    authored=author_text(tag,index,width,author+2,author_key);
     {
-        /* (laid out once for this text, font and box: mcc_text_layouts) */
+        /* (Steam may answer after the first draw; its publisher is part of the layout key.) */
         struct mcc_text_layout *layout=NULL, *oldest=NULL;
         int i, cacheable=mcc_text_length(text,MCC_TEXT_CACHED)!=NONE;
         if (cacheable && !mcc_text_layouts &&
@@ -197,7 +239,8 @@ boolean mcc_menu_text_draw(long tag, short index, wchar_t const *text, long font
             for (i=0; i<MCC_TEXT_LAYOUTS; i++) {
                 struct mcc_text_layout *entry=&mcc_text_layouts[i];
                 if (entry->stamp && entry->font==font && entry->width==width && entry->height==height &&
-                    mcc_text_same(entry->text,text,MCC_TEXT_CACHED)) {layout=entry;break;}
+                    mcc_text_same(entry->text,text,MCC_TEXT_CACHED) &&
+                    !strcmp(entry->author,author_key)) {layout=entry;break;}
                 if (entry->stamp<oldest->stamp) oldest=entry;
             }
         }
@@ -207,12 +250,19 @@ boolean mcc_menu_text_draw(long tag, short index, wchar_t const *text, long font
             font=layout->fitted_font;
         } else {
             long given=font;
+            int full_height=height;
             draw_string_set_draw_mode(font,NONE,0,0,color);
             used=wrap(text,wrapped,width);
             small=tag_loaded('font',"ui\\small_ui");
             if (text_height(wrapped)>height && small!=NONE && small!=font) {
                 font=small; draw_string_set_draw_mode(font,NONE,0,0,color);
                 used=wrap(text,wrapped,width);
+            }
+            /* (reserve the publisher's lines in the final font before clipping the description) */
+            if (authored) {
+                author_text(tag,index,width,author+2,author_key);
+                author[0]='x'; author[1]='\r';
+                height-=text_height(author)-text_height(L"x");
             }
             /* Arbitrarily long authored text cannot fit a fixed panel. Keep complete
              * visible lines and signal truncation, instead of cutting glyphs in half. */
@@ -227,12 +277,22 @@ boolean mcc_menu_text_draw(long tag, short index, wchar_t const *text, long font
                     wrapped[--used]=0;
                 }
             }
+            if (authored) {
+                int at;
+                /* (from the description's end: past its "..." when it was cut) */
+                for (used=0; wrapped[used]; used++) {}
+                while (used && (wrapped[used-1]==' ' || wrapped[used-1]=='\r')) wrapped[--used]=0;
+                if (used) wrapped[used++]='\r';
+                for (at=2; author[at] && used<(int)NUMBEROF(wrapped)-1; at++) wrapped[used++]=author[at];
+                wrapped[used]=0;
+            }
             if (oldest) {
                 memset(oldest,0,sizeof(*oldest));
                 for (i=0; i<MCC_TEXT_CACHED && text[i]; i++) oldest->text[i]=text[i];
                 memcpy(oldest->wrapped,wrapped,sizeof(wrapped));
                 oldest->font=given;oldest->fitted_font=font;
-                oldest->width=width;oldest->height=height;
+                oldest->width=width;oldest->height=full_height;
+                memcpy(oldest->author,author_key,sizeof(oldest->author));
                 oldest->stamp=++mcc_text_stamp;
             }
         }

@@ -89,6 +89,15 @@ folder, saved mission identity or network map name is renamed.
    when necessary and an ellipsis when the fixed panel still cannot fit it.
    MCC-only PC list callbacks also use `mcc_menu_text_row` to fit a single-line
    label beside the navigation arrows; the catalog title itself is unchanged.
+   Workshop map descriptions reserve two lines for the publisher returned by
+   [workshop_authors.c](../../port/linux/src/workshop_authors.c). This is the
+   Steam account that published the item, which may differ from its maker.
+   The cached layout includes the full publisher name, so an answer arriving
+   after the first draw or a changed publisher cannot reuse stale text. The
+   description and publisher are fitted together in the final font; unrelated
+   fields and maps without a publisher retain their existing layout. Settings
+   changes and tag unload still clear the cache. The publisher and preview-menu
+   regression tests cover delayed answers, cached redraws and field isolation.
 
 The minimal hooks in [ui_widget.c](../../source/interface/ui_widget.c) are
 necessary because the shared widget renderer otherwise treats a picture's

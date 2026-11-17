@@ -24,6 +24,7 @@ def test_mcc_menu_draw_and_lifecycle(tmp_path):
 #include <string.h>
 #include <wchar.h>
 #include "mcc_preview_image.h"
+#include "workshop_authors.h"
 typedef int boolean;
 typedef unsigned long pixel32;
 typedef union rectangle2d {struct {short y0,x0,y1,x1;};short v[4];} rectangle2d;
@@ -50,6 +51,8 @@ static const char *tag_get_name(long tag) {(void)tag;return tag_name;}
 static long tag_loaded(long kind,const char *name) {(void)kind;(void)name;return 2;}
 static rectangle2d *set_rectangle2d(rectangle2d *r,short x,short y,short x1,short y1) {r->x0=x;r->y0=y;r->x1=x1;r->y1=y1;return r;}
 static const char *mcc_maps_level_name(short i) {static char level[64];if(i<0||i>=8)return NULL;snprintf(level,sizeof(level),"mcc_maps\\pkg\\level%d",i);return level;}
+static const char *mcc_maps_item_id(short i) {(void)i;return "";}
+int workshop_authors_get(const char *id,char *name,int size) {(void)id;(void)size;name[0]=0;return 0;}
 static boolean mcc_maps_campaign(short i) {return i%2;}
 void mcc_preview_image_free(struct mcc_preview_image *im) {free(im->pixels);memset(im,0,sizeof(*im));}
 int mcc_preview_image_load(const char *level,int campaign,struct mcc_preview_image *im) {

@@ -53,7 +53,8 @@ original scenario path is retained before its runtime identity changes. Bitmap
 copies resolve back to their source bitmap; converted models retain `.gbxmodel`.
 Failure-only source reads recover the original class without adding file I/O to
 successful conversion. Diagnostic state belongs to the current MCC load and is
-cleared on failed-load cleanup/unload; the first reason is retained for the menu.
+cleared on failed-load cleanup/unload. The loader retains its established concise
+menu explanations separately from these detailed log messages.
 
 ## Catalogue conventions
 
