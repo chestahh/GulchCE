@@ -9,6 +9,7 @@ same. test_object_bounds_cache.py takes the enums (enums.inc) and the code
 
 #include "harness.h"
 #include <limits.h>
+#include <math.h>
 #include "enums.inc"
 
 /* objects: the members the loop reads */
@@ -64,7 +65,10 @@ static unsigned long cluster_port_collideable_object_changes(short cluster)
 	return world_changes[cluster];
 }
 struct structure_bsp;
-struct collision_bsp;
+/* a collision bsp: only its vertices, which the cache reads for a bsp's sphere */
+struct collision_vertex { real_point3d point; };
+struct collision_bsp { struct { long count; struct collision_vertex *address; } vertices; };
+#define TAG_BLOCK_GET_ELEMENT(block, index, type) ((type *)(block)->address + (index))
 struct collision_bsp_test_sphere_result { int leaf_count; long leaf_indices[CLUSTERS]; };
 #define global_structure_bsp_get() ((struct structure_bsp const *)NULL)
 #define global_collision_bsp_get() ((struct collision_bsp const *)NULL)
