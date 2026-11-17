@@ -15,7 +15,7 @@ def test_fragmented_cache(release):
     types = "\n".join(structure(header, name) for name in ("lruv_cache", "lruv_cache_block"))
     types += "\n" + structure(source, "lruv_cache_hole") + "\n" + enum_with(source, "LRUV_CACHE_SIGNATURE =")
     code = "\n".join(function(source, name) for name in
-                     ("lruv_cache_verify", "lruv_cache_bytes_to_pages", "lruv_block_delete", "lruv_block_new"))
+                     ("lruv_cache_verify", "lruv_cache_port_verify_block", "lruv_cache_bytes_to_pages", "lruv_block_delete", "lruv_block_new"))
     if release:
         code = "#define HALO_RELEASE\n" + code
     status, output = run(build("lruv_cache", (("types.inc", types), ("under_test.inc", code))), "fragmented")
