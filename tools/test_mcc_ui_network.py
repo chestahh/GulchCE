@@ -143,6 +143,9 @@ static void network_game_server_countdown_started(struct network_game_server *s)
 static void ui_widgets_close_all(void) {closed_ui++;}
 static boolean network_game_is_splitscreen_local(void) {return splitscreen;}
 static boolean network_game_is_quickstart_local(void) {return quickstart;}
+/* Xbox/CE co-op dispatch has its own real-helper coverage in test_coop_postgame_lobby.
+ * This fixture checks MCC restart ownership and ordinary non-co-op fallbacks. */
+static boolean ui_network_server_hosting_cooperative(void) {return FALSE;}
 static char const *pc_menus_screen(char const *name) {return name;}
 static boolean ui_widget_load_by_name_or_tag(char const *name,long tag,void *parent,long controller,long a,long b,long c) {
     (void)tag;(void)parent;(void)controller;(void)a;(void)b;(void)c;
