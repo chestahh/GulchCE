@@ -540,6 +540,7 @@ the setting for one start of the game. It has priority over the file.
 | `controls.toggle_perspective` | `"N"` | `HALO_KEY_TOGGLE_PERSPECTIVE` | Press once to toggle first/third person. Remappable in Controls Setup > Camera. Scoping and collision still force first person. |
 | `display.fov` | `0.0` | `HALO_FOV` | The first-person view's field of view on foot, in degrees across at 16:9, from 20 to 150. `0`: the stock view. Refer to "Field of view". |
 | `display.viewmodel_fov` | `0.0` | `HALO_VIEWMODEL_FOV` | The first-person weapon's and hands' field of view, in degrees across at 16:9, from 20 to 150. `0`: the weapon's stock view, also when `display.fov` widens the world. Refer to "Field of view". |
+| `display.cinematic_framing` | `false` | `HALO_CINEMATIC_FRAMING` | `true`: a cutscene's shots with the letterbox are drawn as the Xbox showed them, the picture between its bars across the screen: the Xbox's 4:3 width, 16:9 tall, with bars only as thick as keep that shape (none at 16:9 or wider, a twentieth of the height each at 16:10, the Xbox's eighth at 4:3). `false`: the stock bars, an eighth of the height each whatever the screen's shape, over a picture as wide as the screen. XBOX CUTSCENES on Video Setup's FOV AND VIEWMODELS screen sets it. Refer to "Field of view". |
 | `display.viewmodel_visible` | `true` | `HALO_VIEWMODEL_VISIBLE` | `true`: the first-person weapon, hands and what is attached to them are drawn. `false`: they are not; firing, animation, sound and lights go on, and other players' models are drawn. |
 | `display.passenger_third_person` | `false` | `HALO_PASSENGER_THIRD_PERSON` | Third-person view for the Warthog's passenger and the Scorpion's four passengers. Uses the gunner's camera on the Warthog and the driver's on the Scorpion, within the passenger's firing arc. Smooth entry and exit; weapon zoom is disabled while riding. The reticle follows the shot's centre ray. Local view only. In the campaign and co-op only: not in multiplayer, where seeing around the vehicle would be an advantage. |
 | `display.shield_look` | `"classic"` | `HALO_SHIELD_LOOK` | Video Setup > FOV and Viewmodels > SHIELD LOOK, in order: DEFAULT, CLASSIC WITH SPRINKLES, MARK VI, INFINITE HONEYCOMB. Saved values are unchanged: `"classic"` preserves the established appearance; `"enhanced"` (MARK VI) applies CMT Snow Grove's plasma pattern and first-person shields with the approved small outward body flare (formerly ENHANCED 2). `"classic_with_sprinkles"` uses the stock Xbox shield surface with the same layer offsets, depleted arcs and recharge animation as MARK VI, preserving custom colours and Arm Shields control. `"classic_honeycomb2"` (INFINITE HONEYCOMB) makes the body links follow Classic plasma brightness with a visible minimum, retaining the same first-person arms. Saved `"enhanced2"` values migrate to `"enhanced"`; retired `"honeycomb"` and `"classic_honeycomb"` values return to DEFAULT. DEFAULT preserves map-authored shields; non-default presets apply only to player bipeds (local or remote), leaving AI shields unchanged, and override authored player shield modifiers on Xbox, CE and MCC maps, including plasma model shells, while inheriting custom plasma RGB or per-object colour channels. Stock and CMT palettes retain the approved preset colour; hue inheritance preserves preset peak brightness and does not change opacity, pattern, animation or offsets. Animated Overshield layer colours retain precedence. Independent of mods; Arm Shields controls whether first-person shields draw and supplies their offset and FOV limit. With the locally extracted Bigass sprite bundle, non-CLASSIC presets add electrical arcs while shields are depleted and waiting to recharge. During normal recharge, non-CLASSIC presets subtly grow the existing layer with shield vitality and retreats for half a second at full charge; arms remain within the Arm Shields limit. Local drawing only. See [Shield Look](../../docs/shield_look.md) for eligibility, reference data and validation limits. |
@@ -986,6 +987,29 @@ keeps the stock view. `config.toml` takes any angle from 20 to 150.
   scopes' pictures keep their place.
 - By default the weapon keeps its stock view when the world is wider:
   arms and a gun right against the camera stretch at a wide angle.
+
+XBOX CUTSCENES (`display.cinematic_framing`, off by default) draws a
+cutscene as the Xbox showed it. The Xbox drew a 4:3 picture and covered
+an eighth of its height with each of the letterbox's bars, which left a
+16:9 picture between them; the stock port keeps a shot's angle up and down
+and widens it to the screen, so on a 16:9 screen it showed a third more
+across than the Xbox did, under the same bars. With the setting, while the
+scripted camera shows a shot with the letterbox, the shot is the Xbox's
+width, and the bars are only as thick as keep the picture 16:9, as
+Bungie's later games set their bars by the screen's shape:
+
+- 16:9: no bars, and the Xbox's picture across the whole screen.
+- 16:10: bars of a twentieth of the height each.
+- 4:3: the Xbox's own bars and picture.
+- Wider than 16:9: no bars; the picture keeps the Xbox's height and shows
+  more at the sides, as play does.
+
+The view changes with the cut to the cutscene's first shot (the maps'
+cutscenes start the cinematic and take the camera in the same tick) and
+back with the cut to the player. The player's own view under the bars (a
+chapter's title during play) keeps its width, without bars at 16:9. When
+the bars go while a shot is still on the screen, the shot widens as they
+go.
 
 Only this machine's view changes. Nothing the machines send each other
 changes, so players with different settings play together.
@@ -2140,6 +2164,7 @@ Other changes:
 | `structures/structure_render.c` | The structure's visible surfaces are put in order by a radix sort, not `qsort_4byte`: the same order. |
 | `cache/cache_files.c`, `networking/network_client_manager.c`, `networking/network_server_manager.c`, `networking/network_server_message_handler.c`, `main/main.c`, `interface/interface.c` | Map sharing (`game/map_share.c`): a client that does not have the game's Custom Edition map asks the host for it instead of leaving, is not given time to precache it until it has it, and adds its players to a game in progress only then; the host gives the game's map its own name and its version (its hash's start), takes the requests from any machine in the game, lobby too, and does not drop a machine that downloads; the transfers run each frame, and their progress is drawn over the screen. |
 | `cache/cache_files.c`, `cache/cache_files_windows.c`, `networking/network_server_message_handler.c` | MCC package sharing (`game/mcc_share.c`): a package being fetched from the host is taken as present and not precached until it is there, and the host's lobby takes the sharing requests of the machines that joined (from their streams alone, as map sharing's). Everything else of it is in the MCC modules and in four one-line hooks in `game/map_share.c`'s counters (the players held, the machine downloading) and per-frame and render calls, so that the existing holds apply. |
+| `main/main.c`, `cutscene/cinematics.c` | With `display.cinematic_framing` (`cinematic_letterbox.c`), while the scripted camera shows a shot with the letterbox up or coming up (or going, as far as it still is), the window's vertical angle shows the Xbox's picture between the bars across the window (a 4:3 window's width on a window 16:9 or narrower, the picture's height on a wider one), and the bars are as high as keep that picture 16:9 (none on a window 16:9 or wider, and not drawn then); without it, an eighth of the window's, as the Xbox's. |
 | `cutscene/cinematics.c` | A scenario's titles (some Custom Edition maps show their name for the whole game) are not drawn over a menu, as the letterbox is not: the screen's overlays are drawn after the players' menus. On a screen wider than 640 columns, a title is moved so the edge it is justified to (its middle, if centered) keeps its place relative to the screen's sides, as on the Xbox's 4:3 screen: a right-justified chapter title ends near the right side, not short of it. |
 | `interface/hud_messaging.c` | The scripts' time code (`time_code_show`), a count of ticks for timing a cinematic, is not drawn: the endings of The Library and The Maw turn it on and leave it on, and it counted at the top left of the screen through them. |
 | `tag_files/tag_groups.h` | `TAG_BLOCK_GET_ELEMENT` returns an element in the block without a call, and calls `tag_block_get_element_with_size` for anything else. |

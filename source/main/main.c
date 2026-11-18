@@ -411,6 +411,7 @@ symbols in this file:
 #include "mcc_cache.h" /* port: port/linux/game/mcc_cache.h */
 #include "mcc_main.h" /* port: port/linux/game/mcc_main.h */
 #include "custom_edition_maps.h" /* port: main_script_map_name, a Custom Edition campaign's maps */
+#include "cinematic_letterbox.h" /* port: port/linux/game/cinematic_letterbox.c */
 #include "view_fov.h" /* port: display.fov, before the projection and culling */
 #include "frontend_menu.h" /* port: optional menu-tag lifecycle at the main menu */
 
@@ -1301,8 +1302,9 @@ void set_window_camera_values(
 	third_person_camera(window->local_player_index, observer ? &window->rasterizer_camera : NULL);
 	/* port: choose the FOV after collision has selected this frame's view. */
 	if (observer)
-		window->rasterizer_camera.vertical_field_of_view = render_fov_vertical(
-			window->local_player_index, window->rasterizer_camera.vertical_field_of_view);
+		window->rasterizer_camera.vertical_field_of_view = cinematic_letterbox_vertical_field_of_view(
+			&window->rasterizer_camera.viewport_bounds, render_fov_vertical(
+				window->local_player_index, window->rasterizer_camera.vertical_field_of_view));
 	window->rasterizer_camera.mirrored = FALSE;
 	window->rasterizer_camera.z_near = rasterizer_globals.near_clip_distance;
 	window->rasterizer_camera.z_far = rasterizer_globals.far_clip_distance;

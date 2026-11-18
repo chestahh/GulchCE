@@ -445,6 +445,9 @@ SCREENS["video_settings/fov_viewmodels"] = {
          "Right-shoulder view on foot. Zoom uses first\nperson. The reticle follows your aim point.", None),
         ("LEGS:", "display.first_person_legs", ON_OFF,
          "Your legs in first person, seen looking down,\nmoving as you run. Your body as others see it.", None),
+        # (port/linux/game/cinematic_letterbox.c)
+        ("XBOX CUTSCENES:", "display.cinematic_framing", ON_OFF,
+         "Cutscenes framed as on the Xbox: no black bars\non 16:9, thinner ones on 16:10.", None),
     ],
 }
 
