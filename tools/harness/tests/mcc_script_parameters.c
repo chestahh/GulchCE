@@ -50,6 +50,7 @@ short hs_find_script_by_name(char const *name) {return !strcmp(name,"target") ? 
 static long finished_argument;
 long *hs_macro_function_evaluate(short f,long t,boolean i) {(void)f;(void)t;return i ? &finished_argument : NULL;}
 boolean mcc_cache_tags_loaded(void) {return loaded;}
+long csstrcmp(char const *a,char const *b) {return strcmp(a,b);}
 void error(short priority,char const *message,...) {(void)priority;(void)message;}
 void *csmemset(void *p,long value,unsigned long size) {return memset(p,(int)value,size);}
 void *csmemcpy(void *p,void const *from,unsigned long size) {return memcpy(p,from,size);}

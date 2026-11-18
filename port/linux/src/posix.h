@@ -29,6 +29,7 @@ enum
 {
 	_posix_file_is_directory = 1 << 0,
 	_posix_file_is_read_only = 1 << 1,
+	_posix_file_has_identity = 1 << 2,
 };
 
 struct posix_file_information
@@ -43,6 +44,10 @@ struct posix_file_information
 	posix_ulong access_nanoseconds;
 	posix_ulong creation_seconds;
 	posix_ulong creation_nanoseconds;
+	/* Stable identity for regular files, only when _posix_file_has_identity.
+	Backends without reliable path identity leave these zero and omit the flag. */
+	posix_ulong device_low, device_high;
+	posix_ulong inode_low, inode_high;
 };
 
 /* stat()/fstat(); return 0 on success or -1 with errno set */

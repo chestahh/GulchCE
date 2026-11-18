@@ -328,7 +328,7 @@ int main(int argc,char **argv) {
     path.write_text(code)
     binary = work / ("normalization.exe" if sys.platform == "win32" else "normalization")
     target = ["--target=i686-pc-windows-msvc", "-fuse-ld=lld", "-D_CRT_SECURE_NO_WARNINGS"] if sys.platform == "win32" else ["-m32"]
-    command = [compiler, *target, "-std=gnu89", "-Wall", "-Wextra", "-Werror", "-Wno-multichar",
+    command = [compiler, "-include", str(ROOT / "port/linux/game/mcc_diagnostics.h"), str(ROOT / "tools/mcc_diagnostics_stub.c"), *target, "-std=gnu89", "-Wall", "-Wextra", "-Werror", "-Wno-multichar",
                str(path), "-o", str(binary)]
     result = subprocess.run(command, capture_output=True, text=True)
     assert result.returncode == 0, result.stderr

@@ -26,7 +26,7 @@ def model_masks(tmp_path_factory):
     routines = "\n".join(function(bitmap, name) for name in [
         "mcc_bitmap_tag", "mcc_bitmap_block", "mcc_bitmap_mark_one", "mcc_bitmap_clone_block",
         "mcc_bitmap_specialize", "mcc_bitmap_mark", "mcc_meter_usage", "mcc_bitmap_model_usage",
-        "mcc_bitmap_bytes", "mcc_pixel", "mcc_channels", "mcc_bitmap_decode"])
+        "mcc_bitmap_bytes", "mcc_pixel", "mcc_channels", "mcc_bitmap_decode", "mcc_bitmaps_source_handle"])
     source = r'''
 #include <stdint.h>
 #include <stdlib.h>
@@ -42,7 +42,7 @@ struct meter_hud_element_definition {struct {uint32_t index;} meter_bitmap;short
 #define BITMAP_GROUP_TAG 'bitm'
 #define NONE -1
 static uint32_t global_vector_palette[256];
-struct mcc_runtime {unsigned char *tags,*tag_index;uint32_t used;struct {uint32_t tag_count;} report;};
+struct mcc_runtime {void *bitmaps;unsigned char *tags,*tag_index;uint32_t used;struct {uint32_t tag_count;} report;};
 static void *mcc_runtime_pointer(struct mcc_runtime *r,uint32_t p,uint32_t size) {
     uintptr_t start=(uintptr_t)r->tags;
     return p>=start && p-start<=r->used && size<=r->used-(p-start) ? (void *)(uintptr_t)p : NULL;
@@ -74,7 +74,7 @@ int main(int argc,char **argv) {
     int reverse;
     if(argc!=2)return 1;reverse=atoi(argv[1]);
     runtime.tags=calloc(1,65536);runtime.tag_index=runtime.tags;runtime.used=512;
-    runtime.report.tag_count=1;
+    runtime.report.tag_count=1;runtime.bitmaps=&textures;
     original=mcc_runtime_allocate(&runtime,sizeof(*original));
     descriptor=mcc_runtime_allocate(&runtime,sizeof(*descriptor));
     original->bitmaps.count=1;original->bitmaps.address=descriptor;
@@ -90,6 +90,8 @@ int main(int argc,char **argv) {
        !mcc_bitmap_model_usage(&runtime,&textures,reverse ? xbox : gearbox))return 2;
     cloned=*(uint32_t *)(gearbox+0xC8);
     if(cloned==source || runtime.report.tag_count!=2 || textures.count!=2)return 3;
+    if(mcc_bitmaps_source_handle(&runtime,cloned)!=source || mcc_bitmaps_source_handle(&runtime,source)!=source ||
+       mcc_bitmaps_source_handle(&runtime,0xDEAD0007)!=0xDEAD0007)return 22;
     if(*(uint32_t *)(xbox+0xC8)!=source || textures.items[0].channels!=1 || textures.items[1].channels!=2)return 4;
     if(memcmp(&original_descriptor,descriptor,sizeof(*descriptor)) ||
        textures.items[1].bitmap==descriptor || memcmp(textures.items[1].bitmap,descriptor,sizeof(*descriptor)))return 5;
@@ -140,7 +142,7 @@ int main(int argc,char **argv) {
     path = work / "masks.c"
     path.write_text(source)
     output = work / ("masks.exe" if sys.platform == "win32" else "masks")
-    command = [clang, "-include", str(ROOT / "port/linux/game/mcc_loading.h"), str(ROOT / "tools/mcc_loading_stub.c"), "-std=gnu99", "-O2", "-Wall", "-Wextra", "-Werror",
+    command = [clang, "-include", str(ROOT / "port/linux/game/mcc_diagnostics.h"), str(ROOT / "tools/mcc_diagnostics_stub.c"), "-include", str(ROOT / "port/linux/game/mcc_loading.h"), str(ROOT / "tools/mcc_loading_stub.c"), "-std=gnu99", "-O2", "-Wall", "-Wextra", "-Werror",
                "-Wno-multichar", "-Wno-unused-function", "-I", str(ROOT / "port/third_party/bcdec"),
                str(path), "-o", str(output)]
     if sys.platform == "win32":

@@ -55,7 +55,7 @@ out = args.output_dir.resolve()
 assert out.is_relative_to((ROOT/'build').resolve()), 'Capture output must stay under build/'
 out.mkdir(parents=True, exist_ok=True)
 saved_args = shlex.split(re.search(r'^configure_args = (.*)$',
-                                  (ROOT / 'build.ninja').read_text(), re.M).group(1))
+                                  (ROOT / 'build.ninja').read_text().replace('$\n', ''), re.M).group(1))
 manifest = dict(configure_args=saved_args, base_commit=subprocess.check_output(
     ['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip(), source_hashes={})
 for path in [ROOT/'port/linux/game/plasma_collision_scene.c', ROOT/'port/linux/game/lighting_config.c', ROOT/'source/physics/collision_bsp.c', ROOT/'source/physics/collision_bsp.h', ROOT/'source/physics/collision_models.c', ROOT/'source/physics/collision_models.h', ROOT/'port/linux/game/ambient_emitter_lighting.c', ROOT/'port/linux/game/ambient_emitter_lighting.h', ROOT/'port/linux/game/lighting_menu.c', ROOT/'port/linux/game/authored_emitter_lighting.c', ROOT/'port/linux/game/authored_emitter_lighting.h', ROOT/'source/rasterizer/xbox/rasterizer_xbox_transparent_geometry.c', ROOT/'port/linux/game/needler_lighting.c', ROOT/'port/linux/game/ammo_counter_falloff.c', ROOT/'source/rasterizer/xbox/rasterizer_xbox_models.c', ROOT/'port/linux/game/ammo_counter_lighting.c', covenant, muzzle, ROOT/'source/items/weapons.c', ROOT/'port/linux/src/port_config.c', rocket, input_source, ROOT/'tools/fixtures/plasma_lighting_capture.c', source, main, backend, plasma, ROOT/'port/linux/game/plasma_falloff.c',
@@ -107,9 +107,9 @@ try:
     shutil.copy2(ROOT / 'tools/fixtures/plasma_lighting_capture.c', fixture)
     text = original.decode().replace('\r\n', '\n')
     text = 'struct observer_result;\nstruct observer_result const *plasma_capture_view(struct observer_result const *source);\n' + text
-    camera = 'return render_interpolation_direct_camera(local_player_index,\n\t\trender_interpolation_blended_camera(local_player_index, observer));'
+    camera = 'view = render_interpolation_direct_camera(local_player_index,\n\t\trender_interpolation_blended_camera(local_player_index, observer));'
     assert text.count(camera) == 1
-    text = text.replace(camera, 'return plasma_capture_view(render_interpolation_direct_camera(local_player_index,\n\t\trender_interpolation_blended_camera(local_player_index, observer)));')
+    text = text.replace(camera, 'view = plasma_capture_view(render_interpolation_direct_camera(local_player_index,\n\t\trender_interpolation_blended_camera(local_player_index, observer)));')
     text = text.replace('void render_interpolation_tick(void)',
                         'void plasma_capture_tick(void);\nvoid plasma_capture_frame(void);\n\nvoid render_interpolation_tick(void)', 1)
     text = text.replace('long previous_tick = interpolation_tick++;',

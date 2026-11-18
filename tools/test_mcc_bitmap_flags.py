@@ -23,6 +23,7 @@ def bitmap_converter(tmp_path_factory):
     source = r'''
 #include <stdint.h>
 #include <stdio.h>
+#include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
@@ -45,7 +46,7 @@ def bitmap_converter(tmp_path_factory):
 #define _bitmap_swizzled_bit 3
 #define _bitmap_linear_bit 4
 #define _error_silent 0
-#define error(...) ((void)0)
+static void error(short level,char const *format,...) {va_list args;(void)level;va_start(args,format);vprintf(format,args);va_end(args);putchar(10);}
 #define match_assert(file,line,condition) do {if(!(condition))abort();} while(0)
 #define MCC_BITMAP_BASE 0x60000000u
 #define MCC_BITMAP_LIMIT 0x1FFFFFFFu
@@ -65,15 +66,19 @@ struct bitmap_group_sequence {short first_bitmap_index,bitmap_count;struct tag_b
 struct bitmap_group {short usage;struct {long file_offset;} import_bitmap,pixel_data;struct tag_block bitmaps,sequences;};
 struct mcc_runtime {
     struct bitmap_group group;
-    unsigned char source[350000];
+    unsigned char pixels[350000];
     uint32_t size,reads,read_fail_at,resource_reads;
     unsigned char *tag_index,*tags;
     uint32_t used;
-    struct {uint32_t tag_count,bitmap_count;} report;
+    struct {uint32_t tag_count,bitmap_count,scenario_handle;struct {uint32_t tag_data_size,tag_data_offset;} identity;} report;
+    struct mcc_diagnostic diagnostic;char original_scenario_tag[320],failure[320];
+    struct {void *context;int (*read)(void *,uint32_t,uint32_t,void *);uint64_t size;} source;
+    char name[256];uint32_t name_size;
     void *bitmaps;
 };
 static void *mcc_runtime_pointer(struct mcc_runtime *r,uint32_t address,uint32_t size) {
     uintptr_t start=(uintptr_t)r->tags;
+    if(address>=4096 && address-4096<=r->name_size && size<=r->name_size-(address-4096))return r->name+(address-4096);
     if(address==(uintptr_t)&r->group && size<=sizeof(r->group))return &r->group;
     return r->tags && address>=start && address-start<=r->used && size<=r->used-(address-start) ?
         (void *)(uintptr_t)address : NULL;
@@ -94,7 +99,7 @@ static int bitmap_format_type_valid_depth(short f,short t,short v) {(void)f;(voi
 static int mcc_runtime_read(struct mcc_runtime *r,uint32_t offset,uint32_t size,void *out) {
     r->reads++;
     if(r->reads==r->read_fail_at || offset>r->size || size>r->size-offset)return 0;
-    memcpy(out,r->source+offset,size);return 1;
+    memcpy(out,r->pixels+offset,size);return 1;
 }
 static int test_hardware_calls,test_hardware_fail_at;
 static long rasterizer_xbox_bitmap_get_pixel_data_size(struct bitmap_data *b) {
@@ -152,6 +157,9 @@ static int mcc_bitmap_usages(struct mcc_runtime *r,struct mcc_textures *t) {
     return 1;
 }
 '''
+    diagnostic = (ROOT / "port/linux/game/mcc_diagnostics.c").read_text()
+    source += "\n" + "\n".join(function(diagnostic, name) for name in [
+        "mcc_tag_extension", "mcc_diagnostic_name", "mcc_diagnostic_tag", "mcc_diagnostic_at", "mcc_diagnostic_fail"])
     source += "\n" + function(native, "bitmap_verify")
     source += "\n" + function(swizzle, "rasterizer_xbox_bitmap_get_max_mipmap_count")
     source += "\n" + "\n".join(function(bitmap, name) for name in [
@@ -174,7 +182,7 @@ static int test_construction(char const *mode) {
     r.tags=calloc(1,65536);assert(r.tags);
     r.report.tag_count=4;r.report.bitmap_count=test_empty ? 0 : 5;
     r.tag_index=mcc_runtime_allocate(&r,4*32);r.size=4096;
-    for(index=0;index<r.size;index++)r.source[index]=(unsigned char)(index*13+7);
+    for(index=0;index<r.size;index++)r.pixels[index]=(unsigned char)(index*13+7);
     for(index=0;index<4;index++) {
         uint32_t *entry=(uint32_t *)(r.tag_index+index*32);
         struct bitmap_group *group;
@@ -256,8 +264,10 @@ int main(int argc,char **argv) {
     tag_index[7*8]=BITMAP_GROUP_TAG;tag_index[7*8+3]=7;tag_index[7*8+5]=(uint32_t)&runtime.group;
     bitmap.signature=BITMAP_GROUP_TAG;bitmap.width=4;bitmap.height=2;bitmap.depth=1;
     bitmap.format=6;bitmap.flags=0x1281;bitmap.pixels_size=16;
-    texture.bitmap=&bitmap;texture.handle=7;
-    for(i=0;i<16;i++)runtime.source[i]=(unsigned char)i;
+    texture.bitmap=&bitmap;texture.handle=7;texture.resource_handle=7;texture.resource_index=3;
+    tag_index[7*8+4]=4096;
+    strcpy(runtime.name,"weapons\\assault rifle\\bitmaps\\ar_multipurpose");runtime.name_size=(uint32_t)strlen(runtime.name)+1;
+    for(i=0;i<16;i++)runtime.pixels[i]=(unsigned char)i;
     if(!strncmp(argv[1],"stream-",7)) {
         uint32_t stream_offset=!strcmp(argv[1],"stream-last") ? MCC_BITMAP_LIMIT-255 :
             !strcmp(argv[1],"stream-full") ? MCC_BITMAP_LIMIT-127 :
@@ -303,17 +313,17 @@ int main(int argc,char **argv) {
         textures.end=accept ? 0x40000000u : !strcmp(argv[1],"storage-full") ? MCC_BITMAP_STORAGE_LIMIT-64 : 0xffffffffu;
         converted=mcc_texture_prepare(&runtime,&textures,&texture,0);
         if(converted!=accept || (!accept && runtime.reads))return 28;
-        if(accept && (textures.end!=0x40000080u || memcmp(texture.pixels,runtime.source,4)))return 29;
+        if(accept && (textures.end!=0x40000080u || memcmp(texture.pixels,runtime.pixels,4)))return 29;
         free(texture.pixels);return 0;
     }
     if(!strcmp(argv[1],"swizzle8192")) {
         bitmap.width=8192;bitmap.height=2;bitmap.format=6;bitmap.flags=0x81;
         bitmap.pixels_size=32768;runtime.size=32768;runtime.group.usage=0;
-        for(i=0;i<16384;i++) {runtime.source[i*2]=(unsigned char)i;runtime.source[i*2+1]=(unsigned char)(i>>8);}
+        for(i=0;i<16384;i++) {runtime.pixels[i*2]=(unsigned char)i;runtime.pixels[i*2+1]=(unsigned char)(i>>8);}
         if(!mcc_texture_prepare(&runtime,&textures,&texture,0) || bitmap.pixels_size!=32768)return 26;
-        if(memcmp(texture.pixels+4,runtime.source+16384,2) ||
-            memcmp(texture.pixels+16384,runtime.source+8192,2) ||
-            memcmp(texture.pixels+32766,runtime.source+32766,2))return 27;
+        if(memcmp(texture.pixels+4,runtime.pixels+16384,2) ||
+            memcmp(texture.pixels+16384,runtime.pixels+8192,2) ||
+            memcmp(texture.pixels+32766,runtime.pixels+32766,2))return 27;
         free(texture.pixels);return 0;
     }
     if(!strncmp(argv[1],"wide",4)) {
@@ -348,7 +358,7 @@ int main(int argc,char **argv) {
         tail=1;runtime.group.usage=0;runtime.size=349525;
         bitmap.width=1024;bitmap.height=512;bitmap.format=14;bitmap.flags=0x81;
         bitmap.mipmap_count=10;bitmap.pixels_size=349525;
-        for(i=0;i<runtime.size;i++)runtime.source[i]=(unsigned char)i;
+        for(i=0;i<runtime.size;i++)runtime.pixels[i]=(unsigned char)i;
         if(!strcmp(argv[1],"tail-known")){}
         else if(!strcmp(argv[1],"tail-random-short")) {bitmap.pixels_size--;expect=0;}
         else if(!strcmp(argv[1],"tail-short-base")) {bitmap.pixels_size=262143;expect=0;}
@@ -386,20 +396,20 @@ int main(int argc,char **argv) {
             bitmap.flags!=0x90 || bitmap.pixels_size!=256 || runtime.reads!=1)return 20;
         for(i=0;i<18;i++) {
             unsigned char const *p=texture.pixels+(i/6)*64+(i%6)*4;
-            if(p[0]!=runtime.source[i*2] || p[1]!=p[0] || p[2]!=p[0] || p[3]!=runtime.source[i*2+1])return 21;
+            if(p[0]!=runtime.pixels[i*2] || p[1]!=p[0] || p[2]!=p[0] || p[3]!=runtime.pixels[i*2+1])return 21;
         }
         free(texture.pixels);return 0;
     }
     if(tail) {
         if(bitmap.flags!=0x83 || bitmap.format!=14 || bitmap.mipmap_count!=7 ||
-            bitmap.pixels_size!=349568 || runtime.reads!=1 || memcmp(texture.pixels,runtime.source,349520))return 10;
+            bitmap.pixels_size!=349568 || runtime.reads!=1 || memcmp(texture.pixels,runtime.pixels,349520))return 10;
         for(i=349520;i<(unsigned)bitmap.pixels_size;i++)if(texture.pixels[i])return 11;
         free(texture.pixels);return 0;
     }
     if(bitmap.flags!=0x89 || bitmap.format!=6 || bitmap.width!=4 || bitmap.height!=2 ||
         bitmap.pixels_size!=128 || textures.end!=128 || runtime.reads!=1 ||
         (uint32_t)bitmap.pixels_offset!=MCC_BITMAP_BASE || bitmap.tag_index!=7)return 6;
-    for(i=0;i<8;i++)if(memcmp(texture.pixels+i*2,runtime.source+order[i]*2,2))return 7;
+    for(i=0;i<8;i++)if(memcmp(texture.pixels+i*2,runtime.pixels+order[i]*2,2))return 7;
     for(i=16;i<128;i++)if(texture.pixels[i])return 8;
     if(!bitmap_verify(&bitmap,FALSE))return 9;
     free(texture.pixels);return 0;
@@ -409,7 +419,7 @@ int main(int argc,char **argv) {
     path = work / "bitmap.c"
     path.write_text(source)
     output = work / ("bitmap.exe" if sys.platform == "win32" else "bitmap")
-    command = [compiler, "-include", str(ROOT / "port/linux/game/mcc_loading.h"), str(ROOT / "tools/mcc_loading_stub.c"), "-std=c99", "-O1", "-Wall", "-Wextra", "-Werror", "-Wno-unused-function",
+    command = [compiler, "-include", str(ROOT / "port/linux/game/mcc_diagnostics.h"), "-include", str(ROOT / "port/linux/game/mcc_loading.h"), str(ROOT / "tools/mcc_loading_stub.c"), "-std=c99", "-O1", "-Wall", "-Wextra", "-Werror", "-Wno-unused-function",
                "-I", str(ROOT / "port/third_party/bcdec"), str(path), "-o", str(output)]
     if sys.platform == "win32":
         command[1:1] = ["--target=i686-pc-windows-msvc", "-fuse-ld=lld", "-D_CRT_SECURE_NO_WARNINGS"]
@@ -442,3 +452,20 @@ def test_mcc_incomplete_dxt_tail(bitmap_converter, case):
 def test_mcc_bitmap_stream_construction(bitmap_converter, case):
     result = subprocess.run([str(bitmap_converter), case], capture_output=True, text=True, timeout=10)
     assert result.returncode == 0, result.stdout + result.stderr
+
+
+@pytest.mark.parametrize("case,reason", [
+    ("short-pixels", "pixel payload is too short"),
+    ("wide-limit", "dimensions 16385 x 4 x 1"),
+    ("wrong-group", "unsupported lightmap layout"),
+    ("bad-signature", "normalized descriptor failed bitmap validation"),
+    ("allocation-1", "not enough memory for texture conversion"),
+    ("storage-full", "hardware texture storage limit exceeded"),
+])
+def test_bitmap_failure_names_original_tag_and_image(bitmap_converter, case, reason):
+    result = subprocess.run([str(bitmap_converter), case], capture_output=True, text=True, timeout=10)
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert r"weapons\assault rifle\bitmaps\ar_multipurpose.bitmap" in result.stdout
+    assert "bitmaps[3] (zero-based)" in result.stdout
+    assert "tag 00000007" in result.stdout
+    assert reason in result.stdout

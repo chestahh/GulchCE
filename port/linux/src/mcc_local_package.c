@@ -10,9 +10,16 @@ static int same(const char *a, const char *b)
     return !*a && !*b;
 }
 
+/* a name in a folder, in the case it has there; a stat first (the spelling
+ * given is nearly always the one on disk, and a case-insensitive card finds it
+ * in any case), the folder listed only when that finds nothing: this runs for
+ * every MCC path the game opens or looks at, and a listing for each made the
+ * lobby crawl on a Switch */
 static int child(const char *root, const char *name, char path[1024])
 {
     char found[256];
+    struct posix_file_information information;
+    if (snprintf(path,1024,"%s/%s",root,name)<1024 && !posix_stat(path,&information)) return 1;
     return posix_find_entry_case_insensitive(root,name,found,sizeof(found)) &&
         snprintf(path,1024,"%s/%s",root,found)<1024;
 }

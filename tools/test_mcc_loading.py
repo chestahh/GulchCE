@@ -151,8 +151,10 @@ def test_menu_probe_never_opens_a_loading_screen(tmp_path):
 #include <string.h>
 #include "mcc_cache_format.h"
 #include "mcc_errors.c"
+#define _error_silent 0
+static void error(int priority,char const *format,...) {(void)priority;(void)format;}
 struct mcc_runtime {char level_name[64];struct mcc_cache_source source;
-    struct {int external_bitmap_count,external_sound_count;} report;char failure[320];};
+    struct mcc_cache_report report;char failure[320];};
 static int owns,starts,ends,last_success,fail;
 static int mcc_package_name(char const *name,char *out) {(void)name;out[0]=0;return 1;}
 enum mcc_cache_status mcc_cache_identify(void const *h,size_t b,uint64_t s,struct mcc_cache_identity *i) {

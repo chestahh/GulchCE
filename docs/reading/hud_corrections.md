@@ -49,6 +49,21 @@ For example, CE's first sniper zoom uses the supplied 2x picture, while its next
 zoom still draws the map's 8x. Neither label changes the actual magnification.
 Custom textures that do not match the stock signatures keep their artwork.
 
+## Player-name visibility
+
+In [hud.c](../../source/interface/hud.c), `hud_draw_player_name` checks the
+original head-based range and camouflage rules, then projects the raised name
+indicator before calling `hud_player_name_in_sight`. A rejected projection
+needs no collision ray. The ray still targets the unshifted head, and every
+drawable enemy gets a fresh visibility test on every rendered frame. There is
+no tick cache, new distance approximation or map-family exception. Existing
+MCC and CE indicator scaling remains in the drawing path.
+[test_render_io_performance.py](../../tools/test_render_io_performance.py)
+checks projection rejection, changing visibility within a tick, range,
+camouflage and ally behaviour at 30/60/120/240 rendered frames per second.
+Runtime rendering still needs visual verification; fixture counts are not FPS
+measurements.
+
 ## State and checks
 
 CE placeholders belong to the existing map lifetime and are released by

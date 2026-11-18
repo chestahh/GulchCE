@@ -28,6 +28,75 @@ def run(tool, *args):
     return result.stdout.strip()
 
 
+def test_owned_write_buffer_failure_lifetimes(tmp_path):
+    # Actual stdio plus injected allocator/stdio failures. The buffer must
+    # remain live through fclose, even when close itself reports an error.
+    source = tmp_path / "buffer.c"
+    source.write_text(r'''
+#include "mcc_share_stage.h"
+#include <assert.h>
+#include <stdlib.h>
+#include <string.h>
+static int fault,live,closed,buffered;
+static void *owned;
+static void *buffer_malloc(size_t bytes) {
+ void *p;if(bytes==0x40000 && fault==1)return NULL;
+ p=malloc(bytes);if(bytes==0x40000 && p){assert(!live);owned=p;live=1;}return p;
+}
+static void buffer_free(void *p) {if(p && p==owned){assert(live);live=0;owned=NULL;}free(p);}
+static int buffer_setvbuf(FILE *f,char *p,int mode,size_t size) {
+ assert(p==owned && live && size==0x40000 && mode==_IOFBF);buffered++;
+ return fault==2?-1:setvbuf(f,p,mode,size);
+}
+static FILE *buffer_open(char const *p,char const *m) {(void)p;(void)m;return tmpfile();}
+static int buffer_close(FILE *f) {assert(fault==1 || fault==2 || live);closed++;fclose(f);return fault==3?EOF:0;}
+static size_t buffer_write(void const *p,size_t n,size_t c,FILE *f) {return fault==4?0:fwrite(p,n,c,f);}
+#define malloc buffer_malloc
+#define free buffer_free
+#define setvbuf buffer_setvbuf
+#define fopen buffer_open
+#define fclose buffer_close
+#define fwrite buffer_write
+#include "mcc_share_stage.c"
+#undef malloc
+#undef free
+static int yes(char const *p) {(void)p;return 1;}
+static int move_ok(char const *a,char const *b) {(void)a;(void)b;return 1;}
+int main(void) {
+ static struct mcc_share_stage stage;
+ char bytes[3072];int result,i;struct mcc_sha256 hash;
+ memset(bytes,'x',sizeof(bytes));
+ for(i=0;i<7;i++) {
+  fault=i;closed=buffered=0;memset(&stage,0,sizeof(stage));
+  stage.state=MCC_SHARE_STAGE_WRITING;stage.count=1;stage.owns_directory=1;
+  strcpy(stage.stage_dir,"owned");strcpy(stage.files[0].leaf,"m0.map");stage.files[0].size=6144;
+  stage.io.path_safe=yes;stage.io.make_directory=yes;stage.io.directory_exists=yes;
+  stage.io.delete_file=yes;stage.io.remove_directory=yes;stage.io.move_file=move_ok;
+  mcc_sha256_begin(&hash);mcc_sha256_add(&hash,bytes,3072);mcc_sha256_add(&hash,bytes,3072);
+  mcc_sha256_end(&hash,stage.files[0].sha256);if(fault==6)stage.files[0].sha256[0]^=1;
+  result=mcc_share_stage_write(&stage,bytes,3072);
+  if(fault==4)assert(result==MCC_SHARE_STAGE_WRITE_FAILED);
+  else {
+   assert(result==MCC_SHARE_STAGE_OK && !closed);
+   assert((fault==1 || fault==2)?!live:live);
+   if(fault==5)mcc_share_stage_cancel(&stage);
+   else {
+    result=mcc_share_stage_write(&stage,bytes,3072);
+    assert(result==(fault==3?MCC_SHARE_STAGE_WRITE_FAILED:fault==6?MCC_SHARE_STAGE_BAD_HASH:MCC_SHARE_STAGE_ALL_DONE));
+   }
+  }
+  assert(!live && !stage.stream && !stage.stream_buffer && closed==1);
+  assert(buffered==(fault==1?0:1));mcc_share_stage_cancel(&stage);assert(closed==1);
+ }
+ return 0;
+}
+''')
+    exe = compile_tool(tmp_path, [source, ROOT / "port/linux/game/mcc_share_rules.c",
+                                 ROOT / "port/linux/game/mcc_package.c",
+                                 ROOT / "port/linux/game/mcc_sha256.c"])
+    run(exe)
+
+
 @pytest.mark.parametrize("name", ["../escape.json", "/escape.json", "a/../escape.json",
                                     "a\\..\\escape.json", "CON.json", "a/LPT1.json", "a:stream.json",
                                     "a//b.json", "a./b.json", "a /b.json", "a.json.exe"])

@@ -332,6 +332,32 @@ mods: 4 models from their files (4 new), 0 given back, 1 left out
   models' geometry.
 - A Custom Edition map takes mods as an Xbox map does.
 
+### Retained file readers
+
+On Linux, Android and web, `open_file_get` in
+[port_mods.c](../port/linux/src/port_mods.c) retains up to eight unbuffered file
+descriptors. Each reuse checks the path's device/inode, size, modification and
+change times against the opened file's recorded identity. Replacement or changed
+metadata closes the old reader; failed or unsupported identity checks use an
+ordinary one-shot read. Failed reads and seeks discard retained readers.
+This does not introduce a ten-second refresh interval: bitmap change checks
+remain fresh on every read.
+
+Windows retains SDL's existing UTF-8 open/read/close path because its current
+path metadata interface does not supply reliable replacement identity. No
+handle-reuse speedup is claimed there. The POSIX identity fields are fixed-width
+members of `posix_file_information`, shared by Android's generated guest/host
+bridge; backends without identity omit its validity flag.
+
+The reader mutex serializes reads with catalog rescans. `port_mods_files_close`
+releases retained descriptors when mods are disabled or their map is released,
+after the sound/texture users stop. Rescans close them before replacing the file
+catalog. MCC still does not activate these mod overrides. As with ordinary
+file reads, concurrent external edits are not an atomic content snapshot.
+[test_render_io_performance.py](../tools/test_render_io_performance.py) exercises
+the real reader functions, replacement, failure recovery, eviction and concurrent
+cleanup; its POSIX integration case also checks actual filesystem identities.
+
 ## GulchCE MCC maps
 
 Loose-tag mods are bypassed for MCC maps, which retain their authored sounds,

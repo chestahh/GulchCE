@@ -13,6 +13,13 @@ def test_readiness_reuses_only_unchanged_successful_inputs(tmp_path):
     if not compiler:
         pytest.skip("clang required")
     (tmp_path / "cseries.h").write_text("typedef int boolean;\ntypedef unsigned char byte;\n#define TRUE 1\n#define FALSE 0\n")
+    (tmp_path / "pthread.h").write_text(r'''
+#include <assert.h>
+typedef int pthread_mutex_t;
+#define PTHREAD_MUTEX_INITIALIZER 0
+static void pthread_mutex_lock(int *m) {assert(!*m);*m=1;}
+static void pthread_mutex_unlock(int *m) {assert(*m);*m=0;}
+''')
     (tmp_path / "networking").mkdir()
     (tmp_path / "networking/network_game_globals.h").write_text("struct network_game_server *global_network_game_server_get(void);\n")
     (tmp_path / "xtl.h").write_text(r'''
@@ -43,6 +50,7 @@ static WIN32_FILE_ATTRIBUTE_DATA files[9];
 static int count,probes,valid=1,mutate,denied=-1,present[9];
 static DWORD last_error;
 static int hosting,prepared;
+unsigned long system_milliseconds(void) {return 0;}
 struct network_game_server *global_network_game_server_get(void) {return hosting ? (void *)&hosting : NULL;}
 int mcc_validation_lookup(char const *name,uint32_t *checksum,unsigned char digest[32]) {
  (void)name;(void)checksum;(void)digest;return prepared;

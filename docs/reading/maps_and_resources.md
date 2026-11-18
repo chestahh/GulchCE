@@ -36,6 +36,19 @@ little-endian reads. The host reporting tool and tests use the same parser
 as the game. MCC has its own parser and conversion modules; a shared runtime
 tag shape does not imply a shared on-disk format or resource owner.
 
+The CE menu scanner in
+[custom_edition_maps.c](../../port/linux/game/custom_edition_maps.c) lists each
+existing CE root once in `custom_edition_maps_scan_files`. It opens descriptions
+only when listed and calls `custom_edition_cache_file_scenario_type` once per
+uncached map. `identity_cached` retains successful classifications by full path,
+64-bit size and write time; configuration changes clear it. This bounded cache
+does not limit the catalog, and failed reads are retried. Directory-buffer
+growth keeps filename offsets rather than pointers into movable storage.
+Allocation failure falls back to streaming the directory. These are catalog
+hints: actual loading still validates content independently. Edits preserving
+both size and timestamp can retain an old hint until the cache is cleared.
+CE discovery roots, local-copy precedence and MCC ownership remain separate.
+
 For CE bitmap admission, read `custom_edition_bitmaps_verify` and
 `custom_edition_bitmap_raw_2d` in
 [custom_edition_bitmaps.c](../../port/linux/game/custom_edition_bitmaps.c).
@@ -248,7 +261,11 @@ and its validated package is offered automatically; the client enables the exist
    creates an owned `mcc_staging/dl_<digest>` directory on native platforms.
    The browser uses a hidden journaled destination instead, as explained in
    [browser storage](browser_imports.md). Files arrive in order
-   through `mcc_share_stage_write`, with size and SHA-256 checks. Required JSON
+   through `mcc_share_stage_write`, with size and SHA-256 checks.
+   Each open download owns a 256 KB stdio
+   buffer, released after close on completion, failure or cancellation.
+   Allocation or buffer-setup failure retains ordinary stdio buffering;
+   close/flush failure still refuses publication. Required JSON
    is reparsed and its reference allowlist rebuilt; invalid optional PNGs are
    discarded, while invalid required metadata refuses installation. The
    gameplay check owns its worker and readers. `mcc_package_stage_redirect`
@@ -538,10 +555,10 @@ selection, local admission and readiness do not repeatedly read unchanged files.
 package and root overrides, and both shared resource sets, even absent files.
 A cache miss or changed metadata requires validation again; failed metadata
 queries prevent reuse, and changes during validation refuse the result. Catalog
-rescans can retain this checksum because every use checks those inputs again.
+rescans can retain this checksum because safety-critical uses check those inputs again.
 Reselection, unload and disconnect cancel unfinished work and close its readers.
 Disconnect still clears session identities; successful file facts survive it,
-with their metadata rechecked on every use. Remote admission and actual loading
+with their metadata rechecked before admission or loading. Remote admission and actual loading
 still check the content identity; actual loading fingerprints the opened content.
 The older single-checksum cache remains for synchronous remote admission. This is
 not a persistent cache or proof against edits that preserve all recorded metadata.
@@ -551,6 +568,17 @@ early start request waits in pregame; pending validation is not a connection err
 Admission explanations pass through this same cache: a successful reuse clears
 stale caller text, while a failed fresh check returns its resource explanation.
 An install changing during validation gets its own refusal message.
+
+Idle pending-selection updates use `mcc_precache_snapshot_poll`, which retains
+one successful file snapshot for at most 500 ms. This advisory cache is separate
+from `mcc_precache_snapshot`: validation publication, admission, start gates and
+loading continue to request fresh metadata. A fresh failure or detected change
+invalidates the polling copy, and precache cleanup clears it. In the platform
+resolver, [mcc_local_package.c](../../port/linux/src/mcc_local_package.c) checks
+an exact child name before falling back to case-insensitive directory listing;
+package containment checks remain in force.
+[test_filesystem_caches.py](../../tools/test_filesystem_caches.py) checks timer
+wrap, changed files within the polling interval, failure recovery and CE scans.
 [test_mcc_validation.py](../../tools/test_mcc_validation.py) exercises reuse,
 changed inputs, failed validation, identity checks and checksum disagreement.
 
@@ -592,6 +620,11 @@ admission completes; `mcc_ui_network_update_map` then applies it through the
 ordinary map-change function. A pending selection prevents starting the
 temporary map, and legacy selections or teardown cancel it. These paths keep
 package work outside the local client's five-second joining state.
+While the same host package's file snapshot remains current,
+`mcc_identity_prepare_host` polls its metadata digest and Workshop sidecar at
+most once every two seconds. This delay applies only to idle preparation:
+`mcc_identity_host_package` and `mcc_identity_host_settings` still check fresh
+snapshots, metadata and origin before offering content or sending settings.
 `mcc_identity_host_settings` reuses that digest only while the map and all
 resource-candidate file stamps match, including absent overrides. Changed
 files require fresh validation; disconnect clears the cache. Local admission
@@ -1039,6 +1072,23 @@ Xbox/CE keep OpenCE protocol 41. See
 [issue #89 evidence and limits](../mcc_maps.md#issue-89-script-extensions-and-animation-recovery)
 for the inspected Warthog hierarchy, integer edge policy, runtime coverage and
 Mission Z9's lighting state and checkpoint compatibility.
+
+## Tracing a refused MCC conversion
+
+MCC refusal diagnostics resolve the original authoring tag path and add the field
+or zero-based element index plus the failed check. Start with
+[`mcc_diagnostics.c`](../../port/linux/game/mcc_diagnostics.c), then follow the
+converter named in the [complete before/after catalogue](../mcc_conversion_diagnostics.md).
+For example, `bitmaps[3]` identifies the fourth image inside the named `.bitmap`;
+sound errors include pitch-range/permutation indices and names, codec and payload
+location. Nested validation paths retain block indices. The source scenario name
+is captured before runtime renaming, and specialized bitmap copies report their
+source tag. Diagnostic state is owned and cleared by the MCC runtime.
+
+The catalogue distinguishes authored-data failures from missing resource files,
+allocation failures and damaged compiled-map headers. It also records the
+fallback when a corrupt map does not contain a safely readable tag name. These
+messages do not relax conversion checks or change Xbox/Custom Edition loading.
 
 Continue with [platforms and testing](platforms_and_testing.md), or return
 to the [guide](README.md).

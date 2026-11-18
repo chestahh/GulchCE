@@ -603,7 +603,7 @@ int main(int argc,char **argv){
     path = work / "ui.c"
     path.write_text(source)
     executable = work / ("ui.exe" if os.name == "nt" else "ui")
-    command = [compiler, "-std=c99", str(path), "-o", str(executable)]
+    command = [compiler, "-include", str(ROOT / "port/linux/game/mcc_diagnostics.h"), str(ROOT / "tools/mcc_diagnostics_stub.c"), "-std=c99", str(path), "-o", str(executable)]
     if os.name == "nt":
         command[1:1] = ["--target=i686-pc-windows-msvc", "-fuse-ld=lld", "-D_CRT_SECURE_NO_WARNINGS"]
     result = subprocess.run(command, capture_output=True, text=True)

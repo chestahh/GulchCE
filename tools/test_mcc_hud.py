@@ -84,7 +84,7 @@ int main(int argc,char **argv) {
     source.write_text(code)
     binary = work / "unarmed.exe"
     target = ["--target=i686-pc-windows-msvc", "-fuse-ld=lld"] if sys.platform == "win32" else ["-m32"]
-    subprocess.run([compiler, *target, "-std=c89", "-Wall", "-Wextra", "-Werror",
+    subprocess.run([compiler, "-include", str(ROOT / "port/linux/game/mcc_diagnostics.h"), str(ROOT / "tools/mcc_diagnostics_stub.c"), *target, "-std=c89", "-Wall", "-Wextra", "-Werror",
                     "-Wno-multichar", str(source), "-o", str(binary)], check=True, capture_output=True)
     return binary
 
@@ -233,7 +233,7 @@ int main(int argc,char **argv) {
     path = work / "hud.c"
     binary = work / ("hud.exe" if sys.platform == "win32" else "hud")
     path.write_text(code)
-    command = [compiler, "-std=gnu99", "-Wall", "-Wextra", "-Werror", str(path), "-o", str(binary)]
+    command = [compiler, "-include", str(ROOT / "port/linux/game/mcc_diagnostics.h"), str(ROOT / "tools/mcc_diagnostics_stub.c"), "-std=gnu99", "-Wall", "-Wextra", "-Werror", str(path), "-o", str(binary)]
     if sys.platform == "win32":
         command[1:1] = ["--target=i686-pc-windows-msvc", "-fuse-ld=lld"]
     result = subprocess.run(command, capture_output=True, text=True)

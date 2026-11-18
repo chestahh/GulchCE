@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include <stdarg.h>
 #undef malloc
 #undef free
 #undef realloc
@@ -16,14 +17,14 @@
 #undef memset
 #undef memcmp
 static unsigned char tags[4096];
-static int allocations,reads,attempts,fail_at;
+static int allocations,reads,attempts,fail_at,print_errors;
 void *debug_malloc(unsigned int n,boolean clear,char const *file,long line) {
     void *p; if(++attempts==fail_at)return NULL;p=malloc(n);(void)file;(void)line;if(p){allocations++;if(clear)memset(p,0,n);}return p;
 }
 void debug_free(void *p,char const *file,long line) {(void)file;(void)line;if(p){allocations--;free(p);}}
 void *csmemcpy(void *a,void const *b,unsigned long n) {return memcpy(a,b,n);}
 void *csmemset(void *a,long v,unsigned long n) {return memset(a,v,n);}
-void error(short priority,char const *format,...) {(void)priority;(void)format;}
+void error(short priority,char const *format,...) {va_list args;(void)priority;if(!print_errors)return;va_start(args,format);vprintf(format,args);va_end(args);putchar(10);}
 void mcc_loading_update(enum mcc_loading_stage stage,unsigned long a,unsigned long b) {(void)stage;(void)a;(void)b;}
 void mcc_loading_pulse(void) {}
 void *mcc_runtime_pointer(struct mcc_runtime *r,uint32_t p,uint32_t n) {
@@ -39,15 +40,31 @@ int mcc_resources_read(struct mcc_runtime *r,unsigned type,char const *name,uint
 int mcc_vorbis_decode(unsigned char const *b,uint32_t n,uint32_t limit,short **samples,uint32_t *frames,uint32_t *rate,int *channels) {
     (void)b;(void)n;(void)limit;(void)samples;(void)frames;(void)rate;(void)channels;return 0;
 }
+int mcc_vorbis_decode_ex(unsigned char const *b,uint32_t n,uint32_t limit,short **samples,uint32_t *frames,uint32_t *rate,int *channels,char const **reason,int *code) {
+    *reason="test decoder rejected payload";*code=0;return mcc_vorbis_decode(b,n,limit,samples,frames,rate,channels);
+}
 void mcc_vorbis_free(short *p) {free(p);}
 #define CHECK(c) do{if(!(c)){fprintf(stderr,"line %d\n",__LINE__);return 1;}}while(0)
-int main(void) {
+int main(int argc,char **argv) {
     struct mcc_runtime runtime;
     struct sound_definition *sound=(void *)(tags+512);
     struct sound_pitch_range *range=(void *)(tags+1024);
     struct sound_permutation *permutation=(void *)(tags+1536);
     uint32_t *entry=(void *)tags;
     int rate,nonempty,channels;
+    if(argc==2) {
+        int ok;
+        print_errors=1;memset(&runtime,0,sizeof(runtime));memset(tags,0,sizeof(tags));
+        runtime.tags=runtime.tag_index=tags;runtime.used=sizeof(tags);runtime.report.tag_count=1;
+        entry[0]=SOUND_DEFINITION_TAG;entry[3]=0xE91E0000u;entry[4]=(uint32_t)(tags+128);entry[5]=(uint32_t)sound;
+        memcpy(tags+128,"sound\\weapons\\rifle\\fire",sizeof("sound\\weapons\\rifle\\fire"));
+        sound->pitch_ranges.count=1;sound->pitch_ranges.address=range;
+        memcpy(range->name,"automatic",10);range->permutations.count=1;range->permutations.address=permutation;
+        memcpy(permutation->name,"burst_02",9);permutation->samples.size=37;
+        permutation->compression=(short)atoi(argv[1]);
+        ok=mcc_audio_prepare(&runtime);mcc_audio_dispose(&runtime);
+        CHECK(!ok && !allocations);return 0;
+    }
     for(rate=-2;rate<=2;rate++) for(nonempty=0;nonempty<3;nonempty++) for(channels=0;channels<2;channels++) {
         int expected=rate>=-1 && rate<=1 && (rate!=-1 || nonempty<2);
         memset(&runtime,0,sizeof(runtime));memset(tags,0,sizeof(tags));reads=0;

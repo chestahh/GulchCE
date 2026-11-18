@@ -37,6 +37,12 @@ static void fill_information(const struct stat *st, struct posix_file_informatio
 	/* Linux has no portable creation time; the change time is the closest */
 	information->creation_seconds = (posix_ulong)st->st_ctim.tv_sec;
 	information->creation_nanoseconds = (posix_ulong)st->st_ctim.tv_nsec;
+	if (S_ISREG(st->st_mode))
+	{
+		information->flags |= _posix_file_has_identity;
+		split64((unsigned long long)st->st_dev, &information->device_low, &information->device_high);
+		split64((unsigned long long)st->st_ino, &information->inode_low, &information->inode_high);
+	}
 }
 
 int posix_stat(const char *path, struct posix_file_information *information)

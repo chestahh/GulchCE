@@ -53,6 +53,11 @@ at startup whether to play them anyway, turn those named off, or quit
 #include "tomlc17.h"
 
 #include <SDL3/SDL.h>
+#include <pthread.h>
+#ifndef HALO_WINDOWS
+#include <fcntl.h>
+#include <unistd.h>
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -275,9 +280,105 @@ static void toml_names(toml_datum_t table, const char *key, const char *path, st
 	}
 }
 
+/* Readers and a catalog rescan cannot overlap. Windows keeps SDL's UTF-8
+open/read/close path: its path metadata has no reliable replacement identity. */
+static pthread_mutex_t open_files_lock = PTHREAD_MUTEX_INITIALIZER;
+#ifndef HALO_WINDOWS
+#define OPEN_FILES 8
+static struct
+{
+	int valid;
+	long file;
+	int descriptor;
+	unsigned long used;
+	struct posix_file_information stamp;
+} open_files[OPEN_FILES];
+static unsigned long open_files_clock;
+
+/* Ignore access time: reading a file may update it. Change time catches
+in-place edits even when an editor restores the modification timestamp. */
+static int open_file_unchanged(struct posix_file_information const *a,
+	struct posix_file_information const *b)
+{
+	return a->flags == b->flags && (a->flags & _posix_file_has_identity) &&
+		a->device_low == b->device_low && a->device_high == b->device_high &&
+		a->inode_low == b->inode_low && a->inode_high == b->inode_high &&
+		a->size_low == b->size_low && a->size_high == b->size_high &&
+		a->modification_seconds == b->modification_seconds &&
+		a->modification_nanoseconds == b->modification_nanoseconds &&
+		a->creation_seconds == b->creation_seconds &&
+		a->creation_nanoseconds == b->creation_nanoseconds;
+}
+
+/* Called under open_files_lock. Descriptors are unbuffered, so a seek/read
+cannot reuse stdio bytes left over from before an in-place edit. */
+static int open_file_get(long file, char const *path, int *retained)
+{
+	struct posix_file_information current, opened;
+	int index, slot = -1, descriptor;
+	int stamped = !posix_stat(path, &current);
+
+	*retained = -1;
+	for (index = 0; index < OPEN_FILES; index++)
+	{
+		if (open_files[index].valid && open_files[index].file == file)
+		{
+			if (stamped && open_file_unchanged(&current, &open_files[index].stamp))
+			{
+				open_files[index].used = ++open_files_clock;
+				*retained = index;
+				return open_files[index].descriptor;
+			}
+			close(open_files[index].descriptor);
+			open_files[index].valid = 0;
+		}
+		if (slot < 0 || !open_files[index].valid ||
+			(open_files[slot].valid &&
+			open_files_clock - open_files[index].used > open_files_clock - open_files[slot].used))
+			slot = index;
+	}
+	descriptor = open(path, O_RDONLY | O_CLOEXEC);
+	if (descriptor < 0) return -1;
+	/* Failed/unsupported metadata still uses the ordinary one-shot read.
+	Compare the actual opened file to the path checked before opening it. */
+	if (!stamped || posix_fstat(descriptor, &opened) || !open_file_unchanged(&current, &opened))
+		return descriptor;
+	if (open_files[slot].valid) close(open_files[slot].descriptor);
+	open_files[slot].valid = 1;
+	open_files[slot].file = file;
+	open_files[slot].descriptor = descriptor;
+	open_files[slot].stamp = opened;
+	open_files[slot].used = ++open_files_clock;
+	*retained = slot;
+	return descriptor;
+}
+#endif
+
+/* Caller holds open_files_lock. */
+static void open_files_close(void)
+{
+#ifndef HALO_WINDOWS
+	int index;
+	for (index = 0; index < OPEN_FILES; index++)
+	{
+		if (open_files[index].valid) close(open_files[index].descriptor);
+		open_files[index].valid = 0;
+	}
+#endif
+}
+
+void port_mods_files_close(void)
+{
+	pthread_mutex_lock(&open_files_lock);
+	open_files_close();
+	pthread_mutex_unlock(&open_files_lock);
+}
+
 static void files_dispose(void)
 {
 	long index;
+
+	open_files_close();
 
 	for (index = 0; index < port_mods.file_count; index++)
 	{
@@ -948,6 +1049,7 @@ long port_mods_scan(void)
 	char root[MAXIMUM_PATH_LENGTH];
 	long mod_index;
 
+	pthread_mutex_lock(&open_files_lock);
 	for (mod_index = 0; mod_index < port_mods.mod_count; mod_index++)
 		mod_dispose(&port_mods.mods[mod_index]);
 	files_dispose();
@@ -987,6 +1089,7 @@ long port_mods_scan(void)
 		}
 		platform_log("mods: load order %s", order);
 	}
+	pthread_mutex_unlock(&open_files_lock);
 	return port_mods.played_count;
 }
 
@@ -1017,16 +1120,18 @@ long port_mods_file_find(const char *tag_file, const char *map_name)
 int port_mods_file_stamp(long file, unsigned long *size, unsigned long stamp[2])
 {
 	struct posix_file_information information;
-
-	if (file < 0 || file >= port_mods.file_count || posix_stat(port_mods.files[file].path, &information) != 0 ||
-		information.size_high)
+	int result = 0;
+	pthread_mutex_lock(&open_files_lock);
+	if (file >= 0 && file < port_mods.file_count &&
+		!posix_stat(port_mods.files[file].path, &information) && !information.size_high)
 	{
-		return 0;
+		*size = information.size_low;
+		stamp[0] = information.modification_seconds;
+		stamp[1] = information.modification_nanoseconds;
+		result = 1;
 	}
-	*size = information.size_low;
-	stamp[0] = information.modification_seconds;
-	stamp[1] = information.modification_nanoseconds;
-	return 1;
+	pthread_mutex_unlock(&open_files_lock);
+	return result;
 }
 
 int port_mods_file_read(long file, unsigned long offset, void *buffer, unsigned long size)
@@ -1035,57 +1140,70 @@ int port_mods_file_read(long file, unsigned long offset, void *buffer, unsigned 
 	int bounce = platform_is_contiguous(buffer);
 	unsigned char *staging = NULL;
 	unsigned long done = 0;
-	int read = 1;
-#ifdef HALO_ARM64_GUEST
-	FILE *stream;
-#else
+	int success = 1;
+#ifdef HALO_WINDOWS
 	SDL_IOStream *stream;
+#else
+	int descriptor, retained;
+	posix_ulong position_low, position_high;
 #endif
 
+	if (bounce && !(staging = malloc(READ_BOUNCE_SIZE))) return 0;
+	pthread_mutex_lock(&open_files_lock);
 	if (file < 0 || file >= port_mods.file_count)
+	{
+		pthread_mutex_unlock(&open_files_lock);
+		free(staging);
 		return 0;
+	}
 	path = port_mods.files[file].path;
-	if (bounce && !(staging = malloc(READ_BOUNCE_SIZE)))
-		return 0;
-#ifdef HALO_ARM64_GUEST
-	stream = fopen(path, "rb");
-	if (!stream || fseek(stream, (long)offset, SEEK_SET) != 0)
-		read = 0;
-#else
-	/* (SDL's, for UTF-8 paths on Windows) */
+#ifdef HALO_WINDOWS
+	/* Keep the existing UTF-8 path and replacement semantics on Windows. */
 	stream = SDL_IOFromFile(path, "rb");
 	if (!stream || SDL_SeekIO(stream, (Sint64)offset, SDL_IO_SEEK_SET) < 0)
-		read = 0;
+		success = 0;
+#else
+	descriptor = open_file_get(file, path, &retained);
+	if (descriptor < 0 || posix_seek(descriptor, (posix_long)offset, 0, SEEK_SET, &position_low, &position_high))
+		success = 0;
 #endif
-	while (read && done < size)
+	while (success && done < size)
 	{
 		unsigned long wanted = size - done;
 		unsigned char *destination = (unsigned char *)buffer + done;
-
-		if (bounce && wanted > READ_BOUNCE_SIZE)
-			wanted = READ_BOUNCE_SIZE;
-#ifdef HALO_ARM64_GUEST
-		read = fread(bounce ? staging : destination, 1, wanted, stream) == wanted;
+		if (bounce && wanted > READ_BOUNCE_SIZE) wanted = READ_BOUNCE_SIZE;
+#ifdef HALO_WINDOWS
+		success = SDL_ReadIO(stream, bounce ? staging : destination, wanted) == wanted;
 #else
-		read = SDL_ReadIO(stream, bounce ? staging : destination, wanted) == wanted;
+		{
+			unsigned long got = 0;
+			while (got < wanted)
+			{
+				ssize_t count = read(descriptor, (bounce ? staging : destination) + got, wanted - got);
+				if (count <= 0) {success = 0; break;}
+				got += (unsigned long)count;
+			}
+		}
 #endif
-		if (read && bounce)
+		if (success && bounce)
 		{
 			memory_watch_prepare_write(destination, wanted);
 			memcpy(destination, staging, wanted);
 		}
 		done += wanted;
 	}
-	if (stream)
-	{
-#ifdef HALO_ARM64_GUEST
-		fclose(stream);
+#ifdef HALO_WINDOWS
+	if (stream) SDL_CloseIO(stream);
 #else
-		SDL_CloseIO(stream);
-#endif
+	if (descriptor >= 0 && (!success || retained < 0))
+	{
+		close(descriptor);
+		if (retained >= 0) open_files[retained].valid = 0;
 	}
+#endif
+	pthread_mutex_unlock(&open_files_lock);
 	free(staging);
-	return read;
+	return success;
 }
 
 long port_mods_file_order(long file)

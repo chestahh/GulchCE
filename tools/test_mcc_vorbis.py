@@ -173,7 +173,11 @@ int main(int argc,char **argv) {
         pcm=calloc(512*channels,sizeof(short));
         frames=stb_vorbis_get_samples_short_interleaved(v,channels,pcm,512*channels);
         ok=frames && stb_vorbis_get_error(v)==0;stb_vorbis_close(v);
-    } else ok=mcc_vorbis_decode(bytes,(uint32_t)size,1024,&pcm,&frames,&rate,&channels);
+    } else {
+        char const *reason;int decoder_error;
+        ok=mcc_vorbis_decode_ex(bytes,(uint32_t)size,1024,&pcm,&frames,&rate,&channels,&reason,&decoder_error);
+        if (!ok) fprintf(stderr,"%s (decoder error %d)\n",reason,decoder_error);
+    }
     if(ok) {file=fopen(argv[2],"wb");if(!file)return 5;
         fwrite(&frames,4,1,file);fwrite(&rate,4,1,file);fwrite(&channels,4,1,file);
         fwrite(pcm,2,frames*channels,file);fclose(file);}
@@ -384,3 +388,32 @@ def test_transition_validation_is_not_disabled(decoder, tmp_path, mutation):
         struct.pack_into("<I", modified, 22, crc32(modified))
         data = data[:start] + modified + data[end:]
     assert decode(decoder, tmp_path, data) is None
+
+
+@pytest.mark.parametrize("mutation,expected", [
+    ("crc", "Ogg page CRC checksum does not match"),
+    ("truncated", "Ogg page payload is truncated"),
+    ("missing_eos", "Ogg end-of-stream page is missing"),
+    ("classbook", "unsupported Vorbis floor/residue codebook layout"),
+    ("identification", "Vorbis identification/header page is invalid"),
+])
+def test_decoder_failure_explains_the_rejected_check(decoder, tmp_path, mutation, expected):
+    data = stream(bad_class=mutation == "classbook")
+    if mutation == "crc":
+        data = data[:-1] + bytes([data[-1] ^ 1])
+    elif mutation == "truncated":
+        data = data[:-3]
+    elif mutation == "missing_eos":
+        data = data[:data.rfind(b"OggS")]
+    if mutation == "identification":
+        end = data.find(b"OggS", 4)
+        first = bytearray(data[:end])
+        first[35] = 1  # Vorbis version must be zero; keep the Ogg CRC valid.
+        struct.pack_into("<I", first, 22, 0)
+        struct.pack_into("<I", first, 22, crc32(first))
+        data = bytes(first) + data[end:]
+    source = tmp_path / "bad.ogg"
+    source.write_bytes(data)
+    result = subprocess.run([str(decoder), str(source), str(tmp_path / "out.pcm"), "0"], capture_output=True, text=True)
+    assert result.returncode == 1
+    assert expected in result.stderr

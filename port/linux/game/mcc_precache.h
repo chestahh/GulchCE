@@ -10,4 +10,6 @@ struct mcc_precache_snapshot {
     struct mcc_precache_stamp files[MCC_PRECACHE_FILES];
 };
 int mcc_precache_snapshot(char const *name, struct mcc_precache_snapshot *snapshot);
+/* Advisory lobby polling only; never use this to accept or publish content. */
+int mcc_precache_snapshot_poll(char const *name, struct mcc_precache_snapshot *snapshot);
 #endif

@@ -46,6 +46,13 @@ OpenCE parity. Emulator output is also not an unquestioned reference: see
 
 ## Processing and settings
 
+`streams_complete_finished` in
+[dsound_sdl.c](../../port/linux/src/dsound_sdl.c) tries the mixer lock when
+`DirectSoundDoWork` polls completed stream packets. Four consecutive busy
+polls may defer notification; the fifth waits to guarantee progress.
+`stream_flush` still cancels synchronously, with the existing completion
+status and cache-ownership rules. This changes scheduling, not the DSP.
+
 | Stage | Implemented behavior |
 | --- | --- |
 | Voice decoding | Existing PCM and Xbox ADPCM decoders feed the mixer. CE/MCC conversion remains in its existing map-family modules. |
