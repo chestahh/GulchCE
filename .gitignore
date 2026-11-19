@@ -11,6 +11,7 @@ __pycache__
 build/
 .ninja_*
 build.ninja
+execs/
 
 # Generated configs
 compile_commands.json
@@ -27,9 +28,14 @@ assets/
 # (but the high-res assets, drawn for the port: tools/hud_assets.py)
 !port/assets/
 original/
+noship/
 
 # CI build outputs (tools/ci_build.py)
 dist/
 
 # User-supplied Halo 1 MCC maps and resources
 mcc_maps/
+
+# add-ons built from maps (tools/addon_build.c): rebuilt, never committed
+addons/**/*.cevehicle
+addons/**/*.ceweapon

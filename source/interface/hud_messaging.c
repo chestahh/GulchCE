@@ -150,6 +150,7 @@ symbols in this file:
 #include "text/unicode.h"
 int config_boolean(const char *name); /* port: port/linux/src/port_config.c */
 #include "network_coop.h" /* port: port/linux/game/network_coop.c */
+#include "addons.h" /* port: port/linux/game/addons.c */
 #include "controller_remap.h" /* port: port/linux/game/controller_remap_game.c */
 
 #include <stddef.h>
@@ -536,7 +537,10 @@ static void render_state_bitmap(
 	pixel32 color,
 	struct icon_hud_element_definition const *icon)
 {
-	long bitmap_group_index = hud_globals->messaging.messaging_icons.index;
+	/* port: an add-on weapon's icon is a sprite of the messaging icons of the
+	map it was made from (port/linux/game/addons.c) */
+	long bitmap_group_index = addons_messaging_icons(icon) != NONE ? addons_messaging_icons(icon) :
+		hud_globals->messaging.messaging_icons.index;
 	long frame_index = 0;
 	struct bitmap_data const *bitmap = NULL;
 	real_rectangle2d const *clip = NULL;
