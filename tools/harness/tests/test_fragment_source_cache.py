@@ -9,16 +9,22 @@ def executable(collision=False, fault=None):
     code += '\n#define FRAGMENT_BUCKETS 1024\n'
     code += 'static struct fragment_entry *fragment_buckets[FRAGMENT_BUCKETS];\n'
     code += 'static struct fragment_source_entry *fragment_source_buckets[FRAGMENT_BUCKETS];\n'
-    code += 'static unsigned long long *shader_hashes;\nstatic GLuint shader_hashes_size;\n'
-    code += '\n'.join(function(source, name) for name in (
-        'source_hash', 'shader_hash_set', 'hash_words', 'words_equal',
-        'fragment_source_hash', 'fragment_source_get', 'fragment_shader_get'))
+    deferred = structure(source, 'deferred_shader') + '\n'
+    deferred += 'static unsigned long long *shader_hashes; static GLuint shader_hashes_size;\n'
+    deferred += 'static struct deferred_shader *deferred_shaders; static GLuint deferred_shader_count, deferred_shader_size;\n'
+    deferred += '\n'.join(function(source, name) for name in
+                           ('source_hash', 'shader_hash_set', 'shader_deferred', 'shader_compiled'))
+    code += '\n'.join(function(source, name) for name in
+                       ('hash_words', 'words_equal', 'fragment_source_hash', 'fragment_source_get', 'fragment_shader_get'))
     if collision:
         hashing = function(source, 'fragment_source_hash')
         code = code.replace(hashing, hashing.replace('return hash;', '(void)hash; return 0;'))
     if fault:
-        code = mutated(code, *fault)
-    return build('fragment_source_cache', (('under_test.inc', code),))
+        if fault[0] in deferred:
+            deferred = mutated(deferred, *fault)
+        else:
+            code = mutated(code, *fault)
+    return build('fragment_source_cache', (('deferred.inc', deferred), ('under_test.inc', code)))
 
 
 @pytest.mark.parametrize('collision', [False, True])
@@ -31,7 +37,7 @@ def test_cache(case, collision):
 @pytest.mark.parametrize('fault,case', [
     (('entry->hash == hash && !strcmp(entry->source, source)', 'entry->hash == hash'), 'distinct'),
     (('entry->hash == hash && !strcmp(entry->source, source)', 'FALSE'), 'reuse'),
-    (('shader_hash_set(shader, source);', '(void)0;'), 'reuse'),
+    (('shader_hash_set(deferred_shader_count, source);', '(void)0;'), 'reuse'),
 ])
 def test_negative_control(fault, case):
     status, output = run(executable(True, fault), case)

@@ -1617,7 +1617,8 @@
 		<child widget="modern/first_person/row_display_shield_look4" x="28" y="257" />
 		<child widget="modern/first_person/row_display_viewmodel_shield5" x="28" y="287" />
 		<child widget="modern/first_person/row_display_first_person_legs6" x="28" y="317" />
-		<child widget="modern/first_person/row_link_0" x="28" y="347" />
+		<child widget="modern/first_person/row_display_cinematic_framing7" x="28" y="347" />
+		<child widget="modern/first_person/row_link_0" x="28" y="377" />
 		<child widget="modern/first_person/button_bar" x="26" y="414" />
 	</widget>
 	<widget name="modern/first_person/tabs" type="column_list" width="584" height="26" flags="pass_unhandled_to_focused_child left_right_tabs_items">
@@ -1714,13 +1715,21 @@
 	<widget name="modern/first_person/spinner_display_first_person_legs6" type="spinner" width="140" height="20" flags="pass_unhandled_to_focused_child left_right_tabs_items" strings="ON|OFF" values="true|false" setting="display.first_person_legs" font="ui\large_ui" color="#FF2896FF" align="center" header_bitmap="bitmaps/arrow_sm_left" footer_bitmap="bitmaps/arrow_sm_right" header_bounds="4 -10 16 -4" footer_bounds="4 144 16 150">
 		<on event="created" run="port setting load" />
 	</widget>
+	<widget name="modern/first_person/row_display_cinematic_framing7" width="336" height="26" bitmap="modern/row" flags="pass_unhandled_to_focused_child nifty_fx">
+		<child widget="modern/first_person/label_display_cinematic_framing7" x="12" y="3" />
+		<child widget="modern/first_person/spinner_display_cinematic_framing7" x="180" y="3" />
+	</widget>
+	<widget name="modern/first_person/label_display_cinematic_framing7" type="text" controller="1" width="152" height="24" string_list="modern/first_person/labels" string_index="7" font="ui\large_ui" color="#FF2896FF" />
+	<widget name="modern/first_person/spinner_display_cinematic_framing7" type="spinner" width="140" height="20" flags="pass_unhandled_to_focused_child left_right_tabs_items" strings="ON|OFF" values="true|false" setting="display.cinematic_framing" font="ui\large_ui" color="#FF2896FF" align="center" header_bitmap="bitmaps/arrow_sm_left" footer_bitmap="bitmaps/arrow_sm_right" header_bounds="4 -10 16 -4" footer_bounds="4 144 16 150">
+		<on event="created" run="port setting load" />
+	</widget>
 	<widget name="modern/first_person/row_link_0" width="336" height="26" bitmap="modern/row" flags="nifty_fx">
 		<on event="a" run="port frontend page" />
 		<on event="start" run="port frontend page" />
 		<on event="left_mouse" run="mouse emit accept event" />
 		<child widget="modern/first_person/label_link_0" x="12" y="3" />
 	</widget>
-	<widget name="modern/first_person/label_link_0" type="text" controller="1" width="312" height="24" string_list="modern/first_person/labels" string_index="7" font="ui\large_ui" color="#FF2896FF" />
+	<widget name="modern/first_person/label_link_0" type="text" controller="1" width="312" height="24" string_list="modern/first_person/labels" string_index="8" font="ui\large_ui" color="#FF2896FF" />
 	<strings name="modern/first_person/labels">
 		<string text="FOV" />
 		<string text="VIEWMODEL FOV" />
@@ -1729,6 +1738,7 @@
 		<string text="SHIELD LOOK" />
 		<string text="ARM SHIELDS" />
 		<string text="LEGS" />
+		<string text="XBOX CUTSCENES" />
 		<string text="&lt; BACK" />
 	</strings>
 	<strings name="modern/first_person/help_strings">
@@ -1740,6 +1750,7 @@
 		<string text="Classic keeps map shields. Other looks keep custom colour. Sprinkles adds layers, arcs and recharge to the classic surface." />
 		<string text="The energy shield's flare on your first-person arms too, as on your body." />
 		<string text="Your legs in first person, seen looking down, moving as you run. Your body as others see it." />
+		<string text="Cutscenes framed as on the Xbox: no black bars on 16:9, thinner ones on 16:10." />
 		<string text="Return to the parent page, keeping pending changes." />
 	</strings>
 	<widget name="modern/first_person/button_bar" type="column_list" width="588" height="26" flags="pass_unhandled_to_focused_child left_right_tabs_items">
@@ -2599,7 +2610,9 @@
 		<child widget="modern/hud/row_display_text_chat4" x="28" y="257" />
 		<child widget="modern/hud/row_display_chat_style5" x="28" y="287" />
 		<child widget="modern/hud/row_display_match_timer6" x="28" y="317" />
-		<child widget="modern/hud/row_link_4" x="28" y="347" />
+		<child widget="modern/hud/row_audio_talking_timer7" x="28" y="347" />
+		<child widget="modern/hud/row_audio_timer_volume8" x="28" y="377" />
+		<child widget="modern/hud/row_link_4" x="28" y="407" />
 		<child widget="modern/hud/button_bar" x="26" y="414" />
 	</widget>
 	<widget name="modern/hud/tabs" type="column_list" width="584" height="26" flags="pass_unhandled_to_focused_child left_right_tabs_items">
@@ -2696,13 +2709,29 @@
 	<widget name="modern/hud/spinner_display_match_timer6" type="spinner" width="140" height="20" flags="pass_unhandled_to_focused_child left_right_tabs_items" strings="ON|OFF" values="true|false" setting="display.match_timer" font="ui\large_ui" color="#FF2896FF" align="center" header_bitmap="bitmaps/arrow_sm_left" footer_bitmap="bitmaps/arrow_sm_right" header_bounds="4 -10 16 -4" footer_bounds="4 144 16 150">
 		<on event="created" run="port setting load" />
 	</widget>
+	<widget name="modern/hud/row_audio_talking_timer7" width="336" height="26" bitmap="modern/row" flags="pass_unhandled_to_focused_child nifty_fx">
+		<child widget="modern/hud/label_audio_talking_timer7" x="12" y="3" />
+		<child widget="modern/hud/spinner_audio_talking_timer7" x="180" y="3" />
+	</widget>
+	<widget name="modern/hud/label_audio_talking_timer7" type="text" controller="1" width="152" height="24" string_list="modern/hud/labels" string_index="7" font="ui\large_ui" color="#FF2896FF" />
+	<widget name="modern/hud/spinner_audio_talking_timer7" type="spinner" width="140" height="20" flags="pass_unhandled_to_focused_child left_right_tabs_items" strings="ON|OFF" values="true|false" setting="audio.talking_timer" font="ui\large_ui" color="#FF2896FF" align="center" header_bitmap="bitmaps/arrow_sm_left" footer_bitmap="bitmaps/arrow_sm_right" header_bounds="4 -10 16 -4" footer_bounds="4 144 16 150">
+		<on event="created" run="port setting load" />
+	</widget>
+	<widget name="modern/hud/row_audio_timer_volume8" width="336" height="26" bitmap="modern/row" flags="pass_unhandled_to_focused_child nifty_fx">
+		<child widget="modern/hud/label_audio_timer_volume8" x="12" y="3" />
+		<child widget="modern/hud/spinner_audio_timer_volume8" x="180" y="3" />
+	</widget>
+	<widget name="modern/hud/label_audio_timer_volume8" type="text" controller="1" width="152" height="24" string_list="modern/hud/labels" string_index="8" font="ui\large_ui" color="#FF2896FF" />
+	<widget name="modern/hud/spinner_audio_timer_volume8" type="spinner" width="140" height="20" flags="pass_unhandled_to_focused_child left_right_tabs_items" strings="0|1|2|3|4|5|6|7|8|9|10" values="0|0.1|0.2|0.3|0.4|0.5|0.6|0.7|0.8|0.9|1" setting="audio.timer_volume" font="ui\large_ui" color="#FF2896FF" align="center" header_bitmap="bitmaps/arrow_sm_left" footer_bitmap="bitmaps/arrow_sm_right" header_bounds="4 -10 16 -4" footer_bounds="4 144 16 150">
+		<on event="created" run="port setting load" />
+	</widget>
 	<widget name="modern/hud/row_link_4" width="336" height="26" bitmap="modern/row" flags="nifty_fx">
 		<on event="a" run="port frontend page" />
 		<on event="start" run="port frontend page" />
 		<on event="left_mouse" run="mouse emit accept event" />
 		<child widget="modern/hud/label_link_4" x="12" y="3" />
 	</widget>
-	<widget name="modern/hud/label_link_4" type="text" controller="1" width="312" height="24" string_list="modern/hud/labels" string_index="7" font="ui\large_ui" color="#FF2896FF" />
+	<widget name="modern/hud/label_link_4" type="text" controller="1" width="312" height="24" string_list="modern/hud/labels" string_index="9" font="ui\large_ui" color="#FF2896FF" />
 	<strings name="modern/hud/labels">
 		<string text="PLAYER NAMES" />
 		<string text="PLAYER NAME SIZE" />
@@ -2711,6 +2740,8 @@
 		<string text="TEXT CHAT" />
 		<string text="CHAT TEXT" />
 		<string text="MATCH TIMER" />
+		<string text="TALKING TIMER" />
+		<string text="TIMER VOLUME" />
 		<string text="&lt; BACK" />
 	</strings>
 	<strings name="modern/hud/help_strings">
@@ -2722,6 +2753,8 @@
 		<string text="SHOW the text chat, or HIDE it: no lines, and its keys and D-pad Up open nothing." />
 		<string text="The text chat's colors: COLORS, names in their team's color; WHITE, as Custom Edition." />
 		<string text="Draw a clock at the bottom right in multiplayer, counting up from the start of the game." />
+		<string text="Call the game clock aloud in multiplayer: the seconds left, a countdown, and each new minute." />
+		<string text="The talking timer's voice: 8 plays it as recorded, 10 is 25% louder." />
 		<string text="Return to the parent page, keeping pending changes." />
 	</strings>
 	<widget name="modern/hud/button_bar" type="column_list" width="588" height="26" flags="pass_unhandled_to_focused_child left_right_tabs_items">

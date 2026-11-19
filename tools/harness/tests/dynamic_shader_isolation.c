@@ -10,7 +10,7 @@ struct nv2a_pixel_shader_key;
 struct plasma_occlusion_uniforms { int enabled; };
 struct program_entry { GLuint program; int plasma_model_slots; struct plasma_occlusion_uniforms plasma_occlusion; };
 static struct { const char *dump_shaders; } debug_settings;
-static int compiles, hashes, pp = 1, fail_compile, fail_link, last_lit, last_optional;
+static int requests, pp = 1, fail_compile, fail_link, last_lit, last_optional;
 static int gpu_calls, bound, looked_up;
 static float mask0, mask1;
 static char *nv2a_vertex_shader_to_glsl(const DWORD *words, unsigned long count,
@@ -20,9 +20,8 @@ static char *nv2a_vertex_shader_to_glsl(const DWORD *words, unsigned long count,
  result[0] = plasma ? '1' : '0'; result[1] = lighting ? '1' : '0'; result[2] = 0;
  return result;
 }
-static GLuint xgpu_compile_shader(int kind, const char *source, const char *label)
-{ compiles++; return fail_compile && source[0]=='1' ? 0 : compiles; }
-static void shader_hash_set(GLuint shader, const char *source) { hashes++; }
+static GLuint shader_deferred(int kind, const char *source, const char *label)
+{ requests++; return fail_compile && source[0]=='1' ? 0 : requests; }
 static BOOL per_pixel_lighting(void) { return pp; }
 static GLuint fragment_shader_get(const struct nv2a_pixel_shader_key *key);
 static struct program_entry *program_get(GLuint vs, GLuint fs, BOOL optional)
@@ -92,9 +91,9 @@ int main(int argc, char **argv)
   program.plasma_model=TRUE;
 #endif
   fail_link=0; fail_compile=1;
-  draw_program_get(&program,FALSE,&key,1); base=compiles;
+  draw_program_get(&program,FALSE,&key,1); base=requests;
   draw_program_get(&program,FALSE,&key,1);
-  CHECK(compiles==base, "failed variants are not recompiled each draw");
+  CHECK(requests==base, "failed variants are not recompiled each draw");
   CHECK(draw_program_get(&program,FALSE,&key,0) && key.per_pixel_lighting==2, "enhanced compile failure leaves stock usable");
   return 0;
  }
@@ -113,22 +112,22 @@ int main(int argc, char **argv)
  }
  for (lit=0;lit<2;lit++) for (immediate=0;immediate<2;immediate++)
  {
-  pp=lit; base=compiles;
+  pp=lit; base=requests;
   stock=draw_program_get(&program,immediate,&key,0);
-  CHECK(stock && !last_optional && !key.plasma_model && compiles==base+1, "off compiles only the stock variant");
+  CHECK(stock && !last_optional && !key.plasma_model && requests==base+1, "off requests only the stock variant");
   enhanced=draw_program_get(&program,immediate,&key,1);
 #ifndef HALO_ANDROID
-  CHECK(enhanced && enhanced!=stock && last_optional && compiles==base+2, "on creates a distinct lazy variant");
+  CHECK(enhanced && enhanced!=stock && last_optional && requests==base+2, "on creates a distinct lazy variant");
 #else
-  CHECK(enhanced==stock && !last_optional && compiles==base+1, "Android always reuses stock");
+  CHECK(enhanced==stock && !last_optional && requests==base+1, "Android always reuses stock");
 #endif
-  base=compiles;
+  base=requests;
   for(n=0;n<20;n++)
   {
    CHECK(draw_program_get(&program,immediate,&key,0)==stock && !key.plasma_model, "off restores the exact cached stock program");
    CHECK(draw_program_get(&program,immediate,&key,(n&1)?2:3)==enhanced, "slot changes reuse one enhanced variant");
   }
-  CHECK(compiles==base && hashes==compiles, "toggles do not recompile or bypass binary-cache registration");
+  CHECK(requests==base, "toggles do not recompile the shader variants");
  }
  return 0;
 }

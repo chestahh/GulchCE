@@ -24,6 +24,10 @@ static boolean collision_bsp_test_vector_recursive(struct collision_bsp_test_vec
  calls++;seen_node=node;seen_depth=depth;seen_budget=c->nodes_left;seen_t=t1;
  return TRUE;
 }
+/* This fixture supplies a model BSP; only structure rays may use the leaf shortcut. */
+#define collision_bsp_test_vector_short(vector,t) (abort(), FALSE)
+#define collision_bsp_test_vector_in_one_leaf(b,p,v,t,r) (abort(), FALSE)
+#define collision_bsp_test_vector_descend(c,t) (abort(), FALSE)
 #include "under_test.inc"
 int main(int argc,char **argv)
 {
