@@ -110,5 +110,8 @@ unsigned int hud_hires_upscale_texture(const unsigned char *bgra, unsigned long 
 /* a texture hud_hires_upscale_texture gave no longer used by its texture
 (kept for the same pixels again: hud_hires.c) */
 void hud_hires_upscale_release(unsigned int texture);
+/* the GPU's upscale program built with the GL context (d3d8_gl.c,
+ * gl_initialize): built at a sheet's first draw, it held that frame up */
+void hud_hires_gl_initialize(void);
 
 #endif
