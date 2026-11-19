@@ -5,7 +5,7 @@ import shutil
 import subprocess
 
 import pytest
-from harness import function
+from harness import function, structure
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -17,6 +17,9 @@ def target_tool(tmp_path_factory):
         pytest.skip("clang is required")
     directory = tmp_path_factory.mktemp("render-target-binding")
     source = (ROOT / "port/linux/src/d3d8_gl.c").read_text()
+    (directory / "entry.inc").write_text(structure(source, "render_target_entry"))
+    table = source[source.index("#define SHADOW_SLOT_TABLE_SCALES"):source.index(";", source.index("static struct render_target_entry *shadow_slot_table[")) + 1]
+    (directory / "shadow_table.inc").write_text(table + function(source, "shadow_slot_table_link"))
     (directory / "under_test.inc").write_text("\n".join(
         function(source, name) for name in
         ["render_target_bucket", "render_target_remember", "render_target_storage", "render_target_get"]))
@@ -44,11 +47,8 @@ struct xgpu_render_target {
     unsigned long data,width,height,gl_width,gl_height;
     BOOL depth; float scale[2]; GLuint texture; GLenum format;
 };
-struct render_target_entry {
-    struct render_target_entry *next,*next_in_bucket;
-    struct xgpu_render_target target;
-    unsigned long last_rendered; BOOL screen_buffer; enum render_target_kind kind;
-};
+#include "entry.inc"
+#include "shadow_table.inc"
 static struct render_target_entry *render_targets;
 static struct render_target_entry *render_target_buckets[RENDER_TARGET_BUCKET_COUNT];
 static struct { DWORD data,format,size; long screen_width; float scale[2];
@@ -60,11 +60,13 @@ static struct { int active; } hdr;
 static int xgpu_reversed_depth;
 static unsigned active_unit=3, bindings[4]={81,82,83,99};
 static unsigned next_texture=1000, creates,storage_calls,queries,binds,invalidations;
-static unsigned stored_texture;
+static unsigned stored_texture, expected_dimension=128;
 static GLenum stored_format;
 static long halo_screen_width(void) { return 640; }
-static int halo_shadow_map_scale(void) { return 1; }
-static int surface_is_shadow_map(const D3DSurface *surface) { (void)surface; return 0; }
+static long shadow_scale_of(unsigned long data) { (void)data; return 2; }
+static long shadow_slot_of(unsigned long data) { (void)data; return 1; }
+static void xgpu_texture_lookups_changed(void) {}
+static int surface_is_shadow_map(const D3DSurface *surface) { return surface->Data == 0x6000; }
 static void surface_dimensions(const D3DSurface *surface,unsigned long *width,unsigned long *height,BOOL *depth)
 { *width=surface->width;*height=surface->height;*depth=surface->depth; }
 static void glGetIntegerv(GLenum name,GLint *value)
@@ -78,7 +80,7 @@ static void glTexParameteri(GLenum target,GLenum name,GLint value)
 static void glTexImage2D(GLenum target,int level,GLenum format,GLsizei width,GLsizei height,
     int border,GLenum channels,GLenum type,const void *data)
 {
-    assert(target==GL_TEXTURE_2D && !level && width==128 && height==128 && !border && !data);
+    assert(target==GL_TEXTURE_2D && !level && width==(GLsizei)expected_dimension && height==(GLsizei)expected_dimension && !border && !data);
     assert(bindings[active_unit]>=1000);
     assert((format==GL_RGBA8 && channels==GL_BGRA && type==GL_UNSIGNED_BYTE) ||
         (format==GL_DEPTH24_STENCIL8 && channels==GL_DEPTH_STENCIL && type==GL_UNSIGNED_INT_24_8));
@@ -137,6 +139,13 @@ int main(int argc,char **argv)
         struct render_target_entry *c=render_target_get(&color),*d=render_target_get(&depth);
         assert(c!=d && creates==2 && storage_calls==2 && queries==2 && binds==4);
         assert(bindings[3]==99 && bindings[0]==81 && active_unit==3);
+    } else if(!strcmp(argv[1],"shadow-slot")) {
+        D3DSurface s=surface(0x6000,0);
+        expected_dimension=256;
+        entry=render_target_get(&s);
+        assert(entry && entry->in_slot_table && entry->slot==1);
+        assert(render_target_get(&s)==entry && creates==1);
+        assert(bindings[3]==99 && queries==1 && binds==2);
     } else if(!strcmp(argv[1],"explicit-bind")) {
         D3DSurface s=surface(0x5000,0);
         entry=render_target_get(&s);
@@ -158,6 +167,6 @@ int main(int argc,char **argv)
 
 
 @pytest.mark.parametrize("case", ["color", "depth", "unbound", "unit-zero", "recent",
-                                 "bucket", "absent", "color-depth", "explicit-bind"])
+                                 "bucket", "absent", "color-depth", "shadow-slot", "explicit-bind"])
 def test_target_allocation_preserves_sample_binding(target_tool, case):
     subprocess.run([str(target_tool), case], check=True, capture_output=True, timeout=10)
