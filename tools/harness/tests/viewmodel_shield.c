@@ -56,6 +56,8 @@ static int overshield_setting = 1;
 static boolean overshield_effect_enabled(void) { return overshield_setting; }
 static struct overshield_effect *overshield_effect_get(long unit_index) { return overshield_unit[unit_index]; }
 static short overshield_effect_intensity_source(long unit_index) { (void)unit_index; return 1; }
+/* uncloaked (the cloak's fade is test_overshield_cloak.py's) */
+static real overshield_effect_uncloaked(long unit_index) { (void)unit_index; return 1.f; }
 #include "under_test.inc"
 
 static struct model_node hand_nodes[3] = {{NONE}, {0}, {1}};

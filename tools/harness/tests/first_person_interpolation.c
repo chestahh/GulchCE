@@ -20,6 +20,8 @@ struct render_camera { real_point3d position; real_vector3d forward, up; };
 static struct { long object_index; } *interpolated_objects;
 static int interpolated_cameras[MAXIMUM_LOCAL_PLAYERS];
 static long interpolation_tick;
+static boolean interpolation_cut_pending;
+static long interpolation_cut_tick = NONE;
 static boolean interpolation_rendering = TRUE;
 static real interpolation_fraction = 0.5f;
 static void cross_product3d(real_vector3d const *a, real_vector3d const *b, real_vector3d *r)
@@ -88,6 +90,8 @@ int main(int argc, char **argv)
         tick(12, 0.8f);
         expect(0.75f); /* Previous is the raw 0.6 pose, never the last blend. */
     }
+    CASE("animation-cut") { render_interpolation_first_person_cut(local); tick(11,.2f); expect(.2f); tick(12,.4f); expect(.3f); }
+    CASE("same-tick-cut") { tick(11,.1f); render_interpolation_first_person_cut(local); tick(11,.2f); expect(.2f); }
     CASE("weapon-change") { weapon += 0x10000; tick(11, .1f); expect(.1f); tick(12,.2f); expect(.15f); }
     CASE("graph-change") { graph++; tick(11,.1f); expect(.1f); }
     CASE("same-tick-change")
@@ -104,7 +108,16 @@ int main(int argc, char **argv)
         interpolation_rendering=TRUE; tick(11,.14f); expect(.14f);
         tick(12,.16f); expect(.15f);
     }
-    CASE("reset") { tick(11,.1f); render_interpolation_reset(); tick(11,.2f); expect(.2f); tick(12,.3f); expect(.25f); }
+    CASE("reset")
+    {
+        tick(11,.1f);
+        interpolation_cut_pending = TRUE;
+        interpolation_cut_tick = 11;
+        render_interpolation_reset();
+        CHECK(!interpolation_cut_pending && interpolation_cut_tick == NONE, "old camera cut survived a reset");
+        tick(11,.2f); expect(.2f);
+        tick(12,.3f); expect(.25f);
+    }
     CASE("players") { local=1; tick(10,.8f); tick(11,.9f); expect(.85f); local=0; tick(11,.1f); expect(.05f); }
     CASE("camera")
     {

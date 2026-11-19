@@ -445,6 +445,9 @@ SCREENS["video_settings/fov_viewmodels"] = {
          "Right-shoulder view on foot. Zoom uses first\nperson. The reticle follows your aim point.", None),
         ("LEGS:", "display.first_person_legs", ON_OFF,
          "Your legs in first person, seen looking down,\nmoving as you run. Your body as others see it.", None),
+        # (port/linux/game/cinematic_letterbox.c)
+        ("XBOX CUTSCENES:", "display.cinematic_framing", ON_OFF,
+         "Cutscenes framed as on the Xbox: no black bars\non 16:9, thinner ones on 16:10.", None),
     ],
 }
 
@@ -520,7 +523,7 @@ _network["categories"] = [
     ("MAP SHARING:", "network_setup/map_sharing",
      "Download CE maps or approved MCC packages.\nManage sharing and downloaded MCC copies."),
     ("MULTIPLAYER HUD:", "network_setup/multiplayer_hud",
-     "Players' names above their heads, the\nscoreboard, the text chat and the match clock."),
+     "Players' names above their heads, the\nscoreboard, the text chat, the match clock and\nthe talking timer."),
     ("STREAMER MODE:", "network_setup/streamer_mode",
      "Hide offensive words in names and text from\nother players, maps and mods, as stars."),
     ("SERVER BROWSER:", "network_setup/server_browser",
@@ -660,6 +663,10 @@ SCREENS["network_setup/multiplayer_hud"] = {
          "The text chat's colors: COLORS, names in their\nteam's color; WHITE, as Custom Edition.", None),
         ("MATCH TIMER:", "display.match_timer", ON_OFF,
          "Draw a clock at the bottom right in multiplayer,\ncounting up from the start of the game.", None),
+        ("TALKING TIMER:", "audio.talking_timer", ON_OFF,
+         "Call the game clock aloud in multiplayer: the\nseconds left, a countdown, and each new minute.", None),
+        ("TIMER VOLUME:", "audio.timer_volume", VOLUMES,
+         "The talking timer's voice: 8 plays it as\nrecorded, 10 is 25% louder.", None),
     ],
 }
 

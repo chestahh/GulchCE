@@ -271,9 +271,6 @@ def test_host_camera_menu_layout():
                              ("SERVER_LISTING_PUBLISHER_HELP", "publisher key")):
             index = int(re.search(r"#define " + name + r" (\d+)", menus).group(1))
             assert phrase in help_text[index]
-    spec = port_settings.SCREENS["video_settings/fov_viewmodels"]
-    assert 1 + len(spec["rows"]) + len(spec["categories"]) == 10
-    assert spec["extra_help"][0].startswith("CONTROLLED BY HOST")
 
 
 def test_host_help_is_generated():
@@ -281,8 +278,12 @@ def test_host_help_is_generated():
     import port_settings
     name = "main_menu.settings_select.player_setup.player_profile_edit.video_settings.fov_viewmodels.xml"
     root = ET.fromstring("\n".join(port_settings.settings_files()[name]))
-    strings = next(node for node in root.findall("strings") if node.attrib["name"].endswith("/help_strings"))
-    assert strings[10].attrib["text"].startswith("CONTROLLED BY HOST")
+    menus = (ROOT / "port/linux/game/menu_functions.c").read_text()
+    index = int(re.search(r"#define HOST_CAMERA_LOCKED_HELP (\d+)", menus).group(1))
+    stored = ET.parse(ROOT / "port/assets/menus/ce" / name).getroot()
+    for document in (root, stored):
+        strings = next(node for node in document.findall("strings") if node.attrib["name"].endswith("/help_strings"))
+        assert strings[index].attrib["text"].startswith("CONTROLLED BY HOST")
 
 def test_host_hidden_rows_reflow(tmp_path):
     from harness import function

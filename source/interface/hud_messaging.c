@@ -148,6 +148,7 @@ symbols in this file:
 #include "text/font_group.h"
 #include "text/text_group.h"
 #include "text/unicode.h"
+int config_boolean(const char *name); /* port: port/linux/src/port_config.c */
 #include "network_coop.h" /* port: port/linux/game/network_coop.c */
 #include "controller_remap.h" /* port: port/linux/game/controller_remap_game.c */
 
@@ -1025,7 +1026,8 @@ void hud_render_timer(
 		}
 	}
 
-	if (time_code_time != NONE)
+	/* port: retail endings leave this script diagnostic active. */
+	if (time_code_time != NONE && config_boolean("debug.cinematic_time_code"))
 	{
 		long stop_time = time_code_stop_time;
 

@@ -182,7 +182,14 @@ static void files_gather(void)
 		{
 			unsigned long size = 0;
 			unsigned char *data;
+#ifdef _WIN32
+			char *separator;
 
+			/* (Windows lists ce\main_menu.xml: the embedded files' names
+			have /, and a file that replaced one is not added again) */
+			for (separator = names[name]; (separator = strchr(separator, '\\')) != NULL; separator++)
+				*separator = '/';
+#endif
 			if (file_find(names[name]) >= 0)
 				continue;
 			snprintf(path, sizeof(path), "%s/%s", folder, names[name]);
@@ -1057,6 +1064,8 @@ void halo_menus_art_register(void const *texture, char const *png)
 	unsigned long data = ((const unsigned long *)texture)[1];
 	long index;
 
+	/* (the bitmap's lookups give its art from now on) */
+	xgpu_texture_lookups_changed();
 	for (index = 0; index < art_count; index++)
 	{
 		if (art[index].data == data)
@@ -1105,6 +1114,7 @@ void halo_menus_art_forget(void)
 	}
 	art_count = 0;
 	memset(art_filter, 0, sizeof(art_filter));
+	xgpu_texture_lookups_changed();
 }
 
 unsigned int menu_art_texture(unsigned long data, unsigned long *levels)

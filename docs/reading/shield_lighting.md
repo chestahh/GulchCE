@@ -6,6 +6,8 @@ layer. Animated Overshield still owns the rising surface and first-person arm
 animation; it does not require Shield Glow. Neither feature changes vitality,
 damage, tags, projectile responses or map-family loading.
 
+As active camouflage strengthens, `overshield_effect_intensity` fades the added body and arm flares. A shield hit can still light the body through the cloak.
+
 Both switches default off. Shield Glow and Glow Intensity are in Video Setup >
 Dynamic Lighting; Animated Overshield remains in Extra Effects. Existing saved
 keys are retained. The inherited `network.shield_effects` policy is authoritative

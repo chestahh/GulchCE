@@ -234,6 +234,9 @@ struct xgpu_texture_description
 	BOOL hires_coverage; /* ... whose green is its coverage (a meter's) */
 	BOOL hires_point_threshold; /* ... whose red holds discrete segment data */
 	BOOL ce_meter_channels;
+	/* (xgpu_texture_get) the texture's own pixels, as they are: no palette,
+	replacement or channel change, and the cache in use */
+	BOOL direct;
 };
 
 void xgpu_texture_describe(DWORD format_word, DWORD size_word, struct xgpu_texture_description *description);
@@ -247,6 +250,11 @@ from guest memory as needed; *target receives GL_TEXTURE_2D etc. */
 GLuint xgpu_texture_get(const DWORD *resource, const D3DCOLOR *palette, GLenum *target,
 	struct xgpu_texture_description *description);
 void xgpu_texture_cache_begin_frame(void);
+/* changes whenever a texture lookup might give something other than it
+gave for the same header (xbox_textures.c), as xgpu_texture_lookups_changed
+says it may */
+unsigned long xgpu_texture_lookup_serial(void);
+void xgpu_texture_lookups_changed(void);
 /* (debug.gpu_stats) a texture of this many bytes uploaded to GL (d3d8_gl.c) */
 void xgpu_statistics_texture_upload(unsigned long bytes);
 
@@ -383,5 +391,16 @@ nits), or only the ring ring[0], ring[1] (its centre in the window), from
 radius ring[3] to ring[2]; ring[2] 0 for the whole rectangle. FALSE if its
 program does not build. */
 BOOL xgpu_post_fill(const GLint corners[4], const float color[3], const float ring[4]);
+#ifndef HALO_GLES
+/* blurs a shadow map scale (2 to 8) times the Xbox's 128 texels each way,
+width by height pixels, from source_texture into destination_texture's
+framebuffer destination, as the game's passes do (rasterizer_xbox_shadows.c),
+in two passes: across into a texture of its own, then down. A source
+source_width across, twice the width, is averaged down into the destination
+first, and blurred there. Its color only; FALSE if its program does not
+build. */
+BOOL xgpu_post_shadow_blur(GLuint source_texture, unsigned long source_width, GLuint destination_texture,
+	GLuint destination, unsigned long width, unsigned long height, long scale);
+#endif
 
 #endif

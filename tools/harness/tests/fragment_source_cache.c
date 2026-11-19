@@ -1,6 +1,6 @@
 #include "harness.h"
 typedef unsigned long DWORD;
-typedef unsigned int GLuint;
+typedef unsigned int GLuint, GLenum;
 typedef int BOOL;
 #define GL_FRAGMENT_SHADER 1
 struct nv2a_pixel_shader_key { DWORD source, unused; };
@@ -21,9 +21,11 @@ static GLuint xgpu_compile_shader(int type, const char *source, const char *what
 	compiles++;
 	return !strcmp(source, sources[2]) ? 0 : compiles;
 }
+#include "deferred.inc"
 static void *cache_malloc(size_t size) { return fail_allocation ? NULL : malloc(size); }
 static void cache_free(void *memory) { freed++; free(memory); }
-static void *device_record_new(size_t size) { return cache_malloc(size); }
+/* The injected failure concerns the optional sharing record, not the required full-key record. */
+static void *device_record_new(size_t size) { return calloc(1, size); }
 #define malloc cache_malloc
 #define free cache_free
 #include "under_test.inc"
@@ -48,13 +50,17 @@ int main(int argc, char **argv)
 	if (second)
 		CHECK(second < shader_hashes_size && shader_hashes[second] == source_hash(sources[b.source]),
 			"second fragment has the wrong program-binary cache hash");
+	CHECK(!compiles, "fragment lookup compiled before a program needed the source");
+	CHECK(first && second, "valid GLSL source must receive a deferred name");
+	CHECK((shader_compiled(first) != 0) == (strcmp(argv[1], "failure") != 0), "unexpected compilation result");
+	shader_compiled(second);
 	if (!strcmp(argv[1], "distinct") || !strcmp(argv[1], "prefix"))
 		CHECK(first != second && compiles == 2, "different GLSL merged on hash/prefix");
 	else if (!strcmp(argv[1], "allocation"))
 		CHECK(first && second && compiles == 2 && freed == 2, "allocation fallback lost shader/source");
 	else
 		CHECK(first == second && compiles == 1 && freed == 1, "identical source compiled again");
-	if (!strcmp(argv[1], "failure")) CHECK(!first && !second, "failed shader returned success");
+	if (!strcmp(argv[1], "failure")) CHECK(!shader_compiled(first) && compiles == 1, "failed compilation was retried or returned success");
 	CHECK(translations == 2, "full keys incorrectly collapsed before translation");
 	CHECK(fragment_shader_get(&a) == first && translations == 2, "recent key regenerated source");
 	if (!strcmp(argv[1], "recent"))
@@ -80,6 +86,7 @@ int main(int argc, char **argv)
 		while (key) { struct fragment_entry *next = key->next; free(key); key = next; }
 	}
 	CHECK(freed + count == translations, "source leaked or owned more than once");
+	free(deferred_shaders);
 	free(shader_hashes);
 	return 0;
 }

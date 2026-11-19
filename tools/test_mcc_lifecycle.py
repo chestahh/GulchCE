@@ -260,7 +260,8 @@ static short global_structure_bsp_index;
 static int mcc,mode;
 static struct results {
     int stopped,started,collision_disabled,collision_enabled,disconnects,reconnects,
-        unloads,loads,verifies,modal,silent,menu,returned,index,scenario_index,pointers;
+        unloads,loads,verifies,modal,silent,menu,returned,index,scenario_index,pointers,
+        cleared_leaves,cleared_camera,reset_lights;
 } observed;
 static int mcc_cache_tags_loaded(void) {return mcc;}
 static void main_stop_time(void) {observed.stopped++;}
@@ -281,6 +282,9 @@ static struct structure_bsp *structure_bsp_definition_get(int index) {(void)inde
 static int structure_bsp_port_verify(struct structure_bsp *value) {
     (void)value;observed.verifies++;return mode!=4 || observed.verifies>1;
 }
+static void scenario_leaf_cache_clear(void) {observed.cleared_leaves++;}
+static void objects_clear_activating_cluster(void) {observed.cleared_camera++;}
+static void rasterizer_lights_reset_for_new_structure_bsp(void) {observed.reset_lights++;}
 static void structure_culling_structure_bsp_loaded(void) {}
 static void main_goto_main_menu(void) {observed.menu++;}
 static void error(int priority,char const *format,...) {
@@ -316,6 +320,7 @@ int main(void) {
             if(old==0&&requested==1&&mode==2) {
                 if(expected.modal!=1||expected.loads!=2||expected.returned||expected.pointers!=3||
                     expected.disconnects!=1||expected.reconnects!=1||expected.menu||
+                    expected.cleared_leaves!=1||expected.reset_lights!=1||expected.cleared_camera||
                     expected.index!=0||expected.scenario_index!=0)return 4;
             }
             mcc=1;reset(old);finish(scenario_switch_structure_bsp((short)requested));

@@ -12,6 +12,7 @@ def test_model_major_batch_matches_original_queries():
     code += '\n'.join(function(maths, name) for name in ('matrix4x3_transform_point', 'matrix4x3_transform_vector'))
     original = read('source/physics/collision_models.c')
     code += '\n'+function(original, 'collision_node_region_valid')+'\nstatic LARGE_INTEGER collision_model_test_vector_time;\n'
+    code += function(original, 'collision_model_port_vector_near_sphere') + '\n'
     code += function(original, 'collision_model_test_vector') + '\n'
     code += re.sub(r'^#include.*$', '', read('port/linux/game/plasma_collision_models.c'), flags=re.M)
     status, output = run(build('plasma_collision_models', (('under_test.inc', code),)), 'batch')

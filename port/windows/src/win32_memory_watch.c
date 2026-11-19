@@ -105,8 +105,11 @@ void memory_watch_protect(unsigned long address, unsigned long size)
 				(page - begin) * WATCH_PAGE_SIZE, PAGE_READONLY, &previous))
 			{
 				for (retry = begin; retry < page; retry++)
-					VirtualProtect((void *)(PLATFORM_CONTIGUOUS_BASE + retry * WATCH_PAGE_SIZE),
-						WATCH_PAGE_SIZE, PAGE_READONLY, &previous);
+				{
+					if (!VirtualProtect((void *)(PLATFORM_CONTIGUOUS_BASE + retry * WATCH_PAGE_SIZE),
+						WATCH_PAGE_SIZE, PAGE_READONLY, &previous))
+						page_protected[retry] = 0;
+				}
 			}
 			page--;
 		}

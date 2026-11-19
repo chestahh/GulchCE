@@ -299,6 +299,8 @@ void hud_hires_register_placeholder(long asset, const unsigned long *texture)
 {
 	long index;
 
+	/* (the placeholder's lookups give the texture drawn for it from now on) */
+	xgpu_texture_lookups_changed();
 	for (index = 0; index < placeholder_count && placeholders[index].asset != asset; index++)
 		;
 	if (texture && index == placeholder_count && placeholder_count < MAXIMUM_PLACEHOLDERS)
@@ -453,15 +455,160 @@ static void upscale_outline(unsigned char *pixels, const unsigned char *bgra,
 	}
 }
 
+/* The upscaled textures by their sheet's pixels, kept after the texture
+ * that wanted one lets it go: a sheet out of sight for half a minute is
+ * dropped by the texture cache (xbox_textures.c) and the game writes some
+ * sheets again, the same pixels each time, and each time the upscale (tens
+ * of milliseconds for a 256-pixel sheet) held a frame up, about once a
+ * minute through a game. The same pixels, width, height and kind give the
+ * same texture, so it is used again (the pixels compared whole), in this map
+ * or a later one: the stock sheets are the same in every map. Up to
+ * UPSCALE_CACHE_SIZE are kept; of those no texture uses, the
+ * UPSCALE_CACHE_UNUSED last used stay while they hold no more than
+ * UPSCALE_CACHE_UNUSED_BYTES (all go when the cache is full). */
+#define UPSCALE_CACHE_SIZE 32
+#define UPSCALE_CACHE_UNUSED 8
+#define UPSCALE_CACHE_UNUSED_BYTES (16UL << 20)
+
+struct upscale_cached
+{
+	GLuint texture;
+	unsigned long crc;
+	unsigned long width, height;
+	long kind;
+	/* the sheet's pixels, compared whole */
+	unsigned char *source;
+	unsigned long levels;
+	long users;
+	unsigned long last_used;
+	/* about what it holds: the texture (4 times as wide and high, RGBA,
+	a third more for its mip levels) and the sheet's pixels */
+	unsigned long bytes;
+};
+
+static struct upscale_cached upscale_cache[UPSCALE_CACHE_SIZE];
+static unsigned long upscale_cache_clock;
+
+/* the longest unused of the cached textures no texture uses, deleted, while
+more than keep of them are cached, or more than keep_bytes */
+static void upscale_cache_trim(long keep, unsigned long keep_bytes)
+{
+	for (;;)
+	{
+		long index, oldest = -1, unused = 0;
+		unsigned long unused_bytes = 0;
+
+		for (index = 0; index < UPSCALE_CACHE_SIZE; index++)
+		{
+			if (!upscale_cache[index].texture || upscale_cache[index].users > 0)
+				continue;
+			unused++;
+			unused_bytes += upscale_cache[index].bytes;
+			if (oldest < 0 || upscale_cache[index].last_used < upscale_cache[oldest].last_used)
+				oldest = index;
+		}
+		if (oldest < 0 || (unused <= keep && unused_bytes <= keep_bytes))
+			return;
+		glDeleteTextures(1, &upscale_cache[oldest].texture);
+		xgpu_gl_state_invalidate();
+		free(upscale_cache[oldest].source);
+		memset(&upscale_cache[oldest], 0, sizeof(upscale_cache[oldest]));
+	}
+}
+
+void hud_hires_upscale_release(unsigned int texture)
+{
+	long index;
+
+	if (!texture)
+		return;
+	for (index = 0; index < UPSCALE_CACHE_SIZE; index++)
+	{
+		if (upscale_cache[index].texture == texture)
+		{
+			if (upscale_cache[index].users > 0)
+				upscale_cache[index].users--;
+			upscale_cache[index].last_used = ++upscale_cache_clock;
+			upscale_cache_trim(UPSCALE_CACHE_UNUSED, UPSCALE_CACHE_UNUSED_BYTES);
+			return;
+		}
+	}
+	/* (one the cache had no room for) */
+	glDeleteTextures(1, (GLuint *)&texture);
+	xgpu_gl_state_invalidate();
+}
+
+static unsigned int upscale_texture_make(const unsigned char *bgra, unsigned long width,
+	unsigned long height, long kind, unsigned long *levels);
+
 unsigned int hud_hires_upscale_texture(const unsigned char *bgra, unsigned long width,
+	unsigned long height, long kind, unsigned long *levels)
+{
+	unsigned long crc;
+	long index, free_index = -1;
+	GLuint texture;
+	unsigned char *source;
+
+	if (!xgpu_gl_ready() || !bgra)
+		return 0;
+	crc = crc32(0L, (const Bytef *)bgra, (uInt)(width * height * 4));
+	for (index = 0; index < UPSCALE_CACHE_SIZE; index++)
+	{
+		struct upscale_cached *cached = &upscale_cache[index];
+
+		if (!cached->texture)
+		{
+			if (free_index < 0)
+				free_index = index;
+			continue;
+		}
+		if (cached->crc == crc && cached->width == width && cached->height == height && cached->kind == kind &&
+			!memcmp(cached->source, bgra, width * height * 4))
+		{
+			cached->users++;
+			cached->last_used = ++upscale_cache_clock;
+			*levels = cached->levels;
+			return cached->texture;
+		}
+	}
+	texture = upscale_texture_make(bgra, width, height, kind, levels);
+	if (!texture)
+		return 0;
+	if (free_index < 0)
+	{
+		upscale_cache_trim(0, 0);
+		for (index = 0; index < UPSCALE_CACHE_SIZE && free_index < 0; index++)
+		{
+			if (!upscale_cache[index].texture)
+				free_index = index;
+		}
+	}
+	if (free_index >= 0 && (source = (unsigned char *)malloc(width * height * 4)) != NULL)
+	{
+		struct upscale_cached *cached = &upscale_cache[free_index];
+
+		memcpy(source, bgra, width * height * 4);
+		cached->source = source;
+		cached->texture = texture;
+		cached->crc = crc;
+		cached->width = width;
+		cached->height = height;
+		cached->kind = kind;
+		cached->levels = *levels;
+		cached->users = 1;
+		cached->last_used = ++upscale_cache_clock;
+		cached->bytes = width * height * 4 * (16 * 4 / 3 + 1);
+	}
+	return texture;
+}
+
+static unsigned int upscale_texture_make(const unsigned char *bgra, unsigned long width,
 	unsigned long height, long kind, unsigned long *levels)
 {
 	unsigned char *pixels;
 	unsigned long largest;
 	GLuint texture;
 
-	if (!xgpu_gl_ready())
-		return 0;
 	pixels = kind == 4 ? upscale_pixels(bgra, width, height, 512) : hud_hires_upscale_pixels(bgra, width, height);
 	if (!pixels)
 		return 0;

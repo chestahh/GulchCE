@@ -79,8 +79,8 @@ static void csmemset(void *destination, int value, unsigned long bytes) {
     while (bytes--) *out++ = (unsigned char)value;
 }
 '''
-    forget = function(partitions, 'cluster_partition_port_forget')
-    owner += forget
+    owner += function(partitions, 'cluster_partition_port_cluster_changed')
+    owner += function(partitions, 'cluster_partition_port_forget')
     owner += function(partitions, 'cluster_partition_new')
     owner += '''
 void initialize_partition(void) {

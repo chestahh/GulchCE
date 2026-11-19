@@ -8,6 +8,9 @@ static long now, owner = 42;
 static real_vector3d zero;
 static real_vector3d *global_zero_vector3d = &zero;
 static long game_time_get(void) { return now; }
+/* The variation table is exercised by sound_played_beyond; observe its map reset here. */
+static int variation_resets;
+static void sound_definitions_played_beyond_clear(void) { variation_resets++; }
 static long local_player_get_player_index(short player) { return owner + player; }
 static void vector_from_points3d(const real_point3d *a, const real_point3d *b, real_vector3d *v)
 { v->i = b->x - a->x; v->j = b->y - a->y; v->k = b->z - a->z; }
@@ -68,6 +71,9 @@ static struct scenario_cutscene_camera_point test_camera_point;
 #define TAG_BLOCK_GET_ELEMENT(block, index, type) (&test_camera_point)
 static void vectors3d_from_euler_angles3d(real_vector3d *forward, real_vector3d *up,
 	const real_vector3d *orientation) { *forward = zero; *up = zero; }
+/* the cuts the scripts make, as the frames' interpolation hears them */
+static int interpolation_cuts;
+static void render_interpolation_cut(void) { interpolation_cuts++; }
 
 #include "under_test.inc"
 
@@ -147,11 +153,47 @@ int main(int argc, char **argv)
 		CHECK(v.i == 0, "director selection retained motion");
 		return 0;
 	}
+	/* a cut to another point, or out of another mode, is a new shot to the
+	frames' interpolation; the same point set again, or a point moved to over
+	time, is not */
+	CASE("interpolation-cuts")
+	{
+		camera_script_globals.mode = 0;
+		camera_script_globals.camera_point_index = -1;
+		camera_script_globals.relative_object_index = -1;
+		scripted_camera_set(3, 0, -1);
+		CHECK(interpolation_cuts == 1, "a cut out of another mode: %d", interpolation_cuts);
+		scripted_camera_set(3, 0, -1);
+		CHECK(interpolation_cuts == 1, "the same point set again: %d", interpolation_cuts);
+		scripted_camera_set(4, 0, -1);
+		CHECK(interpolation_cuts == 2, "a cut to another point: %d", interpolation_cuts);
+		scripted_camera_set(4, 0, 9);
+		CHECK(interpolation_cuts == 3, "a cut to the point relative to an object: %d", interpolation_cuts);
+		scripted_camera_set(5, 120, 9);
+		CHECK(interpolation_cuts == 3, "a move over four seconds: %d", interpolation_cuts);
+		scripted_camera_enable(FALSE);
+		CHECK(interpolation_cuts == 4, "the scripted camera turned off: %d", interpolation_cuts);
+		p.x += 1;
+		scripted_camera_set_camera_point_relative(&p, &zero, &zero, 1, 0, -1);
+		CHECK(interpolation_cuts == 4, "co-op's camera each tick: %d", interpolation_cuts);
+		return 0;
+	}
+	CASE("finish-camera-move")
+	{
+		scripted_camera_set(5, 120, 9);
+		CHECK(!interpolation_cuts, "a timed move started as a cut");
+		scripted_camera_set(5, 0, 9);
+		CHECK(interpolation_cuts == 1, "finishing a timed move did not cut");
+		scripted_camera_set(5, 0, 9);
+		CHECK(interpolation_cuts == 1, "a settled camera cut twice");
+		return 0;
+	}
 	CASE("lifecycle")
 	{
 		for (player = 0; player < 4; player++)
 			listener_measure_velocity(player, &p, &v);
 		sound_initialize_for_new_map();
+		CHECK(variation_resets == 1, "map reset did not clear sound variation state");
 		p.x = 6;
 		for (player = 0; player < 4; player++)
 		{

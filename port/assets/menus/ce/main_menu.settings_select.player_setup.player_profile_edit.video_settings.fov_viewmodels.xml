@@ -21,7 +21,8 @@
 		<child widget="main_menu/settings_select/player_setup/player_profile_edit/video_settings/fov_viewmodels/op_viewmodel_shield" x="54" y="203"/>
 		<child widget="main_menu/settings_select/player_setup/player_profile_edit/video_settings/fov_viewmodels/op_third_person" x="54" y="229"/>
 		<child widget="main_menu/settings_select/player_setup/player_profile_edit/video_settings/fov_viewmodels/op_first_person_legs" x="54" y="255"/>
-		<child widget="main_menu/settings_select/player_setup/player_profile_edit/video_settings/fov_viewmodels/op_shoulder_camera" x="54" y="281"/>
+		<child widget="main_menu/settings_select/player_setup/player_profile_edit/video_settings/fov_viewmodels/op_cinematic_framing" x="54" y="281"/>
+		<child widget="main_menu/settings_select/player_setup/player_profile_edit/video_settings/fov_viewmodels/op_shoulder_camera" x="54" y="307"/>
 		<child widget="main_menu/settings_select/player_setup/player_profile_edit/video_settings/fov_viewmodels/button_bar" y="414"/>
 	</widget>
 	<widget name="main_menu/settings_select/player_setup/player_profile_edit/video_settings/fov_viewmodels/button_bar" type="column_list" width="640" height="28" flags="pass_unhandled_to_focused_child left_right_tabs_items">
@@ -101,13 +102,22 @@
 	<widget name="main_menu/settings_select/player_setup/player_profile_edit/video_settings/fov_viewmodels/first_person_legs_spinner" type="spinner" left="3" top="2" width="147" height="20" flags="pass_unhandled_to_focused_child left_right_tabs_items" strings="ON|OFF" setting="display.first_person_legs" values="true|false" font="ui\large_ui" color="#FF2896FF" align="center" text_y="1" header_bitmap="bitmaps/arrow_sm_left" footer_bitmap="bitmaps/arrow_sm_right" header_bounds="7 -6 19 0" footer_bounds="7 150 19 156">
 		<on event="created" run="port setting load"/>
 	</widget>
+	<widget name="main_menu/settings_select/player_setup/player_profile_edit/video_settings/fov_viewmodels/op_cinematic_framing" width="512" height="28" flags="pass_unhandled_to_focused_child" bitmap="bitmaps/option_bkds" color="#FF2896FF">
+		<child widget="main_menu/settings_select/player_setup/player_profile_edit/video_settings/fov_viewmodels/cinematic_framing_label"/>
+		<child widget="main_menu/settings_select/player_setup/player_profile_edit/video_settings/fov_viewmodels/cinematic_framing_spinner" x="320" y="1"/>
+	</widget>
+	<widget name="main_menu/settings_select/player_setup/player_profile_edit/video_settings/fov_viewmodels/cinematic_framing_label" type="text" controller="1" width="300" height="22" string_list="main_menu/settings_select/player_setup/player_profile_edit/video_settings/fov_viewmodels/labels" string_index="8" font="ui\large_ui" color="#FF2896FF" text_x="13" text_y="4">
+	</widget>
+	<widget name="main_menu/settings_select/player_setup/player_profile_edit/video_settings/fov_viewmodels/cinematic_framing_spinner" type="spinner" left="3" top="2" width="147" height="20" flags="pass_unhandled_to_focused_child left_right_tabs_items" strings="ON|OFF" setting="display.cinematic_framing" values="true|false" font="ui\large_ui" color="#FF2896FF" align="center" text_y="1" header_bitmap="bitmaps/arrow_sm_left" footer_bitmap="bitmaps/arrow_sm_right" header_bounds="7 -6 19 0" footer_bounds="7 150 19 156">
+		<on event="created" run="port setting load"/>
+	</widget>
 	<widget name="main_menu/settings_select/player_setup/player_profile_edit/video_settings/fov_viewmodels/op_shoulder_camera" width="512" height="28" flags="pass_unhandled_to_focused_child" bitmap="bitmaps/option_bkds" color="#FF2896FF">
 		<on event="a" open="main_menu/settings_select/player_setup/player_profile_edit/video_settings/shoulder_camera/shoulder_camera_settings_screen"/>
 		<on event="start" open="main_menu/settings_select/player_setup/player_profile_edit/video_settings/shoulder_camera/shoulder_camera_settings_screen"/>
 		<on event="left_mouse" run="mouse emit accept event"/>
 		<child widget="main_menu/settings_select/player_setup/player_profile_edit/video_settings/fov_viewmodels/shoulder_camera_label"/>
 	</widget>
-	<widget name="main_menu/settings_select/player_setup/player_profile_edit/video_settings/fov_viewmodels/shoulder_camera_label" type="text" controller="1" width="512" height="22" string_list="main_menu/settings_select/player_setup/player_profile_edit/video_settings/fov_viewmodels/labels" string_index="8" font="ui\large_ui" color="#FF2896FF" text_x="13" text_y="4">
+	<widget name="main_menu/settings_select/player_setup/player_profile_edit/video_settings/fov_viewmodels/shoulder_camera_label" type="text" controller="1" width="512" height="22" string_list="main_menu/settings_select/player_setup/player_profile_edit/video_settings/fov_viewmodels/labels" string_index="9" font="ui\large_ui" color="#FF2896FF" text_x="13" text_y="4">
 	</widget>
 	<widget name="main_menu/settings_select/player_setup/player_profile_edit/video_settings/fov_viewmodels/button_defaults" type="text" width="128" height="24" bitmap="bitmaps/text_button_background" string_list="strings/common_button_captions" string_index="3" font="ui\small_ui" color="#FFFFFFFF" align="center" text_y="2">
 		<on event="a" run="port settings defaults"/>
@@ -128,6 +138,7 @@
 		<string text="ARM SHIELDS:"/>
 		<string text="THIRD PERSON:"/>
 		<string text="LEGS:"/>
+		<string text="XBOX CUTSCENES:"/>
 		<string text="SHOULDER CAMERA:"/>
 	</strings>
 	<strings name="main_menu/settings_select/player_setup/player_profile_edit/video_settings/fov_viewmodels/help_strings">
@@ -140,6 +151,7 @@
 		<string text="The energy shield's flare on your first-person\narms too, as on your body."/>
 		<string text="Right-shoulder view on foot. Zoom uses first\nperson. The reticle follows your aim point."/>
 		<string text="Your legs in first person, seen looking down,\nmoving as you run. Your body as others see it."/>
+		<string text="Cutscenes framed as on the Xbox: no black bars\non 16:9, thinner ones on 16:10."/>
 		<string text="Choose the shoulder and camera position.\nB swaps shoulders while playing."/>
 		<string text="CONTROLLED BY HOST. Your personal camera\npreference returns after leaving the match."/>
 	</strings>

@@ -96,6 +96,8 @@ static void tracked_free(void *p) {if(p)live_allocations--;free(p);}
 void glGenTextures(int count,GLuint *p) {(void)count;*p=fail_generate?0:++generated;}
 GLuint xgpu_texture_name_new(void) {GLuint texture;glGenTextures(1,&texture);return texture;}
 void glDeleteTextures(int count,GLuint const *p) {(void)count;if(!*p)exit(80);deleted++;}
+static unsigned lookup_changes;
+void xgpu_texture_lookups_changed(void) {lookup_changes++;}
 void xgpu_gl_state_invalidate(void) {invalidated++;}
 void xgpu_mcc_texture_unbind(DWORD const *p) {if(!p)exit(81);unbound++;}
 BOOL xgpu_mcc_texture_upload(GLuint texture,GLenum target,struct xgpu_texture_description const *d,
@@ -197,7 +199,7 @@ int main(int argc,char **argv) {
         if(!xgpu_mcc_texture_get(header,NULL,&texture,&target,&d) ||
             !d.hires || !d.hires_coverage || !d.hires_point_threshold)return 12;
         mcc_texture_bridge_dispose();
-        if(live_allocations||deleted!=1||unbound!=1||invalidated!=1||mcc_texture_bridge_find(&owner)||get(header,&texture,&target))return 13;
+        if(lookup_changes!=2||live_allocations||deleted!=1||unbound!=1||invalidated!=1||mcc_texture_bridge_find(&owner)||get(header,&texture,&target))return 13;
         header=mcc_texture_bridge_register(&owner,format(2,2,0,1,0),0,pixels,sizeof(pixels));
         if(!xgpu_mcc_texture_get(header,NULL,&texture,&target,&d)||uploads!=2||generated!=2 ||
             d.hires || d.hires_coverage || d.hires_point_threshold)return 14;

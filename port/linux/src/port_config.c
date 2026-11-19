@@ -184,6 +184,12 @@ static const struct config_setting config_settings[] =
 		"The first-person weapon's and hands' field of view, in degrees across\n"
 		"at 16:9 (20 to 150); 0 keeps the weapon's stock view, also when\n"
 		"display.fov widens the world." },
+	{ "display.cinematic_framing", _config_boolean, "false", "HALO_CINEMATIC_FRAMING", _environment_value, _platform_all,
+		"Cutscenes with the letterbox as the Xbox showed them: the picture\n"
+		"between its bars (16:9, the Xbox's width) across the screen, with bars\n"
+		"only as thick as keep that shape: none at 16:9 or wider, thinner at\n"
+		"16:10, the Xbox's own at 4:3. false: the stock bars, an eighth of the\n"
+		"height each, over a picture as wide as the screen." },
 	{ "display.viewmodel_visible", _config_boolean, "true", "HALO_VIEWMODEL_VISIBLE", _environment_value, _platform_all,
 		"Draw the first-person weapon, hands and what is attached to them.\n"
 		"Off, they are not drawn; firing, animation, sound and lights go on." },
@@ -249,10 +255,20 @@ static const struct config_setting config_settings[] =
 	{ "display.widescreen_loading", _config_boolean, "true", "HALO_WIDESCREEN_LOADING", _environment_value, _platform_all,
 		"Widen the stock loading screen, keeping its original picture, sweep\n"
 		"and glow trails, including MCC. False keeps the central 4:3 framing." },
+	{ "display.widescreen_loading_fill", _config_boolean, "false", "HALO_WIDESCREEN_LOADING_FILL", _environment_value, _platform_all,
+		"With widescreen_loading, draw the loading picture at its own 4:3\n"
+		"proportions, filling the width and leaving out its top and bottom\n"
+		"edges; false stretches it to the screen's width." },
 	{ "display.shadow_resolution", _config_integer, "128", "HALO_SHADOW_RESOLUTION", _environment_value,
 		_platform_all,
-		"The size the objects' shadows are drawn at, in pixels each way: 128 as\n"
-		"on the Xbox, or 256, 512 or 1024 for smoother edges, as soft." },
+		"The most the objects' shadows are drawn at, in pixels each way: 128 as\n"
+		"on the Xbox, or 256, 512 or 1024 for smoother edges, as soft. Each\n"
+		"shadow is drawn at the size its object's size on the screen needs." },
+	{ "display.shadow_map_reuse", _config_boolean, "false", "HALO_SHADOW_MAP_REUSE", _environment_value,
+		_platform_all,
+		"True: a small shadow's map is drawn every other frame, the frame\n"
+		"between projecting the one kept where its object is now. Less GPU time\n"
+		"with many shadows in view. False: each shadow's map each frame." },
 	{ "display.menus", _config_string, "\"pc\"", "HALO_MENUS", _environment_value, _platform_all,
 		"The menus: \"pc\" for the PC version's main menu (port/assets/menus,\n"
 		"and a menus folder here for your own), \"xbox\" for the Xbox's." },
@@ -395,6 +411,13 @@ static const struct config_setting config_settings[] =
 	{ "audio.effects_volume", _config_real, "1.0", "HALO_EFFECTS_VOLUME", _environment_value, _platform_all,
 		"The volume of every other sound (effects and speech), 0.0 to 1.0 (of\n"
 		"audio.volume)." },
+	{ "audio.talking_timer", _config_boolean, "false", "HALO_TALKING_TIMER", _environment_value, _platform_all,
+		"Call the game clock aloud in multiplayer: the seconds left in each\n"
+		"minute, a countdown from 10, and each minute as it turns, up to 30\n"
+		"minutes." },
+	{ "audio.timer_volume", _config_real, "0.8", "HALO_TIMER_VOLUME", _environment_value, _platform_all,
+		"The talking timer's voice, 0.0 to 1.0 (of audio.volume). 0.8 plays its\n"
+		"clips at their recorded level; 1.0 is 25% louder." },
 	{ "audio.buffer_frames", _config_integer, "512", "HALO_AUDIO_BUFFER_FRAMES", _environment_value,
 		_platform_desktop,
 		"The audio device's buffer, in sample frames at 48 kHz (64 to 8192): larger\n"
@@ -698,7 +721,7 @@ static const struct config_setting config_settings[] =
 		"The overshield as this machine draws it: its flare rising up the body as\n"
 		"it charges (2 seconds, 3 from a shield that was down) and staying lit,\n"
 		"its energy slower: green above 200% shields, reddish-pink below.\n"
-		"Arms also require Arm Shields. A hit on it plays\n"
+		"The flare fades with active camouflage. Arms also require Arm Shields. A hit on it plays\n"
 		"what the projectile plays on an Elite's shield. Only what is drawn\n"
 		"and heard changes. Online, the host decides through network.shield_effects,\n"
 		"unless it is \"players\" or the game is co-op (each player's own)." },
@@ -1442,6 +1465,8 @@ static const struct config_setting config_settings[] =
 	{ "debug.exit_after", _config_real, "0.0", "HALO_EXIT_AFTER", _environment_value, _platform_all,
 		"Quit this many seconds after the window opens (without a window, after\n"
 		"the first frame); 0 never." },
+	{ "debug.cinematic_time_code", _config_boolean, "false", "HALO_CINEMATIC_TIME_CODE", _environment_value, _platform_all,
+		"Draw the tick counter requested by cinematic scripts." },
 	{ "debug.hidden_window", _config_boolean, "false", "HALO_HIDDEN_WINDOW", _environment_set_is_true, _platform_desktop,
 		"Keep the window hidden (and never fullscreen)." },
 	{ "debug.voice_test", _config_boolean, "false", "HALO_VOICE_TEST", _environment_set_is_true, _platform_all,

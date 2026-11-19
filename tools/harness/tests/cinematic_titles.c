@@ -42,6 +42,7 @@ static long ticks;
 
 /* the letterbox's camera and bars */
 static struct { struct { rectangle2d viewport_bounds; } camera; } render;
+static real cinematic_letterbox_bar_height(rectangle2d const *bounds) { (void)bounds; return 0.125f; }
 static long quads;
 static void draw_quad(rectangle2d const *bounds, pixel32 color) { quads++; }
 

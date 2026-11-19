@@ -45,7 +45,7 @@ static struct { int texture_modes,combiner_count,final_combiner_inputs_abcd,fina
 static real_matrix4x3 local_shadow_matrix;
 static real_rgb_color local_shadow_color;
 static real local_object_bounding_radius;
-static int local_parameters, shadow_setup, shadow_used, shadow_restored;
+static int local_parameters, shadow_setup, shadow_used, shadow_restored, shadow_port_batched;
 #define IDirect3DDevice8_SetRenderState(...) (++device_calls)
 #define IDirect3DDevice8_SetVertexShaderConstant(...) (++device_calls)
 #define rasterizer_set_pixel_shader(...) (++device_calls)
@@ -62,13 +62,13 @@ static void skipped(int target, int enabled)
     rasterizer_debug_options.draw_environment_shadows=enabled;
     device_calls=0;
     local_object_bounding_radius=-456.0f;
-    local_parameters=shadow_setup=shadow_used=shadow_restored=7;
+    local_parameters=shadow_setup=shadow_used=shadow_restored=shadow_port_batched=7;
     rasterizer_frame_statistics.shadow_count=0;
     /* The caller renders a shadow volume only after a successful begin.
      * Ineligible passes must leave both its output and rasterizer state alone. */
     assert(!_rasterizer_environment_shadow_begin(0,NULL,NULL,6.5f,&output));
     assert(output==-123.0f && local_object_bounding_radius==-456.0f);
-    assert(local_parameters==7 && shadow_setup==7 && shadow_used==7 && shadow_restored==7);
+    assert(local_parameters==7 && shadow_setup==7 && shadow_used==7 && shadow_restored==7 && shadow_port_batched==7);
     assert(!device_calls && !rasterizer_frame_statistics.shadow_count);
 }
 
@@ -87,7 +87,7 @@ static void enabled(int output_present)
     assert(local_object_bounding_radius==6.5f);
     assert(!memcmp(&matrix,&local_shadow_matrix,sizeof(matrix)));
     assert(!memcmp(&color,&local_shadow_color,sizeof(color)));
-    assert(!local_parameters && !shadow_setup && !shadow_used && !shadow_restored);
+    assert(!local_parameters && !shadow_setup && !shadow_used && !shadow_restored && !shadow_port_batched);
     assert(device_calls && rasterizer_frame_statistics.shadow_count==1);
 }
 

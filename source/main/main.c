@@ -383,6 +383,7 @@ symbols in this file:
 #include "network_coop.h" /* port: port/linux/game/network_coop.c */
 #include "coop_scripts.h" /* port: port/linux/game/coop_scripts.c */
 #include "network_voice.h" /* port: port/linux/game/network_voice.c */
+#include "talking_timer.h" /* port: port/linux/game/talking_timer.c */
 #include "network_chat.h" /* port: port/linux/game/network_chat.c */
 #include "network_aim_assist.h" /* port: port/linux/game/network_aim_assist.c */
 #include "network_shield_effects.h" /* port: port/linux/game/network_shield_effects.c */
@@ -410,6 +411,7 @@ symbols in this file:
 #include "mcc_cache.h" /* port: port/linux/game/mcc_cache.h */
 #include "mcc_main.h" /* port: port/linux/game/mcc_main.h */
 #include "custom_edition_maps.h" /* port: main_script_map_name, a Custom Edition campaign's maps */
+#include "cinematic_letterbox.h" /* port: port/linux/game/cinematic_letterbox.c */
 #include "view_fov.h" /* port: display.fov, before the projection and culling */
 #include "frontend_menu.h" /* port: optional menu-tag lifecycle at the main menu */
 
@@ -1300,8 +1302,9 @@ void set_window_camera_values(
 	third_person_camera(window->local_player_index, observer ? &window->rasterizer_camera : NULL);
 	/* port: choose the FOV after collision has selected this frame's view. */
 	if (observer)
-		window->rasterizer_camera.vertical_field_of_view = render_fov_vertical(
-			window->local_player_index, window->rasterizer_camera.vertical_field_of_view);
+		window->rasterizer_camera.vertical_field_of_view = cinematic_letterbox_vertical_field_of_view(
+			&window->rasterizer_camera.viewport_bounds, render_fov_vertical(
+				window->local_player_index, window->rasterizer_camera.vertical_field_of_view));
 	window->rasterizer_camera.mirrored = FALSE;
 	window->rasterizer_camera.z_near = rasterizer_globals.near_clip_distance;
 	window->rasterizer_camera.z_far = rasterizer_globals.far_clip_distance;
@@ -3739,6 +3742,8 @@ static boolean main_loop_iteration(
 			server_update(main_globals.main_menu_scenario_loaded, main_globals.seconds_elapsed);
 			/* port: voice chat, in the lobby and in game (port/linux/game/network_voice.c) */
 			network_voice_update();
+			/* port: the talking timer (port/linux/game/talking_timer.c) */
+			talking_timer_update();
 			/* port: apply and replicate the host's mouse aim-assist policy. */
 			network_aim_assist_update();
 			/* port: the host's shield effects, for every machine (port/linux/game/network_shield_effects.c) */

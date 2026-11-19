@@ -426,13 +426,46 @@ targets (rasterizer_xbox.c), can be drawn larger as the screen's targets are
 scale up with them. The scale is a power of two up to 8 (1024x1024), which
 the blur needs to cover the same part of the map as the Xbox's
 (rasterizer_shadow_convolve); 1, the default, draws them as the Xbox did. It
-changes only between frames (halo_screen_commit). */
+changes only between frames (halo_screen_commit). It is the most a shadow
+is drawn at: each shadow's maps are drawn at the scale its object's size on
+the screen needs (halo_shadow_map_size), each scale's maps their own
+textures. */
 #define SHADOW_MAP_SIZE 128
 #define SHADOW_MAP_MAXIMUM_SCALE 8
+/* a shadow's maps get this many texels for each pixel its object covers
+on the screen, across: one each, as many as the screen shows of it (the blur
+covers some three of the Xbox's texels whatever the size) */
+#define SHADOW_MAP_TEXELS_PER_PIXEL 1.0f
+/* the blurred maps (the slotted surface's, halo_shadow_map_select) have half
+the texels of the maps drawn, each way, from this scale up: the blur keeps
+no detail finer than some three of the Xbox's texels, so from 512x512 the
+maps are drawn at the full size, their edges smooth, then averaged down and
+blurred at half the size (halo_shadow_map_blur), a quarter of the pixels with
+half the taps. The blur covers the same part of the map at every size, so
+the blurred maps keep the same proportion of the maps drawn at every
+display.shadow_resolution: 512 blurred at 256, 1024 at 512. Below it the
+blur is too narrow to lose nothing at half the size. */
+#define SHADOW_MAP_BLUR_HALVED_FROM 4
 
 /* 0 until first asked */
 static long shadow_scale;
 static unsigned long shadow_scale_read_at;
+/* the scale of the shadow being drawn (halo_shadow_map_size); 0 for
+shadow_scale */
+static long shadow_scale_current;
+/* the blurred map's slot of the shadow being drawn, and the surface whose
+textures have slots (halo_shadow_map_select): the shadows drawn in batches,
+each batch's maps first, then their projections (render_objects.c), each
+batch's blurred maps are kept side by side */
+static long shadow_slot_current;
+static unsigned long shadow_slot_data;
+/* the slots past the first are freed (render_targets_evict): how many fit
+in their budget changed (halo_shadow_map_slots), or display.shadow_map_reuse;
+and how many times they were */
+static BOOL shadow_slots_evicted;
+static unsigned long shadow_slots_freed;
+/* display.shadow_map_reuse, read with display.shadow_resolution */
+static BOOL shadow_reuse;
 
 static long shadow_scale_choose(void)
 {
@@ -444,16 +477,106 @@ static long shadow_scale_choose(void)
 	return scale;
 }
 
-/* the shadow maps' pixels for each of their 128 texels each way */
-long halo_shadow_map_scale(void)
+/* the most pixels the shadow maps have for each of their 128 texels each
+way (display.shadow_resolution) */
+static long shadow_scale_maximum(void)
 {
 	if (!shadow_scale)
 	{
 		shadow_scale_read_at = config_changes();
+		shadow_reuse = config_boolean("display.shadow_map_reuse");
 		shadow_scale = shadow_scale_choose();
 		platform_log("shadow maps: %ldx%ld", SHADOW_MAP_SIZE * shadow_scale, SHADOW_MAP_SIZE * shadow_scale);
 	}
 	return shadow_scale;
+}
+
+/* the shadow maps' pixels for each of their 128 texels each way: the
+shadow being drawn's (halo_shadow_map_size) */
+long halo_shadow_map_scale(void)
+{
+	long maximum = shadow_scale_maximum();
+
+	return shadow_scale_current && shadow_scale_current < maximum ? shadow_scale_current : maximum;
+}
+
+/* the next shadow's maps sized for its object, diameter pixels across in
+the game's 480-line screen (render_objects.c): the smallest scale, up to
+display.shadow_resolution's, whose maps have SHADOW_MAP_TEXELS_PER_PIXEL
+texels for each of its pixels on the screen. A larger map would show no
+more, its blur covering the same part of it: a far object's shadow is drawn
+at 128x128, with the Xbox's one pass of the blur, not at 512x512 with five. */
+void halo_shadow_map_size(float diameter)
+{
+	long maximum = shadow_scale_maximum();
+	float needed = diameter * screen_scale[1] * SHADOW_MAP_TEXELS_PER_PIXEL;
+	long scale = 1;
+
+	while (scale < maximum && (float)(SHADOW_MAP_SIZE * scale) < needed)
+		scale *= 2;
+	shadow_scale_current = scale;
+}
+
+/* the shadow whose maps are drawn or read next: its scale (as
+halo_shadow_map_scale gave), and its slot of the batch's maps of the surface
+slotted (the blurred map, rasterizer_xbox_shadows.c) */
+void halo_shadow_map_select(long scale, long slot, const void *slotted)
+{
+	shadow_scale_current = scale;
+	shadow_slot_current = slot;
+	shadow_slot_data = slotted ? ((const D3DSurface *)slotted)->Data : 0;
+}
+
+/* the scale of this surface's shadow map texture to draw or read: the
+blurred maps' half the scale drawn at, from SHADOW_MAP_BLUR_HALVED_FROM */
+static long shadow_scale_of(unsigned long data)
+{
+	long scale = halo_shadow_map_scale();
+
+#ifndef HALO_GLES
+	if (data && data == shadow_slot_data && scale >= SHADOW_MAP_BLUR_HALVED_FROM)
+		scale /= 2;
+#endif
+	return scale;
+}
+
+/* the slot of this surface's shadow map texture to draw or read */
+static long shadow_slot_of(unsigned long data)
+{
+	return data && data == shadow_slot_data ? shadow_slot_current : 0;
+}
+
+/* how many slots of the blurred map past the first fit in bytes of the
+GPU's memory: a slot keeps a texture (RGBA8) for each scale its shadows were
+drawn at, up to display.shadow_resolution's (render_targets_evict frees the
+larger ones when it goes down) */
+long halo_shadow_map_slots(unsigned long bytes)
+{
+	unsigned long slot_bytes = 0;
+	long scale;
+
+	for (scale = 1; scale <= shadow_scale_maximum(); scale *= 2)
+	{
+		unsigned long side = SHADOW_MAP_SIZE * (unsigned long)scale;
+
+#ifndef HALO_GLES
+		if (scale >= SHADOW_MAP_BLUR_HALVED_FROM)
+			side /= 2;
+#endif
+		slot_bytes += side * side * 4;
+	}
+	return (long)(bytes / slot_bytes);
+}
+
+int halo_shadow_map_reuse(void)
+{
+	shadow_scale_maximum();
+	return shadow_reuse;
+}
+
+unsigned long halo_shadow_map_slots_freed(void)
+{
+	return shadow_slots_freed;
 }
 
 /* display.hdr (xgpu_post.c): the back buffer in GL_RGBA16F, which keeps
@@ -615,6 +738,17 @@ struct program_entry
 	struct program_entry *next;
 	GLuint vertex_shader;
 	GLuint fragment_shader;
+	/* port: the entry of the same two GLSL sources, made first under other
+	shaders' names, whose program this pair's draws use (program_get); NULL
+	for an entry of its own */
+	struct program_entry *same;
+	/* an entry of its own's: its shaders' GLSL hashes, and the next in its
+	program_hash_buckets list */
+	unsigned long long vertex_hash, fragment_hash;
+	struct program_entry *next_by_hash;
+	/* port: the last map it was drawn with, counting maps loaded
+	(program_map_drawn) */
+	unsigned long map_drawn;
 	GLuint program;
 	GLint constants;
 	GLint viewport_scale;
@@ -704,11 +838,78 @@ static void shader_hash_set(GLuint shader, const char *source)
 	shader_hashes[shader] = source_hash(source);
 }
 
-#ifndef HALO_GLES
 static unsigned long long shader_hash(GLuint shader)
 {
 	return shader < shader_hashes_size ? shader_hashes[shader] : 0;
 }
+
+/* The game's shaders, compiled when a program that uses them is first linked
+(shader_compiled), not when they are first wanted: a program the cache above
+has is loaded from its binary, and its shaders are never compiled. Compiling
+them was most of the cost left of a program's first use once it was cached,
+up to 180 ms a frame as a level's things first came into view. A shader is
+named by its place here (from 1), by which program_get finds its GLSL hash
+and its compiled GL shader. */
+struct deferred_shader
+{
+	GLenum type;
+	const char *what;
+	char *source;
+	GLuint shader;
+};
+
+static struct deferred_shader *deferred_shaders;
+static GLuint deferred_shader_count;
+static GLuint deferred_shader_size;
+
+/* a shader of this GLSL, to be compiled once a program needs it; 0 if there
+is no room for it */
+static GLuint shader_deferred(GLenum type, const char *source, const char *what)
+{
+	struct deferred_shader *shader;
+	size_t length = strlen(source) + 1;
+
+	if (deferred_shader_count == deferred_shader_size)
+	{
+		GLuint size = deferred_shader_size ? 2 * deferred_shader_size : 256;
+		struct deferred_shader *grown = realloc(deferred_shaders, size * sizeof(*grown));
+
+		if (!grown)
+			return 0;
+		deferred_shaders = grown;
+		deferred_shader_size = size;
+	}
+	shader = &deferred_shaders[deferred_shader_count];
+	shader->type = type;
+	shader->what = what;
+	shader->shader = 0;
+	if (!(shader->source = malloc(length)))
+		return 0;
+	memcpy(shader->source, source, length);
+	deferred_shader_count++;
+	shader_hash_set(deferred_shader_count, source);
+	return deferred_shader_count;
+}
+
+/* the deferred shader's GL shader, compiled the first time (0 if it cannot
+be) */
+static GLuint shader_compiled(GLuint name)
+{
+	struct deferred_shader *shader;
+
+	if (!name || name > deferred_shader_count)
+		return 0;
+	shader = &deferred_shaders[name - 1];
+	if (shader->source)
+	{
+		shader->shader = xgpu_compile_shader(shader->type, shader->source, shader->what);
+		free(shader->source);
+		shader->source = NULL;
+	}
+	return shader->shader;
+}
+
+#ifndef HALO_GLES
 
 /* the cache file: entries one after another, each a header (magic, the two
 shaders' GLSL hashes, the binary's format and length, and its data's hash)
@@ -742,6 +943,17 @@ struct program_cache_entry
 	unsigned long long data_hash;
 	/* where its binary starts in the file */
 	unsigned long offset;
+	/* port: program_cache_map_loaded's: its program loaded with the map's,
+	until the game first draws with it (program_cache_load), and the map
+	whose list has it (program_cache.map) */
+	GLuint map_program;
+	unsigned long map;
+	/* port: its program the game's already (program_cache_load,
+	program_cache_store): then not loaded again ahead of a map */
+	BOOL live;
+	/* port: program_cache_preload_shared's count of the other maps' lists
+	that have it, for the map numbered shared_map, and the last list counted */
+	unsigned long shared_map, shared_list, shared_count;
 };
 
 static struct
@@ -754,6 +966,13 @@ static struct
 	/* this run's: programs loaded from the cache, linked, written to it,
 	and binaries the driver refused */
 	unsigned long loaded, linked, written, refused;
+	/* port: the save root's directory of the cache, the file's name
+	without .bin (program_cache_map_loaded's lists are named after it), the
+	map loaded's list, open to add to, and its number (counting maps
+	loaded, from 1) */
+	char directory[512], driver_name[32];
+	FILE *map_file;
+	unsigned long map;
 } program_cache;
 
 static unsigned long long data_hash(const void *data, unsigned long size)
@@ -849,6 +1068,8 @@ static void program_cache_initialize(void)
 		driver = (driver ^ source_hash(strings[index] ? strings[index] : "")) * 1099511628211ULL;
 	snprintf(path, sizeof(path), "%s/shader_cache", platform_save_root());
 	posix_make_directory(path);
+	snprintf(program_cache.directory, sizeof(program_cache.directory), "%s", path);
+	snprintf(program_cache.driver_name, sizeof(program_cache.driver_name), "%016llx", driver);
 	snprintf(path, sizeof(path), "%s/shader_cache/%016llx.bin", platform_save_root(), driver);
 	program_cache.file = fopen(path, "r+b");
 	if (program_cache.file)
@@ -872,20 +1093,16 @@ static void program_cache_initialize(void)
 	platform_log("shader cache: %s, %lu KB", path, program_cache.end / 1024);
 }
 
-/* the cached binary of the program of these shaders, loaded into a new
-program; 0 if there is none or the driver refuses it (then forgotten: the
-program is linked again, and its new binary written after) */
-static GLuint program_cache_load(unsigned long long vertex_hash, unsigned long long fragment_hash)
+/* the entry's binary loaded into a new program; 0 if the driver refuses it
+(then forgotten: the program is linked again, and its new binary written
+after) */
+static GLuint program_cache_read(struct program_cache_entry *entry)
 {
-	struct program_cache_entry *entry;
 	void *binary;
 	GLuint program = 0;
 	GLint status = 0;
 
-	if (!program_cache.enabled || !vertex_hash || !fragment_hash)
-		return 0;
-	entry = program_cache_find(vertex_hash, fragment_hash);
-	if (!entry || !entry->length || !(binary = malloc(entry->length)))
+	if (!entry->length || !(binary = malloc(entry->length)))
 		return 0;
 	if (fseek(program_cache.file, (long)entry->offset, SEEK_SET) == 0 &&
 		fread(binary, entry->length, 1, program_cache.file) == 1 &&
@@ -905,10 +1122,227 @@ static GLuint program_cache_load(unsigned long long vertex_hash, unsigned long l
 	{
 		program_cache.refused++;
 		entry->length = 0;
-		return 0;
 	}
-	program_cache.loaded++;
 	return program;
+}
+
+/* port: the entry on the list of the map loaded, once */
+static void program_cache_map_list(struct program_cache_entry *entry)
+{
+	unsigned long long hashes[2];
+
+	if (!entry || !program_cache.map_file || entry->map == program_cache.map)
+		return;
+	entry->map = program_cache.map;
+	hashes[0] = entry->vertex_hash;
+	hashes[1] = entry->fragment_hash;
+	if (fwrite(hashes, sizeof(hashes), 1, program_cache.map_file) == 1)
+		fflush(program_cache.map_file);
+}
+
+/* port: a program the game draws with, on the list of the map loaded the
+first time that map draws with it, made now or for an earlier map: a
+program alive from the last map was never loaded again, so it was missing
+from the list of each map after the first of a run */
+static void program_map_drawn(struct program_entry *entry)
+{
+	if (entry->map_drawn == program_cache.map)
+		return;
+	entry->map_drawn = program_cache.map;
+	if (program_cache.enabled && entry->vertex_hash && entry->fragment_hash)
+		program_cache_map_list(program_cache_find(entry->vertex_hash, entry->fragment_hash));
+}
+
+/* the cached program of these shaders: loaded with the map's
+(program_cache_map_loaded), or now; 0 if there is none or the driver
+refuses it */
+static GLuint program_cache_load(unsigned long long vertex_hash, unsigned long long fragment_hash)
+{
+	struct program_cache_entry *entry;
+	GLuint program;
+
+	if (!program_cache.enabled || !vertex_hash || !fragment_hash)
+		return 0;
+	entry = program_cache_find(vertex_hash, fragment_hash);
+	if (!entry)
+		return 0;
+	program = entry->map_program;
+	entry->map_program = 0;
+	if (!program)
+		program = program_cache_read(entry);
+	if (!program)
+		return 0;
+	program_cache.loaded++;
+	entry->live = TRUE;
+	program_cache_map_list(entry);
+	return program;
+}
+
+/* port: the cached programs that the lists of two or more maps other than
+this one and the menus have, loaded (program_cache_map_loaded); the number
+loaded */
+static long program_cache_preload_shared(const char *name)
+{
+	static unsigned long list_serial;
+	char pattern[64], own[128], path[640];
+	char **files;
+	int count = 0, index;
+	long loaded = 0, bucket;
+	struct program_cache_entry *entry;
+
+	snprintf(pattern, sizeof(pattern), "%s-*.list", program_cache.driver_name);
+	snprintf(own, sizeof(own), "%s-%s.list", program_cache.driver_name, name);
+	files = SDL_GlobDirectory(program_cache.directory, pattern, 0, &count);
+	if (!files)
+		return 0;
+	for (index = 0; index < count; index++)
+	{
+		unsigned long long pair[2];
+		size_t length = strlen(files[index]);
+		FILE *file;
+
+		if (!strcmp(files[index], own) || (length >= 8 && !strcmp(files[index] + length - 8, "-ui.list")))
+			continue;
+		snprintf(path, sizeof(path), "%s/%s", program_cache.directory, files[index]);
+		if (!(file = fopen(path, "rb")))
+			continue;
+		list_serial++;
+		while (fread(pair, sizeof(pair), 1, file) == 1)
+		{
+			entry = program_cache_find(pair[0], pair[1]);
+			if (!entry || !entry->length)
+				continue;
+			if (entry->shared_map != program_cache.map)
+			{
+				entry->shared_map = program_cache.map;
+				entry->shared_count = 0;
+				entry->shared_list = 0;
+			}
+			/* (once a list) */
+			if (entry->shared_list != list_serial)
+			{
+				entry->shared_list = list_serial;
+				entry->shared_count++;
+			}
+		}
+		fclose(file);
+	}
+	SDL_free(files);
+	for (bucket = 0; bucket < PROGRAM_CACHE_BUCKETS; bucket++)
+	{
+		for (entry = program_cache.buckets[bucket]; entry; entry = entry->next)
+		{
+			if (entry->shared_map == program_cache.map && entry->shared_count >= 2 && entry->length &&
+				!entry->live && !entry->map_program && (entry->map_program = program_cache_read(entry)) != 0)
+			{
+				loaded++;
+			}
+		}
+	}
+	return loaded;
+}
+
+/* port: The programs a map drew with, loaded as it loads, ahead of its
+first frame (the driver turning a binary back into a program took up to 20
+ms, and a level showed new things, and so new programs, all through a game,
+each first draw holding its frame up). Each map has a list of them in the
+cache's directory, beside the cache, kept as programs are first drawn with
+(program_cache_load, program_cache_store), its first game drawing them as
+before. A program loaded is the game's at its first draw with it; one the
+map's next game does not draw with is deleted as another map loads. The
+same binaries, giving the same programs. */
+void program_cache_map_loaded(const char *map_name)
+{
+	char path[600], name[64];
+	unsigned long long (*pairs)[2] = NULL;
+	long count = 0, kept = 0, loaded = 0, shared = 0, index, bucket;
+	FILE *file;
+	BOOL listed;
+	Uint64 start = SDL_GetPerformanceCounter();
+	struct program_cache_entry *entry;
+
+	if (!program_cache.enabled || !map_name || config_boolean("display.shader_prepare"))
+		return;
+	if (program_cache.map_file)
+		fclose(program_cache.map_file);
+	program_cache.map_file = NULL;
+	program_cache.map++;
+	/* Keep the menu out of the first-play estimates for gameplay maps. */
+	if (!strcmp(map_name, "ui"))
+		strcpy(name, "ui");
+	else
+		snprintf(name, sizeof(name), "%016llx", source_hash(map_name));
+	snprintf(path, sizeof(path), "%s/%s-%s.list", program_cache.directory, program_cache.driver_name, name);
+
+	/* the list read whole: kept are the pairs the cache has a program for */
+	file = fopen(path, "rb");
+	listed = file != NULL;
+	if (file)
+	{
+		fseek(file, 0, SEEK_END);
+		count = ftell(file) / (long)sizeof(*pairs);
+		fseek(file, 0, SEEK_SET);
+		if (count > 0 && (pairs = malloc(count * sizeof(*pairs))) != NULL)
+			count = (long)fread(pairs, sizeof(*pairs), (size_t)count, file);
+		else
+			count = 0;
+		fclose(file);
+	}
+	for (index = 0; index < count; index++)
+	{
+		entry = program_cache_find(pairs[index][0], pairs[index][1]);
+		if (!entry || !entry->length || entry->map == program_cache.map)
+			continue;
+		entry->map = program_cache.map;
+		pairs[kept][0] = pairs[index][0];
+		pairs[kept][1] = pairs[index][1];
+		kept++;
+		if (!entry->live && !entry->map_program && (entry->map_program = program_cache_read(entry)) != 0)
+			loaded++;
+	}
+	/* (the last map's not on this one's list) */
+	for (bucket = 0; bucket < PROGRAM_CACHE_BUCKETS; bucket++)
+	{
+		for (entry = program_cache.buckets[bucket]; entry; entry = entry->next)
+		{
+			if (entry->map_program && entry->map != program_cache.map)
+			{
+				glDeleteProgram(entry->map_program);
+				entry->map_program = 0;
+			}
+		}
+	}
+
+	/* a map with no list yet, in its first game: the programs that two or
+	more other maps' lists have (most of a map's are), loaded too; those it
+	does not draw with are deleted as the next map loads, as above, and its
+	list has only those it draws with */
+	if (!listed && strcmp(name, "ui"))
+		shared = program_cache_preload_shared(name);
+
+	/* written again with only those kept, and open to add to */
+	program_cache.map_file = fopen(path, "wb");
+	if (program_cache.map_file && kept)
+	{
+		fwrite(pairs, sizeof(*pairs), (size_t)kept, program_cache.map_file);
+		fflush(program_cache.map_file);
+	}
+	free(pairs);
+	platform_log("shader cache: %ld of %s's programs loaded, and %ld that other maps share, in %.0f ms", loaded, name, shared,
+		(double)(SDL_GetPerformanceCounter() - start) * 1000.0 / (double)SDL_GetPerformanceFrequency());
+}
+
+/* port: no map's list open until the next map loads
+(program_cache_map_loaded), and a new map number, so what is drawn before
+it is listed for it */
+void program_cache_map_unloaded(void)
+{
+	if (!program_cache.enabled)
+		return;
+	if (program_cache.map_file)
+		fclose(program_cache.map_file);
+	program_cache.map_file = NULL;
+	program_cache.map++;
 }
 
 /* a linked program's binary, written after the file's last whole entry */
@@ -960,17 +1394,35 @@ static void program_cache_store(GLuint program, unsigned long long vertex_hash, 
 			entry->length = header.length;
 			entry->data_hash = header.data_hash;
 			entry->offset = program_cache.end + sizeof(header);
+			entry->live = TRUE;
+			program_cache_map_list(entry);
 		}
 		program_cache.end += sizeof(header) + header.length;
 		program_cache.written++;
 	}
 	free(binary);
 }
+#else
+void program_cache_map_loaded(const char *map_name)
+{
+	(void)map_name;
+}
+
+void program_cache_map_unloaded(void)
+{
+}
+
+static void program_map_drawn(struct program_entry *entry)
+{
+	(void)entry;
+}
 #endif
 
 static struct fragment_entry *fragment_buckets[FRAGMENT_BUCKETS];
 static struct fragment_source_entry *fragment_source_buckets[FRAGMENT_BUCKETS];
 static struct program_entry *program_buckets[PROGRAM_BUCKETS];
+/* port: the entries of their own by their shaders' GLSL hashes (program_get) */
+static struct program_entry *program_hash_buckets[PROGRAM_BUCKETS];
 
 /* ---------- render targets */
 
@@ -996,6 +1448,10 @@ struct render_target_entry
 	multisampled with multisampling (render_target_multisample) */
 	BOOL screen_buffer;
 	enum render_target_kind kind;
+	/* a shadow map's slot (halo_shadow_map_select) */
+	long slot;
+	/* kept in shadow_slot_table, not in a bucket */
+	BOOL in_slot_table;
 };
 
 /* every draw looks up its targets and whether its textures are render
@@ -1007,6 +1463,25 @@ static struct render_target_entry *render_target_buckets[RENDER_TARGET_BUCKET_CO
 static struct render_target_entry **render_target_bucket(unsigned long data)
 {
 	return &render_target_buckets[((data >> 12) ^ (data >> 20)) % RENDER_TARGET_BUCKET_COUNT];
+}
+
+/* the shadow maps' textures of the slots past the first (the blurred map's,
+halo_shadow_map_select), by scale and slot, kept out of the buckets: every
+texture a draw binds looks through its address's bucket, and a batch's
+slots at each scale (render_objects.c) all have the blurred map's address */
+#define SHADOW_SLOT_TABLE_SCALES 4
+#define SHADOW_SLOT_TABLE_SLOTS 256
+
+static struct render_target_entry *shadow_slot_table[SHADOW_SLOT_TABLE_SCALES][SHADOW_SLOT_TABLE_SLOTS];
+
+/* a scale's and slot's place in the table, or NULL (the slot is not kept there) */
+static struct render_target_entry **shadow_slot_table_link(float scale, long slot)
+{
+	int index = scale >= 8.0f ? 3 : scale >= 4.0f ? 2 : scale >= 2.0f ? 1 : 0;
+
+	if (slot <= 0 || slot >= SHADOW_SLOT_TABLE_SLOTS)
+		return NULL;
+	return &shadow_slot_table[index][slot];
 }
 
 struct framebuffer_entry
@@ -1116,6 +1591,9 @@ struct gl_device
 	D3DPRIMITIVETYPE immediate_type;
 	/* the input registers written since Begin, a bit each */
 	unsigned long immediate_written;
+	/* (the registers written since Begin, in the order of their first writes) */
+	unsigned char immediate_registers[XGPU_VERTEX_ATTRIBUTE_COUNT];
+	unsigned long immediate_register_count;
 	float *immediate_vertices;
 	unsigned long immediate_count;
 	unsigned long immediate_capacity;
@@ -2000,11 +2478,13 @@ static struct render_target_entry *render_target_get(const D3DSurface *surface)
 	long screen;
 	BOOL depth;
 	GLint previous_texture;
+	struct render_target_entry **table_link = NULL;
 
 	if (!surface || !surface->Data)
 		return NULL;
 	float scale[2] = { 1.0f, 1.0f };
 	enum render_target_kind kind = _render_target_plain;
+	long shadow_slot = 0;
 
 	/* (an entry lives until its scale no longer fits: render_targets_evict) */
 	screen = halo_screen_width();
@@ -2013,7 +2493,10 @@ static struct render_target_entry *render_target_get(const D3DSurface *surface)
 		if (recent_render_targets[slot].entry && recent_render_targets[slot].data == surface->Data &&
 			recent_render_targets[slot].format == surface->Format && recent_render_targets[slot].size == surface->Size &&
 			recent_render_targets[slot].screen_width == screen && recent_render_targets[slot].scale[0] == screen_scale[0] &&
-			recent_render_targets[slot].scale[1] == screen_scale[1])
+			recent_render_targets[slot].scale[1] == screen_scale[1] &&
+			(recent_render_targets[slot].entry->kind != _render_target_shadow_map ||
+				(recent_render_targets[slot].entry->target.scale[0] == (float)shadow_scale_of(surface->Data) &&
+					recent_render_targets[slot].entry->slot == shadow_slot_of(surface->Data))))
 		{
 			return recent_render_targets[slot].entry;
 		}
@@ -2033,15 +2516,27 @@ static struct render_target_entry *render_target_get(const D3DSurface *surface)
 	}
 	else if (!depth && surface_is_shadow_map(surface))
 	{
-		scale[0] = (float)halo_shadow_map_scale();
+		scale[0] = (float)shadow_scale_of(surface->Data);
 		scale[1] = scale[0];
 		kind = _render_target_shadow_map;
+		shadow_slot = shadow_slot_of(surface->Data);
 	}
-	for (entry = *render_target_bucket(surface->Data); entry; entry = entry->next_in_bucket)
+	if (kind == _render_target_shadow_map && (table_link = shadow_slot_table_link(scale[0], shadow_slot)) != NULL)
+	{
+		entry = *table_link;
+		if (entry && entry->target.data == surface->Data && entry->target.width == width &&
+			entry->target.height == height && entry->target.depth == depth &&
+			entry->target.scale[0] == scale[0] && entry->target.scale[1] == scale[1])
+		{
+			return render_target_remember(surface, screen, entry);
+		}
+	}
+	for (entry = table_link ? NULL : *render_target_bucket(surface->Data); entry; entry = entry->next_in_bucket)
 	{
 		if (entry->target.data == surface->Data && entry->target.width == width &&
 			entry->target.height == height && entry->target.depth == depth &&
-			entry->target.scale[0] == scale[0] && entry->target.scale[1] == scale[1])
+			entry->target.scale[0] == scale[0] && entry->target.scale[1] == scale[1] &&
+			entry->slot == shadow_slot)
 		{
 			return render_target_remember(surface, screen, entry);
 		}
@@ -2054,6 +2549,7 @@ static struct render_target_entry *render_target_get(const D3DSurface *surface)
 	entry->target.scale[0] = scale[0];
 	entry->target.scale[1] = scale[1];
 	entry->kind = kind;
+	entry->slot = shadow_slot;
 	entry->target.gl_width = (unsigned long)(width * scale[0] + 0.5f);
 	entry->target.gl_height = (unsigned long)(height * scale[1] + 0.5f);
 	entry->screen_buffer = surface->Data == (depth ? device.depth_buffer.Data : device.back_buffer.Data);
@@ -2070,17 +2566,47 @@ static struct render_target_entry *render_target_get(const D3DSurface *surface)
 	xgpu_gl_state_invalidate();
 	entry->next = render_targets;
 	render_targets = entry;
+	/* (one the table had for another address stays in render_targets,
+	freed with the rest: render_targets_evict) */
+	if (table_link)
+	{
+		if (*table_link)
+			(*table_link)->in_slot_table = FALSE;
+		*table_link = entry;
+		entry->in_slot_table = TRUE;
+		entry->next_in_bucket = NULL;
+		return entry;
+	}
 	entry->next_in_bucket = *render_target_bucket(entry->target.data);
 	*render_target_bucket(entry->target.data) = entry;
+	/* (a texture at its address is drawn from it from now on) */
+	xgpu_texture_lookups_changed();
 	return entry;
 }
 
 struct xgpu_render_target *xgpu_render_target_find(unsigned long data)
 {
 	struct render_target_entry *entry, *best = NULL;
+	struct render_target_entry **table_link;
+
+	/* (a shadow map's slot past the first: shadow_slot_table) */
+	if (data && data == shadow_slot_data && shadow_slot_current > 0)
+	{
+		table_link = shadow_slot_table_link((float)shadow_scale_of(data), shadow_slot_current);
+		if (table_link && *table_link && (*table_link)->target.data == data)
+			return &(*table_link)->target;
+	}
 
 	for (entry = *render_target_bucket(data); entry; entry = entry->next_in_bucket)
 	{
+		/* (a shadow map: the texture of the shadow being drawn's scale,
+		halo_shadow_map_size, and slot, halo_shadow_map_select; each scale's
+		and slot's were drawn into this frame) */
+		if (entry->target.data == data && !entry->target.depth && entry->kind == _render_target_shadow_map &&
+			entry->target.scale[0] == (float)shadow_scale_of(data) && entry->slot == shadow_slot_of(data))
+		{
+			return &entry->target;
+		}
 		if (entry->target.data == data && !entry->target.depth && (!best || entry->last_rendered > best->last_rendered))
 			best = entry;
 	}
@@ -3053,13 +3579,20 @@ long halo_screen_commit(void)
 	if (shadow_scale && shadow_scale_read_at != config_changes())
 	{
 		long shadow = shadow_scale_choose();
+		BOOL reuse = config_boolean("display.shadow_map_reuse");
 
 		shadow_scale_read_at = config_changes();
-		if (shadow != shadow_scale)
+		if (shadow != shadow_scale || reuse != shadow_reuse)
 		{
-			platform_log("shadow maps: %ldx%ld", SHADOW_MAP_SIZE * shadow, SHADOW_MAP_SIZE * shadow);
+			if (shadow != shadow_scale)
+				platform_log("shadow maps: %ldx%ld", SHADOW_MAP_SIZE * shadow, SHADOW_MAP_SIZE * shadow);
 			shadow_scale = shadow;
+			shadow_reuse = reuse;
+			shadow_scale_current = 0;
+			shadow_slots_evicted = TRUE;
 			render_targets_evict();
+			shadow_slots_evicted = FALSE;
+			shadow_slots_freed++;
 		}
 	}
 	if (!screen_width)
@@ -3878,7 +4411,7 @@ static struct vertex_shader_object *fixed_function_program(void)
 
 		program.signature = VERTEX_SHADER_SIGNATURE;
 		program.instructions = no_instructions;
-		program.shader[1] = xgpu_compile_shader(GL_VERTEX_SHADER, source, "fixed-function vertex");
+		program.shader[1] = shader_deferred(GL_VERTEX_SHADER, source, "fixed-function vertex");
 		/* (vertex_shader_get: neither variant compiled from instructions) */
 		program.shaders_tried = 1 | 2;
 		free(source);
@@ -3957,8 +4490,7 @@ static GLuint vertex_shader_get(struct vertex_shader_object *program, BOOL immed
 			immediate ? 0 : device.vertex_shader->packed_mask, lit ? &program->lighting : NULL, plasma_model);
 
 		program->shaders_tried |= tried;
-		*shader = xgpu_compile_shader(GL_VERTEX_SHADER, source, "vertex");
-		shader_hash_set(*shader, source);
+		*shader = shader_deferred(GL_VERTEX_SHADER, source, "vertex");
 		if (debug_settings.dump_shaders)
 		{
 			char path[512];
@@ -4004,9 +4536,7 @@ static GLuint fragment_source_get(char *source)
 			return entry->shader;
 		}
 	}
-	shader = xgpu_compile_shader(GL_FRAGMENT_SHADER, source, "pixel");
-	/* Register shared objects once for the upstream program-binary cache. */
-	shader_hash_set(shader, source);
+	shader = shader_deferred(GL_FRAGMENT_SHADER, source, "pixel");
 	entry = malloc(sizeof(*entry));
 	if (entry)
 	{
@@ -4077,24 +4607,35 @@ static GLuint fragment_shader_get(const struct nv2a_pixel_shader_key *key)
 static struct program_entry *program_get(GLuint vertex_shader, GLuint fragment_shader, BOOL plasma_model)
 {
 	static struct program_entry *last;
+	static GLuint last_vertex_shader, last_fragment_shader;
 	unsigned long hash = (vertex_shader * 2654435761UL) ^ fragment_shader;
 	struct program_entry **bucket = &program_buckets[hash % PROGRAM_BUCKETS];
 	struct program_entry *entry;
 	int stage;
+	unsigned long long vertex_hash, fragment_hash;
+	struct program_entry **hash_bucket;
 
 #ifndef HALO_GLES
-	if (!material_preparing)
-		shader_prepare_record(vertex_shader, fragment_shader, shader_hash(vertex_shader), shader_hash(fragment_shader));
+	if (!material_preparing && shader_prepare_needs_pair(shader_hash(vertex_shader), shader_hash(fragment_shader)))
+		shader_prepare_record(shader_compiled(vertex_shader), shader_compiled(fragment_shader), shader_hash(vertex_shader), shader_hash(fragment_shader));
 #endif
-	if (last && last->vertex_shader == vertex_shader && last->fragment_shader == fragment_shader)
+	if (last && last_vertex_shader == vertex_shader && last_fragment_shader == fragment_shader)
+	{
+		program_map_drawn(last);
 		return last;
+	}
 	for (entry = *bucket; entry; entry = entry->next)
 	{
 		if (entry->vertex_shader == vertex_shader && entry->fragment_shader == fragment_shader)
 		{
+			if (entry->same)
+				entry = entry->same;
 			if (!entry->program)
 				return NULL;
 			last = entry;
+			last_vertex_shader = vertex_shader;
+			last_fragment_shader = fragment_shader;
+			program_map_drawn(entry);
 			return entry;
 		}
 	}
@@ -4107,6 +4648,33 @@ static struct program_entry *program_get(GLuint vertex_shader, GLuint fragment_s
 	if (!vertex_shader || !fragment_shader)
 		return NULL;
 
+	/* port: the same two GLSL sources under other names (a shader of the
+	same GLSL is made for each of the game's keys that give it, by name:
+	shader_deferred) use the program made for them first, and its entry,
+	whose uniforms' places and values are that program's: a program the
+	game draws with under fourteen pairs of names was loaded or linked
+	fourteen times, each a stall the first time its pair was drawn */
+	vertex_hash = shader_hash(vertex_shader);
+	fragment_hash = shader_hash(fragment_shader);
+	hash_bucket = &program_hash_buckets[(unsigned long)((vertex_hash * 0x9e3779b97f4a7c15ULL ^ fragment_hash) >> 32) % PROGRAM_BUCKETS];
+	if (vertex_hash && fragment_hash)
+	{
+		struct program_entry *other;
+
+		for (other = *hash_bucket; other; other = other->next_by_hash)
+		{
+			if (other->vertex_hash == vertex_hash && other->fragment_hash == fragment_hash && other->program)
+			{
+				entry->same = other;
+				last = other;
+				program_map_drawn(other);
+				last_vertex_shader = vertex_shader;
+				last_fragment_shader = fragment_shader;
+				return other;
+			}
+		}
+	}
+
 #ifndef HALO_GLES
 	entry->program = shader_prepare_take(shader_hash(vertex_shader), shader_hash(fragment_shader));
 	if (!entry->program)
@@ -4115,10 +4683,14 @@ static struct program_entry *program_get(GLuint vertex_shader, GLuint fragment_s
 	{
 		/* (linked as xgpu_link_program does, keeping its binary) */
 		GLint status = 0;
+		GLuint compiled_vertex = shader_compiled(vertex_shader);
+		GLuint compiled_fragment = shader_compiled(fragment_shader);
 
+		if (!compiled_vertex || !compiled_fragment)
+			return NULL;
 		entry->program = glCreateProgram();
-		glAttachShader(entry->program, vertex_shader);
-		glAttachShader(entry->program, fragment_shader);
+		glAttachShader(entry->program, compiled_vertex);
+		glAttachShader(entry->program, compiled_fragment);
 		if (program_cache.enabled)
 			glProgramParameteri(entry->program, GL_PROGRAM_BINARY_RETRIEVABLE_HINT, GL_TRUE);
 		glLinkProgram(entry->program);
@@ -4137,7 +4709,9 @@ static struct program_entry *program_get(GLuint vertex_shader, GLuint fragment_s
 		program_cache_store(entry->program, shader_hash(vertex_shader), shader_hash(fragment_shader));
 	}
 #else
-	entry->program = xgpu_link_program(vertex_shader, fragment_shader, "shader");
+	if (!shader_compiled(vertex_shader) || !shader_compiled(fragment_shader))
+		return NULL;
+	entry->program = xgpu_link_program(shader_compiled(vertex_shader), shader_compiled(fragment_shader), "shader");
 	if (!entry->program)
 		return NULL;
 #endif
@@ -4209,7 +4783,16 @@ static struct program_entry *program_get(GLuint vertex_shader, GLuint fragment_s
 		snprintf(name, sizeof(name), "tex%d", stage);
 		glUniform1i(glGetUniformLocation(entry->program, name), stage);
 	}
+	if (vertex_hash && fragment_hash)
+	{
+		entry->vertex_hash = vertex_hash;
+		entry->fragment_hash = fragment_hash;
+		entry->next_by_hash = *hash_bucket;
+		*hash_bucket = entry;
+	}
 	last = entry;
+	last_vertex_shader = vertex_shader;
+	last_fragment_shader = fragment_shader;
 	return entry;
 }
 
@@ -4369,7 +4952,7 @@ linearly, 0 or 1 for the game's own filtering. The Xbox game asks for none
 (it never sets D3DTEXF_ANISOTROPIC or D3DTSS_MAXANISOTROPY), so the floors,
 walls and terrain seen at a grazing angle blur toward their smaller mip
 levels. At most the GPU's most (16 on the desktop's), and none on GLES
-without GL_EXT_texture_filter_anisotropic. */
+without GL_EXT_texture_filter_anisotropic. Not for a bump map (configure_sampler). */
 static long anisotropic_level = -1;
 static unsigned long anisotropic_level_read_at;
 
@@ -4401,8 +4984,10 @@ static DWORD anisotropic_filtering(void)
 /* hires: a high-res HUD texture (hud_hires.h), drawn smaller than it is, so
 filtered and from its mip levels whatever the game asks: the HUD's meters are
 point sampled for one player, to keep the Xbox bitmaps' texels sharp.
-rendered: a render target the game draws into */
-static void configure_sampler(int stage, BOOL mipmapped, BOOL hires, BOOL rendered)
+rendered: a render target the game draws into.
+palettized: a P8 texture, which in the Xbox maps is only ever a bump map
+(their p8 bump format) */
+static GLuint configure_sampler(int stage, BOOL mipmapped, BOOL hires, BOOL rendered, BOOL palettized)
 {
 	/* the texture stage state each stage's sampler was last chosen by */
 	static DWORD configured[D3DTSS_MAXSTAGES][SAMPLER_STATE_WORDS];
@@ -4423,8 +5008,12 @@ static void configure_sampler(int stage, BOOL mipmapped, BOOL hires, BOOL render
 	inputs[10] = hires;
 	/* (display.anisotropic_filtering, over the game's linear filtering of
 	the maps' textures with mip levels; not of what the game renders, the
-	water's ripples, whose finer levels seen far off are noise) */
-	if (!hires && mipmapped && !rendered && inputs[1] != D3DTEXF_NONE &&
+	water's ripples, whose finer levels seen far off are noise, nor of a bump
+	map: its finer levels at a grazing angle turn every texel's normal, so
+	the lightmap's light and the reflections it bends speckle the floors
+	(the Covenant's and the Forerunners') with single bright pixels, which
+	multisampling cannot smooth; the Xbox's own filtering averages them) */
+	if (!hires && mipmapped && !rendered && !palettized && inputs[1] != D3DTEXF_NONE &&
 		(inputs[0] == D3DTEXF_LINEAR || inputs[0] == D3DTEXF_ANISOTROPIC) && anisotropic_filtering() > 1)
 	{
 		inputs[0] = D3DTEXF_ANISOTROPIC;
@@ -4437,6 +5026,7 @@ static void configure_sampler(int stage, BOOL mipmapped, BOOL hires, BOOL render
 		configured_sampler[stage] = sampler_get(stage, inputs);
 	}
 	state_sampler(stage, configured_sampler[stage]);
+	return configured_sampler[stage];
 }
 
 
@@ -4467,8 +5057,9 @@ struct mip_composite
 static struct mip_composite *mip_composites;
 
 /* an entry render_target_get no longer finds: the screen's targets at
-another scale or screen width than now, the shadow maps at another
-display.shadow_resolution */
+another scale or screen width than now, the shadow maps at a scale above
+display.shadow_resolution's, and its slots past the first when it changed
+(as many as fit in their budget changed: halo_shadow_map_slots) */
 static BOOL render_target_stale(const struct render_target_entry *entry)
 {
 	switch (entry->kind)
@@ -4477,7 +5068,7 @@ static BOOL render_target_stale(const struct render_target_entry *entry)
 		return entry->target.scale[0] != screen_scale[0] || entry->target.scale[1] != screen_scale[1] ||
 			(entry->target.height == SCREEN_HEIGHT && entry->target.width != (unsigned long)halo_screen_width());
 	case _render_target_shadow_map:
-		return entry->target.scale[0] != (float)halo_shadow_map_scale();
+		return entry->target.scale[0] > (float)shadow_scale_maximum() || (shadow_slots_evicted && entry->slot > 0);
 	default:
 		return FALSE;
 	}
@@ -4511,9 +5102,18 @@ static void render_target_delete(struct render_target_entry *entry)
 	struct render_target_entry **link;
 	struct mip_composite *composite;
 
-	for (link = render_target_bucket(entry->target.data); *link != entry; link = &(*link)->next_in_bucket)
-		;
-	*link = entry->next_in_bucket;
+	if (entry->in_slot_table)
+	{
+		link = shadow_slot_table_link(entry->target.scale[0], entry->slot);
+		if (link && *link == entry)
+			*link = NULL;
+	}
+	else if (entry->kind != _render_target_shadow_map || !shadow_slot_table_link(entry->target.scale[0], entry->slot))
+	{
+		for (link = render_target_bucket(entry->target.data); *link != entry; link = &(*link)->next_in_bucket)
+			;
+		*link = entry->next_in_bucket;
+	}
 	framebuffers_forget(entry->target.texture, FALSE);
 	if (entry->target.multisample)
 	{
@@ -4713,6 +5313,92 @@ static GLuint feedback_copy(struct xgpu_render_target *target)
 }
 #endif
 
+/* Draws mostly bind the textures the draws before them bound, a stage taking
+turns between a few of them. A texture a stage's lookup gave its own pixels
+for (xgpu_texture_description.direct) is remembered with what it was looked
+up by: while no watched page is written, no lookup could give something else
+(xgpu_texture_lookup_serial, which a new frame changes too) and no setting
+changes, the same header and sampler states give the same texture and
+sampler without looking either up. */
+#define TEXTURE_STAGE_WAYS 8
+static const int texture_stage_sampler_states[] =
+{
+	D3DTSS_MINFILTER, D3DTSS_MIPFILTER, D3DTSS_MAGFILTER, D3DTSS_ADDRESSU, D3DTSS_ADDRESSV,
+	D3DTSS_ADDRESSW, D3DTSS_MIPMAPLODBIAS, D3DTSS_MAXMIPLEVEL, D3DTSS_MAXANISOTROPY, D3DTSS_BORDERCOLOR
+};
+#define TEXTURE_STAGE_SAMPLER_STATES (sizeof(texture_stage_sampler_states) / sizeof(texture_stage_sampler_states[0]))
+
+struct texture_stage_entry
+{
+	const D3DBaseTexture *texture;
+	DWORD data, format, size;
+	DWORD sampler_states[TEXTURE_STAGE_SAMPLER_STATES];
+	unsigned long watch_serial, lookup_serial, config_serial;
+	GLenum target;
+	GLuint texture_name, sampler;
+	float scale[2];
+	unsigned char sampler_type;
+};
+
+static struct texture_stage_entry texture_stages[D3DTSS_MAXSTAGES][TEXTURE_STAGE_WAYS];
+/* the way each stage remembers its next texture in, in turn */
+static unsigned long texture_stage_next_way[D3DTSS_MAXSTAGES];
+
+/* what the stage remembers of the texture, if what it was looked up by
+is as it was */
+static const struct texture_stage_entry *texture_stage_remembered(int stage, const D3DBaseTexture *texture,
+	unsigned long watch_serial, unsigned long lookup_serial)
+{
+	const DWORD *state = D3D__TextureState[stage];
+	const struct texture_stage_entry *entry;
+	DWORD difference;
+	unsigned long way, index;
+
+	for (way = 0; way < TEXTURE_STAGE_WAYS && texture_stages[stage][way].texture != texture; way++)
+		;
+	if (way == TEXTURE_STAGE_WAYS)
+		return NULL;
+	entry = &texture_stages[stage][way];
+	if (entry->lookup_serial != lookup_serial || entry->watch_serial != watch_serial ||
+		entry->config_serial != config_changes())
+		return NULL;
+	difference = (entry->data ^ texture->Data) | (entry->format ^ texture->Format) | (entry->size ^ texture->Size);
+	for (index = 0; index < TEXTURE_STAGE_SAMPLER_STATES; index++)
+		difference |= entry->sampler_states[index] ^ state[texture_stage_sampler_states[index]];
+	return difference == 0 ? entry : NULL;
+}
+
+static void texture_stage_remember(int stage, const D3DBaseTexture *texture, unsigned long watch_serial,
+	unsigned long lookup_serial, GLenum target, GLuint texture_name, GLuint sampler, const float *scale,
+	unsigned char sampler_type)
+{
+	const DWORD *state = D3D__TextureState[stage];
+	struct texture_stage_entry *entry;
+	unsigned long way, index;
+
+	/* (in the way it was remembered in before, if it was: once a way) */
+	for (way = 0; way < TEXTURE_STAGE_WAYS && texture_stages[stage][way].texture != texture; way++)
+		;
+	if (way == TEXTURE_STAGE_WAYS)
+		way = texture_stage_next_way[stage]++ % TEXTURE_STAGE_WAYS;
+	entry = &texture_stages[stage][way];
+	entry->texture = texture;
+	entry->data = texture->Data;
+	entry->format = texture->Format;
+	entry->size = texture->Size;
+	for (index = 0; index < TEXTURE_STAGE_SAMPLER_STATES; index++)
+		entry->sampler_states[index] = state[texture_stage_sampler_states[index]];
+	entry->watch_serial = watch_serial;
+	entry->lookup_serial = lookup_serial;
+	entry->config_serial = config_changes();
+	entry->target = target;
+	entry->texture_name = texture_name;
+	entry->sampler = sampler;
+	entry->scale[0] = scale[0];
+	entry->scale[1] = scale[1];
+	entry->sampler_type = sampler_type;
+}
+
 static void bind_textures(struct nv2a_pixel_shader_key *key, float texture_scale[4][4])
 {
 	/* Bind only after resolving every stage, since texture uploads can
@@ -4725,6 +5411,7 @@ static void bind_textures(struct nv2a_pixel_shader_key *key, float texture_scale
 	{
 		D3DBaseTexture *texture = device.textures[stage];
 		unsigned long mode = stage_texture_mode(stage);
+		const struct texture_stage_entry *remembered;
 
 		texture_scale[stage][0] = texture_scale[stage][1] = 1.0f;
 		texture_scale[stage][2] = texture_scale[stage][3] = 1.0f;
@@ -4735,11 +5422,26 @@ static void bind_textures(struct nv2a_pixel_shader_key *key, float texture_scale
 			key->sampler_type[stage] = mode == 0x11 ? _xgpu_sampler_2d : _xgpu_sampler_none;
 			continue;
 		}
+		remembered = material_preparing ? NULL : texture_stage_remembered(stage, texture, memory_watch_serial(), xgpu_texture_lookup_serial());
+		if (remembered)
+		{
+			gl_targets[stage] = remembered->target;
+			gl_textures[stage] = remembered->texture_name;
+			state_sampler(stage, remembered->sampler);
+			texture_scale[stage][0] = remembered->scale[0];
+			texture_scale[stage][1] = remembered->scale[1];
+			/* (the texture's own pixels: no high-res meter's) */
+			if (stage == 0)
+				key->coverage_alpha = key->point_threshold = key->ce_meter_channels = 0;
+			key->sampler_type[stage] = remembered->sampler_type;
+			continue;
+		}
 		{
 			struct xgpu_render_target *target = xgpu_render_target_find(texture->Data);
 			struct xgpu_texture_description description;
 			GLenum gl_target;
 			GLuint gl_texture;
+			GLuint sampler;
 
 			if (material_preparing)
 			{
@@ -4794,7 +5496,8 @@ static void bind_textures(struct nv2a_pixel_shader_key *key, float texture_scale
 			}
 			gl_targets[stage] = gl_target;
 			gl_textures[stage] = gl_texture;
-			configure_sampler(stage, description.levels > 1, description.hires, target != NULL);
+			sampler = configure_sampler(stage, description.levels > 1, description.hires, target != NULL,
+				description.format == D3DFMT_P8);
 			if (stage == 0)
 			{
 				key->coverage_alpha = description.hires_coverage != FALSE;
@@ -4803,6 +5506,14 @@ static void bind_textures(struct nv2a_pixel_shader_key *key, float texture_scale
 			}
 			key->sampler_type[stage] = gl_target == GL_TEXTURE_CUBE_MAP ? _xgpu_sampler_cube :
 				gl_target == GL_TEXTURE_3D ? _xgpu_sampler_3d : _xgpu_sampler_2d;
+			/* (not a render target's: its pixels change as it is drawn into,
+			and its lookup resolves them; the serials as the lookup left
+			them, an upload in it having written a watched page) */
+			if (!material_preparing && !target && description.direct)
+			{
+				texture_stage_remember(stage, texture, memory_watch_serial(), xgpu_texture_lookup_serial(),
+					gl_target, gl_texture, sampler, texture_scale[stage], key->sampler_type[stage]);
+			}
 		}
 	}
 #ifdef HALO_GLES
@@ -7171,6 +7882,7 @@ void WINAPI D3DDevice_Begin(D3DPRIMITIVETYPE primitive_type)
 	device.immediate_type = primitive_type;
 	device.immediate_count = 0;
 	device.immediate_written = 0;
+	device.immediate_register_count = 0;
 }
 
 static void immediate_emit(void)
@@ -7188,8 +7900,33 @@ static void immediate_emit(void)
 		device.immediate_vertices = vertices;
 		device.immediate_capacity = capacity;
 	}
-	memcpy(device.immediate_vertices + device.immediate_count * floats, device.attributes, floats * sizeof(float));
+	/* Only the registers written since Begin: End reads no others from the
+	vertices (most draws write 3 of the 16, and all of them are 256 bytes) */
+	{
+		float *vertex = device.immediate_vertices + device.immediate_count * floats;
+		unsigned long slot;
+
+		for (slot = 0; slot < device.immediate_register_count; slot++)
+		{
+			unsigned long reg = device.immediate_registers[slot];
+
+			memcpy(vertex + reg * 4, device.attributes[reg], 4 * sizeof(float));
+		}
+	}
 	device.immediate_count++;
+}
+
+/* a register's first write since Begin: the vertices before it were given
+its value from before the write, which it still holds */
+static void immediate_first_write(unsigned long reg)
+{
+	unsigned long floats = XGPU_VERTEX_ATTRIBUTE_COUNT * 4;
+	unsigned long vertex;
+
+	for (vertex = 0; vertex < device.immediate_count; vertex++)
+		memcpy(device.immediate_vertices + vertex * floats + reg * 4, device.attributes[reg], 4 * sizeof(float));
+	device.immediate_written |= 1UL << reg;
+	device.immediate_registers[device.immediate_register_count++] = (unsigned char)reg;
 }
 
 void WINAPI D3DDevice_End(void)
@@ -7204,6 +7941,13 @@ void WINAPI D3DDevice_End(void)
 	device.immediate_active = FALSE;
 	if (!count || !prepare_draw(TRUE))
 		return;
+	/* (the registers not written, which the vertices were not given: the
+	first vertex's for the trace, which reads all of them) */
+	for (index = 0; index < XGPU_VERTEX_ATTRIBUTE_COUNT; index++)
+	{
+		if (!(device.immediate_written & (1UL << index)))
+			memcpy(device.immediate_vertices + index * 4, device.attributes[index], 4 * sizeof(float));
+	}
 	/* (the fixed-function pipeline's: positions into clip space) */
 	if (device.fixed_function)
 	{
@@ -7393,12 +8137,12 @@ static void set_attribute(INT reg, float a, float b, float c, float d)
 	}
 	if (reg < 0 || reg >= XGPU_VERTEX_ATTRIBUTE_COUNT)
 		return;
+	if (device.immediate_active && !(device.immediate_written & (1UL << reg)))
+		immediate_first_write((unsigned long)reg);
 	device.attributes[reg][0] = a;
 	device.attributes[reg][1] = b;
 	device.attributes[reg][2] = c;
 	device.attributes[reg][3] = d;
-	if (device.immediate_active)
-		device.immediate_written |= 1UL << reg;
 	/* like the hardware, writing register 0 completes a vertex */
 	if (device.immediate_active && (emit || reg == 0))
 		immediate_emit();
@@ -7583,6 +8327,47 @@ void halo_screen_tone_map(short x0, short y0, short x1, short y1)
 	}
 	glBindVertexArray(device.vertex_array);
 	xgpu_gl_state_invalidate();
+}
+
+/* the blur of a shadow map larger than the Xbox's (rasterizer_shadow_convolve):
+source's map blurred into destination's, at the shadow being drawn's scale,
+in two passes of the port's (xgpu_post_shadow_blur) for the game's three
+or more; from SHADOW_MAP_BLUR_HALVED_FROM, averaged down to the destination's
+half size first, and blurred at that size. FALSE where it is not drawn so:
+the game's passes draw it. */
+int halo_shadow_map_blur(const void *source, const void *destination)
+{
+#ifdef HALO_GLES
+	(void)source;
+	(void)destination;
+	return FALSE;
+#else
+	struct render_target_entry *from, *to;
+	BOOL blurred;
+
+	if (!device.gl_ready)
+		return FALSE;
+	from = render_target_get((const D3DSurface *)source);
+	to = render_target_get((const D3DSurface *)destination);
+	if (!from || !to || from->kind != _render_target_shadow_map || to->kind != _render_target_shadow_map ||
+		(from->target.gl_width != to->target.gl_width && from->target.gl_width != 2 * to->target.gl_width) ||
+		from->target.gl_width * to->target.gl_height != from->target.gl_height * to->target.gl_width)
+	{
+		return FALSE;
+	}
+	/* (the blur's width in the destination's texels: its scale's) */
+	blurred = xgpu_post_shadow_blur(from->target.texture, from->target.gl_width, to->target.texture,
+		framebuffer_get(to->target.texture, 0), to->target.gl_width, to->target.gl_height,
+		(long)to->target.scale[0]);
+	if (blurred)
+	{
+		to->last_rendered = device.frame + 1;
+		to->target.written = ++render_target_write_serial;
+	}
+	glBindVertexArray(device.vertex_array);
+	xgpu_gl_state_invalidate();
+	return blurred;
+#endif
 }
 
 /* ---------- presentation */

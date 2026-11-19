@@ -61,7 +61,7 @@ OBJECTS.C
 #include "units/units.h"
 #include "units/bipeds.h" /* port: vehicle riding */
 /* port: object_bounds_cache.c's */
-void object_bounds_cache_update(long object_index, real_point3d const *center, real radius);
+void object_bounds_cache_update(long object_index, short type, real_point3d const *center, real radius);
 /* port: port/linux/game/first_person_legs.c's */
 void first_person_legs_reset(void);
 #include "third_person.h" /* port: port/linux/game/third_person.c */
@@ -292,6 +292,13 @@ long cluster_get_next_collideable_object(
 		reference_index);
 }
 
+/* port: (object_bounds_cache.c's lists of a cluster's objects) */
+unsigned long cluster_port_collideable_object_changes(
+	short cluster_index)
+{
+	return cluster_partition_port_cluster_changes(&collideable_object_cluster_partition, cluster_index);
+}
+
 short object_get_next_cluster(
 	struct object_cluster_iterator *iterator,
 	long object_index)
@@ -440,7 +447,26 @@ void objects_fix_for_deleted_object(
 	struct object_datum *object;
 
 	struct object_iterator iterator;
-	object_iterator_new(&iterator, _object_mask_all, 0);
+	/* port: only the objects of the types that handle it
+	(object_type_port_handles_deleted_objects: units and projectiles), picked
+	by the headers' types without reading the others: in 32x co-op a joined
+	game deletes the host's objects one at a time, and each read every
+	object. The others' umbrella shield is passed over with them: nothing
+	sets one but to NONE (object_new), which no deleted object's index is. */
+	static unsigned long handling_types;
+	short object_type;
+
+	if (!handling_types)
+	{
+		for (object_type = 0; object_type < NUMBER_OF_OBJECT_TYPES; object_type++)
+		{
+			if (object_type_port_handles_deleted_objects(object_type))
+			{
+				SET_FLAG(handling_types, object_type, TRUE);
+			}
+		}
+	}
+	object_iterator_new(&iterator, handling_types, 0);
 
 	for (object = (struct object_datum *)object_iterator_next(&iterator);
 		object;
@@ -615,6 +641,14 @@ void objects_port_set_activating_cluster(
 	}
 	object_globals->pvs_activation_type = _pvs_activation_cluster;
 	object_globals->pvs_activation.cluster_index = cluster_index;
+}
+
+/* port: a scripted camera cluster belongs to one BSP. An object override
+resolves its cluster from the object after reconnection. */
+void objects_clear_activating_cluster(void)
+{
+	if (object_globals->pvs_activation_type == _pvs_activation_cluster)
+		object_pvs_clear();
 }
 
 void object_pvs_clear(void)
@@ -3128,7 +3162,7 @@ void object_compute_node_matrices(
 		object->object.bounding_sphere_radius *= object->object.scale;
 	}
 	/* port: (and in the packed copy collision reads: object_bounds_cache.c) */
-	object_bounds_cache_update(object_index, &object->object.bounding_sphere_center, object->object.bounding_sphere_radius);
+	object_bounds_cache_update(object_index, object->object.type, &object->object.bounding_sphere_center, object->object.bounding_sphere_radius);
 
 	return;
 }

@@ -61,6 +61,9 @@ For example, changing an FOV setting travels from menu code in
 in `source/` later calls the FOV module while preparing a view. These are
 connections between responsibilities, not separate copies of the game.
 
+[Sound channels and variation selection](audio_channels.md) explains music/speech
+protection, platform pool limits and sound ranges with more than 32 variations.
+
 MCC compatibility has its own modules and boundaries. Use the boundary
 inventory in [CODINGSTANDARDS.md](../../CODINGSTANDARDS.md) to find them.
 Xbox, Custom Edition and MCC support are not interchangeable loading paths;

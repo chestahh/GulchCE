@@ -370,6 +370,9 @@ long cluster_get_first_noncollideable_object(long *reference_index, short cluste
 long cluster_get_next_noncollideable_object(long *reference_index);
 long cluster_get_first_collideable_object(long *reference_index, short cluster_index);
 long cluster_get_next_collideable_object(long *reference_index);
+/* port: the changes to the cluster's list of collideable objects so far
+(object_bounds_cache.c) */
+unsigned long cluster_port_collideable_object_changes(short cluster_index);
 short object_get_next_cluster(struct object_cluster_iterator *iterator, long object_index);
 void *object_try_and_get_and_verify_type(long object_index, unsigned long valid_type_flags);
 void *object_get_and_verify_type(long object_index, unsigned long valid_type_flags);
@@ -385,6 +388,7 @@ void objects_information_get(struct objects_information *information);
 void object_pvs_set_object(long object_index);
 void object_pvs_set_camera_point(short camera_point_index);
 void object_pvs_clear(void);
+void objects_clear_activating_cluster(void); /* port: scenario_switch_structure_bsp */
 short objects_get_activating_cluster_index(void);
 /* port: makes a cluster active as object_pvs_activate would (NONE: back to
 the players' own), for a network co-op client following the host's

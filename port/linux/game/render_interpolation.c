@@ -21,6 +21,15 @@ nodes moved too far for one tick. First-person poses use weapon and animation
 graph identity instead: fast melee motion is continuous, but blending another
 weapon's skeleton node by node stretches vertices across the screen.
 
+A cut the scripts make (a cinematic's camera set to another point at once,
+an animated camera started, the scripted camera turned on or off) is a new
+shot: the tick it comes on, the camera and every object are drawn as they
+are, not blended from the shot before. The Xbox drew that tick's frame from
+the new shot alone; blended, the camera swept between two shots too close
+together to be told for a cut (CAMERA_CUT_DISTANCE: a10's bridge, 1 to 2
+world units apart), and what the script moved for the new shot (a crewman
+put by a console, Johnson's next walk) slid there from where it stood.
+
 Particles, contrails and other effects already move every frame
 (game_frame), so they need nothing here.
 
@@ -72,7 +81,12 @@ at once (an actor waking from dormancy, a model swapped), which blended
 sweeps the vertices through poses it never had. (In the root's frame, so
 that the whole object turning moves nothing: measured in the world, a fast
 turn swung the head and weapon far enough to snap, and characters moved
-like robots.) */
+like robots.) A node that moves about as far, and the same way, as it did
+the tick before (its move changed by no more than this, or than half that
+move) is moving steadily, not changing poses, and is blended however fast:
+a30's lifepod sheds its airbrakes as it falls, their nodes flying from its
+root faster each tick (0.4 to 3.2 world units), and the whole pod, with the
+camera that follows it, stepped once a tick (pose_jumps). */
 #define NODE_SNAP_DISTANCE 0.4f
 /* Quaternion dot product for a rotation within about a degree of a half-turn.
 The two equally short directions cannot identify an authored pose reset. */
@@ -122,6 +136,12 @@ struct interpolated_object
 	/* ... the two snapshots' rotations, found when first blended */
 	struct interpolation_rotation *rotations;
 	boolean rotations_valid[2];
+	/* each node's move in the root's frame from the previous snapshot to the
+	latest (moves_valid: there were two), and whether the latest is a new
+	pose, not blended to (pose_jumps) */
+	real_vector3d *moves;
+	boolean moves_valid;
+	boolean pose_jumps;
 };
 
 struct interpolated_camera
@@ -132,6 +152,11 @@ struct interpolated_camera
 	struct observer_result previous;
 	struct observer_result latest;
 	struct observer_result blended;
+	/* how far into its tick each snapshot was taken (of 1), and whether the
+	two were taken a tick apart (camera_snapshot_blend) */
+	real previous_taken;
+	real latest_taken;
+	boolean taken_a_tick_apart;
 	/* its player's unit (or what it rides) corrected: as an object's */
 	real_vector3d correction;
 	real_vector3d correction_pending;
@@ -144,6 +169,9 @@ struct interpolated_first_person
 	long animation_graph_index;
 	short node_count;
 	boolean has_previous;
+	/* the game cut to an animation since the latest pose was taken
+	(render_interpolation_first_person_cut) */
+	boolean cut;
 	real_matrix4x3 previous[MAXIMUM_INTERPOLATED_NODES];
 	real_matrix4x3 latest[MAXIMUM_INTERPOLATED_NODES];
 };
@@ -154,6 +182,10 @@ static struct interpolated_object *interpolated_objects;
 static struct interpolated_camera interpolated_cameras[MAXIMUM_LOCAL_PLAYERS];
 static struct interpolated_first_person interpolated_first_person[MAXIMUM_LOCAL_PLAYERS];
 static long interpolation_tick;
+/* a cut the scripts made in the tick being simulated (render_interpolation_cut),
+and the latest tick a cut came on (NONE: none since the map began) */
+static boolean interpolation_cut_pending;
+static long interpolation_cut_tick = NONE;
 static long interpolation_frame;
 static boolean interpolation_rendering;
 static real interpolation_fraction = 1.0f;
@@ -390,6 +422,62 @@ static real distance_squared(real_point3d const *a, real_point3d const *b)
 	return x * x + y * y + z * z;
 }
 
+/* whether a pose (count nodes, root first) is a new one, not one blended to
+from the pose before: a node moved further in the root's frame than a tick
+allows (NODE_SNAP_DISTANCE), and, when its move the tick before is known
+(moves_valid), its move changed by more than that too, or than half its
+move the tick before, if more; a node moving steadily, however fast, is no
+jump (so written that a position not a number is one). Each node's move
+(moves, from node 1 on) becomes this tick's. */
+static boolean pose_jumps(
+	real_matrix4x3 const *previous,
+	real_matrix4x3 const *latest,
+	short count,
+	real_vector3d *moves,
+	boolean moves_valid)
+{
+	boolean jumps = FALSE;
+	short node_index;
+
+	for (node_index = 1; node_index < count; node_index++)
+	{
+		real_point3d previous_local, latest_local;
+		real_vector3d move;
+
+		matrix4x3_inverse_transform_point(&previous[0], &previous[node_index].position, &previous_local);
+		matrix4x3_inverse_transform_point(&latest[0], &latest[node_index].position, &latest_local);
+		move.i = latest_local.x - previous_local.x;
+		move.j = latest_local.y - previous_local.y;
+		move.k = latest_local.z - previous_local.z;
+		if (!(move.i * move.i + move.j * move.j + move.k * move.k <= NODE_SNAP_DISTANCE * NODE_SNAP_DISTANCE))
+		{
+			if (!moves_valid)
+			{
+				jumps = TRUE;
+			}
+			else
+			{
+				real_vector3d change;
+				real before_squared = moves[node_index].i * moves[node_index].i +
+					moves[node_index].j * moves[node_index].j + moves[node_index].k * moves[node_index].k;
+				/* (the larger of NODE_SNAP_DISTANCE and half the move before, squared) */
+				real allowed_squared = MAX(NODE_SNAP_DISTANCE * NODE_SNAP_DISTANCE, 0.25f * before_squared);
+
+				change.i = move.i - moves[node_index].i;
+				change.j = move.j - moves[node_index].j;
+				change.k = move.k - moves[node_index].k;
+				if (!(change.i * change.i + change.j * change.j + change.k * change.k <= allowed_squared))
+				{
+					jumps = TRUE;
+				}
+			}
+		}
+		moves[node_index] = move;
+	}
+
+	return jumps;
+}
+
 /* ---------- ticks */
 
 void render_interpolation_tick(void)
@@ -397,9 +485,13 @@ void render_interpolation_tick(void)
 	struct object_iterator iterator;
 	struct object_datum *object;
 	long previous_tick = interpolation_tick++;
+	boolean cut = interpolation_cut_pending;
 
+	interpolation_cut_pending = FALSE;
 	if (!halo_interpolation_enabled())
 		return;
+	if (cut)
+		interpolation_cut_tick = interpolation_tick;
 	/* the cameras' corrections a tick on, as the objects' (below) */
 	{
 		short local_player_index;
@@ -443,6 +535,7 @@ void render_interpolation_tick(void)
 		{
 			real_matrix4x3 *nodes = realloc(record->nodes, 3 * node_count * sizeof(real_matrix4x3));
 			struct interpolation_rotation *rotations;
+			real_vector3d *moves;
 
 			if (!nodes)
 			{
@@ -457,12 +550,21 @@ void render_interpolation_tick(void)
 				continue;
 			}
 			record->rotations = rotations;
+			moves = realloc(record->moves, node_count * sizeof(real_vector3d));
+			if (!moves)
+			{
+				record->object_index = NONE;
+				continue;
+			}
+			record->moves = moves;
 			record->node_capacity = node_count;
 			record->object_index = NONE; /* the old snapshots moved */
 		}
+		/* (none at a cut: the new shot is drawn as it is) */
 		continuing = record->object_index == iterator.index &&
 			record->node_count == node_count &&
-			record->tick == previous_tick;
+			record->tick == previous_tick &&
+			!cut;
 		if (continuing)
 		{
 			record->latest ^= 1;
@@ -478,6 +580,15 @@ void render_interpolation_tick(void)
 			object_get_node_matrices(iterator.index),
 			node_count * sizeof(real_matrix4x3));
 		record->rotations_valid[record->latest] = FALSE;
+		/* (whether this pose is a new one, found once a tick: a correction
+		moves every node alike, and so none in the root's frame) */
+		record->pose_jumps = continuing && pose_jumps(
+			record->nodes + (record->latest ^ 1) * record->node_capacity,
+			record->nodes + record->latest * record->node_capacity,
+			node_count,
+			record->moves,
+			record->moves_valid);
+		record->moves_valid = continuing;
 		record->object_index = iterator.index;
 		record->node_count = node_count;
 		record->tick = interpolation_tick;
@@ -502,7 +613,17 @@ void render_interpolation_reset(void)
 	{
 		interpolated_first_person[index].node_count = 0;
 		interpolated_first_person[index].has_previous = FALSE;
+		interpolated_first_person[index].cut = FALSE;
 	}
+	interpolation_cut_pending = FALSE;
+	interpolation_cut_tick = NONE;
+}
+
+/* the scripts cut to a new shot in the tick being simulated
+(camera_scripting.c): its snapshots are drawn as they are */
+void render_interpolation_cut(void)
+{
+	interpolation_cut_pending = TRUE;
 }
 
 /* ---------- frames */
@@ -545,20 +666,12 @@ real_matrix4x3 *render_interpolation_object_node_matrices(long object_index)
 		real_matrix4x3 *blended = record->nodes + 2 * record->node_capacity;
 		short node_index;
 		/* (so written that a position not a number snaps) */
-		boolean snap = !(distance_squared(&previous[0].position, &latest[0].position) <=
-			OBJECT_SNAP_DISTANCE * OBJECT_SNAP_DISTANCE);
+		/* (or the two snapshots are different poses, not one moving:
+		pose_jumps, found as the tick was taken) */
+		boolean snap = record->pose_jumps ||
+			!(distance_squared(&previous[0].position, &latest[0].position) <=
+				OBJECT_SNAP_DISTANCE * OBJECT_SNAP_DISTANCE);
 
-		/* a node moved further in the root's frame than a tick allows: the
-		two snapshots are different poses, not one moving (so written that
-		a position not a number snaps) */
-		for (node_index = 1; !snap && node_index < record->node_count; node_index++)
-		{
-			real_point3d previous_local, latest_local;
-
-			matrix4x3_inverse_transform_point(&previous[0], &previous[node_index].position, &previous_local);
-			matrix4x3_inverse_transform_point(&latest[0], &latest[node_index].position, &latest_local);
-			snap = !(distance_squared(&previous_local, &latest_local) <= NODE_SNAP_DISTANCE * NODE_SNAP_DISTANCE);
-		}
 		if (!snap)
 		{
 			struct interpolation_rotation *previous_rotations =
@@ -816,12 +929,56 @@ static boolean observer_cut(
 		!(a->forward.i * b->forward.i + a->forward.j * b->forward.j + a->forward.k * b->forward.k >= CAMERA_CUT_COSINE);
 }
 
+/* the previous snapshot of a camera that moves every frame, carried by its
+velocity (the observer's, world units a second) to when the latest was
+taken: a cut is a move away from there (observer_cut), not a long one. (A
+move strays from there by 0.8 world units a tick squared at most: the
+observer accelerates a camera set to a point by no more than 1500 world
+units a second squared, observer_maximum_accelerations, or puts it at the
+point at once, where it stops.) A cinematic's camera can fly further than
+CAMERA_CUT_DISTANCE in a tick (d40's, over the ring, 3.1 world units),
+which was taken for a cut every few frames there: drawn from the observer,
+a tick ahead, then from its snapshots, it jumped back and forth a tick's
+move. */
+static void camera_snapshot_carried(
+	struct observer_result const *previous,
+	real previous_taken,
+	real latest_taken,
+	struct observer_result *carried)
+{
+	real seconds = (1.0f + latest_taken - previous_taken) / (real)TICKS_PER_SECOND;
+
+	*carried = *previous;
+	carried->position.x += previous->velocity.i * seconds;
+	carried->position.y += previous->velocity.j * seconds;
+	carried->position.z += previous->velocity.k * seconds;
+}
+
+/* how far from the previous snapshot to the latest a camera that moves every
+frame is drawn (of 1; below 0 a little before the previous): at the frame's
+part of a tick after the previous tick, the moment the objects are drawn
+at. Its snapshots are taken at the first frames after the last two ticks,
+each some part of a tick (previous_taken, latest_taken) after its tick, so
+that they are 1 + latest_taken - previous_taken ticks apart, more or less
+than one from tick to tick: blended by the fraction itself, a camera moving
+steadily sped up and slowed down every tick. */
+static real camera_snapshot_blend(real fraction, real previous_taken, real latest_taken)
+{
+	real span = 1.0f + latest_taken - previous_taken;
+
+	if (!(span > 0.0f))
+		return fraction;
+	return (fraction - previous_taken) / span;
+}
+
 static struct observer_result const *render_interpolation_blended_camera(
 	short local_player_index,
 	struct observer_result const *observer)
 {
 	struct interpolated_camera *camera;
 	real t = interpolation_fraction;
+	struct observer_result carried;
+	boolean moving_to_point;
 
 	if (!interpolation_rendering || !observer)
 	{
@@ -874,9 +1031,14 @@ static struct observer_result const *render_interpolation_blended_camera(
 			camera->correction = *global_zero_vector3d;
 			camera->correction_pending = *global_zero_vector3d;
 		}
-		camera->has_previous = camera->valid;
+		/* (none from before a cut the scripts made since the last snapshot) */
+		camera->has_previous = camera->valid &&
+			!(interpolation_cut_tick != NONE && interpolation_cut_tick > camera->tick);
 		camera->previous = camera->latest;
 		camera->latest = *observer;
+		camera->previous_taken = camera->latest_taken;
+		camera->latest_taken = t;
+		camera->taken_a_tick_apart = camera->has_previous && interpolation_tick - camera->tick == 1;
 		/* Several ticks since the last snapshot (a long frame): the objects
 		are drawn between the last two ticks, so the camera's previous is
 		where it was a tick ago, as nearly as a steady move from the last
@@ -894,11 +1056,24 @@ static struct observer_result const *render_interpolation_blended_camera(
 		camera->tick = interpolation_tick;
 		camera->valid = TRUE;
 	}
-	if (!camera->has_previous || observer_cut(&camera->previous, &camera->latest))
+
+	/* A cinematic's camera set to a point (camera_set) moves there every
+	frame (observer_update, main.c): blended by the time its snapshots were
+	taken, not as though a tick apart, and cut by a move away from where its
+	velocity carries it. (A player's camera moves with its unit, once a tick,
+	and an animated camera by its animation's frames.) */
+	moving_to_point = camera->taken_a_tick_apart &&
+		director_get_perspective(local_player_index) == _director_perspective_scripted &&
+		scripted_camera_moving_to_point();
+	if (moving_to_point)
+		camera_snapshot_carried(&camera->previous, camera->previous_taken, camera->latest_taken, &carried);
+	if (!camera->has_previous ||
+		observer_cut(moving_to_point ? &carried : &camera->previous, &camera->latest))
 	{
 		return observer;
 	}
-
+	if (moving_to_point)
+		t = camera_snapshot_blend(t, camera->previous_taken, camera->latest_taken);
 	observer_blend(&camera->previous, &camera->latest, t, &camera->blended);
 	if (correction_significant(&camera->correction) || correction_significant(&camera->correction_pending))
 	{
@@ -913,6 +1088,17 @@ static struct observer_result const *render_interpolation_blended_camera(
 }
 
 /* ---------- first-person weapon */
+
+/* the game started a local player's first-person animation without blending
+into it, in the tick being simulated (first_person_weapon_set_state: a melee,
+the weapon readied or overheated): the pose cuts to the animation's first
+frame, as on the Xbox. Blended, the shotgun's melee swept the gun and the arm
+across the view, from where they were held to where the swing begins. */
+void render_interpolation_first_person_cut(short local_player_index)
+{
+	if (local_player_index >= 0 && local_player_index < MAXIMUM_LOCAL_PLAYERS)
+		interpolated_first_person[local_player_index].cut = TRUE;
+}
 
 /* The first-person weapon and hands are posed in world space from the drawn
 camera each frame, from animation state that changes once a tick: blend the
@@ -947,14 +1133,19 @@ void render_interpolation_first_person(
 	matrix4x3_from_point_and_vectors(&camera_matrix, &camera->position, &camera->forward, &camera->up);
 	matrix4x3_inverse(&camera_matrix, &inverse_camera);
 	if (first_person->tick != interpolation_tick || first_person->weapon_index != weapon_index ||
-		first_person->animation_graph_index != animation_graph_index || first_person->node_count != node_count)
+		first_person->animation_graph_index != animation_graph_index || first_person->node_count != node_count || first_person->cut)
 	{
 		/* the pose drawn last, if that was at the end of the tick just
 		before: not one left from before the view was last away from first
-		person (zoomed, in a vehicle, dead, in a cinematic), seconds old */
+		person (zoomed, in a vehicle, dead, in a cinematic), seconds old, not
+		another weapon's or skeleton's (of as many nodes), and not one the
+		game cut from */
 		first_person->has_previous = first_person->tick == interpolation_tick - 1 &&
-			first_person->node_count == node_count && first_person->weapon_index == weapon_index &&
-			first_person->animation_graph_index == animation_graph_index;
+			first_person->node_count == node_count &&
+			first_person->weapon_index == weapon_index &&
+			first_person->animation_graph_index == animation_graph_index &&
+			!first_person->cut;
+		first_person->cut = FALSE;
 		memcpy(first_person->previous, first_person->latest, sizeof(first_person->previous));
 		first_person->tick = interpolation_tick;
 		first_person->weapon_index = weapon_index;
