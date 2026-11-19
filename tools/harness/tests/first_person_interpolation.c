@@ -20,6 +20,8 @@ struct render_camera { real_point3d position; real_vector3d forward, up; };
 static struct { long object_index; } *interpolated_objects;
 static int interpolated_cameras[MAXIMUM_LOCAL_PLAYERS];
 static long interpolation_tick;
+static boolean interpolation_cut_pending;
+static long interpolation_cut_tick = NONE;
 static boolean interpolation_rendering = TRUE;
 static real interpolation_fraction = 0.5f;
 static void cross_product3d(real_vector3d const *a, real_vector3d const *b, real_vector3d *r)

@@ -182,12 +182,14 @@ static void files_gather(void)
 		{
 			unsigned long size = 0;
 			unsigned char *data;
+#ifdef _WIN32
 			char *separator;
 
 			/* (Windows lists ce\main_menu.xml: the embedded files' names
 			have /, and a file that replaced one is not added again) */
 			for (separator = names[name]; (separator = strchr(separator, '\\')) != NULL; separator++)
 				*separator = '/';
+#endif
 			if (file_find(names[name]) >= 0)
 				continue;
 			snprintf(path, sizeof(path), "%s/%s", folder, names[name]);

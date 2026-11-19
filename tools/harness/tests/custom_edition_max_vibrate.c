@@ -227,6 +227,20 @@ int main(int argc, char **argv)
 			strings + offset);
 		return 0;
 	}
+	CASE("shared-suffix-inert")
+	{
+		long prefix = string_add("prefix_player_effect_set_max_vibrate");
+		long offset = prefix + 7;
+		long call = call_add(offset);
+
+		node_add(_hs_type_string, FLAG(_hs_syntax_node_primitive_bit), prefix, 0x40440000 + prefix);
+		conversion_set_up();
+		CHECK(function_call_convert(&conversion, &nodes[call]), "the call was not laid out as one");
+		inert_check(call);
+		CHECK(!strcmp(strings + offset, "player_effect_set_max_vibrate"), "the shared text reads '%s'",
+			strings + offset);
+		return 0;
+	}
 	/* (built with a table whose Halo PC name is shorter than this build's)
 	this build's name would not fit in its place: not taken, nothing written */
 	CASE("longer-refused")

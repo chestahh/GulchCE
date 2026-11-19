@@ -39,4 +39,3 @@ def test_negative_control(control):
     fault, case = NEGATIVE_CONTROLS[control]
     status, output = run(build("sound_channel_steal", generated(fault)), case)
     assert status == CHECK_FAILED, f"{control} escaped {case}: {output}"
-

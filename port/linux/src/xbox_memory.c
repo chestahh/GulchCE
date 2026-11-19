@@ -299,8 +299,7 @@ BOOL WINAPI VirtualProtect(LPVOID address, SIZE_T size, DWORD new_protect, PDWOR
 #ifndef HALO_WEB
 	if (mprotect((void *)start, end - start, protection_to_host(new_protect)) != 0)
 	{
-		if (writable)
-			memory_watch_forget((void *)start, end - start);
+		/* A failed protection change can leave pages watched and read-only. */
 		platform_set_last_error_from_errno(errno);
 		return FALSE;
 	}

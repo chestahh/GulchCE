@@ -70,6 +70,8 @@ def generated(fault=None):
         structure(collision_bsp, "collision_leaf"),
         structure(collision_bsp_definitions, "collision_surface"),
         structure(collision_bsp_header, "collision_bsp_test_vector_result"),
+        enum_with(collision_bsp_header, "COLLISION_VECTOR_CACHE_NODES"),
+        structure(collision_bsp_header, "collision_bsp_vector_cache"),
         structure(collision_bsp, "collision_bsp_test_vector_context"),
     ]) + "\n"
     code = "\n".join([
@@ -89,6 +91,7 @@ def generated(fault=None):
         function(collision_bsp, "collision_bsp_test_vector_in_one_leaf"),
         function(collision_bsp, "collision_bsp_test_vector_short"),
         function(collision_bsp, "collision_bsp_test_vector_descend"),
+        function(collision_bsp, "collision_bsp_test_vector_at_node"),
         function(collision_bsp, "collision_bsp_test_vector"),
         function(collision_bsp, "collision_bsp_test_vector_recursive"),
     ]).replace("union real_point3d", "real_point3d") + "\n"

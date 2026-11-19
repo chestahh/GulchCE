@@ -171,7 +171,12 @@ static long cluster_marks[CLUSTERS], object_marks[OBJECTS], marker;
 #define object_marker_end() ((void)0)
 #define structure_cluster_mark(cluster) (cluster_marks[cluster] != marker && (cluster_marks[cluster] = marker))
 #define object_mark_function(object_index) (object_marks[object_index] != marker && (object_marks[object_index] = marker))
-#define object_bounds_cache_missed_by_vector(object_index, point, vector) FALSE
+#define object_bounds_cache_missed_by_vector(object_index, flags, point, vector) FALSE
+static long const *object_bounds_cache_cluster_objects(short cluster, unsigned long flags, long *count)
+{
+	*count = cluster_counts[cluster];
+	return (cluster & 1) ? cluster_objects[cluster] : NULL;
+}
 
 static long cluster_get_first_collideable_object(long *reference, long cluster)
 {

@@ -11,7 +11,7 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from harness import CHECK_FAILED, build, function, mutated, read, run  # noqa: E402
 
-CASES = ['remembered', 'serials', 'header', 'sampler-states', 'not-direct', 'render-target', 'key', 'ways']
+CASES = ['prepare', 'remembered', 'serials', 'header', 'sampler-states', 'not-direct', 'render-target', 'key', 'ways']
 
 # a fault in the code and the case that must catch it
 NEGATIVE_CONTROLS = {
@@ -35,9 +35,9 @@ NEGATIVE_CONTROLS = {
                         '\tfor (way = 0; way < TEXTURE_STAGE_WAYS && texture_stages[stage][way].texture != texture; '
                         'way++)\n\t\t;\n', '\tway = TEXTURE_STAGE_WAYS;\n'), 'ways'),
     # every lookup remembered, a palettized or replaced texture's too
-    'not-direct-remembered': (('if (!target && description.direct)', 'if (!target)'), 'not-direct'),
+    'not-direct-remembered': (('if (!material_preparing && !target && description.direct)', 'if (!material_preparing && !target)'), 'not-direct'),
     # a render target's lookup remembered
-    'render-target-remembered': (('if (!target && description.direct)', 'if (description.direct)'), 'render-target'),
+    'render-target-remembered': (('if (!material_preparing && !target && description.direct)', 'if (!material_preparing && description.direct)'), 'render-target'),
     # a remembered stage's sampler not bound again after the bindings were lost
     'sampler-not-bound': (('\t\t\tstate_sampler(stage, remembered->sampler);\n', ''), 'remembered'),
     # a remembered linear texture's scale left at 1

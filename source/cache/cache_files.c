@@ -1308,7 +1308,7 @@ long scenario_tags_load(
 			/* port: the GPU programs the map drew with, loaded ahead
 			(port/linux/src/d3d8_gl.c), as for Xbox maps below; an MCC map's
 			list is its own, not the Xbox map's of its name
-			(by its folder's name too: mcc_maps\a10 lists as mcc_maps_a10) */
+			(the cache key includes the complete package and level path) */
 			{
 				extern void program_cache_map_loaded(const char *map_name);
 

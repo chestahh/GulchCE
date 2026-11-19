@@ -295,7 +295,10 @@ static void protect_run(unsigned long first, unsigned long count)
 		PROT_READ))
 		return;
 	for (page = first; page < first + count; page++)
-		mprotect((void *)(PLATFORM_CONTIGUOUS_BASE + page * WATCH_PAGE_SIZE), WATCH_PAGE_SIZE, PROT_READ);
+	{
+		if (mprotect((void *)(PLATFORM_CONTIGUOUS_BASE + page * WATCH_PAGE_SIZE), WATCH_PAGE_SIZE, PROT_READ) != 0)
+			page_protected[page] = 0;
+	}
 }
 
 /* (each page is marked before the call that protects it, so a write that
@@ -308,10 +311,10 @@ void memory_watch_protect(unsigned long address, unsigned long size)
 
 	if (!watch_active || !size || !platform_is_contiguous((void *)address))
 		return;
+	if (size > PLATFORM_CONTIGUOUS_SIZE - (address - PLATFORM_CONTIGUOUS_BASE))
+		size = PLATFORM_CONTIGUOUS_SIZE - (address - PLATFORM_CONTIGUOUS_BASE);
 	first = page_index(address);
 	last = page_index(address + size - 1);
-	if (last >= WATCH_PAGE_COUNT)
-		last = WATCH_PAGE_COUNT - 1;
 	run = first;
 	for (page = first; page <= last; page++)
 	{

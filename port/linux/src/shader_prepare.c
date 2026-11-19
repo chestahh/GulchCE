@@ -240,6 +240,11 @@ unsigned int shader_prepare_take(shader_prepare_hash vertex, shader_prepare_hash
     return 0;
 }
 
+int shader_prepare_needs_pair(shader_prepare_hash vertex, shader_prepare_hash fragment)
+{
+    return prepare.active && prepare.count < PREPARE_COUNT && !prepare_find(vertex, fragment);
+}
+
 void shader_prepare_record(unsigned int vertex, unsigned int fragment,
     shader_prepare_hash vertex_hash, shader_prepare_hash fragment_hash)
 {
@@ -267,6 +272,7 @@ void shader_prepare_record(unsigned int vertex, unsigned int fragment,
     prepare_index(prepare.count - 1);
 }
 #else
+int shader_prepare_needs_pair(shader_prepare_hash vertex, shader_prepare_hash fragment) {(void)vertex;(void)fragment;return 0;}
 void shader_prepare_begin(char const *map, shader_prepare_load_fn load, shader_prepare_store_fn store) {(void)map;(void)load;(void)store;}
 void shader_prepare_end(void) {}
 void shader_prepare_record(unsigned int vertex, unsigned int fragment,

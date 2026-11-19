@@ -18,7 +18,7 @@ NEGATIVE_CONTROLS = {
 }
 
 
-def generated(fault=None):
+def generated(fault=None, windows=True):
     source = read("port/linux/src/menu_files.c").replace("\r\n", "\n")
     code = "\n".join([
         "struct menu_file { char *path; const unsigned char *data; unsigned long size; int loaded; };",
@@ -31,12 +31,19 @@ def generated(fault=None):
     ]) + "\n"
     if fault:
         code = mutated(code, *fault)
-    return (("under_test.inc", code),)
+    # Exercise the Windows directory separator on every test host.
+    platform = "#ifndef _WIN32\n#define _WIN32 1\n#endif\n" if windows else "#undef _WIN32\n"
+    return (("under_test.inc", platform + code),)
 
 
 @pytest.mark.parametrize("case", CASES)
 def test_case(case):
     status, output = run(build("menu_files_gather", generated()), case)
+    assert status == 0, output
+
+
+def test_posix_literal_backslash():
+    status, output = run(build("menu_files_gather", generated(windows=False)), "literal")
     assert status == 0, output
 
 

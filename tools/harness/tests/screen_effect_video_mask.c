@@ -40,6 +40,7 @@ static long IDirect3DDevice8_SetVertexShaderConstant(void *device, long reg, voi
 	return 0;
 }
 /* (an MCC map's HUD mask keeps its own size, mcc_hud_draw.c: no MCC map here) */
+#define custom_edition_hud_mask_transform(bitmap, size, scale) ((void)0)
 #define mcc_hud_mask_transform(bitmap, size, scale) ((void)0)
 
 #include "under_test.inc"

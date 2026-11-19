@@ -1261,20 +1261,17 @@ void program_cache_map_loaded(const char *map_name)
 	Uint64 start = SDL_GetPerformanceCounter();
 	struct program_cache_entry *entry;
 
-	if (!program_cache.enabled || !map_name)
+	if (!program_cache.enabled || !map_name || config_boolean("display.shader_prepare"))
 		return;
 	if (program_cache.map_file)
 		fclose(program_cache.map_file);
 	program_cache.map_file = NULL;
 	program_cache.map++;
-	for (index = 0; map_name[index] && index < (long)sizeof(name) - 1; index++)
-	{
-		char c = map_name[index];
-
-		name[index] = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') ||
-			c == '_' || c == '-' ? c : '_';
-	}
-	name[index] = 0;
+	/* Keep the menu out of the first-play estimates for gameplay maps. */
+	if (!strcmp(map_name, "ui"))
+		strcpy(name, "ui");
+	else
+		snprintf(name, sizeof(name), "%016llx", source_hash(map_name));
 	snprintf(path, sizeof(path), "%s/%s-%s.list", program_cache.directory, program_cache.driver_name, name);
 
 	/* the list read whole: kept are the pairs the cache has a program for */
@@ -4619,8 +4616,8 @@ static struct program_entry *program_get(GLuint vertex_shader, GLuint fragment_s
 	struct program_entry **hash_bucket;
 
 #ifndef HALO_GLES
-	if (!material_preparing)
-		shader_prepare_record(vertex_shader, fragment_shader, shader_hash(vertex_shader), shader_hash(fragment_shader));
+	if (!material_preparing && shader_prepare_needs_pair(shader_hash(vertex_shader), shader_hash(fragment_shader)))
+		shader_prepare_record(shader_compiled(vertex_shader), shader_compiled(fragment_shader), shader_hash(vertex_shader), shader_hash(fragment_shader));
 #endif
 	if (last && last_vertex_shader == vertex_shader && last_fragment_shader == fragment_shader)
 	{
@@ -5425,7 +5422,7 @@ static void bind_textures(struct nv2a_pixel_shader_key *key, float texture_scale
 			key->sampler_type[stage] = mode == 0x11 ? _xgpu_sampler_2d : _xgpu_sampler_none;
 			continue;
 		}
-		remembered = texture_stage_remembered(stage, texture, memory_watch_serial(), xgpu_texture_lookup_serial());
+		remembered = material_preparing ? NULL : texture_stage_remembered(stage, texture, memory_watch_serial(), xgpu_texture_lookup_serial());
 		if (remembered)
 		{
 			gl_targets[stage] = remembered->target;
@@ -5512,7 +5509,7 @@ static void bind_textures(struct nv2a_pixel_shader_key *key, float texture_scale
 			/* (not a render target's: its pixels change as it is drawn into,
 			and its lookup resolves them; the serials as the lookup left
 			them, an upload in it having written a watched page) */
-			if (!target && description.direct)
+			if (!material_preparing && !target && description.direct)
 			{
 				texture_stage_remember(stage, texture, memory_watch_serial(), xgpu_texture_lookup_serial(),
 					gl_target, gl_texture, sampler, texture_scale[stage], key->sampler_type[stage]);

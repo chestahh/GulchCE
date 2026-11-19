@@ -7854,7 +7854,8 @@ static boolean join4_set(short controller, unsigned char state)
 playing controller, which then has the screen) */
 static boolean join4_back(short controller)
 {
-	if (controller > 0 && (lobby_controller_playing(0) || !lobby_controller_playing(controller)))
+	if (controller < 0 || controller >= MAXIMUM_LOCAL_PLAYERS || !lobby_controller_playing(controller) ||
+		(controller != 0 && lobby_controller_playing(0)))
 		return FALSE;
 	lobby_join_reset();
 	return TRUE;

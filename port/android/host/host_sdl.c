@@ -184,9 +184,18 @@ uint32_t host_sdl_gl_create_context(uint32_t window)
 	return object ? handle_new(_handle_context, SDL_GL_CreateContext(object)) : 0;
 }
 
+static void performance_hint_reset(void);
+
 int host_sdl_gl_make_current(uint32_t window, uint32_t context)
 {
-	return SDL_GL_MakeCurrent(handle_get(window, _handle_window), handle_get(context, _handle_context));
+	SDL_GLContext next = handle_get(context, _handle_context);
+	SDL_Window *surface = handle_get(window, _handle_window);
+	int changed = SDL_GL_GetCurrentContext() != next || SDL_GL_GetCurrentWindow() != surface;
+	int result = SDL_GL_MakeCurrent(surface, next);
+
+	if (result && changed)
+		performance_hint_reset();
+	return result;
 }
 
 int host_sdl_gl_set_swap_interval(int interval)
@@ -230,19 +239,20 @@ static struct
 {
 	APerformanceHintManager *(*get_manager)(void);
 	APerformanceHintSession *(*create_session)(APerformanceHintManager *, const int32_t *, size_t, int64_t);
+	void (*close_session)(APerformanceHintSession *);
 	int (*update_target_work_duration)(APerformanceHintSession *, int64_t);
 	int (*report_actual_work_duration)(APerformanceHintSession *, int64_t);
 } performance_hint;
 
-static APerformanceHintSession *hint_session;
-static pid_t hint_thread;
-static int hint_tried;
+static pthread_key_t drawing_hint_key;
+static __thread APerformanceHintSession *hint_session;
+static __thread int hint_tried;
 /* the drawing thread's frame's start, and the game's frame limiter's
 interval (0: none), host_frame_paced */
-static int64_t hint_frame_start;
-static int64_t hint_limit;
-static int64_t hint_target;
-static unsigned long hint_frames;
+static __thread int64_t hint_frame_start;
+static __thread int64_t hint_limit;
+static __thread int64_t hint_target;
+static __thread unsigned long hint_frames;
 
 static int64_t monotonic_nanoseconds(void)
 {
@@ -269,6 +279,24 @@ manager, or NULL where there is none */
 static pthread_once_t hint_loaded = PTHREAD_ONCE_INIT;
 static APerformanceHintManager *hint_manager;
 
+static void performance_hint_close(void *session)
+{
+	performance_hint.close_session(session);
+}
+
+static void performance_hint_reset(void)
+{
+	if (hint_session)
+	{
+		pthread_setspecific(drawing_hint_key, NULL);
+		performance_hint_close(hint_session);
+		hint_session = NULL;
+	}
+	hint_tried = 0;
+	hint_frame_start = hint_limit = 0;
+	hint_frames = 0;
+}
+
 static void performance_hint_load(void)
 {
 	void *library = dlopen("libandroid.so", RTLD_NOW);
@@ -282,13 +310,15 @@ static void performance_hint_load(void)
 		"APerformanceHint_updateTargetWorkDuration");
 	performance_hint.report_actual_work_duration = (int (*)(APerformanceHintSession *, int64_t))dlsym(library,
 		"APerformanceHint_reportActualWorkDuration");
-	if (!performance_hint.get_manager || !performance_hint.create_session ||
+	performance_hint.close_session = (void (*)(APerformanceHintSession *))dlsym(library, "APerformanceHint_closeSession");
+	if (!performance_hint.close_session || !performance_hint.get_manager || !performance_hint.create_session ||
 		!performance_hint.update_target_work_duration || !performance_hint.report_actual_work_duration)
 	{
 		host_logf(HOST_LOG_INFO, "performance hint: not on this Android version");
 		return;
 	}
-	hint_manager = performance_hint.get_manager();
+	if (pthread_key_create(&drawing_hint_key, performance_hint_close) == 0)
+		hint_manager = performance_hint.get_manager();
 }
 
 /* a session for this thread, or NULL */
@@ -311,7 +341,11 @@ static void performance_hint_start(SDL_Window *window)
 	hint_tried = 1;
 	hint_target = performance_hint_target(window);
 	hint_session = performance_hint_session("drawing", hint_target);
-	hint_thread = gettid();
+	if (hint_session && pthread_setspecific(drawing_hint_key, hint_session) != 0)
+	{
+		performance_hint_close(hint_session);
+		hint_session = NULL;
+	}
 }
 
 /* (every HINT_REFRESH_CHECK_FRAMES: the refresh rate or the limit changed, the
@@ -343,7 +377,7 @@ int host_sdl_gl_swap_window(uint32_t window)
 		performance_hint_start(object);
 	swap_start = monotonic_nanoseconds();
 	/* (the drawing thread's frames only; the first has no start) */
-	if (hint_session && gettid() == hint_thread)
+	if (hint_session)
 	{
 		if (hint_frame_start && swap_start > hint_frame_start)
 			performance_hint.report_actual_work_duration(hint_session, swap_start - hint_frame_start);
@@ -359,7 +393,7 @@ frames interval nanoseconds apart (0: no limit; sdl_platform.c's
 platform_video_swap) */
 void host_frame_paced(int64_t interval)
 {
-	if (gettid() != hint_thread)
+	if (!hint_session)
 		return;
 	hint_frame_start = monotonic_nanoseconds();
 	hint_limit = interval > 0 ? interval : 0;
@@ -539,6 +573,8 @@ static void *audio_thread(void *context)
 		pthread_cond_signal(&binding->done);
 	}
 	pthread_mutex_unlock(&binding->lock);
+	if (hint_audio)
+		performance_hint_close(hint_audio);
 	pthread_cond_destroy(&binding->done);
 	pthread_cond_destroy(&binding->requested);
 	pthread_mutex_destroy(&binding->lock);

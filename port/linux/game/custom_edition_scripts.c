@@ -221,10 +221,13 @@ static boolean script_string_shared(
 		if (node->datum_header && TEST_FLAG(node->flags, _hs_syntax_node_primitive_bit) &&
 			(node->type == _hs_function_name || node->type >= _hs_type_string ||
 				TEST_FLAG(node->flags, _hs_syntax_node_global_bit)) &&
-			node->string_offset >= offset && node->string_offset < offset + length &&
+			node->string_offset >= 0 && node->string_offset < offset + length &&
 			(node->type != _hs_function_name || node->string_offset != offset))
 		{
-			return TRUE;
+			/* An earlier string can share the function name as its suffix. */
+			if (node->string_offset >= offset ||
+				!memchr(conversion->strings + node->string_offset, 0, (size_t)(offset - node->string_offset)))
+				return TRUE;
 		}
 	}
 

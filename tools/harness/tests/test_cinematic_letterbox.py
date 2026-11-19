@@ -58,7 +58,7 @@ def test_wired():
     """The window's vertical angle passes through it, the letterbox's bars are as high as it says, and the setting is
     off by default."""
     camera = function(read("source/main/main.c").replace("\r\n", "\n"), "set_window_camera_values")
-    assert "cinematic_letterbox_vertical_field_of_view(\n\t\t\t\t&window->rasterizer_camera.viewport_bounds," in camera
+    assert re.search(r"cinematic_letterbox_vertical_field_of_view\(\s*&window->rasterizer_camera.viewport_bounds,\s*render_fov_vertical\(", camera)
     cinematics = function(read("source/cutscene/cinematics.c").replace("\r\n", "\n"), "cinematic_render")
     assert "0.125f" not in cinematics
     assert re.search(r"bar_height = [\w>-]+ \*\n\t+"

@@ -381,10 +381,18 @@ static double seconds(unsigned long (*queries)(void))
 	struct timespec start, end;
 	int round;
 
+	#ifdef _WIN32
+	timespec_get(&start, TIME_UTC);
+#else
 	clock_gettime(CLOCK_MONOTONIC, &start);
+#endif
 	for (round = 0; round < 10; round++)
 		queries();
+	#ifdef _WIN32
+	timespec_get(&end, TIME_UTC);
+#else
 	clock_gettime(CLOCK_MONOTONIC, &end);
+#endif
 	return (double)(end.tv_sec - start.tv_sec) + (double)(end.tv_nsec - start.tv_nsec) / 1e9;
 }
 

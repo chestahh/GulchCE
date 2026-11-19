@@ -22,6 +22,7 @@ CASES = {
     "any-case": None,
     "unknown-inert": None,
     "shared-text-inert": None,
+    "shared-suffix-inert": None,
     "longer-refused": ('"player_effect_set_max_vibrate"', '"player_effect_set_max_vib"'),
 }
 

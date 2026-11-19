@@ -86,7 +86,7 @@ def build(test, generated):
     work.mkdir(parents=True, exist_ok=True)
     for name, text in generated:
         (work / name).write_text(text)
-    executable = work / (test + (".exe" if os.name == "nt" else ""))
+    executable = work / ("fixture.exe" if os.name == "nt" else test)
     command = [os.environ.get("CC", "clang"), "-m32", "-std=gnu99", "-O2", "-Wall", "-Werror", "-Wno-unused-function",
                "-Wno-unused-variable", "-I", str(HARNESS / "include"), "-I", str(work),
                str(HARNESS / "tests" / f"{test}.c"), "-o", str(executable)]

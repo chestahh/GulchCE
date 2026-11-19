@@ -72,13 +72,20 @@ int main(int argc, char **argv)
 	const char *case_name = argc > 1 ? argv[1] : "";
 	long index;
 
-	backslashes = !strcmp(case_name, "backslashes");
-	if (strcmp(case_name, "slashes") && strcmp(case_name, "backslashes"))
+	int literal = !strcmp(case_name, "literal");
+
+	backslashes = literal || !strcmp(case_name, "backslashes");
+	if (strcmp(case_name, "slashes") && !backslashes)
 	{
 		fprintf(stderr, "no case named %s\n", case_name);
 		return 2;
 	}
 	files_gather();
+	if (literal)
+	{
+		CHECK(file_count == 4 && file_find("ce\\main_menu.xml") >= 0, "literal backslash must name a distinct file");
+		return 0;
+	}
 	CHECK(file_count == 3, "%ld files, not the 2 embedded and mine.xml", file_count);
 	index = file_find("ce/main_menu.xml");
 	CHECK(index >= 0 && files[index].loaded, "ce/main_menu.xml not replaced by the folder's");

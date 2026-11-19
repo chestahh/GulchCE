@@ -48,6 +48,9 @@ struct xgpu_render_target { GLuint texture; unsigned long width, height; };
 /* what the lookups and the bindings saw */
 static unsigned long watch_serial = 1, lookup_serial = 1, config_serial = 1;
 static unsigned long lookups, sampler_choices;
+#define D3DFMT_P8 11
+static BOOL material_preparing;
+static BOOL xgpu_mcc_texture_describe(const DWORD *texture, struct xgpu_texture_description *description) { return FALSE; }
 static BOOL texture_direct = TRUE;
 static struct xgpu_render_target *render_target;
 static GLuint bound_samplers[D3DTSS_MAXSTAGES];
@@ -106,7 +109,7 @@ static GLuint sampler_for(int stage)
 	return sampler;
 }
 
-static GLuint configure_sampler(int stage, BOOL mipmapped, BOOL hires, BOOL rendered)
+static GLuint configure_sampler(int stage, BOOL mipmapped, BOOL hires, BOOL rendered, BOOL palettized)
 {
 	sampler_choices++;
 	state_sampler(stage, sampler_for(stage));
@@ -185,7 +188,17 @@ int main(int argc, char **argv)
 
 	setup();
 	draw_looking_up(4, "the first draw");
-	if (!strcmp(test, "remembered"))
+	if (!strcmp(test, "prepare"))
+	{
+		unsigned long before = lookups;
+		material_preparing = TRUE;
+		draw();
+		CHECK(gl_state.textures[0][0] == 0, "prepare bound a remembered texture");
+		material_preparing = FALSE;
+		draw_looking_up(0, "the drawn texture survives preparation");
+		CHECK(lookups == before, "preparation uploaded a texture");
+	}
+	else if (!strcmp(test, "remembered"))
 	{
 		/* bound again as they were, and again after their bindings were
 		lost (xgpu_gl_state_invalidate) */

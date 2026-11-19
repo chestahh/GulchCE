@@ -148,6 +148,7 @@ symbols in this file:
 #include "text/font_group.h"
 #include "text/text_group.h"
 #include "text/unicode.h"
+int config_boolean(const char *name); /* port: port/linux/src/port_config.c */
 #include "network_coop.h" /* port: port/linux/game/network_coop.c */
 #include "controller_remap.h" /* port: port/linux/game/controller_remap_game.c */
 
@@ -1025,11 +1026,16 @@ void hud_render_timer(
 		}
 	}
 
-	/* port: the time code (time_code_show), a count of ticks for timing a
-	cinematic, is not drawn (render_debug_string, as the console's debug
-	displays are): c20's and d40's endings (cutscene_extraction, launch_1)
-	turn it on and leave it on, and it counted at the top left of the screen
-	through them. The scripts keep it as before. */
+	/* port: retail endings leave this script diagnostic active. */
+	if (time_code_time != NONE && config_boolean("debug.cinematic_time_code"))
+	{
+		long stop_time = time_code_stop_time;
+
+		if (stop_time == NONE)
+			stop_time = game_time_get();
+		sprintf(temporary, "%d", stop_time - time_code_time);
+		render_debug_string(TRUE, temporary);
+	}
 
 	return;
 }

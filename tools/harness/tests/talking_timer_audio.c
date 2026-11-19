@@ -6,7 +6,13 @@ TALKING_TIMER_AUDIO.C (test)
 #include "lines.inc"
 
 #include <math.h>
+#ifdef _WIN32
+/* Windows fixtures record lock nesting without a pthread runtime. */
+typedef int pthread_mutex_t;
+#define PTHREAD_MUTEX_INITIALIZER 0
+#else
 #include <pthread.h>
+#endif
 
 typedef int opus_int32;
 typedef struct OpusDecoder OpusDecoder;

@@ -49,6 +49,7 @@ static void scenario_call_reconnect_to_structure_bsp_procs(void)
     reconnect_activation = activation.pvs_activation_type;
 }
 
+static void scenario_leaf_cache_clear(void) {}
 #include "under_test.inc"
 
 int main(int argc, char **argv)

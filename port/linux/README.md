@@ -204,12 +204,11 @@ program, which can stop the game for a frame of 30 to 90 ms (more on
 integrated graphics); after that the program is loaded from this file in
 under 2 ms, in that game and the next. Loading one from the file took up to
 20 ms, a stalled frame each time a level showed something new, so each map
-has a list beside the file (`<driver>-<map>.list`; a Custom Edition map's is
-`<driver>-custom_maps_<map>.list`, an MCC map's
-`<driver>-mcc_maps_<package>_<map>.list`) of the
-programs it drew with, and they are loaded as the map loads, ahead of its first frame (the
-Maw's 41 in 16 ms); a program not on the list yet is loaded when first drawn
-with, and added. A map with no list yet, in its first game, loads the
+has a list beside the file. Its filename includes the driver identifier and a
+64-bit hash of the map path, including the family and package for CE and MCC.
+The menu has its own list. With the default settings, these lists warm the
+binary cache during loading. Enabling `display.shader_prepare` selects the
+fork’s recipe-based preparation path instead. A map with no list yet, in its first game, loads the
 programs that two or more other maps' lists have (most of a map's are);
 those it does not draw with are deleted as the next map loads. Shaders of the same GLSL made for
 different draws share one program, loaded once. The files grow to 64 MB at
@@ -796,6 +795,7 @@ the setting for one start of the game. It has priority over the file.
 | `debug.fixed_step` | `false` | `HALO_FIXED_STEP` | `true`: a game of this computer alone runs one tick a frame, whatever time has passed, so that it plays the same every time (tests). |
 | `debug.exit_after` | `0.0` | `HALO_EXIT_AFTER` | The game stops after this number of seconds (from when its window opens; with `debug.null_renderer`, or no display, from its first frame; a dedicated server stops as `quit` stops it). `0`: never. |
 | `debug.screenshot_directory`, `debug.screenshot_every` | `""`, `0` | `HALO_SCREENSHOT_DIR`, `HALO_SCREENSHOT_EVERY` | The game writes each Nth frame to this folder as a BMP file. |
+| `debug.cinematic_time_code` | `false` | `HALO_CINEMATIC_TIME_CODE` | Draw the cinematic script’s tick counter for debugging. |
 | `debug.hidden_window`, `debug.null_renderer` | `false` | `HALO_HIDDEN_WINDOW`, `HALO_NULL_RENDERER` | `true`: no visible window, or no graphics. |
 | `debug.gpu_stats`, `debug.gpu_trace_frame`, `debug.gpu_trace_constants`, `debug.gpu_dump_shaders`, `debug.texture_dump_directory`, `debug.texture_log`, `debug.gl_debug`, `debug.texture_no_cache` | off | `HALO_GPU_STATS`, `HALO_GPU_TRACE`, `HALO_GPU_TRACE_CONSTANTS`, `HALO_GPU_DUMP_SHADERS`, `HALO_TEXTURE_DUMP`, `HALO_TEXTURE_LOG`, `HALO_GL_DEBUG`, `HALO_TEXTURE_NO_CACHE` | Tools to find problems in the graphics: counts for each frame, all the GL state of one frame, the GLSL code, the textures. |
 | `debug.menu_open` | `""` | `HALO_MENU_OPEN` | Start on this screen of the menus (`main_menu/settings_select/...`, as `port/assets/menus` names it), a player profile being edited, to look at it. |
@@ -2182,7 +2182,7 @@ Other changes:
 | `cache/cache_files.c`, `cache/cache_files_windows.c`, `networking/network_server_message_handler.c` | MCC package sharing (`game/mcc_share.c`): a package being fetched from the host is taken as present and not precached until it is there, and the host's lobby takes the sharing requests of the machines that joined (from their streams alone, as map sharing's). Everything else of it is in the MCC modules and in four one-line hooks in `game/map_share.c`'s counters (the players held, the machine downloading) and per-frame and render calls, so that the existing holds apply. |
 | `main/main.c`, `cutscene/cinematics.c` | With `display.cinematic_framing` (`cinematic_letterbox.c`), while the scripted camera shows a shot with the letterbox up or coming up (or going, as far as it still is), the window's vertical angle shows the Xbox's picture between the bars across the window (a 4:3 window's width on a window 16:9 or narrower, the picture's height on a wider one), and the bars are as high as keep that picture 16:9 (none on a window 16:9 or wider, and not drawn then); without it, an eighth of the window's, as the Xbox's. |
 | `cutscene/cinematics.c` | A scenario's titles (some Custom Edition maps show their name for the whole game) are not drawn over a menu, as the letterbox is not: the screen's overlays are drawn after the players' menus. On a screen wider than 640 columns, a title is moved so the edge it is justified to (its middle, if centered) keeps its place relative to the screen's sides, as on the Xbox's 4:3 screen: a right-justified chapter title ends near the right side, not short of it. |
-| `interface/hud_messaging.c` | The scripts' time code (`time_code_show`), a count of ticks for timing a cinematic, is not drawn: the endings of The Library and The Maw turn it on and leave it on, and it counted at the top left of the screen through them. |
+| `interface/hud_messaging.c` | The scripts' time code (`time_code_show`), a count of ticks for timing a cinematic, is drawn only with `debug.cinematic_time_code`: the endings of The Library and The Maw turn it on and leave it on, and it counted at the top left of the screen through them. |
 | `tag_files/tag_groups.h` | `TAG_BLOCK_GET_ELEMENT` returns an element in the block without a call, and calls `tag_block_get_element_with_size` for anything else. |
 | `cseries/cseries.h` | `DATUM_INDEX_TO_ABSOLUTE_INDEX` is cast to `long`, 4 bytes as on the Xbox. `UNSIGNED_LONG_MAX` does not fit in an `int`, so clang and gcc make every constant of cseries.h's enum of integer limits `long long`, `UNSIGNED_SHORT_MAX` too. Without the cast, the index takes 8 bytes in a printf-style call and shifts the arguments after it. |
 | `game/players.c`, `networking/network_server_manager.c` | Bots (`game/bots.c`, `bots.count`): the lobby of a local Slayer game takes the bot players, each the one player of a machine of its own that no real machine is, and every tick their actions come from `game/bots.c` instead of their empty queues. System link and internet bots remain off unless explicitly enabled before host creation; live controls use the same ordinary player messages. |

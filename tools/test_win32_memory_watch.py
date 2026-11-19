@@ -142,6 +142,9 @@ int main(int argc, char **argv)
 				noticed += noticed_write(page);
 		}
 		printf("noticed=%d\n", noticed);
+		if (!VirtualAlloc((void *)(BASE + 4 * PAGE), PAGE, MEM_COMMIT, PAGE_READWRITE)) return 1;
+		memory_watch_protect(BASE + 4 * PAGE, PAGE);
+		printf("remapped=%d\n", noticed_write(4));
 		return 0;
 	}
 	return 0;
@@ -197,4 +200,4 @@ def test_a_run_that_cannot_be_protected_is_protected_a_page_at_a_time(program):
     result = run(program, "hole")
     assert result.returncode == 0, result.stdout + result.stderr
     # the failed call, then one for each page (the one not committed fails too)
-    assert result.stdout.splitlines() == ["calls=9", "noticed=7"]
+    assert result.stdout.splitlines() == ["calls=9", "noticed=7", "remapped=1"]
