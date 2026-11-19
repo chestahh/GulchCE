@@ -283,6 +283,20 @@ float muzzle_lighting_radius(long light_index, float radius)
 	return radius;
 }
 
+/* Only a live vehicle owning this supported turret pulse changes caster policy.
+   Full light/object datum identities prevent reuse after deletion or dismount. */
+long muzzle_lighting_vehicle_owner(long light)
+{
+	int i;
+	if (light == NONE || !lighting_config_boolean("display.muzzle_lighting")) return NONE;
+	for (i = 0; i < MUZZLE_LIGHTS; i++)
+		if (pulses[i].active && pulses[i].light == light &&
+			muzzle_profiles[pulses[i].profile].vehicle_occlusion &&
+			object_try_and_get_and_verify_type(pulses[i].owner, _object_mask_vehicle))
+			return pulses[i].owner;
+	return NONE;
+}
+
 int muzzle_lighting_vehicle_occlusion(long light)
 {
 	int i;

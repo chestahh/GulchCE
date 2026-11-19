@@ -336,15 +336,6 @@ See the [contrail fix record](../contrail_timing.md) for evidence and limits.
 
 ## Dynamic lighting 1.0
 
-The experimental modern dynamic-shadow renderer has been withdrawn from
-`testing` pending further visual and performance work. Its modes and shader
-variants are removed. The complete optional dynamic-lighting feature remains,
-including collision-based light occlusion, muzzle/chassis blocking, emitter
-glows, host policy and the stock object-shadow renderer. Shadow-specific source
-offsets and caster exceptions are removed with that experimental renderer;
-lighting uses its established pre-shadow placement and collision paths. Research
-continues separately on `modern-dynamic-shadows`; it is not release acceptance.
-
 Android builds exclude the optional lighting modules and their model-shader
 additions. Read the [Android lighting boundary](../../port/android/README.md#lighting-availability)
 and [stock hook implementations](../../port/android/guest/dynamic_lighting_disabled.c)

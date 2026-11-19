@@ -1,0 +1,90 @@
+#version 430 core
+// Diagnostic finite-source visibility through actual posed opaque triangles.
+// No stencil buffer, shadow volumes, owner exemption, denoising or game hook.
+layout(local_size_x = 64) in;
+struct Node { vec4 low; vec4 high; ivec4 range; };
+struct Triangle { vec4 origin; vec4 edge1; vec4 edge2; };
+layout(std430, binding = 0) readonly buffer Tree { Node nodes[]; };
+layout(std430, binding = 1) readonly buffer Mesh { Triangle triangles[]; };
+layout(std430, binding = 2) readonly buffer Emitters { vec4 sources[]; };
+layout(std430, binding = 3) readonly buffer Receivers { vec4 receivers[]; };
+layout(std430, binding = 4) writeonly buffer Result { float visibility[]; };
+uniform int receiver_count, source_count, first_receiver, output_offset;
+#ifdef PACKET
+shared uint visible_samples[64];
+#endif
+
+bool box_hit(Node node, vec3 origin, vec3 direction, float minimum) {
+    float near_t = minimum, far_t = 1.0 - minimum;
+    for (int axis = 0; axis < 3; ++axis) {
+        if (abs(direction[axis]) < 1.e-12) {
+            if (origin[axis] < node.low[axis] || origin[axis] > node.high[axis])
+                return false;
+        } else {
+            float a = (node.low[axis] - origin[axis]) / direction[axis];
+            float b = (node.high[axis] - origin[axis]) / direction[axis];
+            near_t = max(near_t, min(a, b));
+            far_t = min(far_t, max(a, b));
+            if (near_t > far_t) return false;
+        }
+    }
+    return true;
+}
+
+bool blocked(vec3 origin, vec3 receiver) {
+    vec3 direction = receiver - origin;
+    float distance = length(direction);
+    if (distance <= 2.e-6) return false;
+    float minimum = 1.e-6 / distance;
+    int index = 0;
+    while (index < nodes.length()) {
+        Node node = nodes[index];
+        if (!box_hit(node, origin, direction, minimum)) {
+            index = node.range.z;
+            continue;
+        }
+        for (int j = 0; j < node.range.y; ++j) {
+            Triangle triangle = triangles[node.range.x + j];
+            vec3 h = cross(direction, triangle.edge2.xyz);
+            float determinant = dot(triangle.edge1.xyz, h);
+            if (abs(determinant) < 1.e-12) continue;
+            vec3 offset = origin - triangle.origin.xyz;
+            float u = dot(offset, h) / determinant;
+            if (u < 0.0 || u > 1.0) continue;
+            vec3 q = cross(offset, triangle.edge1.xyz);
+            float v = dot(direction, q) / determinant;
+            if (v < 0.0 || u + v > 1.0) continue;
+            float t = dot(triangle.edge2.xyz, q) / determinant;
+            if (t > minimum && t < 1.0 - minimum) return true;
+        }
+        // Depth-first layout: enter first child, or skip the completed leaf.
+        index = node.range.y == 0 ? index + 1 : node.range.z;
+    }
+    return false;
+}
+
+void main() {
+#ifdef PACKET
+    int pixel = first_receiver + int(gl_WorkGroupID.x);
+    if (pixel >= receiver_count) return;
+    uint lane = gl_LocalInvocationID.x;
+    uint visible = 0u;
+    for (int sample_index = int(lane); sample_index < source_count; sample_index += 64)
+        if (!blocked(sources[sample_index].xyz, receivers[pixel].xyz)) ++visible;
+    visible_samples[lane] = visible;
+    barrier();
+    for (uint step = 32u; step > 0u; step >>= 1u) {
+        if (lane < step) visible_samples[lane] += visible_samples[lane + step];
+        barrier();
+    }
+    if (lane == 0u)
+        visibility[output_offset + pixel] = float(visible_samples[0]) / float(source_count);
+#else
+    int pixel = first_receiver + int(gl_GlobalInvocationID.x);
+    if (pixel >= receiver_count) return;
+    int visible = 0;
+    for (int sample_index = 0; sample_index < source_count; ++sample_index)
+        if (!blocked(sources[sample_index].xyz, receivers[pixel].xyz)) ++visible;
+    visibility[output_offset + pixel] = float(visible) / float(source_count);
+#endif
+}

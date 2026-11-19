@@ -122,8 +122,8 @@ SCREENS = {
              [("OFF", "0"), ("2X", "2"), ("4X", "4"), ("8X", "8"), ("16X", "16")],
              "Keep floors and walls sharp at a grazing angle,\nwhich the Xbox did not. Off: as the Xbox.", None),
             ("SHADOW RESOLUTION:", "display.shadow_resolution",
-             [("128", "128"), ("256", "256"), ("512", "512"), ("1024", "1024")],
-             "The size objects' shadows are drawn at: 128 as on\nthe Xbox; larger for smoother, as soft, edges.",
+             [(str(size), str(size)) for size in (128, 256, 512, 1024, 2048, 4096)],
+             "Stock and modern shadow map size. 1024 balances\nmodern detail and speed; higher sizes cost more.",
              None),
             ("PER-PIXEL LIGHTING:", "display.per_pixel_lighting", ON_OFF,
              "Light models for each pixel, without the facets\nof the Xbox's lighting for each vertex.", None),
@@ -419,12 +419,14 @@ SCREENS["video_settings/dynamic_lighting"] = {
          "Visible powerups and teleporters cast soft light.\nStock effects and gameplay remain unchanged.", None),
         ("LIGHT OCCLUSION:", "display.plasma_occlusion", ON_OFF,
          "Block projectile and emitter light behind walls.\nMuzzle and vehicle lights always use blocking.", None),
+        ("MODERN SHADOWS:", "display.modern_shadows", [("OFF", "off"), ("HARD", "hard"), ("SOFT", "soft")],
+         "Shadows from up to two enabled dynamic lights.\nStock shadows remain; host lighting rules apply.", "desktop"),
     ] + _shield_rows,
 }
 # Android builds omit this renderer. Keep both the entry and its controls
 # unavailable; existing configuration values cannot activate its inert hooks.
 SCREENS["video_settings/dynamic_lighting"]["rows"] = [
-    (*row[:4], "desktop web") for row in SCREENS["video_settings/dynamic_lighting"]["rows"]
+    (*row[:4], row[4] or "desktop web") for row in SCREENS["video_settings/dynamic_lighting"]["rows"]
 ]
 SCREENS["video_settings/fov_viewmodels"] = {
     "screen": "fov_viewmodel_settings_screen", "header": _video["header"], "spacing": 30,

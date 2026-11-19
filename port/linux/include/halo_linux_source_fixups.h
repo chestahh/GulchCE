@@ -7,6 +7,9 @@ The port's functions that the game's sources call, declared for them.
 #ifndef __HALO_LINUX_SOURCE_FIXUPS_H
 #define __HALO_LINUX_SOURCE_FIXUPS_H
 
+/* port: port/linux/game/modern_shadows.c */
+#include "modern_shadows.h"
+
 /* Discard measured listener motion at camera cuts and lifecycle boundaries
 (source/sound/sound_manager.c). NONE resets every local listener. */
 void sound_listener_motion_reset(short local_player_index);

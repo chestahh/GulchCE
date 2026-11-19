@@ -24,7 +24,7 @@ def generated(fault=None):
     return (('under_test.inc', code),)
 
 
-@pytest.mark.parametrize('case', ['shield', 'counter_cache', 'covenant', 'muzzle', 'radius', 'rocket', 'pistol', 'model', 'off', 'filter', 'restore', 'split', 'capacity', 'unload', 'missing', 'stale', 'selection', 'disconnected', 'existing'])
+@pytest.mark.parametrize('case', ['placement', 'shield', 'counter_cache', 'covenant', 'muzzle', 'radius', 'rocket', 'pistol', 'model', 'off', 'filter', 'restore', 'split', 'capacity', 'unload', 'missing', 'stale', 'selection', 'disconnected', 'existing'])
 def test_case(case):
     status, output = run(build('plasma_lighting', generated()), case)
     assert status == 0, output
@@ -34,6 +34,7 @@ def test_case(case):
     ('strcmp(name, "weapons\\\\rocket launcher\\\\rocket")', '1', 'rocket'),
     ('strcmp(name, "weapons\\\\plasma pistol\\\\bolt") &&', '1 &&', 'pistol'),
     ('return radius * plasma_lighting_attachments[index].radius_scale;', 'return radius;', 'radius'),
+    ('plasma_lighting_attachments[index].forward_offset = 0.f;', '(void)0;', 'placement'),
     ('interpolation_rendering = FALSE;', 'interpolation_rendering = TRUE;', 'restore'),
     ('plasma_lighting_count = 0;', '(void)0;', 'unload'),
 ])
@@ -50,3 +51,13 @@ def test_disabled_projectile_policy_is_required():
     code = code.replace('lighting_config_boolean("display.plasma_lighting")', 'TRUE')
     status, output = run(build('plasma_lighting', ((name, code),)), 'off')
     assert status == CHECK_FAILED, output
+
+
+def test_placement_reconnect_integration():
+    reconnect = function(read('source/objects/object_lights.c'), 'light_reconnect_to_map')
+    hook = 'plasma_lighting_attachment_position(light_index, light->object_index,'
+    assert reconnect.count(hook) == 1
+    assert reconnect.index('light->position = markers[0].matrix.position;') < reconnect.index(hook)
+    assert reconnect.index(hook) < reconnect.index('light_compute_bounding_sphere(')
+    stub = function(read('port/android/guest/dynamic_lighting_disabled.c'), 'plasma_lighting_attachment_position')
+    assert stub[stub.index('{') + 1:stub.rindex('}')].strip() == ''

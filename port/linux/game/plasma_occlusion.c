@@ -9,6 +9,7 @@
 #include "plasma_collision.h"
 #include "ammo_counter_falloff.h"
 #include "cseries.h"
+#include "modern_shadows.h"
 #include "physics/collisions.h"
 #include "plasma_lighting.h"
 #include "authored_emitter_lighting.h"
@@ -32,7 +33,7 @@ enum
 };
 static struct occlusion_field
 {
-	long identity;
+	long identity, collision_owner;
 	unsigned long used, updated, window, admitted, traced;
 	unsigned long scene_revision;
 	struct plasma_collision_scene scene;
@@ -194,7 +195,7 @@ static real sample_history_rows(const real *rows, int x, int y, struct sample_ax
 
 /* One depth ray per cubemap texel serves every radial cell on that ray.
    Interpolate visibility comparisons, never distances across a doorway. */
-static void trace_depths(real const extent, real_point3d const *from, long ignore, int vehicles, int resolution, real depths[6][OCC_SIZE * OCC_SIZE])
+static void trace_depths(real const extent, real_point3d const *from, long ignore, int vehicles, int resolution, long owner, real depths[6][OCC_SIZE * OCC_SIZE])
 {
 	real_vector3d vectors[PLASMA_COLLISION_RAYS];
 	real hits[PLASMA_COLLISION_RAYS];
@@ -219,7 +220,8 @@ static void trace_depths(real const extent, real_point3d const *from, long ignor
 				ray.k = component[2];
 				vectors[count++] = ray;
 			}
-	plasma_collision_depths(flags, from, vectors, count, ignore, hits);
+	if (owner != NONE) plasma_collision_object_depths(owner, from, vectors, count, hits);
+	else plasma_collision_depths(flags, from, vectors, count, ignore, hits);
 	count = 0;
 	for (face = 0; face < 6; face++)
 		for (y = 0; y < resolution; y++)
@@ -410,6 +412,7 @@ static __attribute__((noinline)) struct occlusion_field *update_field(struct occ
 	struct rasterizer_light_submit_parameters *light;
 	int i, x, y, z, stationary, vehicles, resolution, retraced = FALSE;
 	unsigned long scene_revision;
+	long owner = modern_shadows_collision_owner(rasterizer_index);
 	real elapsed, extent, specular, clear_alpha, block_alpha, admission;
 	real previous[OCC_COUNT];
 	real projected[OCC_COUNT];
@@ -424,6 +427,10 @@ static __attribute__((noinline)) struct occlusion_field *update_field(struct occ
 	if (!(extent > 0.001f && extent < 1000.0f))
 		return NULL;
 	updates_this_window++;
+	/* Do not blend full-scene fallback depths into an owner-only field when
+	   shadow modes change, or retain owner-only depths after a map failure. */
+	if (field->collision_owner != owner) field->valid = FALSE;
+	field->collision_owner = owner;
 	elapsed = field->valid ? MIN((real)(now - field->updated) * 0.001f, 0.1f) : 0.1f;
 	trace_dx = light->position.x - field->trace_center[0];
 	trace_dy = light->position.y - field->trace_center[1];
@@ -445,7 +452,7 @@ static __attribute__((noinline)) struct occlusion_field *update_field(struct occ
 		trace_dx * trace_dx + trace_dy * trace_dy + trace_dz * trace_dz > extent * extent * 0.015625f)
 	{
 		trace_depths(extent, &light->position, covenant_emitter_lighting_occlusion_ignore(field->identity),
-			vehicles, resolution, field->depths);
+			vehicles, resolution, owner, field->depths);
 		retraced = TRUE;
 		field->scene_revision = scene_revision;
 		field->traced = now;
@@ -543,7 +550,8 @@ static struct occlusion_field *field_for(long rasterizer_index)
 	for (i = 0; i < OCC_LIGHTS; i++)
 		if (fields[i].valid && fields[i].identity == identity)
 			field = &fields[i];
-	if (field && field->window == current_window)
+	if (field && field->window == current_window &&
+		field->collision_owner == modern_shadows_collision_owner(rasterizer_index))
 		return field;
 	if (updates_this_window >= OCC_LIGHTS)
 	{
@@ -798,8 +806,15 @@ void plasma_occlusion_model_slot(long rasterizer_index, short slot)
 }
 void *plasma_occlusion_texture(long rasterizer_index, int specular)
 {
-	struct occlusion_field *field = field_for(rasterizer_index);
-	void *texture = field_texture(field, specular ? 2 : 1, rasterizer_index);
+	struct occlusion_field *field;
+	void *texture;
+	/* A complete rendered map replaces collision visibility except for a
+	   turret owner, whose collision field still supplies chassis blocking.
+	   Keep the existing authored direction/height mask and radial falloff. */
+	if (modern_shadows_selected(rasterizer_index) && modern_shadows_collision_owner(rasterizer_index) == NONE)
+		return ammo_counter_falloff_texture(rasterizer_index, specular ? 2 : 1, NULL);
+	field = field_for(rasterizer_index);
+	texture = field_texture(field, specular ? 2 : 1, rasterizer_index);
 	return texture ? texture : ammo_counter_falloff_texture(rasterizer_index, specular ? 2 : 1, NULL);
 }
 void *plasma_occlusion_model_texture(int slot, float transform[4])
@@ -807,6 +822,8 @@ void *plasma_occlusion_model_texture(int slot, float transform[4])
 	struct occlusion_field *field;
 	if (slot < 0 || slot >= 2)
 		return NULL;
+	if (modern_shadows_selected(model_slots[slot]) && modern_shadows_collision_owner(model_slots[slot]) == NONE)
+		return ammo_counter_falloff_texture(model_slots[slot], 0, transform);
 	field = field_for(model_slots[slot]);
 	if (!field)
 		return ammo_counter_falloff_texture(model_slots[slot], 0, transform);

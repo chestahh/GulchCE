@@ -6,7 +6,7 @@ from tools.harness import CHECK_FAILED, build, function, mutated, read, run, str
 def executable(android=False, fault=None):
     renderer = read('port/linux/src/d3d8_gl.c')
     header = read('port/linux/src/xgpu.h')
-    code = '#define HALO_ANDROID 1\n' if android else ''
+    code = '#define HALO_ANDROID 1\n#define HALO_GLES 1\n' if android else ''
     code += '\n'.join(structure(header, n) for n in ('nv2a_vertex_lighting', 'nv2a_pixel_shader_key'))
     code += '\n' + structure(renderer, 'vertex_element')
     code += '\n' + structure(renderer, 'vertex_shader_object')
@@ -21,14 +21,14 @@ def executable(android=False, fault=None):
     draw = draw[draw.index('#ifndef HALO_ANDROID\n\tif (plasma_mask &&'):]
     draw = draw[:draw.index('\n\t/* the lights of a draw')]
     code += '\nstatic void initialize(struct program_entry *entry, BOOL plasma_model) {\n' + init + '\n}\n'
-    code += '\nstatic void bind_model(struct program_entry *entry, unsigned int plasma_mask) {\n' + draw + '\n}\n'
+    code += '\nstatic void bind_model(struct program_entry *entry, unsigned int plasma_mask) {\nstruct nv2a_pixel_shader_key key = {0};\n' + draw + '\n}\n'
     if fault:
         code = mutated(code, *fault)
     return build('dynamic_shader_isolation', (('under_test.inc', code),))
 
 
 @pytest.mark.parametrize('android', [False, True])
-@pytest.mark.parametrize('case', ['toggle', 'failure', 'unmarked', 'gpu'])
+@pytest.mark.parametrize('case', ['toggle', 'failure', 'unmarked', 'gpu', 'shadows', 'unmarked_shadow'])
 def test_isolation(case, android):
     status, output = run(executable(android), case)
     assert status == 0, output
@@ -39,6 +39,8 @@ def test_isolation(case, android):
     (('failed = &program->plasma_lighting_failed;', 'failed = &program->lighting_failed;'), 'failure'),
     (('if (plasma_model)\n\t{\n\t\tentry->plasma_model_slots', 'if (TRUE)\n\t{\n\t\tentry->plasma_model_slots'), 'gpu'),
     (('if (plasma_mask && entry->plasma_model_slots >= 0)', 'if (entry->plasma_model_slots >= 0)'), 'gpu'),
+    (('if (plasma_model && modern_shadows_model_mask())',
+      'if (plasma_model && program->lighting.lights == 2 && modern_shadows_model_mask())'), 'unmarked_shadow'),
 ])
 def test_negative_control(fault, case):
     status, output = run(executable(fault=fault), case)

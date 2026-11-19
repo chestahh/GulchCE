@@ -16,8 +16,11 @@
 #include "overshield_effect.h"
 
 void plasma_lighting_prepare(long light, long object, long definition) {}
+void plasma_lighting_attachment_position(long light, long object,
+	real_point3d *position, real_vector3d const *forward, float scale) {}
 float plasma_lighting_radius(long light, long object, float radius) { return radius; }
 int plasma_lighting_vehicle_occlusion(long light) { return FALSE; }
+long plasma_lighting_shadow_owner(long light) { return NONE; }
 void plasma_lighting_frame_end(void) {}
 void plasma_lighting_reset(void) {}
 void plasma_lighting_window_begin(void) {}
@@ -51,6 +54,7 @@ void muzzle_lighting_submitted(long light, long rasterizer) {}
 int muzzle_lighting_selected(long rasterizer) { return FALSE; }
 float muzzle_lighting_radius(long light, float radius) { return radius; }
 int muzzle_lighting_vehicle_occlusion(long light) { return FALSE; }
+long muzzle_lighting_vehicle_owner(long light) { return NONE; }
 
 void covenant_lighting_update(void) {}
 void covenant_lighting_forget(void) {}
@@ -65,6 +69,7 @@ int covenant_lighting_owns(long light, long object) { return FALSE; }
 
 int covenant_emitter_lighting_enabled(void) { return FALSE; }
 void covenant_emitter_lighting_update(void) {}
+long covenant_emitter_lighting_shadow_owner(long light) { return NONE; }
 void covenant_emitter_lighting_frame_end(void) {}
 void covenant_emitter_lighting_forget(void) {}
 void covenant_emitter_lighting_window_begin(void) {}

@@ -11,9 +11,12 @@ struct object_marker { real_matrix4x3 matrix; };
 struct observer_result { real_point3d position; };
 static struct weapon_datum weapons[21];
 static struct unit_datum unit;
+static int vehicle_owner=1;
+#define _object_mask_vehicle 2
 static struct observer_result camera;
 static const char *tag="weapons\\assault rifle\\assault rifle";
 static int on=1,present=1,held=1,marker=1,world_marker,allocs,deletes,disconnects,submits,fail,missing;
+static void *object_try_and_get_and_verify_type(long i,int mask) { return present && vehicle_owner && i==20 ? &unit : NULL; }
 static long tick=30;
 static real render_time=1.0f, marker_x=0.5f;
 static real_vector3d forward={1,0,0};
@@ -154,6 +157,14 @@ int main(int argc,char **argv)
   CHECK(muzzle_lighting_radius(25,0.2f)==0.2f,"unowned bounds untouched");
   lights[0].object_index=1;CHECK(!light_port_glow_move(0,&p),"attached light cannot be moved");
   lights[0].object_index=NONE;light_data->valid=0;CHECK(!light_port_glow_move(0,&p),"invalid array cannot be moved");
+ }
+ if(!strcmp(name,"owner"))
+ {
+  tag="vehicles\\warthog\\warthog gun";muzzle_lighting_shot(1,0);muzzle_lighting_update();
+  CHECK(muzzle_lighting_vehicle_owner(pulses[0].light)==20,"turret identifies live chassis");
+  CHECK(muzzle_lighting_vehicle_owner(63)==NONE,"unrelated light cannot exempt chassis");
+  vehicle_owner=0;CHECK(muzzle_lighting_vehicle_owner(pulses[0].light)==NONE,"non-vehicle owner stays rendered");vehicle_owner=1;
+  on=0;CHECK(muzzle_lighting_vehicle_owner(pulses[0].light)==NONE,"disabled feature has no collision owner");
  }
  return 0;
 }
