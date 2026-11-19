@@ -1885,6 +1885,9 @@ static boolean camera_setting_show(struct widget_instance *spinner, struct pc_me
 	return TRUE;
 }
 
+/* Extra help entry in the generated FOV and Viewmodels string list. */
+#define HOST_CAMERA_LOCKED_HELP 11
+
 /* "port settings help": the line of the row chosen (by its label's string:
 the buttons' is the first) */
 static void settings_help(struct widget_instance *list)
@@ -9478,9 +9481,8 @@ void pc_menu_game_data_function_invoke(
 		settings_each(widget, camera_setting_show);
 		if (third_person_policy() != _third_person_player_choice &&
 			widget->parameters.list.extended_description &&
-			widget->focused_child == named(widget, "op_third_person", 0))
-			/* FOV And Viewmodels: eight rows, one category, then this help. */
-			widget->parameters.list.extended_description->parameters.text_box.string_list_index = 10;
+			widget->focused_child && widget->focused_child == named(widget, "op_third_person", 0))
+			widget->parameters.list.extended_description->parameters.text_box.string_list_index = HOST_CAMERA_LOCKED_HELP;
 	}
 	else if (!strcmp(name, "port hdr calibration"))
 		hdr_calibration_update(widget);
