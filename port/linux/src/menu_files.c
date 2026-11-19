@@ -1062,6 +1062,8 @@ void halo_menus_art_register(void const *texture, char const *png)
 	unsigned long data = ((const unsigned long *)texture)[1];
 	long index;
 
+	/* (the bitmap's lookups give its art from now on) */
+	xgpu_texture_lookups_changed();
 	for (index = 0; index < art_count; index++)
 	{
 		if (art[index].data == data)
@@ -1110,6 +1112,7 @@ void halo_menus_art_forget(void)
 	}
 	art_count = 0;
 	memset(art_filter, 0, sizeof(art_filter));
+	xgpu_texture_lookups_changed();
 }
 
 unsigned int menu_art_texture(unsigned long data, unsigned long *levels)

@@ -888,8 +888,28 @@ static unsigned long custom_edition_texel_capacity;
 
 static int custom_edition_hud_meter_active;
 
+/* changes whenever looking a texture header up again might give something
+other than it gave: a texture dropped, a frame begun, a replacement (high-res
+text, menu art, a HUD placeholder, an MCC texture, a render target) or a
+texel order registered, the meter's channels turned on or off. Until it
+does, and while no watched page is written, a lookup that gave the
+texture's own pixels (xgpu_texture_description.direct) gives them again. */
+static unsigned long texture_lookup_serial = 1;
+
+void xgpu_texture_lookups_changed(void)
+{
+	texture_lookup_serial++;
+}
+
+unsigned long xgpu_texture_lookup_serial(void)
+{
+	return texture_lookup_serial;
+}
+
 void halo_custom_edition_hud_meter(int active)
 {
+	if (custom_edition_hud_meter_active != active)
+		texture_lookup_serial++;
 	custom_edition_hud_meter_active = active;
 }
 
@@ -911,6 +931,7 @@ void halo_custom_edition_texels_channels(const void *texels, unsigned char chann
 	unsigned long address = (unsigned long)texels;
 	unsigned long index;
 
+	texture_lookup_serial++;
 	if (channel_order >= NUMBER_OF_CUSTOM_EDITION_CHANNEL_ORDERS)
 		channel_order = _custom_edition_channels_xbox;
 	for (index = 0; index < custom_edition_texel_count && custom_edition_texels[index].address != address; index++)
@@ -947,6 +968,7 @@ void halo_custom_edition_texels_channels(const void *texels, unsigned char chann
 
 void halo_custom_edition_texels_forget(void)
 {
+	texture_lookup_serial++;
 	custom_edition_hud_meter_active = 0;
 	free(custom_edition_texels);
 	custom_edition_texels = NULL;
@@ -1400,6 +1422,7 @@ void android_ce_texture_gpu_forget(const void *resource)
 			if (entry->hud_upscale)
 				hud_hires_upscale_release(entry->hud_upscale);
 			texture_drop_serial++;
+			texture_lookup_serial++;
 			free(entry);
 		}
 		else
@@ -1533,6 +1556,19 @@ static GLuint texture_entry_result(struct texture_entry *entry, GLenum *target,
 	return entry->texture;
 }
 
+/* texture_entry_result, saying whether it gave the texture's own pixels as
+they are, which the same lookup gives again while xgpu_texture_lookup_serial
+and the memory watch serial stay the same */
+static GLuint texture_entry_given(struct texture_entry *entry, BOOL palettized, BOOL no_cache, GLenum *target,
+	struct xgpu_texture_description *description)
+{
+	GLuint texture = texture_entry_result(entry, target, description);
+
+	description->direct = texture == entry->texture && !palettized && !no_cache && !description->hires &&
+		!description->ce_meter_channels;
+	return texture;
+}
+
 GLuint xgpu_texture_get(const DWORD *resource, const D3DCOLOR *palette, GLenum *target,
 	struct xgpu_texture_description *description)
 {
@@ -1583,7 +1619,7 @@ GLuint xgpu_texture_get(const DWORD *resource, const D3DCOLOR *palette, GLenum *
 		if (recent_textures[recent].watch_serial == watch_serial)
 		{
 			entry->last_used_frame = texture_frame;
-			return texture_entry_result(entry, target, description);
+			return texture_entry_given(entry, FALSE, FALSE, target, description);
 		}
 	}
 
@@ -1740,7 +1776,7 @@ GLuint xgpu_texture_get(const DWORD *resource, const D3DCOLOR *palette, GLenum *
 		recent_textures[recent].ce_resource = ce_resource;
 #endif
 	}
-	return texture_entry_result(entry, target, description);
+	return texture_entry_given(entry, palettized, no_cache != 0, target, description);
 }
 
 void xgpu_texture_cache_begin_frame(void)
@@ -1749,6 +1785,8 @@ void xgpu_texture_cache_begin_frame(void)
 	unsigned long changed = hud_hires_settings_changed();
 	Uint64 now;
 
+	/* (and each texture's last use is counted again: a lookup each frame) */
+	texture_lookup_serial++;
 	/* Refresh only map bitmaps belonging to the setting that changed. Keep
 	 * decoded replacement art and world textures; rebuild native pixels on
 	 * demand too, since an override may have skipped their first upload. */
@@ -1796,6 +1834,7 @@ void xgpu_texture_cache_begin_frame(void)
 					hud_hires_upscale_release(entry->hud_upscale);
 				xgpu_gl_state_invalidate();
 				texture_drop_serial++;
+				texture_lookup_serial++;
 				free(entry);
 			}
 			else
