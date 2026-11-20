@@ -22,6 +22,13 @@ The 12-unit tile still changed 143 pixels. A second stabilized tile with a
 36-unit half-width contributed 24 additional pixels from a distant vehicle.
 It changed 103 additional pixels at the start. The 12-unit tile kept the
 near vehicle throughout the move and avoids a second static map and draw pass.
+In the Two Betrayals cliff crossing, the single map changed 14,125 receiver
+pixels in direct sun and zero at the shaded endpoint. The far cascade added
+zero pixels at both endpoints. Sampled GPU time for the directional pass
+on the snowy combat route was 0.077 ms for single, 0.122 ms for two cascades
+and 0.074 ms for near-only. CPU submission including driver waits averaged
+0.638, 1.470 and 1.388 ms respectively in the separate diagnostic runs.
+Those short runs have different frame timings from the release measurements.
 
 ## Filtering and memory
 
@@ -46,3 +53,25 @@ Use fixed Hard and Soft 1024 in the snowy Two Betrayals checkpoint and in
 the two-lamp room on Rat Race. Enable the fixtures, sun and stock beam, use
 the Shared flashlight budget, and leave the eight-slot local capacity intact.
 The busy-combat target is a two-minute average of at least 240 FPS.
+
+On the i7-14700K and RTX 5070 Ti, the uncapped 2560 × 1440 runs with AA off
+gave the following results. Each run used 25 seconds of warmup, followed
+by 120 measured seconds.
+
+| Scene | Hard 1024 | Soft 1024 |
+| --- | ---: | ---: |
+| Two Betrayals, first snowy exterior combat | 247.4 FPS | 242.3 FPS |
+| Rat Race, two-lamp room with 15 bots | 361.1 FPS | 410.8 FPS |
+
+Both combat minutes cleared 240 in each mode. Both modes reached eight local
+slots including the beam. Sunlight was active throughout the combat measurements.
+The two Rat Race fixtures were simultaneously active on 81% of Hard frames and
+77% of Soft frames. Separate runs have different combat activity, so these room
+averages do not measure the isolated cost of filtering. On an independent
+Sidewinder capture the fixture pass also shaded the receiver beneath the
+authored wall strip at (−5.952, −19.585, −0.295).
+
+A live Soft sunlight run cycled 128, 256, 512, 1024, 2048 and 4096 before
+returning to 1024. Both sun textures followed each selection. The peak
+process-private sizes in the two-minute combat runs were 696 MiB in Hard and
+739 MiB in Soft. These are process measurements, not GPU allocation totals.
