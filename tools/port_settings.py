@@ -406,6 +406,11 @@ SCREENS["video_settings/shadows"] = {
         ("SHADOW RESOLUTION:", "display.shadow_resolution",
          [(str(size), str(size)) for size in (128, 256, 512, 1024, 2048, 4096)],
          "Shadow map size for both systems.\n1024 is recommended for modern shadows.", None),
+        ("FLASHLIGHT:", "display.flashlight_shadows", ON_OFF,
+         "Let objects and scenery cast shadows\nin the stock flashlight beam.", "desktop"),
+        ("FLASHLIGHT BUDGET:", "display.flashlight_extra_slot",
+         [("SHARED", "false"), ("EXTRA SLOT", "true")],
+         "Shared uses one of eight slots while lit.\nExtra allows eight other shadowed lights.", "desktop"),
     ],
 }
 SCREENS["video_settings/dynamic_lighting"] = {

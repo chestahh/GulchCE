@@ -9,7 +9,10 @@ E2 adds the opt-in Hard sun prototype. Its validation uses the original maps,
 one directional slot and eight local slots.
 [Sunlight, ownership and performance evidence](environment_shadow_e2.md)
 
-E3–E7 are planned.
+E3 adds two independent fixture slots and a stock flashlight projector in Hard
+and Soft. An active beam shares the eight local slots by default. Extra Slot allows eight other local shadows alongside the beam. [Indoor lighting, flashlight and measurements](environment_shadow_e3.md)
+
+E4–E7 are planned. The earliest public environmental-shadow release is after E4, including Soft sunlight.
 The goal is for moving characters, weapons, vehicles and doors to block
 sunlight and identifiable map fixtures while preserving the map's authored
 lighting. The feature is opt-in on desktop, follows host visual policy and
@@ -66,7 +69,7 @@ shadow resolution does not qualify as a performance improvement.
    ceiling lamps, one spotlight map per selected lamp and an experimental cap
    of two fixtures, independent of the sun and local slots. Cache unchanged
    fixture depth and admit a fixture only when its light reaches visible
-   receivers. Account for the moving flashlight separately. Test the wall
+   receivers. On Shared, the active flashlight borrows one local slot and releases it when its beam fades. Extra Slot preserves all eight other local shadows while the beam is active. Test the wall
    light as one emitting surface if its map data
    supports that interpretation. Reuse the current animated caster geometry.
    On lightmapped surfaces estimate each lamp's baked direct contribution in

@@ -1,5 +1,6 @@
 #include "harness.h"
-static int sun_count;
+static int patches_ready, sun_count;
+static void prepare_spots(int mode) { (void)mode; }
 static unsigned char *sun_surface_sky;
 static int sun_cutout_count;
 static void modern_environment_window(void) {}
@@ -64,6 +65,10 @@ static long muzzle_lighting_shadow_caster(long light,long emitter_object,long *c
 static long exempt_light=NONE, exempt_owner=NONE;
 static long stuck_light=NONE, impact_parent=0x10007;
 static long plasma_lighting_shadow_owner(long light, struct plasma_shadow_source *grenade) { grenade->stuck_host=light==stuck_light ? impact_parent : NONE; grenade->casing=light==stuck_light ? 27 : NONE; grenade->emitter_object=NONE; grenade->grounded=0; return light==exempt_light ? exempt_owner : NONE; }
+static int spot_mask, extra_flashlight;
+static int config_boolean(const char *s) { CHECK(!strcmp(s,"display.flashlight_extra_slot"),"flashlight budget option"); return extra_flashlight; }
+static int modern_spot_mask(void) { return spot_mask; }
+static unsigned short mesh_index[1];
 #include "under_test.inc"
 static int selection_stability(void)
 {
@@ -127,6 +132,12 @@ static int full_budget(void)
  }
  modern_shadows_prepare(1);
  CHECK(active==255,"eight eligible lights receive complete maps");
+ spot_mask=7;modern_shadows_prepare(1);
+ CHECK(__builtin_popcount(active)==7,"one published flashlight shares a slot even with two fixtures");
+ extra_flashlight=1;modern_shadows_prepare(1);
+ CHECK(active==255,"extra retains eight other lights with an active projector");
+ extra_flashlight=0;spot_mask=3;modern_shadows_prepare(1);
+ CHECK(active==255,"fixtures alone and failed or faded beams leave every slot available");
  for(i=0;i<8;i++) {
   original[i]=map_for(i); CHECK(original[i]!=NONE,"all eight lights are covered");
   for(j=0;j<i;j++) CHECK(original[i]!=original[j],"no light shares another light's map");

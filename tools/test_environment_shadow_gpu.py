@@ -14,8 +14,8 @@ from tools.shadow_stencil_compare import Replay, U, I, P, F
 ROOT=Path(__file__).resolve().parents[1]
 pytestmark=pytest.mark.skipif(os.name!='nt' or os.getenv('SHADOW_ENV_GPU_TEST')!='1',reason='Explicit Windows GL test')
 
-def shader(name):
-    text=(ROOT/'port/linux/src/modern_environment_gl.inl').read_text()
+def shader(name, source='modern_environment_gl.inl'):
+    text=(ROOT/'port/linux/src'/source).read_text()
     body=re.search(r'static const char '+name+r'\[\]\s*=\s*((?:"(?:[^"\\]|\\.)*"\s*)+);',text)[1]
     return ''.join(ast.literal_eval(s) for s in re.findall(r'"(?:[^"\\]|\\.)*"',body))
 
@@ -98,7 +98,58 @@ def test_directional_receiver_depth_and_empty_rays(reverse,soft,depth_stencil,su
         c.close()
 
 
-def test_caster_skinning_and_animated_cutout():
+@pytest.mark.parametrize('soft', [0, 1])
+def test_spot_sources_are_independent(soft):
+    """Actual receiver shader. A blocker in a baked ray cannot remove its light twice."""
+    context=Context()
+    replay=None
+    try:
+        replay=Replay(context,32,32)
+        gl=context.gl
+        fragment=('#version 330 core\n'+shader('spot_shader','modern_spots_gl.inl')+
+            'out vec4 result; void main(){vec3 p=vec3((gl_FragCoord.xy-16.)/32.,.5);'
+            'result=vec4(fixture_visibility(p,vec3(0,0,1)),beam_visibility(p));}')
+        program=replay.program(shader('receiver_vertex'),fragment)
+        texture=replay.new('Textures')
+        gl('ActiveTexture',None,U)(0x84c0)
+        gl('BindTexture',None,U,U)(0x8c1a,texture)
+        for param in (0x2800,0x2801):
+            gl('TexParameteri',None,U,U,I)(0x8c1a,param,0x2600)
+        layers=np.zeros((5,32,32),np.float32)
+        layers[0,:,:16]=.75
+        layers[1,:,16:]=.75
+        layers[4,16:,:]=.75
+        def draw(mask):
+            gl('TexImage3D',None,U,I,I,I,I,I,I,U,U,P)(0x8c1a,0,0x822e,32,32,5,0,0x1903,0x1406,layers.ctypes.data)
+            replay.begin()
+            gl('Disable',None,U)(0x0b71)
+            gl('UseProgram',None,U)(program)
+            for name,value in [('spot_mask',mask),('spot_soft',soft),('spot_maps',0)]:
+                replay.uniform(program,name,value)
+            for i in range(3):
+                replay.uniform(program,f'spot_frames[{i}]',np.eye(4))
+                replay.uniform(program,f'spot_origins[{i}]',[0,0,4,1])
+                replay.uniform(program,f'spot_colors[{i}]',[.4 if i==0 else 0,.4 if i==1 else 0,0,16])
+            gl('BindVertexArray',None,U)(replay.vao)
+            gl('DrawArrays',None,U,I,I)(4,0,3)
+            return replay.read()
+        both=draw(3)
+        assert both[16,8,0]<.85 and both[16,8,1]==1
+        assert both[16,24,1]<.85 and both[16,24,0]==1
+        assert np.allclose(both[:,:,2],1)
+        assert np.allclose(np.minimum(draw(1)[:,:,:3],draw(2)[:,:,:3]),both[:,:,:3])
+        assert set(np.unique(both[[6,25],16,3]))=={0,1}
+        layers[2:4]=.8
+        assert np.allclose(draw(3)[:,:,:3],1)
+        layers[:]=0
+        assert np.allclose(draw(3),1)
+    finally:
+        if replay: replay.close()
+        context.close()
+
+
+@pytest.mark.parametrize('spot', [False, True])
+def test_caster_skinning_and_animated_cutout(spot):
     """Read actual rasterized depth, including two bone weights and UV reversal."""
     c=Context();r=None
     try:
@@ -121,9 +172,17 @@ def test_caster_skinning_and_animated_cutout():
             g('DepthMask',None,U)(1);g('ClearDepth',None,C.c_double)(0)
             g('Clear',None,U)(0x100);g('Disable',None,U)(0x0B44)
             g('UseProgram',None,U)(p)
-            r.uniform(p,'frame',frame);r.uniform(p,'alpha_map',0);r.uniform(p,'alpha_test',cutout)
+            caster_frame=frame
+            if spot:
+                # Reverse-Z perspective with w=1+z. At the test plane,
+                # projection and texel coverage agree with the reference.
+                caster_frame=np.eye(4,dtype=np.float32)
+                caster_frame[0,3]=-.1
+                caster_frame[3,2]=1
+                caster_frame[2]=[0,0,-.05,.5]
+            r.uniform(p,'frame',caster_frame);r.uniform(p,'alpha_map',0);r.uniform(p,'alpha_test',cutout)
             loc=lambda name:g('GetUniformLocation',I,U,C.c_char_p)(p,name.encode())
-            g('Uniform1f',None,I,F)(loc('radius'),1)
+            g('Uniform1f',None,I,F)(loc('radius'),-1 if spot else 1)
             g('UniformMatrix4fv',None,I,I,U,P)(loc('bones'),2,1,bones.ctypes.data)
             uv=np.array([-1,0,0,1,0,1,0,0] if reverse else [1,0,0,0,0,1,0,0],np.float32)
             g('Uniform4fv',None,I,I,P)(loc('uv_transform'),2,uv.ctypes.data)

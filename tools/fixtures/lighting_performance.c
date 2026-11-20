@@ -206,6 +206,14 @@ int lighting_performance_capture(void)
 	double elapsed;
 	if (!origin) return FALSE;
 	elapsed = clock_seconds() - origin;
+    if (getenv("HALO_BENCH_FIXTURE_ROOM") && strcmp(getenv("HALO_BENCH_FIXTURE_ROOM"),"timing"))
+    {
+        static int captured=-1;
+        int stage=(int)(elapsed/1.75);
+        if (stage>6 || captured==stage || elapsed-stage*1.75<1.45) return FALSE;
+        captured=stage;
+        return TRUE;
+    }
 	if (elapsed < next_capture) return FALSE;
     if (getenv("HALO_LIGHTING_BENCH_ROUTE_CAPTURES"))
     {
@@ -220,10 +228,19 @@ int lighting_performance_capture(void)
 	return TRUE;
 }
 
+#include "game/players.h"
+#include "units/units.h"
 void lighting_performance_frame(void)
 {
 	int i;
 	double now = clock_seconds();
+    static int beam_requested;
+    if (!origin) beam_requested=getenv("HALO_LIGHTING_BENCH_FLASHLIGHT")!=NULL;
+    if (beam_requested && origin && now-origin>1)
+    {
+        long unit=player_control_get_unit_index(0);
+        if (unit!=NONE) unit_set_desired_flashlight_state(unit,TRUE);
+    }
 	if (origin) stationary_shield_scene(now - origin);
 	if (!origin)
 	{
@@ -240,7 +257,7 @@ void lighting_performance_frame(void)
 		timings = fopen("frames.csv", "w");
 		if (!timings) return;
 		setvbuf(timings, NULL, _IOFBF, 65536);
-		fprintf(timings, "seconds,frame_ms,selected,scene_lights,occlusion_updates,capture_excluded,tick,occlusion_ms,shadowed,sun_casters\n");
+		fprintf(timings, "seconds,frame_ms,selected,scene_lights,occlusion_updates,capture_excluded,tick,occlusion_ms,shadowed,sun_casters,spot_mask\n");
 	}
 	if (phase_calls[0] || phase_calls[1] || phase_calls[2] || phase_calls[3] || phase_calls[7])
 	{
@@ -265,9 +282,9 @@ void lighting_performance_frame(void)
 	for (i = 0; i < LIGHTING_PROFILE_PHASES; i++) { phase_time[i] = 0; phase_calls[i] = 0; }
 	if (timings)
 	{
-		fprintf(timings, "%.6f,%.6f,%ld,%ld,%ld,%d,%ld,%.6f,%ld,%d\n", now - origin,
+		fprintf(timings, "%.6f,%.6f,%ld,%ld,%ld,%d,%ld,%.6f,%ld,%d,%d\n", now - origin,
 			(now - previous) * 1000.0, selected, lights, occlusion_updates,
-			screenshot_frames > 0, game_time_get(), occlusion_seconds * 1000.0, shadowed, modern_shadows_sun_casters());
+			screenshot_frames > 0, game_time_get(), occlusion_seconds * 1000.0, shadowed, modern_shadows_sun_casters(), modern_spot_mask());
 		if (now - flushed >= 1.0)
 		{
 			fflush(timings);

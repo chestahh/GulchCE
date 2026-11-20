@@ -11,6 +11,13 @@ def test_shared_resolution_bounds():
     assert status == 0, output
 
 
+def test_mesh_cache_preserves_vertex_and_triangle_identity():
+    source = read('port/linux/game/modern_shadows.c')
+    code = function(source, 'mesh_bucket')
+    status, output = run(build('modern_mesh_index', (('under_test.inc', code),)), 'all')
+    assert status == 0, output
+
+
 def test_selection_and_lifecycle():
     check_selection(2)
     check_selection(constant(read('port/linux/include/modern_shadows.h'), 'MODERN_SHADOW_LIGHTS'))
@@ -54,6 +61,12 @@ def test_viewmodel_pose_and_visibility():
     code = function(read('port/linux/game/modern_shadows_first_person.inl'), 'modern_shadows_viewmodel')
     code += function(read('port/linux/game/modern_shadows.c'), 'viewmodel_casters')
     status, output = run(build('modern_shadow_viewmodel', (('under_test.inc', code),)), 'pose')
+    assert status == 0, output
+
+
+def test_shadow_draw_keeps_pose_and_cutout_state():
+    code = function(read('port/linux/src/modern_shadows_gl.c'), 'bind_caster_draw')
+    status, output = run(build('modern_draw_state', (('under_test.inc', code),)), 'all')
     assert status == 0, output
 
 

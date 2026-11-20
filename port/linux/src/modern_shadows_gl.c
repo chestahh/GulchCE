@@ -10,7 +10,7 @@ enum { SHADOW_MESHES = 2048, SHADOW_DRAWS = 256,
 	SHADOW_BYTES = 32 * 1024 * 1024, SHADOW_NODES = 64 };
 static struct shadow_mesh
 {
-	GLuint vertices, indices;
+	GLuint vertices, indices, array;
 	int count, bounded;
 	unsigned int nodes[2];
 	float minimum[3], maximum[3];
@@ -140,6 +140,29 @@ static void resize_maps(int size)
 	resource_failed = 0;
 }
 
+/* Each immutable mesh owns its vertex layout. Adjacent parts often share the
+   same pose; avoid uploading identical bones or cutout state across draws. */
+static void bind_caster_draw(int draw, int *previous, GLint bones, GLint uv, GLint alpha)
+{
+	int last = *previous;
+	if (last < 0 || draws[last].mesh != draws[draw].mesh)
+		glBindVertexArray(meshes[draws[draw].mesh].array);
+	if (last < 0 || draws[last].nodes != draws[draw].nodes ||
+		memcmp(draws[last].matrices, draws[draw].matrices, draws[draw].nodes * 16 * sizeof(float)))
+		glUniformMatrix4fv(bones, draws[draw].nodes, GL_FALSE, draws[draw].matrices);
+	if (last < 0 || !draws[last].alpha != !draws[draw].alpha)
+		glUniform1i(alpha, draws[draw].alpha != 0);
+	if (draws[draw].alpha)
+	{
+		if (last < 0 || draws[last].alpha != draws[draw].alpha)
+			glBindTexture(GL_TEXTURE_2D, draws[draw].alpha);
+		if (last < 0 || !draws[last].alpha ||
+			memcmp(draws[last].uv_transform, draws[draw].uv_transform, sizeof(draws[draw].uv_transform)))
+			glUniform4fv(uv, 2, draws[draw].uv_transform);
+	}
+	*previous = draw;
+}
+
 static void create_depth_cube(GLuint *texture)
 {
 	int face;
@@ -266,15 +289,23 @@ int modern_shadow_mesh_create(const struct modern_shadow_vertex *vertices, int v
 	if (size > SHADOW_BYTES - mesh_bytes) return 0;
 	for (index = 0; index < index_count; index++) if (indices[index] >= vertex_count) return 0;
 	mesh_bounds(&meshes[mesh_count], vertices, vertex_count);
-	glBindVertexArray(vao);
+	glGenVertexArrays(1, &meshes[mesh_count].array);
+	glBindVertexArray(meshes[mesh_count].array);
 	glGenBuffers(1, &meshes[mesh_count].vertices);
 	glBindBuffer(GL_ARRAY_BUFFER, meshes[mesh_count].vertices);
 	glBufferData(GL_ARRAY_BUFFER, vertex_count * sizeof(*vertices), vertices, GL_STATIC_DRAW);
 	glGenBuffers(1, &meshes[mesh_count].indices);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, meshes[mesh_count].indices);
 	glBufferData(GL_ELEMENT_ARRAY_BUFFER, index_count * sizeof(*indices), indices, GL_STATIC_DRAW);
+	glEnableVertexAttribArray(0); glEnableVertexAttribArray(1);
+	glEnableVertexAttribArray(2); glEnableVertexAttribArray(3);
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(struct modern_shadow_vertex), (void *)offsetof(struct modern_shadow_vertex, position));
+	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(struct modern_shadow_vertex), (void *)offsetof(struct modern_shadow_vertex, nodes));
+	glVertexAttribPointer(2, 1, GL_FLOAT, GL_FALSE, sizeof(struct modern_shadow_vertex), (void *)offsetof(struct modern_shadow_vertex, weight));
+	glVertexAttribPointer(3, 2, GL_FLOAT, GL_FALSE, sizeof(struct modern_shadow_vertex), (void *)offsetof(struct modern_shadow_vertex, uv));
 	if (glGetError() != GL_NO_ERROR)
 	{
+		glDeleteVertexArrays(1, &meshes[mesh_count].array);
 		glDeleteBuffers(1, &meshes[mesh_count].vertices);
 		glDeleteBuffers(1, &meshes[mesh_count].indices);
 		memset(&meshes[mesh_count], 0, sizeof(meshes[mesh_count]));
@@ -317,6 +348,7 @@ int modern_shadow_draw(int mesh, const float *matrices, int node_count,
 
 int modern_shadow_end(void)
 {
+	int previous = -1;
 	int face, draw, pass, shared, unique_faces[2] = {0, 0};
 	if (!drawing) return 0;
 	map->view_map = 0;
@@ -388,18 +420,7 @@ int modern_shadow_end(void)
 					if (shared ? draws[draw].views != (pass ? pass : MODERN_SHADOW_BOTH) :
 						!(draws[draw].views & (1 << pass))) continue;
 					if (!(draws[draw].faces & (1 << face))) continue;
-					glBindBuffer(GL_ARRAY_BUFFER, meshes[mesh].vertices);
-					glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, meshes[mesh].indices);
-					glEnableVertexAttribArray(0); glEnableVertexAttribArray(1);
-					glEnableVertexAttribArray(2); glEnableVertexAttribArray(3);
-					glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(struct modern_shadow_vertex), (void *)offsetof(struct modern_shadow_vertex, position));
-					glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(struct modern_shadow_vertex), (void *)offsetof(struct modern_shadow_vertex, nodes));
-					glVertexAttribPointer(2, 1, GL_FLOAT, GL_FALSE, sizeof(struct modern_shadow_vertex), (void *)offsetof(struct modern_shadow_vertex, weight));
-					glVertexAttribPointer(3, 2, GL_FLOAT, GL_FALSE, sizeof(struct modern_shadow_vertex), (void *)offsetof(struct modern_shadow_vertex, uv));
-					glUniformMatrix4fv(bones_uniform, draws[draw].nodes, GL_FALSE, draws[draw].matrices);
-					glUniform4fv(uv_uniform, 2, draws[draw].uv_transform);
-					glUniform1i(alpha_uniform, draws[draw].alpha != 0);
-					glBindTexture(GL_TEXTURE_2D, draws[draw].alpha);
+					bind_caster_draw(draw, &previous, bones_uniform, uv_uniform, alpha_uniform);
 					glDrawElements(GL_TRIANGLES, meshes[mesh].count, GL_UNSIGNED_SHORT, NULL);
 				}
 			}
@@ -428,6 +449,7 @@ void modern_shadow_clear_draws(void)
 }
 
 #include "modern_environment_gl.inl"
+#include "modern_spots_gl.inl"
 
 void modern_shadow_dispose(void)
 {
@@ -438,6 +460,7 @@ void modern_shadow_dispose(void)
 	{
 		glDeleteBuffers(1, &meshes[i].vertices);
 		glDeleteBuffers(1, &meshes[i].indices);
+		glDeleteVertexArrays(1, &meshes[i].array);
 	}
 	release_maps();
 	map = &maps[0];
@@ -544,6 +567,7 @@ void modern_shadow_emit(struct xgpu_text *text)
 
 void modern_shadow_uniforms_initialize(unsigned long linked, struct modern_shadow_uniforms *uniforms)
 {
+    spot_locations(linked,uniforms);
     uniforms->environment_frames = glGetUniformLocation(linked, "modern_environment_frames");
     uniforms->environment_radius = glGetUniformLocation(linked, "modern_environment_radius");
     uniforms->environment_mask = glGetUniformLocation(linked, "modern_environment_mask");
@@ -559,10 +583,11 @@ void modern_shadow_uniforms_initialize(unsigned long linked, struct modern_shado
 	if (uniforms->other_light >= 0) glUniform1i(glGetUniformLocation(linked, "modern_depth_other"), 10);
 }
 
-void modern_shadow_bind(const struct modern_shadow_uniforms *uniforms)
+void modern_shadow_bind(struct modern_shadow_uniforms *uniforms)
 {
 	float enabled[2] = {0,0};
 	int slot;
+    spot_bind(uniforms);
     glUniform1i(uniforms->environment_mask, environment_model.enabled);
     if (environment_model.enabled)
     {
@@ -590,6 +615,7 @@ void modern_shadow_bind(const struct modern_shadow_uniforms *uniforms)
 }
 
 #else
+int modern_spot_mask(void) { return 0; }
 void modern_environment_model_clear(void) {}
 int modern_environment_model_active(void) { return 0; }
 int modern_environment_model_reuse(void) { return 0; }
@@ -609,5 +635,5 @@ void modern_shadow_clear_draws(void) {}
 void modern_shadow_dispose(void) {}
 void modern_shadow_emit(struct xgpu_text *text) {}
 void modern_shadow_uniforms_initialize(unsigned long p, struct modern_shadow_uniforms *u) { u->light = -1; }
-void modern_shadow_bind(const struct modern_shadow_uniforms *u) {}
+void modern_shadow_bind(struct modern_shadow_uniforms *u) {}
 #endif

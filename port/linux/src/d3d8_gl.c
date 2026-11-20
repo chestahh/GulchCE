@@ -4879,10 +4879,16 @@ static struct program_entry *draw_program_get(struct vertex_shader_object *progr
 	key->modern_shadow = (unsigned char)modern_shadows_world_stage();
 	if (plasma_model && modern_shadows_model_mask()) key->modern_shadow = 3;
 	if (modern_environment_model_active() && (program->plasma_model || program->lighting.lights == 2)) key->modern_shadow = 3;
+	/* A driver can reject one combined material. Retry its established
+	   shadow variant without disabling the local lights or the sun. */
+	unsigned char fallback_shadow = key->modern_shadow == 4 ? 0 : key->modern_shadow;
+	if ((program->plasma_model || program->lighting.lights == 2) && modern_spot_model_active()) key->modern_shadow = 5;
+try_shadow_program:
 	if (key->modern_shadow && !(program->modern_shadow_failed & (1U << key->modern_shadow)))
 	{
-		int lights = key->modern_shadow == 3 ? 2 : program->lighting.lights;
-		BOOL lit = lights && !*failed && (per_pixel_lighting() || key->modern_shadow == 3);
+		BOOL model_shadow = key->modern_shadow == 3 || key->modern_shadow == 5;
+		int lights = model_shadow ? 2 : program->lighting.lights;
+		BOOL lit = lights && !*failed && (per_pixel_lighting() || model_shadow);
 		key->per_pixel_lighting = lit ? (unsigned char)lights : 0;
 		key->plasma_model = lit ? (unsigned char)plasma_model : 0;
 		entry = program_get(vertex_shader_get(program, immediate, lit, plasma_model), fragment_shader_get(key), plasma_model, TRUE);
@@ -4892,6 +4898,11 @@ static struct program_entry *draw_program_get(struct vertex_shader_object *progr
 		program->modern_shadow_failed |= 1U << key->modern_shadow;
 		platform_log("GPU: modern shadow variant %u failed for vertex shader %lu; retaining existing lighting",
 			key->modern_shadow, program->id);
+	}
+	if (key->modern_shadow == 4 || key->modern_shadow == 5)
+	{
+		key->modern_shadow = fallback_shadow;
+		goto try_shadow_program;
 	}
 	if (key->modern_shadow) modern_shadows_cancel();
 	key->modern_shadow = 0;

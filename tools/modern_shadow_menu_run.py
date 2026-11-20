@@ -19,6 +19,7 @@ def main():
     parser.add_argument('--build-dir', type=Path, default=ROOT/'build/modern-shadow-menu-build')
     parser.add_argument('--inspect-modern', action='store_true', help='Capture the modern frontend scrolled to the shadow row')
     parser.add_argument('--resolution-setting', action='store_true', help='Verify the shared resolution control instead of Off/Hard/Soft')
+    parser.add_argument('--flashlight-setting', choices=['shadows', 'extra_slot'])
     parser.add_argument('--frontend', choices=['off', 'pc', 'xbox', 'modern'], default='off')
     args = parser.parse_args()
     assert re.fullmatch(r'[A-Za-z0-9_-]+', args.label)
@@ -47,6 +48,8 @@ def main():
         env.update(HALO_MENU_FRONTEND='modern', HALO_MENU_OPEN='modern/settings', HALO_SHADOW_MENU_INSPECT='1')
     if args.resolution_setting:
         env['HALO_SHADOW_MENU_RESOLUTION'] = '1'
+    if args.flashlight_setting:
+        env['HALO_SHADOW_MENU_FLASHLIGHT'] = 'display.flashlight_' + args.flashlight_setting
     for label in (('actions',) if args.inspect_modern else ('actions', 'restart')):
         if label == 'restart': env.update(HALO_SHADOW_MENU_VERIFY='1', HALO_SCREENSHOT_EVERY='0')
         with (out/(label+'.log')).open('wb') as log:
@@ -62,6 +65,18 @@ def main():
         assert re.findall(r'SHADOW MENU inspect (\d+)', log) == [str(i) for i in range(18 if args.resolution_setting else 9)]
         (out/'report.json').write_text(json.dumps(dict(inspected=True, resolution='2560x1440'), indent=2))
         print('Modern frontend shadow-setting captures ready for visual inspection')
+        return
+    if args.flashlight_setting:
+        observed = re.findall(r'SHADOW MENU flashlight (\d+) saved (\d+) selected (\d+)', log)
+        expected = [(0,0), (0,1), (0,0), (1,1), (1,0), (1,1), (0,0), (1,1)]
+        # The shared budget orders Shared/Extra, while the stock boolean control orders On/Off.
+        reverse = int(args.flashlight_setting == 'shadows')
+        assert observed == [(str(i),str(saved),str(selected ^ reverse)) for i,(saved,selected) in enumerate(expected)], observed
+        assert f'SHADOW MENU flashlight restart 1 selected {1 ^ reverse}' in (out/'restart.log').read_text(errors='replace')
+        config = tomllib.loads((out/'config.toml').read_text())['display']
+        assert config['flashlight_' + args.flashlight_setting] and config['modern_shadows'] == 'off'
+        (out/'report.json').write_text(json.dumps(dict(passed=True, setting=args.flashlight_setting, frontend=args.frontend)))
+        print('Flashlight setting Save/Cancel/Defaults and restart persistence passed')
         return
     if args.resolution_setting:
         observed = re.findall(r'SHADOW MENU resolution step (\d+) saved (\d+) selected (\d+) modern (\w+)', log)

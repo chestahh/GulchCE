@@ -16,6 +16,14 @@ def test_sun_culling_and_surface_ownership():
     assert status == 0, output
 
 
+def test_flashlight_culls_only_outside_light_frustum():
+    source = read('port/linux/game/modern_shadows.c')
+    code = '\n'.join(function(source, name) for name in (
+        'spot_clip_planes', 'spot_box_visible', 'spot_sphere_visible'))
+    status, output = run(build('flashlight_frustum', (('under_test.inc', code),)), 'all')
+    assert status == 0, output
+
+
 def test_gles_environmental_hooks_cannot_activate(tmp_path):
     import subprocess
     from test_mcc_identity import compile_tool
@@ -29,6 +37,8 @@ def test_gles_environmental_hooks_cannot_activate(tmp_path):
 int main(void) {
     float v[16] = {0};
     modern_shadows_prepare(1);
+    modern_spots_project(); modern_spot_world_light(0);
+    if (modern_shadows_world_stage() || modern_spot_mask()) return 4;
     modern_shadows_environment_receivers(1);
     modern_environment_receivers(1);
     if (modern_shadows_enabled() || modern_environment_marking()) return 1;

@@ -48,6 +48,14 @@ static int model_caster(struct model *m,real_matrix4x3 *pose,unsigned char *regi
        "each object uses its own current pose, regions and render functions");
  submitted[i]++;views_used[i]=views;return 1;
 }
+static int clipping_spot;
+static int spot_sphere_visible(real_point3d const *center,float radius) {
+ return center->x+radius>=0;
+}
+static void object_get_render_bounding_sphere(long i,real_point3d *center,float *radius) {
+ *center=objects[i].object.bounding_sphere_center; *radius=objects[i].object.bounding_sphere_radius;
+}
+static void render_interpolation_object_point(long i,real_point3d *center) {(void)i;(void)center;}
 #include "under_test.inc"
 int main(int argc,char **argv) {
  real_point3d origin={0,0,0};long owners[2]={0,1};int i;

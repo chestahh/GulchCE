@@ -30,6 +30,16 @@ static struct
     float frame[16], radius;
 } sun;
 
+enum { FIXTURE_LIMIT = 2, FLASH_SLOT = 2, SPOT_SOURCES = 3, SPOT_LAYERS = 5 };
+static struct
+{
+    GLuint depth, fbo, receiver;
+    int size, layers, layer, rendering, valid_static, checked_layers, mask, soft;
+    float origins[SPOT_SOURCES][4], frames[SPOT_SOURCES][16], colors[SPOT_SOURCES][4], static_frames[FIXTURE_LIMIT][16];
+    float camera[16], projection[16];
+} spots;
+static unsigned long long spot_window;
+
 static GLuint environment_program(const char *vertex, const char *fragment)
 {
     GLuint vs = xgpu_compile_shader(GL_VERTEX_SHADER, vertex, "environment shadow");
@@ -45,12 +55,18 @@ int modern_environment_marking(void) { return environment.marking; }
 
 void modern_environment_window(void)
 {
+    spots.mask = 0;
+    spot_window++;
     environment.marking = environment.copied = environment.count = 0;
     environment_model.enabled = environment_model.valid = environment_model.count = 0;
 }
 
 void modern_environment_dispose(void)
 {
+    if (spots.depth) glDeleteTextures(1, &spots.depth);
+    if (spots.fbo) glDeleteFramebuffers(1, &spots.fbo);
+    if (spots.receiver) glDeleteProgram(spots.receiver);
+    memset(&spots, 0, sizeof(spots));
     if (sun.static_depth) glDeleteTextures(1, &sun.static_depth);
     if (sun.receiver) glDeleteProgram(sun.receiver);
     if (sun.static_caster) glDeleteProgram(sun.static_caster);
@@ -75,7 +91,7 @@ void modern_environment_dispose(void)
     environment_drawing = 0;
 }
 
-static int environment_resources(void)
+static int environment_resources_for(int projector)
 {
     static const char caster_vertex[] =
         "#version 330 core\n"
@@ -85,7 +101,7 @@ static int environment_resources(void)
         "out vec2 texcoord; void main(){\n"
         "vec3 p=mix(bones[int(nodes.y)]*vec4(position,1),bones[int(nodes.x)]*vec4(position,1),weight).xyz;\n"
         "vec3 q=transpose(mat3(frame))*(p-frame[3].xyz)/radius;\n"
-        "gl_Position=vec4(q.xy,0.5-0.5*q.z,1);\n"
+        "gl_Position=radius<0.0?frame*vec4(p,1):vec4(q.xy,0.5-0.5*q.z,1);\n"
         "texcoord=vec2(dot(vec4(uv,0,1),uv_transform[0]),dot(vec4(uv,0,1),uv_transform[1]));}\n";
     static const char caster_fragment[] =
         "#version 330 core\n"
@@ -177,6 +193,9 @@ static int environment_resources(void)
             environment.caster_alpha = glGetUniformLocation(environment.caster, "alpha_test");
         }
     }
+    /* A fixture or flashlight writes its own depth array. It needs the caster
+       program, but never the legacy environmental depth attachment. */
+    if (projector) return environment.caster != 0;
     if (!environment.receiver) environment.receiver = environment_program(receiver_vertex, receiver_fragment);
     if (sun.projecting && !sun.static_caster)
     {
@@ -215,6 +234,11 @@ static int environment_resources(void)
     glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, environment.depth, 0);
     return glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE && glGetError() == GL_NO_ERROR;
+}
+
+static int environment_resources(void)
+{
+    return environment_resources_for(0);
 }
 
 static int environment_snapshot(void)
@@ -335,7 +359,8 @@ static int environment_draw_depth(GLuint target)
         uv=glGetUniformLocation(p,"uv_transform"); alpha=glGetUniformLocation(p,"alpha_test");
         eligible=glGetUniformLocation(p,"eligible");
     }
-    int draw, success = !failed && draw_count > 0;
+    int previous = -1;
+    int draw, success = !failed && (draw_count > 0 || spots.rendering);
     if (success)
     {
         glBindFramebuffer(GL_FRAMEBUFFER, target);
@@ -357,20 +382,10 @@ static int environment_draw_depth(GLuint target)
         glUniform1f(radius,environment.radius);
         glUniform1i(alpha_map,9);
         glActiveTexture(GL_TEXTURE9); glBindSampler(9,alpha_sampler);
-        glEnableVertexAttribArray(0); glEnableVertexAttribArray(1); glEnableVertexAttribArray(2); glEnableVertexAttribArray(3);
         for (draw=0;draw<draw_count;draw++)
         {
             int mesh=draws[draw].mesh;
-            glBindBuffer(GL_ARRAY_BUFFER,meshes[mesh].vertices);
-            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,meshes[mesh].indices);
-            glVertexAttribPointer(0,3,GL_FLOAT,GL_FALSE,sizeof(struct modern_shadow_vertex),(void *)offsetof(struct modern_shadow_vertex,position));
-            glVertexAttribPointer(1,2,GL_FLOAT,GL_FALSE,sizeof(struct modern_shadow_vertex),(void *)offsetof(struct modern_shadow_vertex,nodes));
-            glVertexAttribPointer(2,1,GL_FLOAT,GL_FALSE,sizeof(struct modern_shadow_vertex),(void *)offsetof(struct modern_shadow_vertex,weight));
-            glVertexAttribPointer(3,2,GL_FLOAT,GL_FALSE,sizeof(struct modern_shadow_vertex),(void *)offsetof(struct modern_shadow_vertex,uv));
-            glUniformMatrix4fv(bones,draws[draw].nodes,GL_FALSE,draws[draw].matrices);
-            glUniform4fv(uv,2,draws[draw].uv_transform);
-            glUniform1i(alpha,draws[draw].alpha!=0);
-            glBindTexture(GL_TEXTURE_2D,draws[draw].alpha);
+            bind_caster_draw(draw, &previous, bones, uv, alpha);
             if (sun.writing)
             {
                 const unsigned char *owners=sun.surface_sky[draw];

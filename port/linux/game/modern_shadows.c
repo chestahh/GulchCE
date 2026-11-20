@@ -6,6 +6,7 @@
 
 #ifndef HALO_GLES
 #include <xtl.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include "models/model_definitions.h"
@@ -80,6 +81,10 @@ static struct
 	int mesh;
 	float minimum[3], maximum[3];
 } parts[SHADOW_PARTS];
+/* Zero means empty. The map-lifetime cache holds at most half the buckets. */
+enum { MESH_BUCKETS = 2 * SHADOW_PARTS };
+static unsigned short mesh_index[MESH_BUCKETS];
+static int patches_ready;
 static unsigned char *sun_surface_sky;
 static int sun_count;
 enum { SUN_CUTOUTS = 64 };
@@ -98,6 +103,8 @@ static struct shadow_selection
 	long identity, rasterizer, challenger, unshadowed_owner, collision_owner;
 	float since, time;
 } selections[MODERN_SHADOW_LIGHTS];
+static long flashlight_index = NONE;
+static int flash_world;
 static int world_map;
 static long slots[2] = {NONE, NONE};
 static int active, world_stage, receiver_failed;
@@ -124,9 +131,11 @@ void modern_shadows_reset(void)
 	int i;
 	if (sun_surface_sky) free(sun_surface_sky);
 	sun_surface_sky = NULL;
+	patches_ready = 0;
 	sun_cutout_count = sun_count = 0;
 	modern_shadow_dispose();
 	memset(parts, 0, sizeof(parts));
+	memset(mesh_index, 0, sizeof(mesh_index));
 	part_count = active = world_stage = receiver_failed = 0;
 	view_receiver = 0;
 	receiver_object = NONE;
@@ -243,6 +252,7 @@ long modern_shadows_collision_owner(long rasterizer_index)
 void modern_shadows_cancel(void)
 {
 	int stage = world_stage;
+	flash_world = 0;
 	long rasterizer = stage ? selections[world_map].rasterizer : NONE;
 	active = world_stage = 0;
 	receiver_failed = 1;
@@ -263,8 +273,8 @@ void modern_shadows_world_begin(long rasterizer_index, int stage)
 	if (stage == 1)
 		world_extent *= plasma_occlusion_specular_scale(rasterizer_index);
 }
-void modern_shadows_world_end(void) { world_stage = 0; }
-int modern_shadows_world_stage(void) { return world_stage; }
+void modern_shadows_world_end(void) { flash_world = world_stage = 0; }
+int modern_shadows_world_stage(void) { return flash_world ? 4 : world_stage; }
 float modern_shadows_world_extent(void) { return world_extent; }
 
 static void matrix_to_gl(real_matrix4x3 const *m, float output[16])
@@ -279,6 +289,19 @@ static void matrix_to_gl(real_matrix4x3 const *m, float output[16])
 
 /* Convert once per immutable map buffer. Skinning stays on the GPU and uses
    the same interpolated pose and CE/MCC palettes as the visible model. */
+static unsigned mesh_bucket(struct vertex_buffer const *vertices, void const *triangles)
+{
+	unsigned hash = (unsigned)((uintptr_t)vertices >> 2) * 2654435761u + (unsigned)((uintptr_t)triangles >> 2);
+	unsigned bucket = (hash ^ (hash >> 16)) & (MESH_BUCKETS - 1);
+	while (mesh_index[bucket])
+	{
+		const int part = mesh_index[bucket] - 1;
+		if (parts[part].vertices == vertices && parts[part].triangles == triangles) break;
+		bucket = (bucket + 1) & (MESH_BUCKETS - 1);
+	}
+	return bucket;
+}
+
 static int mesh_get(struct vertex_buffer const *vertices, void const *key,
 	struct triangle_buffer const *triangles, word const *world_indices, int world_count, int node_count)
 {
@@ -288,9 +311,9 @@ static int mesh_get(struct vertex_buffer const *vertices, void const *key,
 	word *list = NULL;
 	byte const *palette = NULL, *mcc_palette = NULL;
 	short palette_count = 0, mcc_count;
-	int i, j, count, size, mesh = 0, part, model;
-	for (part = 0; part < part_count; part++)
-		if (parts[part].vertices == vertices && parts[part].triangles == key) return part;
+	int i, j, count, size, mesh = 0, model;
+	unsigned bucket = mesh_bucket(vertices, key);
+	if (mesh_index[bucket]) return mesh_index[bucket] - 1;
 	if (part_count == SHADOW_PARTS || vertices->count < 1 || vertices->count > 65535 || !vertices->hardware_format) return NONE;
 	model = vertices->type == _rasterizer_vertex_type_model_compressed;
 	if (!model && vertices->type != _rasterizer_vertex_type_environment_compressed &&
@@ -380,6 +403,7 @@ done:
 	parts[part_count].vertices = vertices;
 	parts[part_count].triangles = key;
 	parts[part_count].mesh = mesh;
+	mesh_index[bucket] = (unsigned short)(part_count + 1);
 	return part_count++;
 }
 
@@ -431,6 +455,46 @@ static int material(struct shader const *shader, short permutation, void const *
 	return 1;
 }
 
+/* Unit normals point into the spotlight frustum. Use a box's support
+   vertex to reject a complete BSP batch before submitting its triangles. */
+static float spot_planes[6][4];
+static int clipping_spot;
+static void spot_clip_planes(const float frame[16])
+{
+    for (int i=0;i<6;i++)
+    {
+        float *p=spot_planes[i];
+        for (int j=0;j<4;j++)
+        {
+            const float *col=frame+4*j;
+            if (i<4) p[j]=col[3]+(i&1 ? -col[i/2] : col[i/2]);
+            else p[j]=i==4 ? col[2] : col[3]-col[2];
+        }
+        float inv=1.f/sqrtf(p[0]*p[0]+p[1]*p[1]+p[2]*p[2]);
+        for (int k=0;k<4;k++) p[k]*=inv;
+    }
+}
+static int spot_box_visible(const float low[3],const float high[3])
+{
+    for (int i=0;i<6;i++)
+    {
+        const float *p=spot_planes[i];
+        float d=p[3];
+        for (int j=0;j<3;j++) d+=p[j]*(p[j]>=0.f?high[j]:low[j]);
+        if (d<-.001f) return 0;
+    }
+    return 1;
+}
+static int spot_sphere_visible(real_point3d const *c,float radius)
+{
+    for (int i=0;i<6;i++)
+    {
+        const float *p=spot_planes[i];
+        if (p[0]*c->x+p[1]*c->y+p[2]*c->z+p[3] < -radius-.001f) return 0;
+    }
+    return 1;
+}
+
 static int world_casters_clipped(struct structure_bsp const *bsp, real_point3d const *origin, real radius, const float *sun_frame)
 {
 	int lightmap, index;
@@ -477,6 +541,7 @@ static int world_casters_clipped(struct structure_bsp const *bsp, real_point3d c
 				if (outside) continue;
 			}
 			else if (distance > radius * radius) continue;
+			if (clipping_spot && !spot_box_visible(parts[part].minimum,parts[part].maximum)) continue;
 			if (!modern_shadow_draw(parts[part].mesh, identity, 1, alpha, uv, MODERN_SHADOW_BOTH)) return 0;
 			if (sun_frame)
 			{
@@ -583,6 +648,14 @@ static int object_casters(real_point3d const *origin, real radius, long const ow
 			unshadowed_object(unshadowed_owner, iterator.index)) continue;
 		range = radius + object->object.bounding_sphere_radius;
 		if (distance_squared3d(origin, &object->object.bounding_sphere_center) > range * range) continue;
+		if (clipping_spot)
+		{
+			real_point3d center;
+			real extent;
+			object_get_render_bounding_sphere(iterator.index,&center,&extent);
+			render_interpolation_object_point(iterator.index,&center);
+			if (!spot_sphere_visible(&center,extent)) continue;
+		}
 		definition = object_definition_get(object->definition_index);
 		if (definition->object.model.index == NONE) continue;
 		model = model_definition_get(definition->object.model.index);
@@ -674,6 +747,19 @@ static void select_lights(void)
 		selections[slot].rasterizer = best_index;
 		selections[slot].identity = best_index != NONE ? identities[best_index] : NONE;
 	}
+	/* A published flashlight uses a single projector inside the local budget.
+	   Keep the displaced light's identity for the next view and its lighting
+	   contribution in the stock renderer. */
+	if ((modern_spot_mask() & 4) && !config_boolean("display.flashlight_extra_slot"))
+	{
+		int weakest = 0;
+		for (i = 0; i < MODERN_SHADOW_LIGHTS; i++)
+		{
+			if (selections[i].rasterizer == NONE) return;
+			if (scores[selections[i].rasterizer] < scores[selections[weakest].rasterizer]) weakest = i;
+		}
+		selections[weakest].rasterizer = NONE;
+	}
 }
 
 /* Environmental maps reuse the validated caster conversion, never local-light
@@ -736,6 +822,7 @@ static int environmental_family_bounds(long index, const real_point3d *center, r
 }
 
 #include "modern_sun.inl"
+#include "modern_spots.inl"
 
 /* Draw-packet lighting is authoritative, including queued material passes.
    Shadow only the two distant terms; ambient/local illumination is untouched. */
@@ -814,13 +901,15 @@ void modern_shadows_prepare(int primary)
 	int mode = setting(), complete, slot;
 	long owners[2];
 	active = world_stage = 0;
-	sun_count = 0;
+	sun_count = flash_world = 0;
+	flashlight_index = NONE;
 	modern_environment_window();
 	if (!mode) { if (cached_bsp) modern_shadows_reset(); return; }
 	if (!primary) return;
 	bsp = global_structure_bsp_get();
 	if (bsp != cached_bsp) { modern_shadows_reset(); cached_bsp = bsp; }
 	if (!bsp || receiver_failed) return;
+	prepare_spots(mode);
 	select_lights();
 	for (slot = 0; slot < MODERN_SHADOW_LIGHTS; slot++)
 	{
@@ -848,6 +937,8 @@ void modern_shadows_prepare(int primary)
 int modern_shadows_enabled(void) { return 0; }
 int modern_shadows_hard_enabled(void) { return 0; }
 void modern_shadows_sun_project(void) {}
+void modern_spots_project(void) {}
+void modern_spot_world_light(long index) {}
 int modern_shadows_sun_casters(void) { return 0; }
 void modern_shadows_environment_model(const struct rasterizer_model_begin_parameters *p, int f) {}
 void modern_shadows_environment_receivers(int primary) {}

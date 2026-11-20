@@ -70,6 +70,13 @@ def summarize(rows, warmup, seconds, cap, captures=True):
         result['sun_frame_percent'] = 100*sum(r['sun_casters']>0 for r in measured)/len(measured)
         result['sun_families_max'] = max(r['sun_casters'] for r in measured)
         result['sun_and_eight_local_percent'] = 100*sum(r['sun_casters']>0 and r['shadowed']==8 for r in measured)/len(measured)
+    if all('spot_mask' in r for r in measured):
+        masks = [int(r['spot_mask']) for r in measured]
+        result['peak_local_shadows_including_beam'] = int(max(r['shadowed'] + bool(m & 4) for r,m in zip(measured,masks)))
+        result['both_fixture_percent'] = 100*sum((v & 3) == 3 for v in masks)/len(masks)
+        result['flashlight_percent'] = 100*sum(bool(v & 4) for v in masks)/len(masks)
+        result['flashlight_and_seven_local_percent'] = 100*sum(bool(v & 4) and r['shadowed']==7 for r,v in zip(measured,masks))/len(masks)
+        result['flashlight_and_eight_local_percent'] = 100*sum(bool(v & 4) and r['shadowed']==8 for r,v in zip(measured,masks))/len(masks)
     for start in range(0, seconds, 60):
         block=[r['frame_ms'] for r in clean if warmup+start <= r['seconds'] < warmup+min(start+60, seconds)]
         if block: result['minutes'].append(dict(start=start, **distribution(block, cap)))
@@ -126,6 +133,35 @@ def cleanup(out):
         if path.exists(): safe(path, out).unlink()
 
 
+def verify_fixture_comparison(out, mode, log):
+    from PIL import Image, ImageChops, ImageStat
+    frames = sorted(p for p in (out/'screenshots').iterdir() if p.suffix.lower() in ('.bmp', '.png'))
+    assert len(frames) == 7 and 'E3 comparison 6 mask 0' in log, 'Incomplete fixture comparison'
+    # E1 measured the actual lamp markers. Reject accidental selection of
+    # other emissive surfaces even when the frame reports two fixture slots.
+    positions = {int(slot): tuple(map(float, (x,y,z))) for slot,x,y,z in
+                 re.findall(r'E3 slot (\d) at ([-.\d]+) ([-.\d]+) ([-.\d]+)', log)}
+    expected = {0:(7.6693,-10.9724,-.7990), 1:(9.9964,-11.0341,-.8103)}
+    if mode == 'panel':
+        expected = {0:(-8.5266,-12.3946,-2.2547)}
+    for slot, reference in expected.items():
+        assert slot in positions and math.dist(positions[slot], reference)<.03, 'Wrong fixture selected'
+    assert 2 in positions, 'Missing stock flashlight'
+    if mode == 'beam':
+        assert re.search(r'E3 receiver vehicle (?!-1\b)-?\d+ rifle (?!-1\b)-?\d+', log)
+    if mode == 'comparison':
+        floor = []
+        for path in frames:
+            with Image.open(path) as frame:
+                w,h = frame.size
+                floor.append(frame.convert('RGB').crop((int(w*.32),int(h*.51),int(w*.68),int(h*.79))))
+        masked = [ImageChops.subtract(floor[0], image) for image in floor]
+        energy = [sum(ImageStat.Stat(image).sum) for image in masked]
+        assert min(energy[1:3])>4*(1+energy[6]), 'Individual lamp shadows must exceed the return-to-stock difference'
+        assert energy[3]>1.25*max(energy[1:3]), 'Both fixture shadows must contribute'
+        assert sum(ImageStat.Stat(ImageChops.difference(masked[1],masked[2])).sum)>.5*min(energy[1:3]), 'Lamp directions must differ'
+
+
 def runtime_errors(log):
     # A resource fallback can leave the game running faster with no shadows.
     # Treat it as failed acceptance, even when earlier frames had valid maps.
@@ -143,12 +179,18 @@ def main():
     parser.add_argument('--depth-reuse', choices=['shared','legacy','alternate'], help='Requires depth-reuse control build; alternate uses two-second ABBA blocks')
     parser.add_argument('--enabled', type=int, choices=[0,1], required=True)
     parser.add_argument('--modern-shadows', choices=['off', 'hard', 'soft'], default='off')
+    parser.add_argument('--extra-flashlight-slot', action='store_true', help='Allow eight other shadowed lights alongside the flashlight')
+    parser.add_argument('--stock-flashlight', action='store_true', help='Keep the stock beam on in a shadow-off performance control')
+    parser.add_argument('--shoulder-view', action='store_true', help='Exercise the stock shoulder-view light submission in a compatible local session')
+    parser.add_argument('--fixture-room', choices=['timing','comparison','panel','beam'], help='Use the fixed two-lamp camera and caster on Rat Race')
+    parser.add_argument('--environment-fixtures', action='store_true')
+    parser.add_argument('--flashlight-shadows', action='store_true')
     parser.add_argument('--environment-sun', action='store_true')
     parser.add_argument('--turret-sources', type=int, choices=[1,2,4], help='Requires a turret-prototype timing build')
     parser.add_argument('--seconds', type=int, default=300)
     parser.add_argument('--warmup', type=int, default=30)
     parser.add_argument('--resolution', default='2560x1440')
-    parser.add_argument('--map', default='carousel', choices=['carousel','bloodgulch','c40'])
+    parser.add_argument('--map', default='carousel', choices=['carousel','bloodgulch','c40','ratrace'])
     parser.add_argument('--checkpoint-root', type=Path, help='Copy an existing campaign profile/save root; never run against the original')
     parser.add_argument('--invulnerable-player', action='store_true', help='Explicit controlled campaign stress run: keep the copied player alive; report separately from normal gameplay')
     parser.add_argument('--snowy-route', action='store_true', help='Walk the archived exterior-door checkpoint into the c40 snowy fight; test route only')
@@ -200,6 +242,16 @@ def main():
         settings={k:display[k] for k in QUALITY if k in display}
     settings.update({k:bool(args.enabled) for k in LIGHTS})
     settings['modern_shadows'] = args.modern_shadows
+    if args.shoulder_view:
+        settings['third_person'] = True
+        env['HALO_SESSION_COMPATIBILITY'] = 'gulchce_third_person'
+    if args.environment_fixtures:
+        settings['environment_fixtures'] = True
+    if args.flashlight_shadows:
+        settings['flashlight_shadows'] = True
+        settings['flashlight_extra_slot'] = args.extra_flashlight_slot
+    if args.flashlight_shadows or args.stock_flashlight:
+        env['HALO_LIGHTING_BENCH_FLASHLIGHT'] = '1'
     if args.environment_sun:
         settings['environment_sun'] = True
     # These are deliberate test settings, not a player's legacy preferences.
@@ -223,6 +275,8 @@ def main():
         env.update(HALO_MENU_OPEN='main_menu/campaign_select/campaign_menu',
                    HALO_TEST_INPUT='menu:'+','.join(['wait']*8+['a']),
                    HALO_EXIT_AFTER=str(args.warmup+args.seconds+25))
+    if args.fixture_room in ('comparison', 'panel', 'beam'):
+        env['HALO_EXIT_AFTER'] = '38'
     if args.stationary_shield:
         env.update(HALO_BOTS='0', HALO_LIGHTING_BENCH_SHIELD='1')
     if args.invulnerable_player:
@@ -246,6 +300,11 @@ def main():
     if args.no_captures:
         env['HALO_SCREENSHOT_DIR']=''
     build=args.build_dir.resolve()
+    if args.fixture_room:
+        assert args.map=='ratrace' and json.loads((build/'manifest.json').read_text()).get('fixture_room'), 'Requires the Rat Race fixture build'
+        env['HALO_BENCH_FIXTURE_ROOM'] = args.fixture_room
+        env['HALO_VIEWMODEL_VISIBLE'] = '0'
+
     if args.turret_sources:
         assert json.loads((build/'manifest.json').read_text()).get('turret_prototype'), 'Wrong timing build'
         env['HALO_TURRET_SOURCES']=str(args.turret_sources)
@@ -336,6 +395,8 @@ def main():
             report['route_error'] = 'Requested controller route was not loaded completely'
         report.update(exit=process.returncode, fps=args.fps, uncapped=args.uncapped, frame_limit=int(env['HALO_MAX_FPS']), enabled=args.enabled, shader_dump=args.dump_shaders,
                       modern_shadows=args.modern_shadows, environment_sun=args.environment_sun, resolution=args.resolution,
+                      environment_fixtures=args.environment_fixtures, flashlight_shadows=args.flashlight_shadows,
+                      flashlight_extra_slot=args.extra_flashlight_slot,
                       invulnerable_player=args.invulnerable_player, snowy_route=args.snowy_route,
                       route_sha256=hashlib.sha256((out/'controller-route.txt').read_bytes()).hexdigest() if args.route_file else None,
                       captures=not (args.dump_shaders or args.no_captures),
@@ -351,6 +412,19 @@ def main():
         (out/'report.json').write_text(json.dumps(report,indent=2))
         print(json.dumps(dict(label=args.label, **report)),flush=True)
         assert report['exit']==0 and not report['errors'], 'Game failed; retained report and logs describe the failure'
+        if args.fixture_room in ('comparison','panel','beam'):
+            verify_fixture_comparison(out, args.fixture_room, log)
+            if args.shoulder_view:
+                assert 'effective 1 active 1' in log, 'Shoulder camera never activated'
+            # The reference pose uses a frozen simulation. Its frames do not
+            # belong in an FPS acceptance result.
+            return
+        if args.fixture_room=='timing':
+            assert report.get('both_fixture_percent',0)>0, 'The two fixture maps never coexisted'
+        if args.flashlight_shadows:
+            assert report.get('flashlight_percent',0)>0, 'No live flashlight depth measured'
+            if not args.extra_flashlight_slot and json.loads((build/'manifest.json').read_text()).get('shared_flashlight_budget'):
+                assert report['peak_local_shadows_including_beam']<=8, 'Flashlight exceeded the eight-local-shadow budget'
         assert not report.get('route_error'), report.get('route_error')
         assert not report.get('measurement_error') and report['measured_span']>=args.seconds-.2, 'Incomplete measurement'
         assert not report['unexpected_players'], 'Unexpected player joined the isolated workload'
@@ -359,7 +433,7 @@ def main():
             assert report.get('shadowed_frame_percent', 0) > 0, 'No active shadow maps measured'
         elif 'shadowed_frame_percent' in report:
             assert report['shadowed_frame_percent'] == 0, 'Unexpected active shadow maps'
-        if args.environment_sun and args.snowy_route:
+        if args.environment_sun and args.snowy_route and args.modern_shadows=='hard':
             assert report.get('sun_frame_percent',0)>0, 'No sun shadows measured during the snowy route'
         if args.invulnerable_player:
             assert 'BENCH controlled invulnerable player enabled' in log, 'Controlled player protection was not active'

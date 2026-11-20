@@ -582,6 +582,7 @@ void render_object_shadows(
 		struct object_render_data data;
 
 		modern_shadows_sun_project();
+		modern_spots_project();
 		rasterizer_environment_shadows_begin();
 
 		data.shadow = TRUE;

@@ -1,4 +1,6 @@
 #include "harness.h"
+struct modern_shadow_uniforms;
+static void spot_bind(const struct modern_shadow_uniforms *u) { (void)u; }
 static void modern_environment_dispose(void) {}
 #include <stddef.h>
 typedef unsigned int GLuint;
@@ -37,7 +39,7 @@ static int offset_calls;
 static void glPolygonOffset(float factor,float units) { CHECK(factor==-.5f/256 && units==0,"accepted ground slope");offset_calls++; }
 #define glPolygonMode(...) ((void)0)
 #define glUseProgram(...) ((void)0)
-#define glBindVertexArray(...) ((void)0)
+#define glBindVertexArray(array) (element=(int)(array))
 #define glActiveTexture(...) ((void)0)
 #define glBindSampler(...) ((void)0)
 #define glClear(...) ((void)0)
@@ -142,7 +144,7 @@ int main(int argc,char **argv) {
  modern_shadow_dispose();modern_shadow_dispose();
  CHECK(!delete_calls && !handoffs,"unused shadow feature never calls the driver during cleanup");
  ground_slope=-.5f/256;framebuffer=9;mesh_count=3;
- for(i=0;i<3;i++) { meshes[i].indices=10+i;meshes[i].count=3; }
+ for(i=0;i<3;i++) { meshes[i].array=meshes[i].indices=10+i;meshes[i].count=3; }
  CHECK(!modern_shadow_begin(-1,origin,2,0,0) && !modern_shadow_begin(MODERN_SHADOW_LIGHTS,origin,2,0,0),"invalid slot never allocates");
  CHECK(modern_shadow_begin(0,origin,2,0,1),"first light begins");
  CHECK(!modern_shadow_begin(1,origin,2,0,0),"cannot overwrite an unfinished submission");

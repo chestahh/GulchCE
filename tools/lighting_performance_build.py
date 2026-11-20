@@ -56,6 +56,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--output-dir', type=Path, default=ROOT/'build/lighting-performance-build')
     parser.add_argument('--defer-restored-build', action='store_true', help='Outer builder restores and rebuilds ordinary sources')
+    parser.add_argument('--fixture-room', action='store_true', help='Include the fixed Rat Race camera, biped and per-source capture controls')
     parser.add_argument('--turret-prototype', action='store_true', help='Test-only finite-source turret shadow comparison')
     parser.add_argument('--profile', action='store_true', help='CPU phase timers and asynchronous sampled GPU draw queries')
     parser.add_argument('--depth-profile', action='store_true', help='Split local shadow GPU queries into setup, world, models and viewmodel; implies --profile')
@@ -83,6 +84,8 @@ def main():
              'port/linux/game/plasma_falloff.c', 'port/linux/game/plasma_collision.c',
              'port/linux/game/authored_emitter_lighting.c', 'port/linux/src/xinput_sdl.c']
     paths += ['port/linux/game/plasma_collision_models.c']
+    if args.fixture_room:
+        paths += ['source/render/render.c', 'port/linux/src/modern_spots_gl.inl']
     if args.turret_prototype:
         from turret_shadow_probe import PATHS
         paths += [p for p in PATHS if p not in paths]
@@ -98,7 +101,7 @@ def main():
         paths += ['source/physics/collision_usage.c', 'port/linux/src/xbox_textures.c']
     originals = {p: (ROOT/p).read_bytes() for p in paths}
     saved = shlex.split(re.search(r'^configure_args = (.*)$', (ROOT/'build.ninja').read_text(), re.M)[1])
-    manifest = dict(commit=subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip(),
+    manifest = dict(shared_flashlight_budget=True, commit=subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip(),
                     configure_args=saved, production_hashes={p: hashlib.sha256(b).hexdigest() for p, b in originals.items()},
                     fixture_sha256=hashlib.sha256((ROOT/'tools/fixtures/lighting_performance.c').read_bytes()).hexdigest(),
                     profile=args.profile, depth_profile=args.depth_profile, depth_reuse_control=args.depth_reuse_control, diagnose=args.diagnose, resources=args.resources, stalls=args.stalls, verify_traces=args.verify_traces,
@@ -117,6 +120,7 @@ def main():
                  'port/linux/include/modern_shadows.h', 'port/linux/game/modern_sun.inl', 'source/render/render.c',
                  'source/render/render_sky.c', 'port/linux/src/port_config.c',
         'port/linux/src/modern_environment_gl.inl', 'port/linux/game/modern_sun.inl', 'source/render/render_sky.c',
+        'port/linux/game/modern_spots.inl', 'port/linux/game/modern_fixture_patches.inl', 'port/linux/src/modern_spots_gl.inl',
         'port/linux/src/nv2a_psh.c', 'source/render/render_objects.c',
                  'port/linux/game/modern_shadows_first_person.inl', 'source/interface/first_person_weapons.c',
                  'source/rasterizer/xbox/rasterizer_xbox_models.c']:
@@ -152,6 +156,20 @@ def main():
         # A previous diagnostic variant may have a newer object file. Preserve
         # contents, not timestamps, so Ninja recompiles the selected fixture.
         shutil.copyfile(ROOT/'tools/fixtures/lighting_performance.c', fixture)
+        if args.fixture_room:
+            room = ROOT/'tools/fixtures/environment_shadow_room.inc'
+            manifest['fixture_room'] = hashlib.sha256(room.read_bytes()).hexdigest()
+            fixture.write_text(fixture.read_text()+room.read_text())
+            renderer = ROOT/'source/render/render.c'
+            source = renderer.read_text()
+            anchor = 'camera = &window->render_camera;'
+            assert source.count(anchor) == 1
+            renderer.write_text(source.replace(anchor, 'extern void bench_fixture_room(struct render_window *);\n\tbench_fixture_room(window);\n\t'+anchor))
+            gpu = ROOT/'port/linux/src/modern_spots_gl.inl'
+            source = gpu.read_text()
+            anchor = 'spots.mask |= 1<<slot;'
+            assert source.count(anchor) == 1
+            gpu.write_text(source.replace(anchor, 'extern int bench_spot_sources; extern void bench_spot_log(int,const float *,const float *); bench_spot_log(slot,origin,frame); if (bench_spot_sources & (1<<slot)) '+anchor))
         if args.campaign_control:
             text = fixture.read_text()
             control = (ROOT/'tools/fixtures/lighting_campaign_control.inc').read_text()
