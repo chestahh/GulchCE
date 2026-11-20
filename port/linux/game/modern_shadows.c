@@ -110,6 +110,8 @@ static long slots[2] = {NONE, NONE};
 static int active, world_stage, receiver_failed;
 static int view_receiver;
 static long receiver_object = NONE;
+/* First-person draw identifiers are not object datums. Use the view pose owner. */
+static long view_unit = NONE;
 static float world_extent;
 static const float identity[16] = {1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1};
 
@@ -138,7 +140,7 @@ void modern_shadows_reset(void)
 	memset(mesh_index, 0, sizeof(mesh_index));
 	part_count = active = world_stage = receiver_failed = 0;
 	view_receiver = 0;
-	receiver_object = NONE;
+	receiver_object = view_unit = NONE;
 	cached_bsp = NULL;
 	slots[0] = slots[1] = NONE;
 	memset(selections, 0, sizeof(selections));
@@ -151,7 +153,7 @@ void modern_shadows_window(void)
 	int i;
 	active = world_stage = 0;
 	view_receiver = 0;
-	receiver_object = NONE;
+	receiver_object = view_unit = NONE;
 	slots[0] = slots[1] = NONE;
 	for (i = 0; i < MODERN_SHADOW_LIGHTS; i++) selections[i].rasterizer = selections[i].unshadowed_owner = NONE;
 	for (i = 0; i < SHADOW_LIGHTS; i++) identities[i] = NONE;
@@ -178,7 +180,7 @@ static int map_for(long rasterizer)
 	return NONE;
 }
 
-/* An exempt biped is the owner of a Jackal shield light. Include only its
+/* A shield light exempts its emitting biped. Include only its
    equipped weapon. Ghost engine lights include seated occupants and their gear. */
 static int unshadowed_object(long owner, long object)
 {
@@ -237,7 +239,7 @@ int modern_shadows_map(int slot)
 void modern_shadows_receiver(int first_person, long object)
 {
 	view_receiver = active && first_person;
-	receiver_object = active && !first_person ? object : NONE;
+	receiver_object = active ? (first_person ? view_unit : object) : NONE;
 }
 int modern_shadows_view_receiver(void) { return view_receiver && !world_stage; }
 int modern_shadows_selected(long rasterizer_index) { return map_for(rasterizer_index) != NONE; }
@@ -613,7 +615,7 @@ static int model_caster(struct model const *model, real_matrix4x3 const *nodes,
 	return 1;
 }
 
-static int viewmodel_casters(long owners[2], long excluded_caster)
+static int viewmodel_casters(long owners[2], long excluded_caster, long unshadowed_owner)
 {
 	int hands;
 	owners[0] = owners[1] = NONE;
@@ -625,7 +627,7 @@ static int viewmodel_casters(long owners[2], long excluded_caster)
 		int result = modern_shadows_viewmodel(hands, &model_index, &owner, nodes);
 		if (result < 0) return 0;
 		owners[hands] = owner;
-		if (!result || owner == excluded_caster) continue;
+		if (!result || owner == excluded_caster || unshadowed_object(unshadowed_owner, owner)) continue;
 		object_function_values_for_render(owner, values);
 		if (!model_caster(model_definition_get(model_index), nodes, NULL, 0, values, MODERN_SHADOW_VIEW)) return 0;
 	}
@@ -927,9 +929,13 @@ void modern_shadows_prepare(int primary)
 		if (!modern_shadow_begin(slot, (float const *)&light->position, radius, mode == 2, grenade.grounded)) continue;
 		/* Caster exclusions leave both the shooter and the weapon as receivers. */
 		if (grenade.stuck_host != NONE) excluded_caster = grenade.stuck_host;
-		complete = viewmodel_casters(owners, excluded_caster) && world_casters(bsp, &light->position, radius) &&
+		complete = viewmodel_casters(owners, excluded_caster, selections[slot].unshadowed_owner) && world_casters(bsp, &light->position, radius) &&
 			object_casters(&light->position, radius, owners, selections[slot].unshadowed_owner, excluded_caster, grenade.casing);
-		if (modern_shadow_end() && complete) active |= 1 << slot;
+		if (modern_shadow_end() && complete)
+		{
+			view_unit = owners[1];
+			active |= 1 << slot;
+		}
 	}
 }
 

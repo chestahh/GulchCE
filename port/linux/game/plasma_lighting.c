@@ -193,7 +193,7 @@ long plasma_lighting_shadow_owner(long light, struct plasma_shadow_source *grena
 		if (plasma_lighting_attachments[i].owner_unshadowed) return plasma_lighting_attachments[i].object_index;
 		break;
 	}
-	return NONE;
+	return shield_glow_shadow_owner(light);
 }
 
 void plasma_lighting_frame_end(void)

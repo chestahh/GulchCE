@@ -54,7 +54,7 @@ static void plasma_falloff_begin(long light) { rebound_stage=2; rebound_light=li
 static void plasma_falloff_specular_begin(long light) { rebound_stage=1; rebound_light=light; }
 static int modern_shadow_end(void) { return !failed; }
 static int world_casters(const struct structure_bsp *b,const real_point3d *p,float r) { return complete; }
-static int viewmodel_casters(long owners[2],long stuck_host) { skipped_view[collecting_slot]=stuck_host; owners[0]=owners[1]=NONE; return complete; }
+static int viewmodel_casters(long owners[2],long stuck_host,long unshadowed_owner) { skipped_view[collecting_slot]=stuck_host; owners[0]=NONE; owners[1]=0x10001; return complete; }
 static int object_casters(const real_point3d *p,float r,const long owners[2],long unshadowed_owner, long excluded_caster, long emitter) { skipped_emitter[collecting_slot]=emitter; skipped_world[collecting_slot]=excluded_caster; return complete; }
 static long chassis_light=NONE, chassis_owner=NONE;
 static long muzzle_light=NONE, firing_weapon=NONE;
@@ -222,8 +222,8 @@ int main(int argc,char **argv)
  CHECK(modern_shadows_map(0)!=NONE,"own light still shadows the world");modern_shadows_world_end();
  modern_shadows_receiver(0,0x20001);
  CHECK(modern_shadows_model_mask()==3,"another or recycled receiver retains both shadow maps");
- modern_shadows_receiver(1,exempt_owner);
- CHECK(modern_shadows_model_mask()==3,"first-person identity is not an object-owner exception");
+ modern_shadows_receiver(1,NONE);
+ CHECK(modern_shadows_model_mask()==2,"view arms and weapon use the current wearer for their own shield only");
  modern_shadows_receiver(0,NONE);
  CHECK(modern_shadows_model_mask()==3,"receiver end clears exception");
  exempt_light=NONE;modern_shadows_prepare(1);modern_shadows_receiver(0,exempt_owner);

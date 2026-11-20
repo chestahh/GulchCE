@@ -111,6 +111,7 @@ int covenant_lighting_selected(long i) { return 0; }
 int covenant_lighting_owns(long l,long o) { return l == 21; }
 float covenant_lighting_radius(long l,long o,float r) { return r; }
 int shield_glow_enabled(void) { return shield_on; }
+long shield_glow_shadow_owner(long i) { return shield_on && i == 23 ? 0x10042 : NONE; }
 int shield_glow_selected(long i) { return shield_on && i == 23; }
 void shield_glow_frame_end(void) {}
 void shield_glow_window_begin(void) {}
@@ -194,6 +195,8 @@ int main(int argc, char **argv)
     else if (!strcmp(test, "shield"))
 	{
 		enabled = muzzle_on = emitter_on = 0; shield_on = 1;
+        CHECK(plasma_lighting_shadow_owner(23,&source)==0x10042 && plasma_lighting_shadow_owner(24,&source)==NONE,
+              "shield exception follows only the wearer's live light");
 		CHECK(plasma_lighting_selected(23), "shield-only selection");
 		plasma_model_lighting_slot(23, 0);
 		CHECK(plasma_model_lighting_mask() == 1, "shield-only model lighting");
