@@ -14,21 +14,20 @@
 	<widget name="main_menu/multiplayer_type_select/server_settings/options_menu" type="column_list" width="640" height="480" flags="pass_unhandled_to_focused_child up_down_tabs_children" description="main_menu/multiplayer_type_select/server_settings/help">
 		<data input="server settings update"/>
 		<on event="created" run="server settings init"/>
-		<child widget="main_menu/multiplayer_type_select/server_settings/op_server_name" x="54" y="47"/>
-		<child widget="main_menu/multiplayer_type_select/server_settings/op_max_players" x="54" y="73"/>
-		<child widget="main_menu/multiplayer_type_select/server_settings/op_listing" x="54" y="99"/>
-		<child widget="main_menu/multiplayer_type_select/server_settings/op_password" x="54" y="125"/>
-		<child widget="main_menu/multiplayer_type_select/server_settings/op_session_options" x="54" y="151"/>
-		<child widget="main_menu/multiplayer_type_select/server_settings/op_map_share_options" x="54" y="177"/>
-		<child widget="main_menu/multiplayer_type_select/server_settings/op_mutator_options" x="54" y="203"/>
-		<child widget="main_menu/multiplayer_type_select/server_settings/op_coop_options" x="54" y="229"/>
-		<child widget="main_menu/multiplayer_type_select/server_settings/op_voice_options" x="54" y="255"/>
-		<child widget="main_menu/multiplayer_type_select/server_settings/op_game_type" x="54" y="229"/>
-		<child widget="main_menu/multiplayer_type_select/server_settings/op_player_options" x="54" y="255"/>
-		<child widget="main_menu/multiplayer_type_select/server_settings/op_item_options" x="54" y="281"/>
-		<child widget="main_menu/multiplayer_type_select/server_settings/op_vehicle_options" x="54" y="307"/>
-		<child widget="main_menu/multiplayer_type_select/server_settings/op_indicator_options" x="54" y="333"/>
-		<child widget="main_menu/multiplayer_type_select/server_settings/op_team_options" x="54" y="359"/>
+		<child widget="main_menu/multiplayer_type_select/server_settings/op_server_name" x="54" y="49"/>
+		<child widget="main_menu/multiplayer_type_select/server_settings/op_max_players" x="54" y="77"/>
+		<child widget="main_menu/multiplayer_type_select/server_settings/op_listing" x="54" y="105"/>
+		<child widget="main_menu/multiplayer_type_select/server_settings/op_password" x="54" y="133"/>
+		<child widget="main_menu/multiplayer_type_select/server_settings/op_session_options" x="54" y="161"/>
+		<child widget="main_menu/multiplayer_type_select/server_settings/op_map_share_options" x="54" y="189"/>
+		<child widget="main_menu/multiplayer_type_select/server_settings/op_coop_options" x="54" y="217"/>
+		<child widget="main_menu/multiplayer_type_select/server_settings/op_voice_options" x="54" y="245"/>
+		<child widget="main_menu/multiplayer_type_select/server_settings/op_game_type" x="54" y="217"/>
+		<child widget="main_menu/multiplayer_type_select/server_settings/op_player_options" x="54" y="245"/>
+		<child widget="main_menu/multiplayer_type_select/server_settings/op_item_options" x="54" y="273"/>
+		<child widget="main_menu/multiplayer_type_select/server_settings/op_vehicle_options" x="54" y="301"/>
+		<child widget="main_menu/multiplayer_type_select/server_settings/op_indicator_options" x="54" y="329"/>
+		<child widget="main_menu/multiplayer_type_select/server_settings/op_team_options" x="54" y="357"/>
 		<child widget="main_menu/multiplayer_type_select/server_settings/button_bar" y="448"/>
 	</widget>
 	<widget name="main_menu/multiplayer_type_select/server_settings/button_bar" type="column_list" width="640" height="28" flags="pass_unhandled_to_focused_child left_right_tabs_items">
@@ -103,6 +102,7 @@
 		<child widget="main_menu/multiplayer_type_select/server_settings/session_options/op_session_compatibility" x="54" y="73"/>
 		<child widget="main_menu/multiplayer_type_select/server_settings/session_options/op_camera_policy" x="54" y="103"/>
 		<child widget="main_menu/multiplayer_type_select/server_settings/session_options/op_invite" x="54" y="133"/>
+		<child widget="main_menu/multiplayer_type_select/server_settings/session_options/op_mutator_options" x="54" y="163"/>
 		<child widget="main_menu/multiplayer_type_select/server_settings/session_options/button_bar" y="414"/>
 	</widget>
 	<widget name="main_menu/multiplayer_type_select/server_settings/session_options/button_bar" type="column_list" width="640" height="28" flags="pass_unhandled_to_focused_child left_right_tabs_items">
@@ -144,6 +144,14 @@
 		<string text=""/>
 		<string text="INVITE LINK:"/>
 	</strings>
+	<widget name="main_menu/multiplayer_type_select/server_settings/session_options/op_mutator_options" width="512" height="28" flags="pass_unhandled_to_focused_child" bitmap="bitmaps/option_bkds" color="#FF2896FF">
+		<on event="a" open="main_menu/multiplayer_type_select/server_settings/mutator_options/mutator_options_screen"/>
+		<on event="start" open="main_menu/multiplayer_type_select/server_settings/mutator_options/mutator_options_screen"/>
+		<on event="left_mouse" run="mouse emit accept event"/>
+		<child widget="main_menu/multiplayer_type_select/server_settings/session_options/mutator_options_label"/>
+	</widget>
+	<widget name="main_menu/multiplayer_type_select/server_settings/session_options/mutator_options_label" type="text" controller="1" width="480" height="22" text="MUTATOR OPTIONS:" font="ui\large_ui" color="#FF2896FF" text_x="13" text_y="4">
+	</widget>
 	<strings name="main_menu/multiplayer_type_select/server_settings/session_options/help_strings">
 		<string text="OpenCE and GulchCE can join; third person is off.\nXbox, CE and MCC maps use the shared protocol."/>
 		<string text="Compatible GulchCE hosts and clients only.\nEnables GulchCE session features, including third person."/>
@@ -151,6 +159,7 @@
 		<string text="Each player chooses first or third person.\nTheir camera toggle remains available."/>
 		<string text="Third person is disabled for everyone.\nNormal vehicle and cinematic cameras remain."/>
 		<string text="Players join by this invite link. Enter copies it.\nLAN games use the server browser instead."/>
+		<string text="The mutators that change this game's rules, and\nthe stock game's when none are on."/>
 	</strings>
 	<widget name="main_menu/multiplayer_type_select/server_settings/op_map_share_options" width="512" height="28" flags="pass_unhandled_to_focused_child" bitmap="bitmaps/option_bkds" color="#FF2896FF">
 		<on event="a" open="main_menu/multiplayer_type_select/server_settings/map_share_options/map_share_options_screen"/>
@@ -159,14 +168,6 @@
 		<child widget="main_menu/multiplayer_type_select/server_settings/map_share_options_label"/>
 	</widget>
 	<widget name="main_menu/multiplayer_type_select/server_settings/map_share_options_label" type="text" controller="1" width="300" height="22" string_list="main_menu/multiplayer_type_select/server_settings/labels" string_index="14" font="ui\large_ui" color="#FF2896FF" text_x="13" text_y="4">
-	</widget>
-	<widget name="main_menu/multiplayer_type_select/server_settings/op_mutator_options" width="512" height="28" flags="pass_unhandled_to_focused_child" bitmap="bitmaps/option_bkds" color="#FF2896FF">
-		<on event="a" open="main_menu/multiplayer_type_select/server_settings/mutator_options/mutator_options_screen"/>
-		<on event="start" open="main_menu/multiplayer_type_select/server_settings/mutator_options/mutator_options_screen"/>
-		<on event="left_mouse" run="mouse emit accept event"/>
-		<child widget="main_menu/multiplayer_type_select/server_settings/mutator_options_label"/>
-	</widget>
-	<widget name="main_menu/multiplayer_type_select/server_settings/mutator_options_label" type="text" controller="1" width="300" height="22" string_list="main_menu/multiplayer_type_select/server_settings/labels" string_index="15" font="ui\large_ui" color="#FF2896FF" text_x="13" text_y="4">
 	</widget>
 	<widget name="main_menu/multiplayer_type_select/server_settings/op_coop_options" width="512" height="28" flags="pass_unhandled_to_focused_child" bitmap="bitmaps/option_bkds" color="#FF2896FF">
 		<on event="a" open="main_menu/multiplayer_type_select/server_settings/coop_options/coop_options_screen"/>
@@ -274,7 +275,6 @@
 		<string text="PASSWORD:"/>
 		<string text="SESSION OPTIONS:"/>
 		<string text="MAP SHARING:"/>
-		<string text="MUTATOR OPTIONS:"/>
 	</strings>
 	<strings name="main_menu/multiplayer_type_select/server_settings/help_strings">
 		<string text=""/>
@@ -297,7 +297,6 @@
 		<string text="Third person is disabled for everyone.\nNormal vehicle and cinematic cameras remain."/>
 		<string text="Sharing Custom Edition maps and MCC packages\nwith joining players, and how fast."/>
 		<string text="Listed for everyone through the brokers, and on\nthe master servers with your publisher key."/>
-		<string text="The mutators that change this game's rules, and\nthe stock game's when none are on."/>
 	</strings>
 	<widget name="main_menu/multiplayer_type_select/server_settings/button_bots" type="text" width="128" height="24" bitmap="bitmaps/text_button_background" text="BOTS" font="ui\small_ui" color="#FFFFFFFF" align="center" text_y="2">
 		<on event="a" open="main_menu/settings_select/player_setup/player_profile_edit/network_setup/bots/bots_screen"/>

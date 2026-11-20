@@ -1776,6 +1776,21 @@ def _session_options(base: str, host: str) -> list:
     extra += _value_row(base, "invite", 2, "ss copy invite")
     extra += _strings(f"{base}/labels", ["", "", "INVITE LINK:"])
     rows.append((f"{base}/op_invite", None))
+    # MUTATOR OPTIONS (port_mutators.c), the mutators turned on and off for
+    # any game, in a screen of their own laid out as the Mods screen is
+    # (_mutator_options): below INVITE LINK, moved up with it while CAMERA
+    # POLICY is hidden (menu_functions.c's session_options_update)
+    target = f"{host}/mutator_options/mutator_options_screen"
+    extra += _widget(f"{base}/op_mutator_options", [("width", 512), ("height", 28),
+                                                   ("flags", "pass_unhandled_to_focused_child"),
+                                                   ("bitmap", "bitmaps/option_bkds"), ("color", "#FF2896FF")],
+                     [f'<on event="a" open="{target}"/>', f'<on event="start" open="{target}"/>',
+                      '<on event="left_mouse" run="mouse emit accept event"/>',
+                      f'<child widget="{base}/mutator_options_label"/>'])
+    extra += _widget(f"{base}/mutator_options_label", [("type", "text"), ("controller", 1), ("width", 480),
+        ("height", 22), ("text", "MUTATOR OPTIONS:"), ("font", "ui\\large_ui"), ("color", "#FF2896FF"),
+        ("text_x", 13), ("text_y", 4)], [])
+    rows.append((f"{base}/op_mutator_options", None))
     extra += _strings(f"{base}/help_strings", [
         "OpenCE and GulchCE can join; third person is off.\\nXbox, CE and MCC maps use the shared protocol.",
         "Compatible GulchCE hosts and clients only.\\nEnables GulchCE session features, including third person.",
@@ -1783,6 +1798,7 @@ def _session_options(base: str, host: str) -> list:
         "Each player chooses first or third person.\\nTheir camera toggle remains available.",
         "Third person is disabled for everyone.\\nNormal vehicle and cinematic cameras remain.",
         "Players join by this invite link. Enter copies it.\\nLAN games use the server browser instead.",
+        "The mutators that change this game's rules, and\\nthe stock game's when none are on.",
     ])
     lines = _screen(base, {"screen": "session_options_screen", "spacing": 30,
         "header": ("header", f"{host}/header_server_settings")}, rows,
@@ -1797,9 +1813,8 @@ def _server_settings() -> list:
     whether the server browser lists it (PUBLIC or PRIVATE: an internet
     game's)"""
     base = f"{MT}/server_settings"
-    # Thirteen rows (MUTATOR OPTIONS the thirteenth), 26 apart: the last row
-    # ends at 387, above the help at 392.
-    spec = {"screen": "server_settings_screen", "spacing": 26, "help_top": 392, "help_height": 40, "rows_top": 47,
+    # Twelve full-height rows: leave the selection artwork room to draw.
+    spec = {"screen": "server_settings_screen", "spacing": 28, "help_top": 392, "help_height": 40, "rows_top": 49,
             "help_left": 67, "help_width": 486,
             "help_font": "ui\\small_ui", "button_top": 448,
             "background_bitmap": "bitmaps/gradient_big", "header_top": -10,
@@ -1876,23 +1891,7 @@ def _server_settings() -> list:
                                              ("string_index", 12 + len(COOP_SETUP_SCREENS)),
                                              ("font", "ui\\large_ui"), ("color", "#FF2896FF"), ("text_x", 13),
                                              ("text_y", 4)], [])
-    rows.append((f"{base}/op_{key}", None, SETUP_OPTIONS_PLACE - 2))
-    # MUTATOR OPTIONS (port_mutators.c), the mutators turned on and off for
-    # any game, in a screen of their own laid out as the Mods screen is
-    # (_mutator_options): below MAP SHARING
-    target = f"{base}/mutator_options/mutator_options_screen"
-    extra += _widget(f"{base}/op_mutator_options", [("width", 512), ("height", 28),
-                                                   ("flags", "pass_unhandled_to_focused_child"),
-                                                   ("bitmap", "bitmaps/option_bkds"), ("color", "#FF2896FF")],
-                     [f'<on event="a" open="{target}"/>', f'<on event="start" open="{target}"/>',
-                      '<on event="left_mouse" run="mouse emit accept event"/>',
-                      f'<child widget="{base}/mutator_options_label"/>'])
-    extra += _widget(f"{base}/mutator_options_label", [("type", "text"), ("controller", 1), ("width", 300),
-                                                       ("height", 22), ("string_list", f"{base}/labels"),
-                                                       ("string_index", 13 + len(COOP_SETUP_SCREENS)),
-                                                       ("font", "ui\\large_ui"), ("color", "#FF2896FF"),
-                                                       ("text_x", 13), ("text_y", 4)], [])
-    rows.append((f"{base}/op_mutator_options", None, SETUP_OPTIONS_PLACE - 1))
+    rows.append((f"{base}/op_{key}", None, SETUP_OPTIONS_PLACE - 1))
     # co-op's options, in the place of the gametype's rows, which co-op hides
     # as multiplayer hides co-op's (menu_functions.c's server_settings_update):
     # rows opening their screens, as the gametype's options' do
@@ -1940,8 +1939,7 @@ def _server_settings() -> list:
     extra += _strings(f"{base}/labels", ["GAME NAME:", "MAXIMUM PLAYERS:", "INVITE LINK:", "GAME TYPE:",
                                          "PLAYER OPTIONS:", "ITEM OPTIONS:", "VEHICLE OPTIONS:", "INDICATOR OPTIONS:",
                                          "TEAMPLAY OPTIONS:", "LISTING:",
-                                         *(f"{title}:" for _, title, _, _ in COOP_SETUP_SCREENS), "PASSWORD:", "SESSION OPTIONS:",
-                                         f"{MAP_SHARE_SETUP[1]}:", "MUTATOR OPTIONS:"])
+                                         *(f"{title}:" for _, title, _, _ in COOP_SETUP_SCREENS), "PASSWORD:", "SESSION OPTIONS:", f"{MAP_SHARE_SETUP[1]}:"])
     extra += _strings(f"{base}/help_strings", [
         "",
         "The name the game shows in the lists of games.\\nEnter changes it.",
@@ -1968,8 +1966,6 @@ def _server_settings() -> list:
         # (LISTING's PUBLIC, on a machine with a publisher key: menu_functions.c's
         # server_settings_update)
         "Listed for everyone through the brokers, and on\\nthe master servers with your publisher key.",
-        # (MUTATOR OPTIONS')
-        "The mutators that change this game's rules, and\\nthe stock game's when none are on.",
     ])
     lines = _screen(base, spec, rows, ["server settings update"],
                     ['<on event="created" run="server settings init"/>'], extra)
@@ -2063,8 +2059,8 @@ MAP_SHARE_SETUP = ("map_share_options", "MAP SHARING",
      ["The most you send of maps, so that the game\\nkeeps the rest of your upload."] * len(MAP_SHARE_UPLOADS)),
 ])
 # (Server Setup's place of its options' rows, co-op's or the gametype's: after
-# MAP SHARING's and MUTATOR OPTIONS')
-SETUP_OPTIONS_PLACE = 7
+# MAP SHARING's)
+SETUP_OPTIONS_PLACE = 6
 # (their screens' titles)
 TITLES.update({f"{MT}/server_settings/{key}/header_{key}": title
                for key, title, _, _ in [*COOP_SETUP_SCREENS, MAP_SHARE_SETUP]})

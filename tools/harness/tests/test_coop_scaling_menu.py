@@ -58,12 +58,14 @@ def test_team_wipe_generated_screen():
     widgets = {widget.get('name'): widget for widget in root.findall('widget')}
     server = base.removesuffix('coop_options/')
     labels = root.find(f"strings[@name='{server}labels']")
-    mutators = widgets[server + 'mutator_options_label']
-    assert int(mutators.get('string_index')) == 14
-    assert labels[14].get('text') == 'MUTATOR OPTIONS:'
+    # (MUTATOR OPTIONS: SESSION OPTIONS' fourth row, with its own help)
+    session = server + 'session_options/'
+    assert widgets[session + 'mutator_options_label'].get('text') == 'MUTATOR OPTIONS:'
+    assert [labels[index].get('text') for index in range(len(labels))].count('MUTATOR OPTIONS:') == 0
+    session_helps = root.find(f"strings[@name='{session}help_strings']")
+    assert session_helps[6].get('text').startswith('The mutators that change')
     helps = root.find(f"strings[@name='{server}help_strings']")
-    assert len(helps) == 18
-    assert helps[17].get('text').startswith('The mutators that change')
+    assert len(helps) == 20
     riding = widgets[base + 'coop_vehicle_riding_spinner']
     riding_values = root.find(f"strings[@name='{riding.get('string_list')}']")
     assert [item.get('text') for item in riding_values] == ['ON', 'OFF']

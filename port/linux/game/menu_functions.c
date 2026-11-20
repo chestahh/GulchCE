@@ -4565,7 +4565,6 @@ tools/port_settings.py) */
 #define MAP_SHARE_OPTIONS_HELP 18
 /* (LISTING's PUBLIC on a machine with a publisher key: server_master.c) */
 #define SERVER_LISTING_PUBLISHER_HELP 19
-#define MUTATOR_OPTIONS_HELP 20
 
 /* whether this machine has a publisher key (read as Server Setup opens) */
 static boolean server_settings_publisher;
@@ -4691,6 +4690,12 @@ static boolean session_options_update(struct widget_instance *list)
 		spinner->vertical_offset = third_person_session_active() ? 133 : 103;
 		if (help && list->focused_child == spinner) help->parameters.text_box.string_list_index = 5;
 	}
+	/* (MUTATOR OPTIONS, any game's: port_mutators.c; below INVITE LINK) */
+	if ((spinner = named(list, "op_mutator_options", 0)) != NULL)
+	{
+		spinner->vertical_offset = third_person_session_active() ? 163 : 133;
+		if (help && list->focused_child == spinner) help->parameters.text_box.string_list_index = 6;
+	}
 	return TRUE;
 }
 
@@ -4790,9 +4795,6 @@ static void server_settings_update(struct widget_instance *list)
 			/* (MAP SHARING's, any game's: map_share.c) */
 			else if (help && list->focused_child == named(list, "op_map_share_options", 0))
 				help->parameters.text_box.string_list_index = MAP_SHARE_OPTIONS_HELP;
-			/* (MUTATOR OPTIONS', any game's: port_mutators.c) */
-			else if (help && list->focused_child == named(list, "op_mutator_options", 0))
-				help->parameters.text_box.string_list_index = MUTATOR_OPTIONS_HELP;
 		}
 	}
 	/* LISTING (an internet game's): PUBLIC, listed in everyone's server
