@@ -263,7 +263,7 @@ static const struct config_setting config_settings[] =
 		_platform_all,
 		"The most the objects' shadows are drawn at, in pixels each way: 128 as\n"
 		"on the Xbox, or 256, 512 or 1024 for smoother edges, as soft. Each\n"
-		"shadow is drawn at the size its object's size on the screen needs." },
+		"stock shadow is sized for the object. Modern maps also accept 2048 and 4096." },
 	{ "display.shadow_map_reuse", _config_boolean, "false", "HALO_SHADOW_MAP_REUSE", _environment_value,
 		_platform_all,
 		"True: a small shadow's map is drawn every other frame, the frame\n"
@@ -686,6 +686,9 @@ static const struct config_setting config_settings[] =
 	{ "display.dynamic_lighting_reset", _config_boolean, "true", "HALO_DYNAMIC_LIGHTING_RESET", _environment_value, _platform_all,
 		"Migration marker: old saved dynamic-lighting preferences were reset to off.\n"
 		"Leave true to retain lighting choices made after that one-time reset." },
+	{ "display.modern_shadows", _config_string, "\"off\"", "HALO_MODERN_SHADOWS", _environment_value, _platform_desktop,
+		"Rendered shadows for up to two enabled dynamic lights: \"off\",\n"
+		"\"hard\" or \"soft\". Classic shadows remain unchanged. Desktop only." },
 	{ "display.plasma_occlusion", _config_boolean, "false", "HALO_PLASMA_OCCLUSION", _environment_value, _platform_desktop,
 		"Collision-filtered projectile, Covenant emitter and Shield Glow visibility.\n"
 		"Off preserves unoccluded plasma lighting. At most eight occluded lights." },

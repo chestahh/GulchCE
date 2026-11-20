@@ -1,6 +1,7 @@
 #ifndef MUZZLE_LIGHTING_H
 #define MUZZLE_LIGHTING_H
 
+void muzzle_lighting_projectile_created(long projectile, long weapon);
 void muzzle_lighting_shot(long weapon_index, short trigger_index);
 void muzzle_lighting_update(void);
 void muzzle_lighting_frame_end(void);
@@ -11,5 +12,6 @@ int muzzle_lighting_selected(long rasterizer_index);
 float muzzle_lighting_radius(long light_index, float radius);
 
 int muzzle_lighting_vehicle_occlusion(long light);
+long muzzle_lighting_shadow_caster(long light, long emitter_object, long *collision_owner);
 
 #endif

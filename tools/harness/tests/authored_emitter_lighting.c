@@ -1,4 +1,5 @@
 #include "harness.h"
+#include "../../../port/linux/game/authored_emitter_lighting.h"
 #include <string.h>
 #define NUMBEROF(a) ((int)(sizeof(a) / sizeof((a)[0])))
 #define MIN(a,b) ((a)<(b)?(a):(b))
@@ -35,10 +36,10 @@ long tag_loaded(long group, const char *name)
 #include "under_test.inc"
 int main(int argc, char **argv)
 {
-	int i, calls;
-	float scale = 42;
+	int i, calls, owner_unshadowed=7;
+	float scale = 42, offset = 7;
 	(void)argc; (void)argv;
-	CHECK(!authored_emitter_lighting_profile(1, 10, &scale) && !lookups && scale == 42,
+	CHECK(!authored_emitter_lighting_profile(1, 10, &scale, &offset, &owner_unshadowed) && !lookups && scale == 42 && offset == 7 && !owner_unshadowed,
 		"off performs no tag discovery or writes");
 	for (i = 0; i < NUMBEROF(profiles); i++)
 	{
@@ -49,20 +50,25 @@ int main(int argc, char **argv)
 		projectile_on = profiles[i].category == 3;
 		object.definition_index = tag_loaded(profiles[i].group, profiles[i].object);
 		light = tag_loaded('ligh', profiles[i].light);
-		CHECK(authored_emitter_lighting_profile(1, light, &scale) == profiles[i].category &&
+		CHECK(authored_emitter_lighting_profile(1, light, &scale, &offset, &owner_unshadowed) == profiles[i].category &&
 			scale == profiles[i].scale, "selected source uses its category and scale");
-		calls = lookups;
-		CHECK(authored_emitter_lighting_profile(1, light, &scale) && lookups == calls,
+		CHECK(offset == (!strcmp(profiles[i].object, "vehicles\\ghost\\ghost") ? .02f : 0.f),
+            "only the Ghost emitting surface changes position");
+        CHECK(owner_unshadowed == !strcmp(profiles[i].object, "vehicles\\ghost\\ghost"),
+            "only Ghost running lights exclude their owner, not other vehicles or weapons");
+        calls = lookups;
+		CHECK(authored_emitter_lighting_profile(1, light, &scale, &offset, &owner_unshadowed) && lookups == calls,
 			"steady frames reuse cached identities");
-		CHECK(!authored_emitter_lighting_profile(1, 60000, &scale), "unrelated light stays stock");
-		CHECK(!authored_emitter_lighting_profile(2, light, &scale), "deleted owner stays stock");
+		CHECK(!authored_emitter_lighting_profile(1, 60000, &scale, &offset, &owner_unshadowed), "unrelated light stays stock");
+		CHECK(!authored_emitter_lighting_profile(2, light, &scale, &offset, &owner_unshadowed), "deleted owner stays stock");
 		if (profiles[i].category == 4)
 		{
 			prong_on=0;weapon_on=1;
-			CHECK(!authored_emitter_lighting_profile(1,light,&scale),"Weapon Glow cannot enable standalone prongs");
+			CHECK(!authored_emitter_lighting_profile(1,light,&scale, &offset, &owner_unshadowed),"Weapon Glow cannot enable standalone prongs");
 		}
 		weapon_on = vehicle_on = projectile_on = prong_on = 0;
-		CHECK(!authored_emitter_lighting_profile(1, light, &scale), "disable immediately restores stock");
+		CHECK(!authored_emitter_lighting_profile(1, light, &scale, &offset, &owner_unshadowed), "disable immediately restores stock");
+		CHECK(!owner_unshadowed,"disabled profile clears owner exception");
 	}
 	weapon_on = 1;
 	object.object.bounding_sphere_center.x=4;
@@ -74,8 +80,8 @@ int main(int argc, char **argv)
 	generation = 1000;
 	authored_emitter_lighting_forget();
 	object.definition_index = tag_loaded('weap', "weapons\\energy sword\\energy sword");
-	CHECK(authored_emitter_lighting_profile(1, tag_loaded('ligh', "weapons\\energy sword\\energy sword dynamic"), &scale),
+	CHECK(authored_emitter_lighting_profile(1, tag_loaded('ligh', "weapons\\energy sword\\energy sword dynamic"), &scale, &offset, &owner_unshadowed),
 		"new map resolves new tag identities");
-	CHECK(!authored_emitter_lighting_profile(1, 1, &scale), "old map identity cannot match");
+	CHECK(!authored_emitter_lighting_profile(1, 1, &scale, &offset, &owner_unshadowed), "old map identity cannot match");
 	return 0;
 }

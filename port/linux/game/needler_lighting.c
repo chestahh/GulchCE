@@ -5,6 +5,8 @@
 #include "items/weapons.h"
 #include "units/units.h"
 #include "interface/first_person_weapons.h"
+#include "render/render.h"
+#include "third_person.h"
 #include "needler_lighting.h"
 #include "shaders/shader_definitions.h"
 #include "rasterizer/xbox/rasterizer_xbox_pixel_shader.h"
@@ -34,7 +36,9 @@ int needler_lighting_position(long index, real_point3d *position, real_vector3d 
 		return FALSE;
 	/* Stock FP and world smoke markers share the needle-cluster position:
 	   (-.031742, 0, .080221). Sample the interpolated pose for each view. */
-	if (!first_person_weapon_adjust_light(index, "smoke", position, &forward, &up))
+	/* Shoulder cameras retain FP poses for sounds and transitions. */
+	if (third_person_active(render.local_player_index) ||
+		!first_person_weapon_adjust_light(index, "smoke", position, &forward, &up))
 	{
 		if (weapon->object.node_matrices.size < sizeof(real_matrix4x3) ||
 			!object_get_marker_by_name(index, "smoke", &marker, 1))

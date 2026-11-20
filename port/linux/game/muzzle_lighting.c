@@ -4,8 +4,13 @@
 #include "objects/objects.h"
 #include "objects/object_lights.h"
 #include "items/weapons.h"
+#include "items/projectiles.h"
+#include "items/weapon_datum_flags.h"
+#include "modern_shadows.h"
 #include "units/units.h"
 #include "interface/first_person_weapons.h"
+#include "render/render.h"
+#include "third_person.h"
 #include "camera/observer.h"
 #include "game/players.h"
 #include "tag_files/tag_files.h"
@@ -144,7 +149,9 @@ static int muzzle_position(struct muzzle_pulse *pulse, real_point3d *position)
 		return FALSE;
 	if (profile->marker)
 		name = profile->marker;
-	if (!first_person_weapon_adjust_light(pulse->weapon, name, position, &forward, &up))
+	/* Shoulder cameras retain FP poses for sounds and transitions. */
+	if (third_person_active(render.local_player_index) ||
+		!first_person_weapon_adjust_light(pulse->weapon, name, position, &forward, &up))
 	{
 		long object = TEST_FLAG(weapon->object.flags, _object_invisible_bit) ? pulse->owner : pulse->weapon;
 		if (object_get(object)->object.node_matrices.size < sizeof(real_matrix4x3) ||
@@ -238,9 +245,43 @@ void muzzle_lighting_frame_end(void)
 	}
 }
 
+/* Projectile damage ownership names the unit. Retain the actual gun separately
+   for the short interval where a rendered bolt still overlaps its source. */
+static struct launch_source
+{
+	long projectile, weapon;
+} launch_sources[MAXIMUM_OBJECTS_PER_MAP];
+
+void muzzle_lighting_projectile_created(long projectile, long weapon)
+{
+	long slot = DATUM_INDEX_TO_ABSOLUTE_INDEX(projectile);
+	if (slot >= MAXIMUM_OBJECTS_PER_MAP || !modern_shadows_enabled()) return;
+	launch_sources[slot].projectile = projectile;
+	launch_sources[slot].weapon = weapon;
+}
+
+static long launching_weapon(long object)
+{
+	long slot = DATUM_INDEX_TO_ABSOLUTE_INDEX(object);
+	struct projectile_datum *projectile;
+	struct weapon_datum *weapon;
+	real reach;
+	if (slot >= MAXIMUM_OBJECTS_PER_MAP || launch_sources[slot].projectile != object) return NONE;
+	projectile = (struct projectile_datum *)object_try_and_get_and_verify_type(object, _object_mask_projectile);
+	weapon = weapon_try_and_get(launch_sources[slot].weapon);
+	if (!projectile || !weapon || weapon->object.parent_object_index != projectile->object.owner_object_index ||
+		!object_try_and_get_and_verify_type(weapon->object.parent_object_index, _object_mask_biped)) return NONE;
+	reach = weapon->object.bounding_sphere_radius + projectile->object.bounding_sphere_radius;
+	if (projectile->projectile.odometer > 2.f * reach ||
+		distance_squared3d(&projectile->object.bounding_sphere_center, &weapon->object.bounding_sphere_center) > reach * reach)
+		return NONE;
+	return launch_sources[slot].weapon;
+}
+
 void muzzle_lighting_forget(void)
 {
 	memset(pulses, 0, sizeof(pulses));
+	memset(launch_sources, 0xff, sizeof(launch_sources));
 }
 
 void muzzle_lighting_window_begin(void)
@@ -281,6 +322,70 @@ float muzzle_lighting_radius(long light_index, float radius)
 		if (pulses[i].active && pulses[i].light == light_index)
 			return MAX(radius, pulses[i].radius);
 	return radius;
+}
+
+/* Charge and recovery are trigger states. A weapon can leave its recoil
+   animation while its own attachment is still lighting the shooter. */
+static int weapon_emitting_during_fire(struct weapon_datum const *weapon)
+{
+	int i;
+	if (weapon->weapon.state == _weapon_state_primary_recoil || weapon->weapon.state == _weapon_state_secondary_recoil ||
+		TEST_FLAG(weapon->weapon.flags, _weapon_overheated_bit)) return TRUE;
+	for (i = 0; i < NUMBEROF(weapon->weapon.triggers); i++)
+		switch (weapon->weapon.triggers[i].state)
+		{
+		case _trigger_idle:
+			/* Automatic triggers return to idle between rounds. */
+			if (weapon->weapon.triggers[i].rate_of_fire > 0.0f) return TRUE;
+			break;
+		case _trigger_overloading:
+		case _trigger_charging:
+		case _trigger_charged:
+		case _trigger_spewing:
+		case _trigger_recovering:
+			return TRUE;
+		}
+	return FALSE;
+}
+
+/* Exclude the firing weapon only from its own light. Vehicle turrets also
+   supply their chassis to collision-based world blocking. */
+long muzzle_lighting_shadow_caster(long light, long emitter_object, long *collision_owner)
+{
+	struct weapon_datum *weapon;
+	int i;
+	*collision_owner = NONE;
+	if (light == NONE) return NONE;
+	/* Authored weapon attachments and generated glows also run when muzzle
+	   pulses are disabled. Use the weapon's actual firing state for those. */
+	if (emitter_object == NONE) emitter_object = light_port_emitter_object(light);
+	if (emitter_object != NONE)
+	{
+		weapon = weapon_try_and_get(emitter_object);
+		if (!weapon) return launching_weapon(emitter_object);
+		if (object_try_and_get_and_verify_type(weapon->object.parent_object_index, _object_mask_biped) &&
+			weapon_emitting_during_fire(weapon))
+			return emitter_object;
+		return NONE;
+	}
+	if (!lighting_config_boolean("display.muzzle_lighting")) return NONE;
+	for (i = 0; i < MUZZLE_LIGHTS; i++)
+	{
+		struct muzzle_pulse const *pulse = &pulses[i];
+		if (!pulse->active || pulse->light != light) continue;
+		if (muzzle_profiles[pulse->profile].vehicle_occlusion)
+		{
+			if (object_try_and_get_and_verify_type(pulse->owner, _object_mask_vehicle))
+				*collision_owner = pulse->owner;
+			return *collision_owner;
+		}
+		weapon = weapon_try_and_get(pulse->weapon);
+		if (weapon && weapon->object.parent_object_index == pulse->owner &&
+			object_try_and_get_and_verify_type(pulse->owner, _object_mask_biped))
+			return pulse->weapon;
+		break;
+	}
+	return NONE;
 }
 
 int muzzle_lighting_vehicle_occlusion(long light)

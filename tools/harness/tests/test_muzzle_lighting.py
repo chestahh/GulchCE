@@ -17,7 +17,7 @@ def generated(fault=None):
     return (('under_test.inc', code),)
 
 
-@pytest.mark.parametrize('case', ['pulse', 'profiles', 'off', 'capacity', 'lifecycle', 'failures', 'world', 'move', 'warthog', 'scorpion'])
+@pytest.mark.parametrize('case', ['pulse', 'profiles', 'off', 'capacity', 'lifecycle', 'failures', 'world', 'move', 'warthog', 'scorpion', 'owner', 'camera'])
 def test_case(case):
     status, output = run(build('muzzle_lighting', generated()), case)
     assert status == 0, output
@@ -34,4 +34,10 @@ def test_negative_control(before, after, case):
         before = 'light_disconnect_from_map(pulse->light);\n\t\t\tpulse->connected = FALSE;'
         after = 'light_disconnect_from_map(pulse->light);\n\t\t\tpulse->connected = TRUE;'
     status, output = run(build('muzzle_lighting', generated((before, after))), case)
+    assert status == CHECK_FAILED, output
+
+
+def test_shoulder_camera_guard_is_required():
+    before = 'third_person_active(render.local_player_index) ||'
+    status, output = run(build('muzzle_lighting', generated((before, 'FALSE ||'))), 'camera')
     assert status == CHECK_FAILED, output

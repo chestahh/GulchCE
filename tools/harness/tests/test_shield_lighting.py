@@ -39,6 +39,13 @@ def test_menu_ownership_and_generated_layout():
         'display.vehicle_lighting', 'display.world_lighting']
     assert rows[-2][1] == 'display.shield_glow'
     assert rows[-1][1] == 'display.shield_glow_intensity'
+    shadows = port_settings.SCREENS['video_settings/shadows']['rows']
+    assert [row[1] for row in shadows] == ['display.modern_shadows', 'display.shadow_resolution']
+    assert [value for _, value in shadows[0][2]] == ['off', 'hard', 'soft']
+    assert [int(value) for _, value in shadows[1][2]] == [128, 256, 512, 1024, 2048, 4096]
+    for row in shadows:
+        assert sum(other[1] == row[1] for page in port_settings.SCREENS.values()
+                   for other in page.get('rows', [])) == 1
     extra = {row[1] for row in port_settings.SCREENS['video_settings/extra_effects']['rows']}
     assert 'display.overshield_effect' in extra
     assert not {'display.shield_glow', 'display.shield_glow_intensity'} & extra

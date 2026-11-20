@@ -9,6 +9,7 @@
 #include "rasterizer/rasterizer_lights.h"
 #include "plasma_lighting.h"
 #include "plasma_occlusion.h"
+#include "modern_shadows.h"
 #include <stdlib.h>
 
 enum { PLASMA_FALLOFF_SIZE = 64 };
@@ -107,6 +108,7 @@ static void plasma_falloff_bind(long rasterizer_index, int stage, int stock_filt
 	plasma_falloff_stage = stage;
 	plasma_falloff_filter = stock_filter;
 	plasma_falloff_bound = TRUE;
+	modern_shadows_world_begin(rasterizer_index, stage);
 }
 
 void plasma_falloff_begin(long rasterizer_index)
@@ -121,6 +123,7 @@ void plasma_falloff_specular_begin(long rasterizer_index)
 
 void plasma_falloff_end(void)
 {
+	modern_shadows_world_end();
 	plasma_specular_tint = 0x00FFFFFFUL;
 	if (!plasma_falloff_bound)
 		return;
@@ -131,6 +134,7 @@ void plasma_falloff_end(void)
 
 void plasma_falloff_dispose(void)
 {
+	modern_shadows_reset();
 	plasma_occlusion_reset();
 	plasma_falloff_end();
 	if (plasma_falloff_texture)

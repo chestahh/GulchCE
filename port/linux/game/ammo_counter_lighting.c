@@ -6,6 +6,8 @@
 #include "items/weapons.h"
 #include "units/units.h"
 #include "interface/first_person_weapons.h"
+#include "render/render.h"
+#include "third_person.h"
 #include "ammo_counter_lighting.h"
 #include "shaders/shader_definitions.h"
 #include "rasterizer/xbox/rasterizer_xbox.h"
@@ -38,7 +40,9 @@ int ammo_counter_lighting_position(long index, real_point3d *position, real_vect
 	/* Both stock displays lie near x=.047, z=.069 in model space. Place the
 	   light just behind/above that surface, using the identity-oriented muzzle
 	   marker. The FP muzzle is .002744 units higher than the world muzzle. */
-	if (first_person_weapon_adjust_light(index, "primary trigger", position, &forward, &up))
+	/* Shoulder cameras retain FP poses for sounds and transitions. */
+	if (!third_person_active(render.local_player_index) &&
+		first_person_weapon_adjust_light(index, "primary trigger", position, &forward, &up))
 	{
 		height = 0.025f;
 		pose = 2;

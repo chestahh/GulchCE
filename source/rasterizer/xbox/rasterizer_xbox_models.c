@@ -125,6 +125,7 @@ symbols in this file:
 #include "rasterizer/xbox/rasterizer_xbox_models.h"
 #include "needler_lighting.h" /* port: port/linux/game/needler_lighting.c */
 #include "ammo_counter_lighting.h" /* port: port/linux/game/ammo_counter_lighting.c */
+#include "modern_shadows.h" /* port: receiver-specific shadow maps */
 #include "view_fov.h" /* port: port/linux/game/view_fov.c */
 
 #include "shield_look.h" /* port: port/linux/game/shield_look.c */
@@ -623,6 +624,8 @@ void _rasterizer_model_end(
 			viewmodel_projection_end();	/* port: (view_fov.c) */
 			rasterizer_set_frustum_z(0.0f, 0.0f);
 		}
+		modern_shadows_receiver(FALSE, NONE); /* port: end receiver-specific shadows */
+		modern_environment_model_clear(); /* port: no visibility leaks into other draws */
 		local_parameters = NULL;
 	}
 
@@ -656,6 +659,10 @@ void _rasterizer_model_begin(
 				rasterizer_globals.first_person_weapon_far_clip_distance);
 		}
 
+		/* port: receiver identity keeps optional light-owner shadow exceptions local to this model. */
+		modern_shadows_receiver(TEST_FLAG(parameters->geometry_flags, _rasterizer_geometry_first_person_bit), parameters->unique_identifier);
+		/* port: feature-owned distant-light visibility, before this model draws. */
+		modern_shadows_environment_model(parameters, TEST_FLAG(parameters->geometry_flags, _rasterizer_geometry_first_person_bit));
 		local_parameters = parameters;
 		local_parameters_queued_flag = FALSE;
 		local_do_not_change_z_stencil_states =

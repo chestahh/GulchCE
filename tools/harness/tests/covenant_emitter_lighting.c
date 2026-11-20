@@ -17,7 +17,7 @@ struct object_datum { long definition_index; struct {
  real body_vitality,maximum_body_vitality,shield_vitality,recent_shield_damage;
  real outgoing_function_values[4]; unsigned char region_permutations[8]; real_rgb_color outgoing_change_colors[4];
  } object; };
-struct unit_datum { struct { long flags; } object; struct { short current_weapon_index; } unit; };
+struct unit_datum { struct { long flags; } object; struct { short current_weapon_index; long player_index; } unit; };
 struct block { int count; };
 struct model_region { char name[32]; };
 struct model { struct block regions; };
@@ -29,7 +29,11 @@ static struct model_region fake_region={"shield"};
 static struct object_definition definition;
 #define TAG_BLOCK_GET_ELEMENT(b,i,t) (&fake_region)
 static const char *names[10];
-static real now,marker_x=1;
+static real now,marker_x=1,marker_scale=1;
+static int marker_rotate;
+static struct { short local_player_index; } render;
+static int shoulder;
+static int third_person_active(short player) { return player==0 && shoulder; }
 static int count=1,shield_on=1,fuel_on,stationary_on,allocs,deletes,disconnects,missing,fail,marker_missing;
 static long inventory=0;
 static int ammo_on,needler_on,first_person,ambient_mode,ambient_count=1,stream_live=1;
@@ -58,9 +62,16 @@ static struct object_definition *object_definition_get(long i) { return &definit
 static struct model *model_definition_get(long i) { return &model; }
 static const char *tag_get_name(long i) { return names[i]; }
 static int object_get_marker_by_name(long i,const char *name,struct object_marker *m,int count)
-{ last_marker=name;memset(m,0,sizeof(*m));m->matrix.forward.i=1;m->matrix.up.k=1;m->matrix.position.x=marker_x;return !marker_missing; }
-static int first_person_weapon_adjust_light(long i,const char *n,real_point3d *p,real_vector3d *f,real_vector3d *u)
-{ memset(p,0,sizeof(*p));memset(f,0,sizeof(*f));memset(u,0,sizeof(*u));p->x=5;f->j=1;u->k=1;return first_person&&!marker_missing; }
+{ last_marker=name;memset(m,0,sizeof(*m));m->matrix.scale=marker_scale;m->matrix.forward.i=1;m->matrix.up.k=!marker_rotate;m->matrix.up.j=marker_rotate;m->matrix.position.x=marker_x;return !marker_missing; }
+struct player_datum { short local_player_index; };
+static struct player_datum player;
+static struct { int visible; } first_weapon;
+static struct object_datum *weapon_get(long i) { return &objects[i]; }
+static struct unit_datum *unit_get(long i) { CHECK(i==42,"only held weapons query first-person state");return &parent; }
+static struct player_datum *player_get(long i) { CHECK(i==0,"valid player identity");return &player; }
+#define first_person_weapon_get(i) (first_weapon.visible=first_person, &first_weapon)
+static int first_person_weapon_get_marker_by_name(long i,const char *n,struct object_marker *m,int count)
+{ memset(m,0,sizeof(*m));m->matrix.position.x=5;m->matrix.forward.j=1;m->matrix.up.k=1;return !marker_missing; }
 static short local_player_get_next(short i) { return i==NONE?0:NONE; }
 static const struct observer_result *observer_get_camera(short i) { return &camera; }
 static real distance3d(const real_point3d *a,const real_point3d *b) { return (real)fabs(a->x-b->x); }
@@ -105,6 +116,7 @@ int ambient_emitter_lighting_sample(long i,int c,struct emitter_sample *s)
 {
  if(!ambient_mode||i>=ambient_count||(ambient_mode==2&&(!stream_live||c)))return 0;
  s->kind=ambient_mode==1?EMITTER_VEHICLE:EMITTER_FLAME;
+ s->owner_unshadowed=ambient_mode==1;
  s->radius=2;s->strength=.8f;s->color.red=1;s->color.green=.4f;s->color.blue=.1f;
  memset(&s->position,0,sizeof(s->position));s->position.x=ambient_mode==1?(real)(1+c*3):stream_x;
  return 1;
@@ -112,8 +124,30 @@ int ambient_emitter_lighting_sample(long i,int c,struct emitter_sample *s)
 static void frame(real dt) { now+=dt;covenant_emitter_lighting_update(); }
 int main(int argc,char **argv)
 {
- int i,old;real slow,fast;struct emitter_sample sample;
+ long emitting_object;int i,old;real slow,fast;struct emitter_sample sample;
  real_rgb_color screen={0,.2f,.35f};
+ if(!strcmp(argv[1],"camera"))
+ {
+  real_point3d position;real_vector3d direction;
+  objects[0].object.parent_object_index=42;objects[0].object.node_matrices.size=sizeof(real_matrix4x3);
+  names[0]="weapons\\assault rifle\\assault rifle";ammo_on=1;first_person=1;shoulder=1;
+  CHECK(ammo_counter_lighting_position(0,&position,&direction)==1&&fabs(position.x-.82f)<.00001f,"shoulder AR uses world display and world gain");
+  shoulder=0;CHECK(ammo_counter_lighting_position(0,&position,&direction)==2&&position.x==5,"first-person AR keeps viewmodel placement and gain");
+  shoulder=1;marker_missing=1;CHECK(!ammo_counter_lighting_position(0,&position,&direction),"missing world display rejected");marker_missing=0;
+  names[0]="weapons\\needler\\needler";needler_on=1;
+  CHECK(needler_lighting_position(0,&position,&direction)&&position.x==1,"shoulder Needler uses world needles");
+  shoulder=0;CHECK(needler_lighting_position(0,&position,&direction)&&position.x==5,"first-person Needler restored");
+  parent.unit.player_index=NONE;
+  CHECK(needler_lighting_position(0,&position,&direction)&&position.x==1,"NPC never uses local viewmodel despite available pose");
+  parent.unit.player_index=0;player.local_player_index=NONE;
+  CHECK(needler_lighting_position(0,&position,&direction)&&position.x==1,"remote player never uses local viewmodel");
+  player.local_player_index=1;
+  CHECK(needler_lighting_position(0,&position,&direction)&&position.x==1,"other local view never borrows current viewmodel");
+  player.local_player_index=0;first_person=0;
+  CHECK(needler_lighting_position(0,&position,&direction)&&position.x==1,"hidden first-person pose falls back to world");
+  objects[0].object.parent_object_index=NONE;CHECK(!needler_lighting_position(0,&position,&direction),"dropped weapon does not retain holder pose");
+  return 0;
+ }
  ammo_counter_lighting_screen(&screen_shader,&screen);
  CHECK(screen.blue==.35f,"disabled screen untouched");
  ammo_on=1;ammo_counter_lighting_screen(&other_shader,&screen);
@@ -141,7 +175,14 @@ int main(int argc,char **argv)
   objects[i].object.body_vitality=objects[i].object.shield_vitality=1;
   objects[i].object.outgoing_change_colors[2].blue=1;
  }
- CHECK(emitter_sample(0,0,&sample)&&sample.kind==0&&sample.radius==3.6f&&sample.color.green>=.42f,"minor shield profile");
+ CHECK(emitter_sample(0,0,&sample)&&sample.kind==0&&sample.owner_unshadowed&&sample.radius==3.6f&&sample.color.green>=.42f,"minor shield profile");
+
+ CHECK(fabs(sample.position.z-.06f)<.00001f&&fabs(sample.position.x-marker_x-.08f)<.00001f,"shield source clears the hub while retaining its radius");
+ marker_rotate=1;marker_scale=2;
+ CHECK(emitter_sample(0,0,&sample)&&fabs(sample.position.y-.12f)<.00001f&&fabs(sample.position.x-marker_x-.16f)<.00001f&&sample.position.z==0,
+       "shield source follows the rotated and scaled marker, not world up");
+
+ marker_rotate=0;marker_scale=1;
  names[0]="characters\\jackal\\jackal major";objects[0].object.outgoing_change_colors[2].red=1;
  CHECK(emitter_sample(0,0,&sample)&&sample.color.red==1,"major uses authored colour");
  objects[0].object.outgoing_change_colors[2].blue=.10f;
@@ -172,6 +213,7 @@ int main(int argc,char **argv)
  objects[0].object.type=_object_type_weapon;names[0]="weapons\\fuel rod gun\\fuel rod";
  CHECK(!emitter_sample(0,0,&sample),"fuel setting independent");fuel_on=1;
  CHECK(emitter_sample(0,0,&sample)&&sample.kind==1,"dropped rods remain luminous");
+
  objects[0].object.parent_object_index=42;inventory=1;
  CHECK(!emitter_sample(0,0,&sample),"holstered weapon rejected");inventory=0;
  CHECK(emitter_sample(0,0,&sample),"held current weapon eligible");
@@ -193,9 +235,15 @@ int main(int argc,char **argv)
  for(i=1;i<24;i++)frame(1.0f/120);
  fast=emitters[0].strength;CHECK(fabs(slow-fast)<0.0001,"frame-rate independent easing");
  old=allocs;frame(0);CHECK(allocs==old&&emitters[0].strength==fast,"split views do not advance fade");
- marker_x=2;frame(1.0f/120);CHECK(storage[allocs-1].position.x==2,"rendered marker follows light");
+ marker_x=2;frame(1.0f/120);CHECK(fabs(storage[allocs-1].position.x-2.08f)<.00001f,"rendered marker follows light");
+ CHECK(covenant_emitter_lighting_shadow_owner(emitters[0].light,&emitting_object)==0,"live shield light excludes its own Jackal");
+ CHECK(covenant_emitter_lighting_shadow_owner(NONE,&emitting_object)==NONE,"invalid light cannot name an owner");
+ shield_on=0;CHECK(covenant_emitter_lighting_shadow_owner(emitters[0].light,&emitting_object)==NONE,"disabled Jackal light loses exception");shield_on=1;
+ covenant_emitter_lighting_frame_end();
+ CHECK(covenant_emitter_lighting_shadow_owner(emitters[0].light,&emitting_object)==NONE,"frame end disconnects owner exception");frame(0);
  covenant_emitter_lighting_submitted(emitters[0].light,3);
  CHECK(covenant_emitter_lighting_selected(3),"submitted emitter selects soft path without projectile setting");
+
  CHECK(covenant_emitter_lighting_radius(emitters[0].light,.1f)==3.6f,"bounds cover full light");
  objects[0].object.shield_vitality=0;frame(1.0f/120);
  CHECK(emitters[0].strength>0&&emitters[0].strength<fast,"collapse fades instead of popping");
@@ -218,6 +266,7 @@ int main(int argc,char **argv)
  CHECK(allocs==old,"all options off allocate nothing");
  stationary_on=1;objects[0].object.type=_object_type_scenery;names[0]="scenery\\c_field_generator\\c_field_generator";
  frame(.01f);frame(.01f);
+ CHECK(covenant_emitter_lighting_shadow_owner(emitters[0].light,&emitting_object)==NONE,"stationary shield is not exempted from modern shadows");
  CHECK(covenant_emitter_lighting_occlusion_ignore(emitters[0].light)==0,"stationary shield cannot occlude itself");
  CHECK(covenant_emitter_lighting_occlusion_ignore(NONE)==NONE,"unowned light has no occlusion exclusion");
  stationary_on=0;CHECK(covenant_emitter_lighting_occlusion_ignore(emitters[0].light)==NONE,"disabled source has no exclusion");
@@ -235,6 +284,8 @@ int main(int argc,char **argv)
  objects[0].object.parent_object_index=NONE;CHECK(!emitter_sample(0,0,&sample),"dropped counter is off");
  objects[0].object.parent_object_index=42;marker_missing=1;CHECK(!emitter_sample(0,0,&sample),"missing counter marker stays stock");marker_missing=0;
  first_person=1;frame(.01f);frame(.1f);
+ CHECK(covenant_emitter_lighting_shadow_owner(emitters[0].light,&emitting_object)==NONE && emitting_object==0,
+       "generated counter light identifies its weapon without disabling reception");
  slow=storage[emitters[0].light-100].color.blue;
  first_person=0;frame(0);
  CHECK(fabs(storage[emitters[0].light-100].color.blue-slow*.65f/1.35f)<.0001,"first person boost does not leak into another view");
@@ -271,6 +322,7 @@ int main(int argc,char **argv)
  needler_on=0;ambient_mode=1;count=1;objects[0].object.type=_object_type_vehicle;
  objects[0].object.parent_object_index=NONE;names[0]="fixture vehicle";frame(.01f);frame(.1f);
  CHECK(emitters[0].active&&emitters[1].active&&emitters[0].light!=emitters[1].light,"two components retain distinct bounded identities");
+ CHECK(covenant_emitter_lighting_shadow_owner(emitters[0].light,&emitting_object)==0 && covenant_emitter_lighting_shadow_owner(emitters[1].light,&emitting_object)==0,"both Ghost components identify their same owner");
  CHECK(storage[emitters[0].light-100].position.x==1&&storage[emitters[1].light-100].position.x==4,"component positions do not overwrite one another");
  CHECK(covenant_emitter_lighting_vehicle_occlusion(emitters[0].light)&&covenant_emitter_lighting_vehicle_occlusion(emitters[1].light),"both components request chassis blocking");
  ambient_mode=0;covenant_emitter_lighting_frame_end();CHECK(!emitters[0].active&&!emitters[1].active,"vehicle disable releases both components");

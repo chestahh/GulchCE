@@ -1389,11 +1389,11 @@
 		<child widget="modern/graphics/row_display_anti_aliasing2" x="28" y="197" platform="desktop" />
 		<child widget="modern/graphics/row_display_anti_aliasing3" x="28" y="227" platform="android web" />
 		<child widget="modern/graphics/row_display_anisotropic_filtering4" x="28" y="257" />
-		<child widget="modern/graphics/row_display_shadow_resolution5" x="28" y="287" />
-		<child widget="modern/graphics/row_display_per_pixel_lighting6" x="28" y="317" />
-		<child widget="modern/graphics/row_display_model_detail7" x="28" y="347" />
+		<child widget="modern/graphics/row_display_per_pixel_lighting5" x="28" y="287" />
+		<child widget="modern/graphics/row_display_model_detail6" x="28" y="317" />
+		<child widget="modern/graphics/row_link_16" x="28" y="347" />
 		<child widget="modern/graphics/row_link_8" x="28" y="377" platform="desktop web" />
-		<child widget="modern/graphics/row_link_16" x="28" y="407" />
+		<child widget="modern/graphics/row_link_18" x="28" y="407" />
 		<child widget="modern/graphics/row_link_0" x="28" y="437" />
 		<child widget="modern/graphics/button_bar" x="26" y="414" />
 	</widget>
@@ -1475,30 +1475,29 @@
 	<widget name="modern/graphics/spinner_display_anisotropic_filtering4" type="spinner" width="140" height="20" flags="pass_unhandled_to_focused_child left_right_tabs_items" strings="OFF|2X|4X|8X|16X" values="0|2|4|8|16" setting="display.anisotropic_filtering" font="ui\large_ui" color="#FF2896FF" align="center" header_bitmap="bitmaps/arrow_sm_left" footer_bitmap="bitmaps/arrow_sm_right" header_bounds="4 -10 16 -4" footer_bounds="4 144 16 150">
 		<on event="created" run="port setting load" />
 	</widget>
-	<widget name="modern/graphics/row_display_shadow_resolution5" width="336" height="26" bitmap="modern/row" flags="pass_unhandled_to_focused_child nifty_fx">
-		<child widget="modern/graphics/label_display_shadow_resolution5" x="12" y="3" />
-		<child widget="modern/graphics/spinner_display_shadow_resolution5" x="180" y="3" />
+	<widget name="modern/graphics/row_display_per_pixel_lighting5" width="336" height="26" bitmap="modern/row" flags="pass_unhandled_to_focused_child nifty_fx">
+		<child widget="modern/graphics/label_display_per_pixel_lighting5" x="12" y="3" />
+		<child widget="modern/graphics/spinner_display_per_pixel_lighting5" x="180" y="3" />
 	</widget>
-	<widget name="modern/graphics/label_display_shadow_resolution5" type="text" controller="1" width="152" height="24" string_list="modern/graphics/labels" string_index="5" font="ui\large_ui" color="#FF2896FF" />
-	<widget name="modern/graphics/spinner_display_shadow_resolution5" type="spinner" width="140" height="20" flags="pass_unhandled_to_focused_child left_right_tabs_items" strings="128|256|512|1024" values="128|256|512|1024" setting="display.shadow_resolution" font="ui\large_ui" color="#FF2896FF" align="center" header_bitmap="bitmaps/arrow_sm_left" footer_bitmap="bitmaps/arrow_sm_right" header_bounds="4 -10 16 -4" footer_bounds="4 144 16 150">
+	<widget name="modern/graphics/label_display_per_pixel_lighting5" type="text" controller="1" width="152" height="24" string_list="modern/graphics/labels" string_index="5" font="ui\large_ui" color="#FF2896FF" />
+	<widget name="modern/graphics/spinner_display_per_pixel_lighting5" type="spinner" width="140" height="20" flags="pass_unhandled_to_focused_child left_right_tabs_items" strings="ON|OFF" values="true|false" setting="display.per_pixel_lighting" font="ui\large_ui" color="#FF2896FF" align="center" header_bitmap="bitmaps/arrow_sm_left" footer_bitmap="bitmaps/arrow_sm_right" header_bounds="4 -10 16 -4" footer_bounds="4 144 16 150">
 		<on event="created" run="port setting load" />
 	</widget>
-	<widget name="modern/graphics/row_display_per_pixel_lighting6" width="336" height="26" bitmap="modern/row" flags="pass_unhandled_to_focused_child nifty_fx">
-		<child widget="modern/graphics/label_display_per_pixel_lighting6" x="12" y="3" />
-		<child widget="modern/graphics/spinner_display_per_pixel_lighting6" x="180" y="3" />
+	<widget name="modern/graphics/row_display_model_detail6" width="336" height="26" bitmap="modern/row" flags="pass_unhandled_to_focused_child nifty_fx">
+		<child widget="modern/graphics/label_display_model_detail6" x="12" y="3" />
+		<child widget="modern/graphics/spinner_display_model_detail6" x="180" y="3" />
 	</widget>
-	<widget name="modern/graphics/label_display_per_pixel_lighting6" type="text" controller="1" width="152" height="24" string_list="modern/graphics/labels" string_index="6" font="ui\large_ui" color="#FF2896FF" />
-	<widget name="modern/graphics/spinner_display_per_pixel_lighting6" type="spinner" width="140" height="20" flags="pass_unhandled_to_focused_child left_right_tabs_items" strings="ON|OFF" values="true|false" setting="display.per_pixel_lighting" font="ui\large_ui" color="#FF2896FF" align="center" header_bitmap="bitmaps/arrow_sm_left" footer_bitmap="bitmaps/arrow_sm_right" header_bounds="4 -10 16 -4" footer_bounds="4 144 16 150">
+	<widget name="modern/graphics/label_display_model_detail6" type="text" controller="1" width="152" height="24" string_list="modern/graphics/labels" string_index="6" font="ui\large_ui" color="#FF2896FF" />
+	<widget name="modern/graphics/spinner_display_model_detail6" type="spinner" width="140" height="20" flags="pass_unhandled_to_focused_child left_right_tabs_items" strings="STOCK|NATIVE|HIGHEST" values="stock|native|highest" setting="display.model_detail" font="ui\large_ui" color="#FF2896FF" align="center" header_bitmap="bitmaps/arrow_sm_left" footer_bitmap="bitmaps/arrow_sm_right" header_bounds="4 -10 16 -4" footer_bounds="4 144 16 150">
 		<on event="created" run="port setting load" />
 	</widget>
-	<widget name="modern/graphics/row_display_model_detail7" width="336" height="26" bitmap="modern/row" flags="pass_unhandled_to_focused_child nifty_fx">
-		<child widget="modern/graphics/label_display_model_detail7" x="12" y="3" />
-		<child widget="modern/graphics/spinner_display_model_detail7" x="180" y="3" />
+	<widget name="modern/graphics/row_link_16" width="336" height="26" bitmap="modern/row" flags="nifty_fx">
+		<on event="a" run="port frontend page" />
+		<on event="start" run="port frontend page" />
+		<on event="left_mouse" run="mouse emit accept event" />
+		<child widget="modern/graphics/label_link_16" x="12" y="3" />
 	</widget>
-	<widget name="modern/graphics/label_display_model_detail7" type="text" controller="1" width="152" height="24" string_list="modern/graphics/labels" string_index="7" font="ui\large_ui" color="#FF2896FF" />
-	<widget name="modern/graphics/spinner_display_model_detail7" type="spinner" width="140" height="20" flags="pass_unhandled_to_focused_child left_right_tabs_items" strings="STOCK|NATIVE|HIGHEST" values="stock|native|highest" setting="display.model_detail" font="ui\large_ui" color="#FF2896FF" align="center" header_bitmap="bitmaps/arrow_sm_left" footer_bitmap="bitmaps/arrow_sm_right" header_bounds="4 -10 16 -4" footer_bounds="4 144 16 150">
-		<on event="created" run="port setting load" />
-	</widget>
+	<widget name="modern/graphics/label_link_16" type="text" controller="1" width="312" height="24" string_list="modern/graphics/labels" string_index="7" font="ui\large_ui" color="#FF2896FF" />
 	<widget name="modern/graphics/row_link_8" width="336" height="26" bitmap="modern/row" platform="desktop web" flags="nifty_fx">
 		<on event="a" run="port frontend page" />
 		<on event="start" run="port frontend page" />
@@ -1506,13 +1505,13 @@
 		<child widget="modern/graphics/label_link_8" x="12" y="3" />
 	</widget>
 	<widget name="modern/graphics/label_link_8" type="text" controller="1" width="312" height="24" string_list="modern/graphics/labels" string_index="8" font="ui\large_ui" color="#FF2896FF" />
-	<widget name="modern/graphics/row_link_16" width="336" height="26" bitmap="modern/row" flags="nifty_fx">
+	<widget name="modern/graphics/row_link_18" width="336" height="26" bitmap="modern/row" flags="nifty_fx">
 		<on event="a" run="port frontend page" />
 		<on event="start" run="port frontend page" />
 		<on event="left_mouse" run="mouse emit accept event" />
-		<child widget="modern/graphics/label_link_16" x="12" y="3" />
+		<child widget="modern/graphics/label_link_18" x="12" y="3" />
 	</widget>
-	<widget name="modern/graphics/label_link_16" type="text" controller="1" width="312" height="24" string_list="modern/graphics/labels" string_index="9" font="ui\large_ui" color="#FF2896FF" />
+	<widget name="modern/graphics/label_link_18" type="text" controller="1" width="312" height="24" string_list="modern/graphics/labels" string_index="9" font="ui\large_ui" color="#FF2896FF" />
 	<widget name="modern/graphics/row_link_0" width="336" height="26" bitmap="modern/row" flags="nifty_fx">
 		<on event="a" run="port frontend page" />
 		<on event="start" run="port frontend page" />
@@ -1526,11 +1525,11 @@
 		<string text="ANTI-ALIASING" />
 		<string text="ANTI-ALIASING" />
 		<string text="TEXTURE FILTERING" />
-		<string text="SHADOW RESOLUTION" />
 		<string text="PER-PIXEL LIGHTING" />
 		<string text="MODEL DETAIL" />
-		<string text="LIGHTING AND SHIELDS &gt;" />
 		<string text="EXTRA EFFECTS &gt;" />
+		<string text="DYNAMIC LIGHTING &gt;" />
+		<string text="SHADOWS &gt;" />
 		<string text="&lt; BACK" />
 	</strings>
 	<strings name="modern/graphics/help_strings">
@@ -1540,11 +1539,11 @@
 		<string text="Smooth jagged edges, which the Xbox did not. FXAA and SMAA are cheap; SSAA and MSAA are sharper." />
 		<string text="Smooth jagged edges, which the Xbox did not. FXAA is cheap; MSAA is sharper." />
 		<string text="Keep floors and walls sharp at a grazing angle, which the Xbox did not. Off: as the Xbox." />
-		<string text="The size objects' shadows are drawn at: 128 as on the Xbox; larger for smoother, as soft, edges." />
 		<string text="Light models for each pixel, without the facets of the Xbox's lighting for each vertex." />
 		<string text="Stock picks models' detail by the Xbox's 480 lines; native by this display's; highest, always the best." />
-		<string text="Open lighting and shields settings. Pending changes stay until OK or Cancel." />
 		<string text="Open extra effects settings. Pending changes stay until OK or Cancel." />
+		<string text="Open dynamic lighting settings. Pending changes stay until OK or Cancel." />
+		<string text="Open shadows settings. Pending changes stay until OK or Cancel." />
 		<string text="Return to the parent page, keeping pending changes." />
 	</strings>
 	<widget name="modern/graphics/button_bar" type="column_list" width="588" height="26" flags="pass_unhandled_to_focused_child left_right_tabs_items">
@@ -1805,7 +1804,7 @@
 		<child widget="modern/lighting/prompts" x="28" y="450" />
 	</widget>
 	<widget name="modern/lighting/title" width="200" height="28" bitmap="modern/title" controller="1" />
-	<widget name="modern/lighting/section" type="text" text="LIGHTING AND SHIELDS" width="336" height="24" font="ui\large_ui" color="#FF80A2C0" controller="1" />
+	<widget name="modern/lighting/section" type="text" text="DYNAMIC LIGHTING" width="336" height="24" font="ui\large_ui" color="#FF80A2C0" controller="1" />
 	<widget name="modern/lighting/rule_display" width="336" height="1" bitmap="modern/rule" controller="1" />
 	<widget name="modern/lighting/help_panel" width="232" height="294" bitmap="modern/help_panel" controller="1" flags="nifty_fx" />
 	<widget name="modern/lighting/help_title" type="text" controller="1" width="200" height="22" string_list="modern/lighting/labels" font="ui\large_ui" color="#FF80A2C0" />
@@ -3701,6 +3700,146 @@
 		<child widget="modern/mcc_packages/status" x="28" y="389" />
 		<child widget="modern/mcc_packages/prompts" x="28" y="450" />
 	</widget>
+	<widget name="modern/shadows/settings" width="640" height="480" bitmap="modern/panel" flags="pass_unhandled_to_focused_child">
+		<on event="created" run="main menu intialize" label="ring_loop" />
+		<on event="created" run="port frontend init" />
+		<on event="b" run="port frontend back" />
+		<on event="back" run="port frontend back" />
+		<on event="y" run="port frontend next tab" />
+		<child widget="modern/shadows/title" x="70" y="40" />
+		<child widget="modern/shadows/section" x="32" y="108" />
+		<child widget="modern/shadows/rule_display" x="28" y="130" />
+		<child widget="modern/shadows/help_panel" x="380" y="106" />
+		<child widget="modern/shadows/options" x="0" y="0" />
+		<child widget="modern/shadows/help_title" x="396" y="119" />
+		<child widget="modern/shadows/help_value" x="396" y="138" />
+		<child widget="modern/shadows/status" x="28" y="389" />
+		<child widget="modern/shadows/prompts" x="28" y="450" />
+	</widget>
+	<widget name="modern/shadows/title" width="200" height="28" bitmap="modern/title" controller="1" />
+	<widget name="modern/shadows/section" type="text" text="SHADOWS" width="336" height="24" font="ui\large_ui" color="#FF80A2C0" controller="1" />
+	<widget name="modern/shadows/rule_display" width="336" height="1" bitmap="modern/rule" controller="1" />
+	<widget name="modern/shadows/help_panel" width="232" height="294" bitmap="modern/help_panel" controller="1" flags="nifty_fx" />
+	<widget name="modern/shadows/help_title" type="text" controller="1" width="200" height="22" string_list="modern/shadows/labels" font="ui\large_ui" color="#FF80A2C0" />
+	<widget name="modern/shadows/help_value" type="text" controller="1" width="200" height="46" font="ui\large_ui" color="#FFDDDDDD" />
+	<widget name="modern/shadows/status" type="text" controller="1" width="336" height="20" font="ui\small_ui" color="#FF80A2C0" />
+	<widget name="modern/shadows/prompts" type="text" text=" " width="580" height="22" font="ui\small_ui" color="#FF2896FF" />
+	<widget name="modern/shadows/help" type="text" controller="1" left="396" top="193" width="200" height="194" string_list="modern/shadows/help_strings" font="ui\large_ui" color="#FF2896FF" />
+	<widget name="modern/shadows/options" type="column_list" width="640" height="480" flags="pass_unhandled_to_focused_child up_down_tabs_children" description="modern/shadows/help">
+		<data input="port frontend update" />
+		<child widget="modern/shadows/tabs" x="28" y="76" />
+		<child widget="modern/shadows/row_display_modern_shadows0" x="28" y="137" platform="desktop" />
+		<child widget="modern/shadows/row_display_shadow_resolution1" x="28" y="167" />
+		<child widget="modern/shadows/row_link_6" x="28" y="197" />
+		<child widget="modern/shadows/button_bar" x="26" y="414" />
+	</widget>
+	<widget name="modern/shadows/tabs" type="column_list" width="584" height="26" flags="pass_unhandled_to_focused_child left_right_tabs_items">
+		<child widget="modern/shadows/tab_0" x="0" y="0" />
+		<child widget="modern/shadows/tab_1" x="98" y="0" />
+		<child widget="modern/shadows/tab_2" x="196" y="0" />
+		<child widget="modern/shadows/tab_3" x="294" y="0" />
+		<child widget="modern/shadows/tab_4" x="392" y="0" />
+		<child widget="modern/shadows/tab_5" x="490" y="0" />
+	</widget>
+	<widget name="modern/shadows/tab_0" type="text" text="VIDEO" width="94" height="26" font="ui\small_ui" color="#FF2896FF" align="center" text_y="3" bitmap="modern/tab" flags="nifty_fx">
+		<on event="a" run="port frontend page" />
+		<on event="start" run="port frontend page" />
+		<on event="left_mouse" run="mouse emit accept event" />
+	</widget>
+	<widget name="modern/shadows/tab_1" type="text" text="AUDIO" width="94" height="26" font="ui\small_ui" color="#FF2896FF" align="center" text_y="3" flags="nifty_fx">
+		<on event="a" run="port frontend page" />
+		<on event="start" run="port frontend page" />
+		<on event="left_mouse" run="mouse emit accept event" />
+	</widget>
+	<widget name="modern/shadows/tab_2" type="text" text="CONTROLS" width="94" height="26" font="ui\small_ui" color="#FF2896FF" align="center" text_y="3" flags="nifty_fx">
+		<on event="a" run="port frontend page" />
+		<on event="start" run="port frontend page" />
+		<on event="left_mouse" run="mouse emit accept event" />
+	</widget>
+	<widget name="modern/shadows/tab_3" type="text" text="ONLINE" width="94" height="26" font="ui\small_ui" color="#FF2896FF" align="center" text_y="3" flags="nifty_fx">
+		<on event="a" run="port frontend page" />
+		<on event="start" run="port frontend page" />
+		<on event="left_mouse" run="mouse emit accept event" />
+	</widget>
+	<widget name="modern/shadows/tab_4" type="text" text="INTERFACE" width="94" height="26" font="ui\small_ui" color="#FF2896FF" align="center" text_y="3" flags="nifty_fx">
+		<on event="a" run="port frontend page" />
+		<on event="start" run="port frontend page" />
+		<on event="left_mouse" run="mouse emit accept event" />
+	</widget>
+	<widget name="modern/shadows/tab_5" type="text" text="PROFILE" width="94" height="26" font="ui\small_ui" color="#FF2896FF" align="center" text_y="3" flags="nifty_fx">
+		<on event="a" run="port frontend page" />
+		<on event="start" run="port frontend page" />
+		<on event="left_mouse" run="mouse emit accept event" />
+	</widget>
+	<widget name="modern/shadows/row_display_modern_shadows0" width="336" height="26" bitmap="modern/row" platform="desktop" flags="pass_unhandled_to_focused_child nifty_fx">
+		<child widget="modern/shadows/label_display_modern_shadows0" x="12" y="3" />
+		<child widget="modern/shadows/spinner_display_modern_shadows0" x="180" y="3" />
+	</widget>
+	<widget name="modern/shadows/label_display_modern_shadows0" type="text" controller="1" width="152" height="24" string_list="modern/shadows/labels" string_index="0" font="ui\large_ui" color="#FF2896FF" />
+	<widget name="modern/shadows/spinner_display_modern_shadows0" type="spinner" width="140" height="20" flags="pass_unhandled_to_focused_child left_right_tabs_items" strings="CLASSIC|MODERN HARD|MODERN SOFT" values="off|hard|soft" setting="display.modern_shadows" font="ui\large_ui" color="#FF2896FF" align="center" header_bitmap="bitmaps/arrow_sm_left" footer_bitmap="bitmaps/arrow_sm_right" header_bounds="4 -10 16 -4" footer_bounds="4 144 16 150">
+		<on event="created" run="port setting load" />
+	</widget>
+	<widget name="modern/shadows/row_display_shadow_resolution1" width="336" height="26" bitmap="modern/row" flags="pass_unhandled_to_focused_child nifty_fx">
+		<child widget="modern/shadows/label_display_shadow_resolution1" x="12" y="3" />
+		<child widget="modern/shadows/spinner_display_shadow_resolution1" x="180" y="3" />
+	</widget>
+	<widget name="modern/shadows/label_display_shadow_resolution1" type="text" controller="1" width="152" height="24" string_list="modern/shadows/labels" string_index="1" font="ui\large_ui" color="#FF2896FF" />
+	<widget name="modern/shadows/spinner_display_shadow_resolution1" type="spinner" width="140" height="20" flags="pass_unhandled_to_focused_child left_right_tabs_items" strings="128|256|512|1024|2048|4096" values="128|256|512|1024|2048|4096" setting="display.shadow_resolution" font="ui\large_ui" color="#FF2896FF" align="center" header_bitmap="bitmaps/arrow_sm_left" footer_bitmap="bitmaps/arrow_sm_right" header_bounds="4 -10 16 -4" footer_bounds="4 144 16 150">
+		<on event="created" run="port setting load" />
+	</widget>
+	<widget name="modern/shadows/row_link_6" width="336" height="26" bitmap="modern/row" flags="nifty_fx">
+		<on event="a" run="port frontend page" />
+		<on event="start" run="port frontend page" />
+		<on event="left_mouse" run="mouse emit accept event" />
+		<child widget="modern/shadows/label_link_6" x="12" y="3" />
+	</widget>
+	<widget name="modern/shadows/label_link_6" type="text" controller="1" width="312" height="24" string_list="modern/shadows/labels" string_index="2" font="ui\large_ui" color="#FF2896FF" />
+	<strings name="modern/shadows/labels">
+		<string text="SHADOW MODE" />
+		<string text="SHADOW RESOLUTION" />
+		<string text="&lt; BACK" />
+	</strings>
+	<strings name="modern/shadows/help_strings">
+		<string text="OK saves pending settings across pages. Defaults resets this page. Cancel discards pending settings. Tab or Y changes tabs." />
+		<string text="Choose classic shadows or modern shadows with hard or soft edges." />
+		<string text="Shadow map size for both systems. 1024 is recommended for modern shadows." />
+		<string text="Return to the parent page, keeping pending changes." />
+	</strings>
+	<widget name="modern/shadows/button_bar" type="column_list" width="588" height="26" flags="pass_unhandled_to_focused_child left_right_tabs_items">
+		<child widget="modern/shadows/button_defaults" x="0" y="0" />
+		<child widget="modern/shadows/button_apply" x="332" y="0" />
+		<child widget="modern/shadows/button_cancel" x="462" y="0" />
+	</widget>
+	<widget name="modern/shadows/button_defaults" type="text" text="DEFAULTS" width="124" height="26" font="ui\large_ui" color="#FF2896FF" align="center" text_y="3" bitmap="modern/button" flags="nifty_fx">
+		<on event="a" run="port frontend defaults" />
+		<on event="start" run="port frontend defaults" />
+		<on event="left_mouse" run="mouse emit accept event" />
+	</widget>
+	<widget name="modern/shadows/button_apply" type="text" text="OK" width="124" height="26" font="ui\large_ui" color="#FF2896FF" align="center" text_y="3" bitmap="modern/button" flags="nifty_fx">
+		<on event="a" run="port frontend apply" />
+		<on event="start" run="port frontend apply" />
+		<on event="left_mouse" run="mouse emit accept event" />
+	</widget>
+	<widget name="modern/shadows/button_cancel" type="text" text="CANCEL" width="124" height="26" font="ui\large_ui" color="#FF2896FF" align="center" text_y="3" bitmap="modern/button" flags="nifty_fx">
+		<on event="a" run="port frontend cancel" />
+		<on event="start" run="port frontend cancel" />
+		<on event="left_mouse" run="mouse emit accept event" />
+	</widget>
+	<widget name="modern/paused/shadows/settings" width="640" height="480" bitmap="modern/panel" flags="pass_unhandled_to_focused_child pause_game">
+		<on event="created" run="port frontend init" />
+		<on event="b" run="port frontend back" />
+		<on event="back" run="port frontend back" />
+		<on event="y" run="port frontend next tab" />
+		<child widget="modern/shadows/title" x="70" y="40" />
+		<child widget="modern/shadows/section" x="32" y="108" />
+		<child widget="modern/shadows/rule_display" x="28" y="130" />
+		<child widget="modern/shadows/help_panel" x="380" y="106" />
+		<child widget="modern/shadows/options" x="0" y="0" />
+		<child widget="modern/shadows/help_title" x="396" y="119" />
+		<child widget="modern/shadows/help_value" x="396" y="138" />
+		<child widget="modern/shadows/status" x="28" y="389" />
+		<child widget="modern/shadows/prompts" x="28" y="450" />
+	</widget>
 	<widget name="modern/multiplayer/screen" width="640" height="480" bitmap="modern/panel" flags="pass_unhandled_to_focused_child main_menu_if_no_history">
 		<on event="created" run="main menu intialize" />
 		<on event="created" run="port frontend navigation init" />
@@ -4141,6 +4280,16 @@
 		<on event="left_mouse" run="mouse emit accept event" />
 	</widget>
 	<widget name="frontend_legacy/footer/main_menu/settings_select/player_setup/player_profile_edit/video_settings/hdr_calibration/button_ok" type="text" width="128" height="28" font="ui\large_ui" color="#FF2896FF" align="left" text_y="0" text="=OK" text_x="22">
+		<on event="a" run="port settings save" back="true" />
+		<on event="start" run="port settings save" back="true" />
+		<on event="left_mouse" run="mouse emit accept event" />
+	</widget>
+	<widget name="frontend_legacy/footer/main_menu/settings_select/player_setup/player_profile_edit/video_settings/shadows/button_defaults" type="text" width="180" height="28" font="ui\large_ui" color="#FF2896FF" align="left" text_y="0" text="=DEFAULTS" text_x="22">
+		<on event="a" run="port settings defaults" />
+		<on event="start" run="port settings defaults" />
+		<on event="left_mouse" run="mouse emit accept event" />
+	</widget>
+	<widget name="frontend_legacy/footer/main_menu/settings_select/player_setup/player_profile_edit/video_settings/shadows/button_ok" type="text" width="128" height="28" font="ui\large_ui" color="#FF2896FF" align="left" text_y="0" text="=OK" text_x="22">
 		<on event="a" run="port settings save" back="true" />
 		<on event="start" run="port settings save" back="true" />
 		<on event="left_mouse" run="mouse emit accept event" />

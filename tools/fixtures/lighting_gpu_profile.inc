@@ -7,14 +7,14 @@ static struct lighting_gpu_sample
 	GLuint query;
 	unsigned long frame;
 	double seconds;
-	int kind;
+	int kind, draws, triangles;
 } lighting_gpu_samples[LIGHTING_GPU_QUERIES];
 static unsigned long lighting_gpu_read, lighting_gpu_write, lighting_gpu_frame_number;
 static int lighting_gpu_active;
 static FILE *lighting_gpu_log;
 double lighting_performance_seconds(void);
 
-static void lighting_gpu_begin(void)
+static void lighting_gpu_begin_kind(int kind)
 {
 	struct lighting_gpu_sample *sample;
 	if (lighting_gpu_frame_number % 32 || lighting_gpu_write - lighting_gpu_read == LIGHTING_GPU_QUERIES)
@@ -23,7 +23,8 @@ static void lighting_gpu_begin(void)
 	if (!sample->query) glGenQueries(1, &sample->query);
 	sample->frame = lighting_gpu_frame_number;
 	sample->seconds = lighting_performance_seconds();
-	sample->kind = lighting_profile_world ? lighting_profile_world : lighting_profile_model;
+	sample->kind = kind;
+	sample->draws = sample->triangles = 0;
 	glBeginQuery(GL_TIME_ELAPSED, sample->query);
 	lighting_gpu_active = 1;
 }
@@ -36,6 +37,26 @@ static void lighting_gpu_end(void)
 	lighting_gpu_write++;
 }
 
+static void lighting_gpu_begin(void)
+{
+	lighting_gpu_begin_kind(lighting_profile_world ? lighting_profile_world : lighting_profile_model);
+}
+
+/* The depth-cube pass is outside the ordinary model/world draw dispatcher. */
+void lighting_gpu_shadow_begin(void) { lighting_gpu_begin_kind(4); }
+void lighting_gpu_environment_begin(void) { lighting_gpu_begin_kind(5); }
+void lighting_gpu_shadow_end(void) { lighting_gpu_end(); }
+void lighting_gpu_depth_begin(int kind) { lighting_gpu_begin_kind(kind); }
+void lighting_gpu_depth_draw(int triangles)
+{
+	if (lighting_gpu_active)
+	{
+		struct lighting_gpu_sample *sample = &lighting_gpu_samples[lighting_gpu_write % LIGHTING_GPU_QUERIES];
+		sample->draws++;
+		sample->triangles += triangles;
+	}
+}
+
 static void lighting_gpu_frame(unsigned long frame)
 {
 	if (!lighting_gpu_log)
@@ -44,7 +65,7 @@ static void lighting_gpu_frame(unsigned long frame)
 		if (lighting_gpu_log)
 		{
 			setvbuf(lighting_gpu_log, NULL, _IOFBF, 65536);
-			fprintf(lighting_gpu_log, "frame,seconds,kind,nanoseconds\n");
+			fprintf(lighting_gpu_log, "frame,seconds,kind,nanoseconds,draws,triangles\n");
 		}
 	}
 	while (lighting_gpu_read != lighting_gpu_write)
@@ -55,7 +76,7 @@ static void lighting_gpu_frame(unsigned long frame)
 		if (!ready) break;
 		glGetQueryObjectuiv(sample->query, GL_QUERY_RESULT, &nanoseconds);
 		if (lighting_gpu_log)
-			fprintf(lighting_gpu_log, "%lu,%.6f,%d,%u\n", sample->frame, sample->seconds, sample->kind, nanoseconds);
+			fprintf(lighting_gpu_log, "%lu,%.6f,%d,%u,%d,%d\n", sample->frame, sample->seconds, sample->kind, nanoseconds, sample->draws, sample->triangles);
 		lighting_gpu_read++;
 	}
 	if (lighting_gpu_log) fflush(lighting_gpu_log);

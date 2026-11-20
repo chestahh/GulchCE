@@ -65,6 +65,15 @@ void xgpu_gl_state_invalidate(void);
 /* whether there is an OpenGL context (not with debug.null_renderer, a
 dedicated server's): textures are made only then */
 int xgpu_gl_ready(void);
+#ifndef HALO_GLES
+/* Return from a desktop feature pass to the device's scratch vertex array.
+   The next draw/clear binds its own targets and reapplies invalidated state. */
+void xgpu_gl_end_external_pass(void);
+/* Current D3D destination, depth attachment and viewport for a feature pass.
+   No borrowed depth texture may be sampled while attached: copy it first. */
+int xgpu_gl_scene_target(unsigned int *framebuffer, int size[2],
+    unsigned int *depth_format, int viewport[4], float pixel_center[2]);
+#endif
 /* a texture about to be deleted: the binding shadows forget it, since GL
 may give its name to a new texture (call before glDeleteTextures) */
 void xgpu_gl_texture_deleted(unsigned int texture);
@@ -185,6 +194,8 @@ struct nv2a_pixel_shader_key
 	unsigned char mcc_bump_attenuation;
 	/* Optional model-light falloff/occlusion, only for selected point lights. */
 	unsigned char plasma_model;
+	/* Desktop prototype: 1 specular / 2 diffuse world attenuation, 3 model. */
+	unsigned char modern_shadow;
 	/* The procedural surface is needed only while a shield draw enables it. */
 	unsigned char shield_honeycomb;
 };

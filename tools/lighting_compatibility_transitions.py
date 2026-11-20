@@ -9,6 +9,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import re
 import shutil
 import socket
 import subprocess
@@ -23,28 +24,39 @@ def main():
     parser.add_argument('--data-root', type=Path, required=True)
     parser.add_argument('--profile-root', type=Path, required=True)
     parser.add_argument('--enabled', type=int, choices=(0, 1), required=True)
+    parser.add_argument('--label', help='Unique evidence folder')
+    parser.add_argument('--build-dir', type=Path, default=ROOT/'build/lighting-compatibility-build')
+    parser.add_argument('--modern-shadows', choices=('off', 'hard', 'soft'), default='off')
+    parser.add_argument('--mcc-package', type=Path, help='Workshop Digsite package containing maps/1.map')
     args = parser.parse_args()
     enabled = args.enabled
-    out = (ROOT/'build/lighting-compatibility'/f'transitions-{enabled}').resolve()
+    label = args.label or f'transitions-{enabled}'
+    assert re.fullmatch(r'[A-Za-z0-9_-]+', label)
+    out = (ROOT/'build/lighting-compatibility'/label).resolve()
     assert out.is_relative_to((ROOT/'build').resolve())
     out.mkdir(parents=True, exist_ok=False)
-    build = ROOT/'build/lighting-compatibility-build'
+    build = args.build_dir.resolve()
     manifest = json.loads((build/'manifest.json').read_text())
     assert hashlib.sha256((build/'halo-compatibility.exe').read_bytes()).hexdigest() == manifest['executable_sha256']
     process = connection = None
     transcript = ''
     sent = []
-    commands = [(30, '(map_name "mcc_maps\\Mercury 1 & 2\\mercury_falling")'),
+    mcc_name = 'DigsiteMP' if args.mcc_package else 'Mercury 1 & 2'
+    mcc_map = '1' if args.mcc_package else 'mercury_falling'
+    commands = [(30, f'(map_name "mcc_maps\\{mcc_name}\\{mcc_map}")'),
                 (64, '(map_name custom_maps\\deathisland)'),
                 (90, '(map_name levels\\test\\bloodgulch\\bloodgulch)')]
     try:
         for folder, names in [('maps', ['ui', 'c40', 'bloodgulch']),
                               ('custom_maps', ['deathisland', 'bitmaps', 'sounds', 'loc']),
-                              ('mcc_maps/Mercury 1 & 2', ['mercury_falling', 'bitmaps', 'sounds'])]:
+                              ('mcc_maps/'+mcc_name, [mcc_map, 'bitmaps', 'sounds'])]:
             for name in names:
                 target = out/folder/(name+'.map')
                 target.parent.mkdir(parents=True, exist_ok=True)
-                shutil.copy2(args.data_root/folder/(name+'.map'), target)
+                source = args.data_root/folder/(name+'.map')
+                if args.mcc_package and folder.startswith('mcc_maps/'):
+                    source = args.mcc_package/('maps' if name == mcc_map else 'halo1/maps')/(name+'.map')
+                shutil.copy2(source, target)
         assert args.profile_root.is_dir()
         for src in args.profile_root.rglob('*'):
             if src.is_file() and src.suffix != '.map':
@@ -56,7 +68,8 @@ def main():
         shutil.copy2(build/'manifest.json', out/'build-manifest.json')
         shutil.copy2(ROOT/'build/windows/SDL3.dll', out/'SDL3.dll')
         settings = {key: bool(enabled) for key in LIGHTS}
-        settings.update(overshield_effect=bool(enabled), per_pixel_lighting=True, shield_glow_intensity='default')
+        settings.update(overshield_effect=bool(enabled), per_pixel_lighting=True, shield_glow_intensity='default', dynamic_lighting_reset=True)
+        settings['modern_shadows'] = args.modern_shadows
         (out/'config.toml').write_text('[display]\n'+''.join(f'{k} = {json.dumps(v)}\n' for k, v in settings.items()))
         (out/'init.txt').write_text('map_name levels\\c40\\c40\n')
         port = 24041+enabled
@@ -105,9 +118,17 @@ def main():
                   policy_values=sorted({r['policy'] for r in rows}),
                   shield_values=sorted({r['shield_enabled'] for r in rows}),
                   screenshots=len(list((out/'screenshots').glob('*.png'))), exceptions=log.count('EXCEPTION'))
+    with (out/'shadow-state.csv').open() as stream:
+        shadows = list(csv.DictReader(stream))
+    mode = {'off': 0, 'hard': 1, 'soft': 2}[args.modern_shadows]
+    report['shadow_mode_correct'] = bool(shadows) and all(int(r['mode']) == mode and (mode or int(r['maps']) == 0) for r in shadows)
+    report['shadow_active_samples'] = sum(int(r['maps']) != 0 for r in shadows)
+    report['lighting_preferences_correct'] = bool(rows) and all(r['local_plasma'] == enabled and r['local_needler'] == enabled for r in rows)
     report['passed'] = (report['exit'] == 0 and not forced and len(sent) == 3 and
                         report['mcc_loads'] == 1 and report['ce_loads'] == 1 and
-                        report['tick_resets'] >= 3 and report['shield_values'] == [enabled] and not report['exceptions'])
+                        report['tick_resets'] >= 3 and report['shield_values'] == [enabled] and not report['exceptions'] and
+                        report['shadow_mode_correct'] and report['lighting_preferences_correct'] and
+                        (not mode or not enabled or report['shadow_active_samples'] > 0))
     (out/'report.json').write_text(json.dumps(report, indent=2))
     print(json.dumps(report), flush=True)
     return 0 if report['passed'] else 1

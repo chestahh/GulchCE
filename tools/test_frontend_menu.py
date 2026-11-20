@@ -494,6 +494,25 @@ def test_labels_and_values_fit_narrow_layout():
                 assert frontend_menu.text_width(caption, size) <= int(w.get('width')) - 4, caption
 
 
+def test_modern_lighting_and_shadows_live_under_advanced_graphics_in_shell_and_pause():
+    widgets = {w.get('name'): w for w in ET.fromstring(frontend_menu.document()).findall('widget')}
+    pages = {spec[0]: i for i, spec in enumerate(frontend_menu.PAGES)}
+    for page in ('lighting', 'shadows'):
+        assert f'modern/row_link_{pages[page]}' not in widgets
+        row = widgets[f'modern/graphics/row_link_{pages[page]}']
+        assert row.find("on[@event='a']").get('run') == 'port frontend page'
+        assert frontend_menu.PAGES[pages[page]][2] == pages['graphics']
+    for page in ('', 'graphics/', 'lighting/', 'shadows/'):
+        shell = widgets[f'modern/{page}settings'].findall('child')
+        pause = widgets[f'modern/paused/{page}settings'].findall('child')
+        assert shell and [c.attrib for c in pause] == [c.attrib for c in shell]
+    for setting in ('display.shadow_resolution', 'display.modern_shadows'):
+        matches = [name for name, widget in widgets.items() if widget.get('setting') == setting
+                   and name.startswith('modern/')]
+        assert len(matches) == 1 and matches[0].startswith('modern/shadows/')
+
+
+
 def test_shoulder_camera_settings_are_reachable_and_use_pending_edits():
     doc = ET.fromstring(frontend_menu.document())
     widgets = {w.get('name'): w for w in doc.findall('widget')}

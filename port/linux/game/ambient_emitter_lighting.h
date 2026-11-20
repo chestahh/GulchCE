@@ -4,7 +4,7 @@
 /* Render samples share the existing bounded emitter pool. */
 struct emitter_sample
 {
-	int kind;
+	int kind, owner_unshadowed;
 	real strength, radius, view_gain;
 	real_rgb_color color;
 	real_point3d position;
