@@ -21,7 +21,7 @@ void modern_spot_bsp(void);
 struct xgpu_text;
 void modern_spot_emit(struct xgpu_text *text);
 int modern_shadows_sun_casters(void);
-int modern_environment_sun_begin(const float frame[16], float radius, int cache_static, int sky);
+int modern_environment_sun_begin(const float frame[16], float radius, int cache_static, int sky, int soft);
 void modern_environment_sun_surfaces(const unsigned char *owners);
 int modern_environment_sun_static(int complete);
 int modern_environment_sun_end(int complete, const float camera[16], const float projection[16], const float color[3], const float reach[6]);

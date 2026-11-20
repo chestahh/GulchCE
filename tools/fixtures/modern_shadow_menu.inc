@@ -4,7 +4,7 @@ static struct widget_instance *shadow_menu_spinner(struct widget_instance *widge
 {
 	struct widget_instance *child, *found;
 	struct pc_menu_setting *setting;
-	char const *key = getenv("HALO_SHADOW_MENU_FLASHLIGHT");
+	char const *key = getenv("HALO_SHADOW_MENU_BOOLEAN");
 	if (!key) key = getenv("HALO_SHADOW_MENU_RESOLUTION") ? "display.shadow_resolution" : "display.modern_shadows";
 	if (!widget) return NULL;
 	setting = pc_menu_setting_get(widget->definition_tag_index);
@@ -70,9 +70,9 @@ void modern_shadow_menu_accept(struct widget_instance *root)
 	now = system_milliseconds();
 	if (now < next) return;
 	next = now + 750;
-	if (getenv("HALO_SHADOW_MENU_FLASHLIGHT"))
+	if (getenv("HALO_SHADOW_MENU_BOOLEAN"))
 	{
-		char const *key = getenv("HALO_SHADOW_MENU_FLASHLIGHT");
+		char const *key = getenv("HALO_SHADOW_MENU_BOOLEAN");
 		/* Measure the only additional per-view CPU operation in Shared. A batch
 		   makes this visible to the millisecond clock in the isolated menu run. */
 		if (step == 0 && !getenv("HALO_SHADOW_MENU_VERIFY") && !strcmp(key, "display.flashlight_extra_slot"))

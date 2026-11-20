@@ -433,7 +433,7 @@ def main():
             assert report.get('shadowed_frame_percent', 0) > 0, 'No active shadow maps measured'
         elif 'shadowed_frame_percent' in report:
             assert report['shadowed_frame_percent'] == 0, 'Unexpected active shadow maps'
-        if args.environment_sun and args.snowy_route and args.modern_shadows=='hard':
+        if args.environment_sun and args.snowy_route and args.modern_shadows in ('hard','soft'):
             assert report.get('sun_frame_percent',0)>0, 'No sun shadows measured during the snowy route'
         if args.invulnerable_player:
             assert 'BENCH controlled invulnerable player enabled' in log, 'Controlled player protection was not active'

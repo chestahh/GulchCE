@@ -12,7 +12,9 @@ one directional slot and eight local slots.
 E3 adds two independent fixture slots and a stock flashlight projector in Hard
 and Soft. An active beam shares the eight local slots by default. Extra Slot allows eight other local shadows alongside the beam. [Indoor lighting, flashlight and measurements](environment_shadow_e3.md)
 
-E4–E7 are planned. The earliest public environmental-shadow release is after E4, including Soft sunlight.
+E4 adds Soft sunlight and exposes the environmental sources in all desktop menu styles. [Outdoor coverage and Windows playtest](environment_shadow_e4.md)
+
+E5–E7 cover optional authoring, adaptive quality and final compatibility.
 The goal is for moving characters, weapons, vehicles and doors to block
 sunlight and identifiable map fixtures while preserving the map's authored
 lighting. The feature is opt-in on desktop, follows host visual policy and

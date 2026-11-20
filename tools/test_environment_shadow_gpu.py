@@ -89,6 +89,13 @@ def test_directional_receiver_depth_and_empty_rays(reverse,soft,depth_stencil,su
             assert np.array_equal(draw(-.5),inside), 'Camera crossing into the receiver volume'
             camera[2,3]=3
         assert np.allclose(behind[31:33,31:33,:3],.5 if sun else .5625,atol=.002)
+        if sun:
+            # Offset the shadow texel grid from the screen pixel grid.
+            frame[0,3] += .013
+            edge = draw(-.5)[:,:,0]
+            fractional = (edge > .502) & (edge < .998)
+            assert bool(fractional.any()) == bool(soft)
+            frame[0,3] -= .013
         if sun: assert np.allclose(draw(-.5,roof=True)[:,:,:3],1), "Roof already blocks direct sunlight"
         assert np.allclose(behind[:4,:,:3],1)
         assert np.allclose(draw(.25)[:,:,:3],1), 'Surface in front of caster must remain lit'

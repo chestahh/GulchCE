@@ -3,8 +3,8 @@
    sequentially; no local-light cube or selection slot is borrowed. */
 static struct
 {
-    GLuint depth, scene_depth, scene_fbo, caster, receiver;
-    int size, scene_size[2], copied, count, unavailable, soft, marking;
+    GLuint depth, depth_fbo, scene_depth, scene_fbo, caster, receiver;
+    int size, scene_size[2], copied, count, failed_size, soft, marking;
     GLenum scene_format;
     GLint caster_frame, caster_radius, caster_alpha_map, caster_bones, caster_uv, caster_alpha;
     GLuint destination;
@@ -82,6 +82,7 @@ void modern_environment_dispose(void)
     if (environment_model.depth[0] || environment_model.depth[1])
         glDeleteTextures(2, environment_model.depth);
     memset(&environment_model, 0, sizeof(environment_model));
+    if (environment.depth_fbo) glDeleteFramebuffers(1, &environment.depth_fbo);
     if (environment.depth) glDeleteTextures(1, &environment.depth);
     if (environment.scene_depth) glDeleteTextures(1, &environment.scene_depth);
     if (environment.scene_fbo) glDeleteFramebuffers(1, &environment.scene_fbo);
@@ -89,6 +90,44 @@ void modern_environment_dispose(void)
     if (environment.receiver) glDeleteProgram(environment.receiver);
     memset(&environment, 0, sizeof(environment));
     environment_drawing = 0;
+}
+
+/* Validate the replacement attachment before releasing the usable texture. */
+static int environment_resize_texture(GLuint *current, int size, int static_visibility)
+{
+    GLuint next = 0;
+    GLenum attachment = static_visibility ? GL_COLOR_ATTACHMENT0 : GL_DEPTH_ATTACHMENT;
+    GLenum output = static_visibility ? GL_COLOR_ATTACHMENT0 : GL_NONE;
+    glGenTextures(1, &next);
+    glActiveTexture(static_visibility ? GL_TEXTURE9 : GL_TEXTURE8);
+    glBindTexture(GL_TEXTURE_2D, next);
+    glTexImage2D(GL_TEXTURE_2D, 0, static_visibility ? GL_R32F : GL_DEPTH_COMPONENT32F,
+        size, size, 0, static_visibility ? GL_RED : GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    if (!environment.depth_fbo) glGenFramebuffers(1, &environment.depth_fbo);
+    glBindFramebuffer(GL_FRAMEBUFFER, environment.depth_fbo);
+    glReadBuffer(GL_NONE);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, attachment, GL_TEXTURE_2D, next, 0);
+    glDrawBuffers(1, &output);
+    int complete = glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE;
+    int error = glGetError() != GL_NO_ERROR;
+    if (static_visibility || !complete || error)
+    {
+        glFramebufferTexture2D(GL_FRAMEBUFFER, attachment, GL_TEXTURE_2D, static_visibility ? 0 : *current, 0);
+        output = GL_NONE;
+        glDrawBuffers(1, &output);
+    }
+    if (!complete || error)
+    {
+        glDeleteTextures(1, &next);
+        return 0;
+    }
+    if (*current) glDeleteTextures(1, current);
+    *current = next;
+    return 1;
 }
 
 static int environment_resources_for(int projector)
@@ -133,7 +172,13 @@ static int environment_resources_for(int projector)
         "#version 330 core\n"
         "uniform sampler2D scene_depth, shadow_depth; uniform mat4 camera, projection, frame;\n"
         "uniform vec4 viewport; uniform vec4 color; uniform float radius; uniform int reversed_depth, soft;\n"
-        "#ifdef SUN\nuniform sampler2D static_depth;\n#endif\n"
+        "#ifdef SUN\nuniform sampler2D static_depth;\n"
+        "float sun_sample(ivec2 cell,ivec2 size,vec2 uv,float depth,vec2 gradient){\n"
+        "if(any(lessThan(cell,ivec2(0)))||any(greaterThanEqual(cell,size))) return 0.;\n"
+        "float expected=depth+dot((vec2(cell)+.5)/vec2(size)-uv,gradient);\n"
+        "float ground=texelFetch(static_depth,cell,0).r;\n"
+        "return ground>0. && abs(ground-expected)<=.00015 && texelFetch(shadow_depth,cell,0).r>max(0.,expected+.0001)?1.:0.;}\n"
+        "#endif\n"
         "out vec4 result;\n"
         "float compare_at(vec2 uv,float z,vec2 gradient){\n"
         "vec2 size=vec2(textureSize(shadow_depth,0)); vec2 center=(floor(uv*size)+0.5)/size;\n"
@@ -157,11 +202,16 @@ static int environment_resources_for(int projector)
         "if(any(greaterThanEqual(cell,textureSize(shadow_depth,0))) || depth<=0 || depth>=1) discard;\n"
         "vec2 center=(vec2(cell)+0.5)/vec2(textureSize(shadow_depth,0));\n"
         "float expected=depth+dot(center-uv,gradient);\n"
-        "if(texelFetch(shadow_depth,cell,0).r<=max(0.0,expected+0.0001)) discard;\n"
         "float ground=texelFetch(static_depth,cell,0).r;\n"
         "if(ground<=0 || abs(ground-expected)>0.00015) discard;\n"
-        "float facing=abs(dot(n/nl,normalize(frame[2].xyz)));\n"
-        "result=vec4(mix(vec3(1),color.xyz,facing),1);\n"
+        "float visibility;\n"
+        "if(soft==0){if(texelFetch(shadow_depth,cell,0).r<=max(0.,expected+.0001)) discard; visibility=1.;}\n"
+        "else {ivec2 size=textureSize(shadow_depth,0);vec2 pos=uv*vec2(size)-.5;\n"
+        "ivec2 base=ivec2(floor(pos));vec2 f=fract(pos);\n"
+        "visibility=mix(mix(sun_sample(base,size,uv,depth,gradient),sun_sample(base+ivec2(1,0),size,uv,depth,gradient),f.x),\n"
+        "mix(sun_sample(base+ivec2(0,1),size,uv,depth,gradient),sun_sample(base+1,size,uv,depth,gradient),f.x),f.y);}\n"
+        "if(visibility<=0.) discard; float facing=abs(dot(n/nl,normalize(frame[2].xyz)));\n"
+        "result=vec4(mix(vec3(1),color.xyz,visibility*facing),1);\n"
         "#else\n"
         "float shadow=compare_at(uv,depth,gradient);\n"
         "if(soft!=0){vec2 size=vec2(textureSize(shadow_depth,0)), f=fract(uv*size-0.5), base=uv-f/size;\n"
@@ -172,14 +222,8 @@ static int environment_resources_for(int projector)
         "result=vec4(mix(vec3(1),color.xyz,shadow*fade*facing),1);\n"
         "#endif\n}\n";
     int size = 128 * (int)halo_shadow_resolution_scale();
-    if (environment.size != size)
-    {
-        if (environment.depth) glDeleteTextures(1, &environment.depth);
-        environment.depth = 0;
-        environment.size = size;
-        environment.unavailable = 0;
-    }
-    if (environment.unavailable || !create_resources()) return 0;
+    if (environment.failed_size != size) environment.failed_size = 0;
+    if ((!projector && environment.failed_size) || !create_resources()) return 0;
     if (!environment.caster)
     {
         environment.caster = environment_program(caster_vertex, caster_fragment);
@@ -220,20 +264,12 @@ static int environment_resources_for(int projector)
         if (!sun.receiver) return 0;
     }
     if (!environment.caster || !environment.receiver) return 0;
-    if (!environment.depth)
+    if (!environment.depth || environment.size != size)
     {
-        glGenTextures(1, &environment.depth);
-        glActiveTexture(GL_TEXTURE8);
-        glBindTexture(GL_TEXTURE_2D, environment.depth);
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT32F, size, size, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        if (!environment_resize_texture(&environment.depth, size, 0)) return 0;
+        environment.size = size;
     }
-    glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, environment.depth, 0);
-    return glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE && glGetError() == GL_NO_ERROR;
+    return 1;
 }
 
 static int environment_resources(void)
@@ -296,7 +332,7 @@ int modern_environment_begin(const float frame[16], float radius, int soft)
     environment.count++;
     if (!environment_snapshot() || !environment_resources())
     {
-        environment.unavailable = 1;
+        environment.failed_size = 128 * (int)halo_shadow_resolution_scale();
         xgpu_gl_end_external_pass();
         return 0;
     }
@@ -364,7 +400,8 @@ static int environment_draw_depth(GLuint target)
     if (success)
     {
         glBindFramebuffer(GL_FRAMEBUFFER, target);
-        glViewport(0,0,environment.size,environment.size);
+        int depth_size = spots.rendering ? spots.size : environment.size;
+        glViewport(0,0,depth_size,depth_size);
         glClipControl(GL_LOWER_LEFT,GL_ZERO_TO_ONE);
         glDisable(GL_SCISSOR_TEST); glDisable(GL_STENCIL_TEST); glDisable(GL_BLEND);
         glDisable(GL_CULL_FACE); glDisable(GL_POLYGON_OFFSET_FILL);
@@ -416,7 +453,7 @@ int modern_environment_end(int complete, const float camera[16], const float pro
     int scissor[4];
     int draw, success = complete && !failed && draw_count > 0;
     if (!environment_drawing) return 0;
-    if (success) success = environment_draw_depth(framebuffer);
+    if (success) success = environment_draw_depth(environment.depth_fbo);
     if (success)
     {
         p=sun.projecting ? sun.receiver : environment.receiver;
@@ -476,27 +513,20 @@ int modern_environment_end(int complete, const float camera[16], const float pro
 }
 
 /* Returns 2 on a static cache hit, 1 when the caller must submit BSP depth. */
-int modern_environment_sun_begin(const float frame[16], float radius, int cache_static, int sky)
+int modern_environment_sun_begin(const float frame[16], float radius, int cache_static, int sky, int soft)
 {
     if (drawing || !xgpu_gl_ready()) return 0;
     sun.projecting = 1;
     if (!environment_snapshot() || !environment_resources()) goto fail;
     if (sun.size != environment.size || !sun.static_depth)
     {
-        if (sun.static_depth) glDeleteTextures(1,&sun.static_depth);
+        if (!environment_resize_texture(&sun.static_depth, environment.size, 1)) goto fail;
         sun.valid = 0;
         sun.size = environment.size;
-        glGenTextures(1,&sun.static_depth);
-        glActiveTexture(GL_TEXTURE9);
-        glBindTexture(GL_TEXTURE_2D,sun.static_depth);
-        glTexImage2D(GL_TEXTURE_2D,0,GL_R32F,sun.size,sun.size,0,GL_RED,GL_FLOAT,NULL);
-        glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_NEAREST);
-        glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_NEAREST);
-        if (glGetError() != GL_NO_ERROR) goto fail;
     }
     memcpy(environment.frame,frame,sizeof(environment.frame));
     environment.radius = radius;
-    environment.soft = 0;
+    environment.soft = soft;
     drawing = environment_drawing = 1;
     draw_count = failed = 0;
     if (cache_static && sun.valid && sky==sun.sky && radius==sun.radius && !memcmp(sun.frame,frame,sizeof(sun.frame))) return 2;
@@ -519,12 +549,12 @@ void modern_environment_sun_surfaces(const unsigned char *owners)
 int modern_environment_sun_static(int complete)
 {
     int ok;
-    glBindFramebuffer(GL_FRAMEBUFFER,framebuffer);
+    glBindFramebuffer(GL_FRAMEBUFFER,environment.depth_fbo);
     glFramebufferTexture2D(GL_FRAMEBUFFER,GL_COLOR_ATTACHMENT0,GL_TEXTURE_2D,sun.static_depth,0);
     { GLenum target=GL_COLOR_ATTACHMENT0; glDrawBuffers(1,&target); }
     sun.writing=1;
     ok = complete && glCheckFramebufferStatus(GL_FRAMEBUFFER)==GL_FRAMEBUFFER_COMPLETE &&
-        environment_draw_depth(framebuffer) && glGetError()==GL_NO_ERROR;
+        environment_draw_depth(environment.depth_fbo) && glGetError()==GL_NO_ERROR;
     sun.writing=0;
     glFramebufferTexture2D(GL_FRAMEBUFFER,GL_COLOR_ATTACHMENT0,GL_TEXTURE_2D,0,0);
     { GLenum none=GL_NONE; glDrawBuffers(1,&none); }

@@ -693,7 +693,7 @@ static const struct config_setting config_settings[] =
 	{ "display.flashlight_extra_slot", _config_boolean, "false", "HALO_FLASHLIGHT_EXTRA_SLOT", _environment_value, _platform_desktop,
 		"Give an active shadowed flashlight an extra slot alongside all eight other local lights." },
 	{ "display.environment_sun", _config_boolean, "false", "HALO_ENVIRONMENT_SUN", _environment_value, _platform_desktop,
-		"One independent Hard directional shadow map for nearby sunlit world receivers." },
+		"Directional sunlight shadows for nearby sunlit world surfaces in Modern Hard and Soft." },
 	{ "display.modern_shadows", _config_string, "\"off\"", "HALO_MODERN_SHADOWS", _environment_value, _platform_desktop,
 		"Rendered shadows for up to eight enabled dynamic lights: \"off\",\n"
 		"\"hard\" or \"soft\". Classic shadows remain unchanged. Desktop only." },

@@ -97,7 +97,8 @@ void modern_shadows_sun_project(void)
     int families = 0, ok = 1, reuse, i;
     short sky;
     sun_count = 0;
-    if (!cached_bsp || setting() != 1 || !config_boolean("display.environment_sun") ||
+    int mode = setting();
+    if (!cached_bsp || !mode || !config_boolean("display.environment_sun") ||
         !game_engine_allow_dynamic_lighting() || !rasterizer_debug_options.draw_environment_shadows ||
         global_window_parameters.rasterizer_target != 0) return;
     sky = sun_cluster_sky(render.cluster_index);
@@ -165,7 +166,7 @@ void modern_shadows_sun_project(void)
         sun_families[families++] = it.index;
     }
     if (!families || !sun_classify_surfaces()) return;
-    reuse = modern_environment_sun_begin(frame,radius,sun_static_unchanged(),sky);
+    reuse = modern_environment_sun_begin(frame,radius,sun_static_unchanged(),sky,mode == 2);
     if (!reuse) return;
     if (reuse == 1)
     {
