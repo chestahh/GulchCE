@@ -686,6 +686,8 @@ static const struct config_setting config_settings[] =
 	{ "display.dynamic_lighting_reset", _config_boolean, "true", "HALO_DYNAMIC_LIGHTING_RESET", _environment_value, _platform_all,
 		"Migration marker: old saved dynamic-lighting preferences were reset to off.\n"
 		"Leave true to retain lighting choices made after that one-time reset." },
+	{ "display.environment_sun", _config_boolean, "false", "HALO_ENVIRONMENT_SUN", _environment_value, _platform_desktop,
+		"One independent Hard directional shadow map for nearby sunlit world receivers." },
 	{ "display.modern_shadows", _config_string, "\"off\"", "HALO_MODERN_SHADOWS", _environment_value, _platform_desktop,
 		"Rendered shadows for up to two enabled dynamic lights: \"off\",\n"
 		"\"hard\" or \"soft\". Classic shadows remain unchanged. Desktop only." },

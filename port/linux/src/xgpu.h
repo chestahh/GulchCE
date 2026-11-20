@@ -72,7 +72,7 @@ void xgpu_gl_end_external_pass(void);
 /* Current D3D destination, depth attachment and viewport for a feature pass.
    No borrowed depth texture may be sampled while attached: copy it first. */
 int xgpu_gl_scene_target(unsigned int *framebuffer, int size[2],
-    unsigned int *depth_format, int viewport[4], float pixel_center[2]);
+    unsigned int *depth_format, unsigned int *copy_source, int viewport[4], float pixel_center[2]);
 #endif
 /* a texture about to be deleted: the binding shadows forget it, since GL
 may give its name to a new texture (call before glDeleteTextures) */

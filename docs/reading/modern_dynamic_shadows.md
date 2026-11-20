@@ -1,5 +1,143 @@
 # Modern dynamic shadows
 
+## Next phase — environmental shadows
+
+E1 established the map sources and fixed performance baselines.
+[Source verification and baseline measurements](environment_shadow_e1.md)
+
+E2 adds the opt-in Hard sun prototype. Its validation uses the original maps,
+one directional slot and eight local slots.
+[Sunlight, ownership and performance evidence](environment_shadow_e2.md)
+
+E3–E7 are planned.
+The goal is for moving characters, weapons, vehicles and doors to block
+sunlight and identifiable map fixtures while preserving the map's authored
+lighting. The feature is opt-in on desktop, follows host visual policy and
+uses the existing Hard/Soft and resolution controls. Classic stays the default.
+Android and web keep their existing exclusions.
+
+### Performance gate
+
+Every milestone that changes rendering must sustain **240+ average FPS** in
+both Hard and Soft at the 1024 setting once those modes are implemented.
+Use the same snowy Two Betrayals exterior checkpoint, recorded combat input,
+2560×1440 resolution, uncapped release build, 25-second warmup and 120-second
+measurement as the 1.0 benchmark. Compare the shipped renderer and the
+candidate on the same machine with the existing dynamic lighting enabled.
+Keep all eight local shadow slots available and record their actual usage.
+For fixtures, also measure a busy indoor encounter with the admitted lamps
+and moving casters visible; confirm in each capture which sources rendered.
+Repeat close results in alternating order. Record CPU and GPU pass times,
+memory, average FPS and recurring stalls. The acceptance metric is average
+FPS. Run timing captures separately from screenshots and diagnostic logging.
+
+At 240 FPS the whole frame takes 4.17 ms. The historical Soft 1024 result
+of 259.7 FPS left roughly 0.32 ms on the reference RTX 5070 Ti. Remeasure
+that margin in E1. If a candidate misses, profile the largest measured cost,
+optimise or defer the expensive path, and repeat the matched comparison.
+Reducing the established local-light budget or silently lowering the selected
+shadow resolution does not qualify as a performance improvement.
+
+### Milestones
+
+1. **E1 — Identify sources and establish baselines.** Inspect the scenario,
+   BSP clusters and active sky on Xbox, CE and MCC examples. Verify which sky
+   light supplies direct sunlight and its direction against a known baked
+   shadow. Cover multiple lights, missing skies and indoor/outdoor boundaries.
+   Inspect the pictured ceiling lamps and wall fixture in the actual map. Prefer
+   a placed fixture or existing light attachment; otherwise use connected BSP
+   faces with authored radiosity emission. Deduplicate the same source and
+   leave ambiguous glows baked. Exit with source positions/directions, matched
+   reference images and performance baselines for the outdoor and indoor scenes.
+2. **E2 — Prove sunlight and stock-shadow ownership.** Start with one
+   texel-stabilized orthographic sun map in Hard mode. Reserve one directional
+   shadow slot independently of all eight local slots. Cull by the visible
+   receiver footprint projected toward the sun so an off-camera caster can
+   still shadow visible ground. Skip the pass when there are no eligible
+   receivers or no supported sky. Test a Warthog crossing
+   from sunlit snow into a cliff's baked shadow, a biped under a bridge and a
+   doorway where sky eligibility changes. Use static BSP visibility to decide
+   where direct sun can reach. Once valid replacement coverage is established,
+   skip both generation and projection of the stock per-object buffers and
+   the existing Modern per-object environmental pass for that coverage.
+   Restore the previous path outside coverage or on failure. Exit with one
+   environmental silhouette, intact local-light shadows and a passing Hard run.
+3. **E3 — Prove indoor fixtures and flashlight shadows on an unmodified map.** Start with the two
+   ceiling lamps, one spotlight map per selected lamp and an experimental cap
+   of two fixtures, independent of the sun and local slots. Cache unchanged
+   fixture depth and admit a fixture only when its light reaches visible
+   receivers. Account for the moving flashlight separately. Test the wall
+   light as one emitting surface if its map data
+   supports that interpretation. Reuse the current animated caster geometry.
+   On lightmapped surfaces estimate each lamp's baked direct contribution in
+   linear light, including visibility through the static BSP. Remove only the
+   share blocked by a moving caster. Bound the combined estimate by the baked
+   lighting and preserve independent dynamic-light passes. Use the same
+   per-source principle for sunlight; legacy direct/indirect separation is
+   approximate. Exit when a biped blocks each lamp independently, the other
+   lamp and a passing plasma bolt still fill the shadow, and the empty room
+   matches the stock bake. Check world and model receivers and time the indoor case.
+
+   Reuse the spotlight shadow path for the stock flashlight. Follow its live
+   origin, aim, cone and intensity. Apply visibility only to the flashlight's
+   direct light. Use the Modern renderer's caster and receiver rules for both
+   BSP geometry and eligible objects, including players, NPCs, held and dropped
+   weapons, vehicles, doors and props. Include self-shadowing where eligible.
+   Sweep the beam across a Marine and onto a Warthog: the Marine and rifle
+   should cast onto the hull, the hull onto the ground, and a doorway should
+   block the beam from reaching either. Check moving casters and receivers in
+   first and third person. Switching the flashlight off must remove its shadow
+   work immediately after the stock beam fades.
+4. **E4 — Choose outdoor coverage and finish Hard/Soft.** Compare the single
+   sun map against two stabilized cascades on Sidewinder and Two Betrayals.
+   Include the cheaper option of live nearby casters with distant baked scenery;
+   use the existing per-object path as a comparison and fallback. Decide using
+   moving-camera shimmer, contact, distant silhouettes, coverage transitions and
+   matched CPU/GPU timings. Adopt CSM only if it materially improves outdoor
+   coverage and passes the performance gate. Verify Soft from the same depth
+   data and check the shared 128–4096 resolution range. The combat FPS gate
+   applies at fixed 1024. Measure memory and prepare resolution changes
+   without replacing a usable map before its successor is ready.
+5. **E5 — Optional authoring for precise lightmaps.** Design a versioned
+   companion file keyed to the compiled map and BSP. Authors can correct an
+   emitter's position, extent and direction; an offline export can supply its
+   static direct-light contribution in existing lightmap UVs. Attenuate that
+   contribution by additional dynamic occlusion, retaining indirect light.
+   Keep Sapien, stock tags, map files and multiplayer map identity compatible.
+   Prove the same map works automatically without a companion, improves with
+   a matching one, and falls back safely on stale, missing or malformed data.
+6. **E6 — Integrate, profile and add optional adaptive quality.** Run sun, fixtures, the
+   flashlight and the eight-slot local renderer together. Compare matched
+   flashlight-on/off runs in busy Two Betrayals combat and the indoor scene.
+   Require 240+ average FPS with the beam actively shadowing moving objects
+   in Hard and Soft at 1024. Set the environmental budget from
+   measured cost. Prioritise visible receivers and contributing casters,
+   including off-camera casters that can shadow the view. Cache static work
+   where profiling justifies it; invalidate it on sky/BSP changes, moving
+   geometry, fixture changes and map unload. Exit with repeatable 240+ averages
+   in both reference scenes and clean transitions in both modes. Qualify fixed
+   1024 with eight local slots and adaptive settings disabled first.
+
+   Offer independent adaptive resolution and budget switches, both off by
+   default, and a player target of 30, 60, 120 or 240 FPS. Use measured CPU
+   and GPU times to avoid sacrificing quality for unrelated CPU bottlenecks.
+   Under sustained pressure lower resolution on the least prominent map
+   first, then reduce active counts if permitted. Restore counts first, then
+   promote resolution one tier at a time up to the selected ceiling (4096
+   maximum). Use separate thresholds and longer recovery times to prevent
+   oscillation. Test both quiet scenes and sudden combat or camera cuts.
+   Environmental maps never borrow slots from local lights. Include off-camera
+   casters when their shadows can reach visible receivers at every tier.
+7. **E7 — Compatibility and release.** Check the menu switch, Save, Cancel,
+   defaults and restart; host allow/deny and clients with different settings;
+   Xbox, CE and MCC maps with and without usable emitters; and switching back
+   to Classic. Check visual behaviour at 30/60/120 FPS, the uncapped performance
+   gate, resource cleanup, and AMD/NVIDIA renderer paths. Report hardware that
+   could not be tested. Deliver matched reference captures and a Windows
+   playtest before promotion through testing and main CI.
+
+CStencil follows environmental-shadow acceptance as a separate project.
+
 ## Current investigation
 
 Visual acceptance remains open after further player, Ghost and grenade

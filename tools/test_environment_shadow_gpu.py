@@ -22,12 +22,17 @@ def shader(name):
 @pytest.mark.parametrize('depth_stencil',[False,True])
 @pytest.mark.parametrize('reverse',[0,1])
 @pytest.mark.parametrize('soft',[0,1])
-def test_directional_receiver_depth_and_empty_rays(reverse,soft,depth_stencil):
+@pytest.mark.parametrize('sun',[False,True])
+def test_directional_receiver_depth_and_empty_rays(reverse,soft,depth_stencil,sun):
     c=Context(); r=None
     try:
         r=Replay(c,64,64); g=c.gl
         r.program(shader('caster_vertex'),shader('caster_fragment'))
-        p=r.program(shader('receiver_vertex'),shader('receiver_fragment'))
+        fragment=shader('receiver_fragment')
+        if sun: fragment=fragment.replace('#version 330 core', '#version 330 core\n#define SUN',1)
+        fullscreen=r.program(shader('receiver_vertex'),fragment)
+        volume=r.program(shader('sun_vertex'),fragment) if sun else None
+        p=fullscreen
         projection=np.zeros((4,4),np.float32)
         projection[0,0]=projection[1,1]=1
         projection[2,2]=-100/(100-.1)
@@ -35,17 +40,19 @@ def test_directional_receiver_depth_and_empty_rays(reverse,soft,depth_stencil):
         projection[3,2]=-1
         camera=np.eye(4,dtype=np.float32);camera[2,3]=3
         frame=np.diag([1,-1,-1,1]).astype(np.float32)
-        textures=[r.new('Textures'),r.new('Textures')]
+        textures=[r.new('Textures') for _ in range(3 if sun else 2)]
         for unit,tex in enumerate(textures):
             g('ActiveTexture',None,U)(0x84C0+unit);g('BindTexture',None,U,U)(0x0DE1,tex)
             for param in (0x2801,0x2800):g('TexParameteri',None,U,U,I)(0x0DE1,param,0x2600)
-        def draw(z,empty=False):
-            world_z=z;view_z=world_z-3
+        def draw(z,empty=False,roof=False):
+            world_z=z;view_z=world_z-camera[2,3]
             clip=projection@np.array([0,0,view_z,1]);d=clip[2]/clip[3]
             data=np.full((64,64),1-d if reverse else d,np.float32)
             shadow=np.zeros((64,64),np.float32)
             if not empty:shadow[16:48,16:48]=.5
-            for unit,array in enumerate((data,shadow)):
+            arrays=[data,shadow]
+            if sun: arrays.append(np.full_like(data, .9 if roof else .5+.5*z))
+            for unit,array in enumerate(arrays):
                 g('ActiveTexture',None,U)(0x84C0+unit);g('BindTexture',None,U,U)(0x0DE1,textures[unit])
                 if depth_stencil:
                     packed=np.zeros((64,64,2),np.float32);packed[:,:,0]=array
@@ -57,12 +64,32 @@ def test_directional_receiver_depth_and_empty_rays(reverse,soft,depth_stencil):
             for name,value in {'scene_depth':0,'shadow_depth':1,'camera':camera,'projection':projection,
                                'frame':frame,'viewport':[0,0,64,64],'color':[.5,.5,.5,1],
                                'reversed_depth':reverse,'soft':soft}.items():r.uniform(p,name,value)
+            if sun: r.uniform(p,'static_depth',2)
+            if volume and p==volume:
+                g('Enable',None,U)(0x864F)  # GL_DEPTH_CLAMP on the exit faces
+                g('Enable',None,U)(0x0B71)
+                g('ClearDepth',None,C.c_double)(float(data[0,0]))
+                g('Clear',None,U)(0x100)
+                g('DepthMask',None,U)(0)
+                g('DepthFunc',None,U)(0x0203 if reverse else 0x0206)
+                r.uniform(p,'reach_min',[-.55,-.55,-.1,0])
+                r.uniform(p,'reach_max',[.55,.55,1,0])
             location=g('GetUniformLocation',I,U,C.c_char_p)(p,b'radius')
             g('Uniform1f',None,I,F)(location,1)
-            g('BindVertexArray',None,U)(r.vao);g('DrawArrays',None,U,I,I)(4,0,3)
+            g('BindVertexArray',None,U)(r.vao);g('DrawArrays',None,U,I,I)(4,0,36 if volume and p==volume else 3)
             return r.read()
         behind=draw(-.5)
-        assert np.allclose(behind[31:33,31:33,:3],.5625,atol=.002)
+        if volume:
+            p=volume
+            assert np.array_equal(draw(-.5),behind), 'Bounded sun projection must match the full-screen reference'
+            camera[2,3]=0
+            p=fullscreen
+            inside=draw(-.5)
+            p=volume
+            assert np.array_equal(draw(-.5),inside), 'Camera crossing into the receiver volume'
+            camera[2,3]=3
+        assert np.allclose(behind[31:33,31:33,:3],.5 if sun else .5625,atol=.002)
+        if sun: assert np.allclose(draw(-.5,roof=True)[:,:,:3],1), "Roof already blocks direct sunlight"
         assert np.allclose(behind[:4,:,:3],1)
         assert np.allclose(draw(.25)[:,:,:3],1), 'Surface in front of caster must remain lit'
         assert np.allclose(draw(-.5,True)[:,:,:3],1), 'Empty rays must never occlude'

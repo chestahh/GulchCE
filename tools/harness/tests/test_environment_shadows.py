@@ -9,6 +9,13 @@ def test_environmental_replacement_and_fallback():
     assert status==0,output
 
 
+def test_sun_culling_and_surface_ownership():
+    source = read('port/linux/game/modern_sun.inl')
+    code = '\n'.join(function(source, fn) for fn in ('sun_reaches_view', 'sun_cluster_sky', 'sun_classify_surfaces'))
+    status, output = run(build('environment_sun', (('under_test.inc', code),)), 'all')
+    assert status == 0, output
+
+
 def test_gles_environmental_hooks_cannot_activate(tmp_path):
     import subprocess
     from test_mcc_identity import compile_tool

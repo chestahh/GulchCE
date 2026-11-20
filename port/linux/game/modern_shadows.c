@@ -31,6 +31,7 @@
 #include "physics/breakable_surfaces.h"
 #include "objects/light_definitions.h"
 #include "render/render.h"
+#include "game/game_engine.h"
 #include "rasterizer/rasterizer_console_vars.h"
 
 extern char const *config_string(char const *name);
@@ -79,6 +80,16 @@ static struct
 	int mesh;
 	float minimum[3], maximum[3];
 } parts[SHADOW_PARTS];
+static unsigned char *sun_surface_sky;
+static int sun_count;
+enum { SUN_CUTOUTS = 64 };
+static struct
+{
+    struct structure_material const *material;
+    const void *texture;
+    float uv[8];
+} sun_cutouts[SUN_CUTOUTS];
+static int sun_cutout_count;
 static int part_count;
 static struct structure_bsp const *cached_bsp;
 static long identities[SHADOW_LIGHTS];
@@ -111,6 +122,9 @@ void modern_shadows_environment_receivers(int primary)
 void modern_shadows_reset(void)
 {
 	int i;
+	if (sun_surface_sky) free(sun_surface_sky);
+	sun_surface_sky = NULL;
+	sun_cutout_count = sun_count = 0;
 	modern_shadow_dispose();
 	memset(parts, 0, sizeof(parts));
 	part_count = active = world_stage = receiver_failed = 0;
@@ -417,7 +431,7 @@ static int material(struct shader const *shader, short permutation, void const *
 	return 1;
 }
 
-static int world_casters(struct structure_bsp const *bsp, real_point3d const *origin, real radius)
+static int world_casters_clipped(struct structure_bsp const *bsp, real_point3d const *origin, real radius, const float *sun_frame)
 {
 	int lightmap, index;
 	for (lightmap = 0; lightmap < bsp->lightmaps.count; lightmap++)
@@ -445,11 +459,44 @@ static int world_casters(struct structure_bsp const *bsp, real_point3d const *or
 				float d = MAX(parts[part].minimum[axis] - p, MAX(p - parts[part].maximum[axis], 0.f));
 				distance += d * d;
 			}
-			if (distance > radius * radius) continue;
+			if (sun_frame)
+			{
+				int outside = 0;
+				for (axis = 0; axis < 2; axis++)
+				{
+					const float *basis = sun_frame + 4 * axis;
+					float offset = 0.f, extent = 0.f;
+					for (int k = 0; k < 3; k++)
+					{
+						float lo = parts[part].minimum[k], hi = parts[part].maximum[k];
+						offset += basis[k] * ((lo + hi) * .5f - sun_frame[12+k]);
+						extent += fabsf(basis[k]) * (hi-lo) * .5f;
+					}
+					if (fabsf(offset) > radius + extent) outside = 1;
+				}
+				if (outside) continue;
+			}
+			else if (distance > radius * radius) continue;
 			if (!modern_shadow_draw(parts[part].mesh, identity, 1, alpha, uv, MODERN_SHADOW_BOTH)) return 0;
+			if (sun_frame)
+			{
+				modern_environment_sun_surfaces(sun_surface_sky + m->first_surface_index);
+				if (alpha && sun_cutout_count < SUN_CUTOUTS)
+				{
+					sun_cutouts[sun_cutout_count].material = m;
+					sun_cutouts[sun_cutout_count].texture = alpha;
+					memcpy(sun_cutouts[sun_cutout_count++].uv,uv,sizeof(uv));
+				}
+				else if (alpha) sun_cutout_count = SUN_CUTOUTS + 1;
+			}
 		}
 	}
 	return 1;
+}
+
+static int world_casters(struct structure_bsp const *bsp, real_point3d const *origin, real radius)
+{
+	return world_casters_clipped(bsp, origin, radius, NULL);
 }
 
 /* Both model sources share conversion, skinning and material evaluation. */
@@ -659,7 +706,7 @@ static int environmental_casters(long object_index, int *remaining)
 
 /* Collision spheres need not enclose rendered hulls or held weapons. Use the
    render owner's bounds for every member of the same bounded caster family. */
-static int environmental_family_bounds(long index, const real_point3d *center, real *radius, int *remaining)
+static int environmental_family_bounds(long index, const real_point3d *center, real *radius, int *remaining, int casters_only)
 {
     struct object_datum *object;
     real_point3d point;
@@ -667,20 +714,28 @@ static int environmental_family_bounds(long index, const real_point3d *center, r
     long child;
     if (*remaining <= 0 || !(object = object_try_and_get(index))) return 0;
     (*remaining)--;
-    object_get_render_bounding_sphere(index, &point, &extent);
-    render_interpolation_object_point(index, &point);
-    if (!(extent >= 0 && extent < REAL_MAX)) return 0;
-    extent += distance3d(center, &point);
-    if (!(extent < REAL_MAX)) return 0;
-    if (extent > *radius) *radius = extent;
+    /* Logical attachments such as the Warthog gun have no caster geometry.
+       Their cached centre may be in attachment space. Visit their children. */
+    if (!casters_only || (!(object->object.flags & FLAG(_object_invisible_bit)) &&
+        object_definition_get(object->definition_index)->object.model.index != NONE))
+    {
+        object_get_render_bounding_sphere(index, &point, &extent);
+        render_interpolation_object_point(index, &point);
+        if (!(extent >= 0 && extent < REAL_MAX)) return 0;
+        extent += distance3d(center, &point);
+        if (!(extent < REAL_MAX)) return 0;
+        if (extent > *radius) *radius = extent;
+    }
     child = object->object.first_child_object_index;
     while (child != NONE)
     {
-        if (!environmental_family_bounds(child, center, radius, remaining)) return 0;
+        if (!environmental_family_bounds(child, center, radius, remaining, casters_only)) return 0;
         child = object_get(child)->object.next_object_index;
     }
     return 1;
 }
+
+#include "modern_sun.inl"
 
 /* Draw-packet lighting is authoritative, including queued material passes.
    Shadow only the two distant terms; ambient/local illumination is untouched. */
@@ -709,7 +764,7 @@ void modern_shadows_environment_model(const struct rasterizer_model_begin_parame
     object_get_bounding_sphere(root, &center, &radius);
     render_interpolation_object_point(root, &center);
     if (!(radius > 0.001f && radius < REAL_MAX)) goto unavailable;
-    if (!environmental_family_bounds(root, &center, &radius, &remaining)) goto unavailable;
+    if (!environmental_family_bounds(root, &center, &radius, &remaining, 0)) goto unavailable;
     remaining = 128;
     memset(frames, 0, sizeof(frames));
     for (i = 0; i < MIN(parameters->lighting.distant_light_count, 2); i++)
@@ -745,6 +800,7 @@ int modern_shadows_environment(long object, const real_matrix4x3 *frame, const f
     int remaining = 128, complete, mode = setting();
     if (!mode || !cached_bsp || global_window_parameters.rasterizer_target != 0 /* primary, as in the stock shadow pass */ ||
         !rasterizer_debug_options.draw_environment_shadows || !(radius > 0.001f && radius < REAL_MAX)) return 0;
+    if (sun_owns(object)) return 1;
     matrix_to_gl(frame, basis);
     matrix_to_gl(&global_window_parameters.frustum.view_to_world, camera);
     if (!modern_environment_begin(basis, radius, mode == 2)) return 0;
@@ -758,6 +814,7 @@ void modern_shadows_prepare(int primary)
 	int mode = setting(), complete, slot;
 	long owners[2];
 	active = world_stage = 0;
+	sun_count = 0;
 	modern_environment_window();
 	if (!mode) { if (cached_bsp) modern_shadows_reset(); return; }
 	if (!primary) return;
@@ -790,6 +847,8 @@ void modern_shadows_prepare(int primary)
 #else
 int modern_shadows_enabled(void) { return 0; }
 int modern_shadows_hard_enabled(void) { return 0; }
+void modern_shadows_sun_project(void) {}
+int modern_shadows_sun_casters(void) { return 0; }
 void modern_shadows_environment_model(const struct rasterizer_model_begin_parameters *p, int f) {}
 void modern_shadows_environment_receivers(int primary) {}
 int modern_shadows_environment(long o, const struct real_matrix4x3 *f, const float c[3], float r) { return 0; }

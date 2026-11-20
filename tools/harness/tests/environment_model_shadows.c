@@ -3,10 +3,13 @@
 #define MIN(a,b) ((a)<(b)?(a):(b))
 #define REAL_MAX 3.4e38f
 #define _object_shadowless_bit 2
+#define _object_invisible_bit 0
 typedef struct { float v[16]; } real_matrix4x3;
 struct render_distant_light { struct {float red,green,blue;} color; real_vector3d direction; };
 struct rasterizer_model_begin_parameters { long unique_identifier; struct {int distant_light_count;struct render_distant_light distant_lights[2];} lighting; };
-static struct object_datum { struct {long parent_object_index, first_child_object_index, next_object_index;unsigned flags;} object; } objects[3];
+static struct object_datum { long definition_index; struct {long parent_object_index, first_child_object_index, next_object_index;unsigned flags;} object; } objects[3];
+static struct object_definition { struct {struct {long index;} model;} object; } definitions[3];
+static struct object_definition *object_definition_get(long i){return definitions+i;}
 static struct { int rasterizer_target; } global_window_parameters;
 static struct { int draw_environment_shadows; } rasterizer_debug_options;
 static const void *cached_bsp;
@@ -34,6 +37,14 @@ int main(int argc,char **argv){
  for(i=0;i<3;i++)objects[i].object.first_child_object_index=objects[i].object.next_object_index=NONE;
  objects[0].object.first_child_object_index=1;
  objects[0].object.parent_object_index=NONE;objects[1].object.parent_object_index=0;objects[2].object.parent_object_index=2;
+ {
+  real_point3d center={0};real extent=0;int remaining=128;
+  objects[1].definition_index=1;definitions[1].object.model.index=NONE;
+  CHECK(environmental_family_bounds(0,&center,&extent,&remaining,1) && extent<4,"logical turret has no silhouette");
+  objects[1].object.first_child_object_index=2;remaining=128;
+  CHECK(environmental_family_bounds(0,&center,&extent,&remaining,1) && extent>4,"visible attachment past logical gun is retained");
+  objects[1].object.first_child_object_index=NONE;
+ }
  p.lighting.distant_light_count=2;
  p.lighting.distant_lights[0].color.red=1;p.lighting.distant_lights[0].direction.k=-2;
  p.lighting.distant_lights[1].color.blue=1;p.lighting.distant_lights[1].direction.k=1;

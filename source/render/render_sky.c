@@ -63,7 +63,11 @@ struct sky_light
 {
 	struct tag_reference lens_flare;
 	char marker_name[TAG_STRING_LENGTH + 1];
-	byte pad31[0x37];
+	byte pad30[0x1C];
+	unsigned long radiosity_flags;
+	real_rgb_color radiosity_color;
+	real radiosity_power;
+	byte pad60[8];
 	real_euler_angles2d direction;
 	byte pad70[4];
 };
@@ -84,6 +88,30 @@ static void render_sky_data_error(
 static real render_sky_globals[MAXIMUM_SKIES_PER_SCENARIO] = {0.f};
 
 /* ---------- public code */
+
+/* Select the dominant exterior radiosity source from the converted active sky. */
+boolean render_sky_sun(short sky_index, real_vector3d *direction, real_rgb_color *color)
+{
+	struct sky *sky;
+	real best = 0.f;
+	long i;
+	if (sky_index < 0 || !(sky = scenario_get_sky(sky_index))) return FALSE;
+	for (i = 0; i < sky->lights.count; i++)
+	{
+		struct sky_light *light = TAG_BLOCK_GET_ELEMENT(&sky->lights, i, struct sky_light);
+		real score = light->radiosity_power * real_rgb_color_brightness(&light->radiosity_color);
+		real_vector3d axis;
+		if (!(light->radiosity_flags & 1) || !(score > best && score < REAL_MAX)) continue;
+		vector3d_from_euler_angles2d(&axis, &light->direction);
+		if (!(axis.k > 0.f) || !(normalize3d(&axis) > 0.f)) continue;
+		best = score;
+		*direction = axis;
+		color->red = light->radiosity_color.red * light->radiosity_power;
+		color->green = light->radiosity_color.green * light->radiosity_power;
+		color->blue = light->radiosity_color.blue * light->radiosity_power;
+	}
+	return best > 0.f;
+}
 
 void render_sky(
 	void)

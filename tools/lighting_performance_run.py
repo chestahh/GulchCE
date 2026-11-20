@@ -66,6 +66,10 @@ def summarize(rows, warmup, seconds, cap, captures=True):
         result['shadowed_mean'] = statistics.mean(r['shadowed'] for r in measured)
         result['shadowed_max'] = max(r['shadowed'] for r in measured)
         result['multiple_shadow_frame_percent'] = 100*sum(r['shadowed']>1 for r in measured)/len(measured)
+    if all('sun_casters' in r for r in measured):
+        result['sun_frame_percent'] = 100*sum(r['sun_casters']>0 for r in measured)/len(measured)
+        result['sun_families_max'] = max(r['sun_casters'] for r in measured)
+        result['sun_and_eight_local_percent'] = 100*sum(r['sun_casters']>0 and r['shadowed']==8 for r in measured)/len(measured)
     for start in range(0, seconds, 60):
         block=[r['frame_ms'] for r in clean if warmup+start <= r['seconds'] < warmup+min(start+60, seconds)]
         if block: result['minutes'].append(dict(start=start, **distribution(block, cap)))
@@ -139,6 +143,7 @@ def main():
     parser.add_argument('--depth-reuse', choices=['shared','legacy','alternate'], help='Requires depth-reuse control build; alternate uses two-second ABBA blocks')
     parser.add_argument('--enabled', type=int, choices=[0,1], required=True)
     parser.add_argument('--modern-shadows', choices=['off', 'hard', 'soft'], default='off')
+    parser.add_argument('--environment-sun', action='store_true')
     parser.add_argument('--turret-sources', type=int, choices=[1,2,4], help='Requires a turret-prototype timing build')
     parser.add_argument('--seconds', type=int, default=300)
     parser.add_argument('--warmup', type=int, default=30)
@@ -195,6 +200,8 @@ def main():
         settings={k:display[k] for k in QUALITY if k in display}
     settings.update({k:bool(args.enabled) for k in LIGHTS})
     settings['modern_shadows'] = args.modern_shadows
+    if args.environment_sun:
+        settings['environment_sun'] = True
     # These are deliberate test settings, not a player's legacy preferences.
     settings.update(dynamic_lighting_reset=True, overshield_effect=bool(args.enabled), shield_glow_intensity='default')
     if args.stationary_shield:
@@ -328,7 +335,7 @@ def main():
         if args.route_file and f'BENCH custom route steps {len(route)}\n' not in log:
             report['route_error'] = 'Requested controller route was not loaded completely'
         report.update(exit=process.returncode, fps=args.fps, uncapped=args.uncapped, frame_limit=int(env['HALO_MAX_FPS']), enabled=args.enabled, shader_dump=args.dump_shaders,
-                      modern_shadows=args.modern_shadows, resolution=args.resolution,
+                      modern_shadows=args.modern_shadows, environment_sun=args.environment_sun, resolution=args.resolution,
                       invulnerable_player=args.invulnerable_player, snowy_route=args.snowy_route,
                       route_sha256=hashlib.sha256((out/'controller-route.txt').read_bytes()).hexdigest() if args.route_file else None,
                       captures=not (args.dump_shaders or args.no_captures),
@@ -352,6 +359,8 @@ def main():
             assert report.get('shadowed_frame_percent', 0) > 0, 'No active shadow maps measured'
         elif 'shadowed_frame_percent' in report:
             assert report['shadowed_frame_percent'] == 0, 'Unexpected active shadow maps'
+        if args.environment_sun and args.snowy_route:
+            assert report.get('sun_frame_percent',0)>0, 'No sun shadows measured during the snowy route'
         if args.invulnerable_player:
             assert 'BENCH controlled invulnerable player enabled' in log, 'Controlled player protection was not active'
         if args.stationary_shield:

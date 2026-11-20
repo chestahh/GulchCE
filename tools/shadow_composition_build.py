@@ -42,14 +42,14 @@ extern long shadow_composition_tick;
 void shadow_composition_readback(int stage)
 {
     static int captured;
-    unsigned int target, format;
+    unsigned int target, format, copy_source;
     int size[2], viewport[4];
     float center[2], *pixels;
     char name[64];
     FILE *file;
     if (!getenv("SHADOW_COMPOSITION_DUMP") || shadow_composition_tick != 160 || (captured & (1 << stage))) return;
     captured |= 1 << stage;
-    if (!xgpu_gl_scene_target(&target, size, &format, viewport, center)) return;
+    if (!xgpu_gl_scene_target(&target, size, &format, &copy_source, viewport, center)) return;
     pixels = malloc(size[0] * size[1] * 4 * sizeof(float));
     if (!pixels) return;
     glBindFramebuffer(GL_FRAMEBUFFER, target);

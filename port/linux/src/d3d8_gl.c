@@ -2862,7 +2862,7 @@ static BOOL bind_targets(BOOL *has_depth)
 
 #ifndef HALO_GLES
 int xgpu_gl_scene_target(unsigned int *framebuffer, int size[2],
-    unsigned int *depth_format, int viewport[4], float pixel_center[2])
+    unsigned int *depth_format, unsigned int *copy_source, int viewport[4], float pixel_center[2])
 {
     BOOL has_depth;
     struct render_target_entry *depth;
@@ -2873,6 +2873,7 @@ int xgpu_gl_scene_target(unsigned int *framebuffer, int size[2],
     size[0] = depth->target.gl_width;
     size[1] = depth->target.gl_height;
     *depth_format = depth->target.format;
+    *copy_source = target_samples == 1 ? depth->target.texture : 0;
     pixel_center[0] = target_scale[0] * (0.5f + UI_OFFSET);
     pixel_center[1] = target_scale[1] * 0.5f;
     viewport[0] = target_pixel((float)device.viewport.X, 0);

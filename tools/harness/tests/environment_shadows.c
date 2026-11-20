@@ -36,6 +36,8 @@ static int modern_environment_begin(const float *frame,float radius,int soft) { 
 static int modern_environment_end(int complete,const float *camera,const float *projection,const float *color) {
  ends++;return complete && gpu_ok;
 }
+static long sun_owner = NONE;
+static int sun_owns(long object) { return object == sun_owner; }
 #include "under_test.inc"
 int main(int argc,char **argv) {
  real_matrix4x3 frame={{0}};float color[3]={.5f,.6f,.7f};int i,remaining;
@@ -49,6 +51,9 @@ int main(int argc,char **argv) {
  mode=1;global_window_parameters.rasterizer_target=1;
  CHECK(!modern_shadows_environment(0,&frame,color,1) && !begins,"non-primary target remains stock");
  global_window_parameters.rasterizer_target=0;
+ sun_owner=0;
+ CHECK(modern_shadows_environment(0,&frame,color,1) && !begins,"completed sun pass owns the family before either old map");
+ sun_owner=NONE;
  objects[0].object.first_child_object_index=1;objects[1].object.first_child_object_index=2;
  CHECK(modern_shadows_environment(0,&frame,color,1),"complete replacement owns projection");
  CHECK(submitted[0]==1 && submitted[1]==1 && submitted[2]==1 && !submitted[3],"only root and held/attached descendants");

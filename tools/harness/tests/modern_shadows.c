@@ -1,4 +1,7 @@
 #include "harness.h"
+static int sun_count;
+static unsigned char *sun_surface_sky;
+static int sun_cutout_count;
 static void modern_environment_window(void) {}
 #define MIN(a,b) ((a)<(b)?(a):(b))
 #define MAX(a,b) ((a)>(b)?(a):(b))
@@ -73,7 +76,9 @@ static int selection_stability(void)
   rasterizer_lights.lights[1].color.red=1;
   rasterizer_lights.lights[2].color.red=.7f;
   global_frame_parameters.game_time_sec=0;
-  modern_shadows_prepare(1); map_zero=map_for(0);map_one=map_for(1);switches=0;
+  sun_count=1;modern_shadows_prepare(1);
+  CHECK(!sun_count && !sun_cutout_count,"new view clears previous ownership and map reset clears cutouts");
+  map_zero=map_for(0);map_one=map_for(1);switches=0;
   CHECK(map_zero!=NONE && map_one!=NONE && map_zero!=map_one,"two strongest lights receive independent maps");
   for(frame=1;frame<=fps;frame++) {
    global_frame_parameters.game_time_sec=(float)frame/fps;

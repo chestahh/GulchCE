@@ -1,4 +1,5 @@
 #include "harness.h"
+#define SHADOW_DRAWS 256
 typedef unsigned GLuint;
 typedef int GLint;
 typedef unsigned GLenum;

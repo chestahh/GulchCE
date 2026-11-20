@@ -49,7 +49,9 @@ def main():
         }
     }
 """
-        s=s.replace('    if (success)\n    {\n        p=environment.receiver;',dump+'    if (success)\n    {\n        p=environment.receiver;',1)
+        anchor='    if (success)\n    {\n        p=sun.projecting ? sun.receiver : environment.receiver;'
+        assert s.count(anchor)==1
+        s=s.replace(anchor,dump+anchor,1)
         f.write_text(s)
         f=paths[2]; s=f.read_text()
         s=s.replace('\tif (render_shadows)\n', '\t{ static int calls; if(!(calls++%60)) platform_log("ENV PASS enabled %d count %d",render_shadows,render_object_globals.rendered_object_count); }\n\tif (render_shadows)\n',1)
