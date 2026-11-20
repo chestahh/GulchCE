@@ -324,6 +324,30 @@ float muzzle_lighting_radius(long light_index, float radius)
 	return radius;
 }
 
+/* Charge and recovery are trigger states. A weapon can leave its recoil
+   animation while its own attachment is still lighting the shooter. */
+static int weapon_emitting_during_fire(struct weapon_datum const *weapon)
+{
+	int i;
+	if (weapon->weapon.state == _weapon_state_primary_recoil || weapon->weapon.state == _weapon_state_secondary_recoil ||
+		TEST_FLAG(weapon->weapon.flags, _weapon_overheated_bit)) return TRUE;
+	for (i = 0; i < NUMBEROF(weapon->weapon.triggers); i++)
+		switch (weapon->weapon.triggers[i].state)
+		{
+		case _trigger_idle:
+			/* Automatic triggers return to idle between rounds. */
+			if (weapon->weapon.triggers[i].rate_of_fire > 0.0f) return TRUE;
+			break;
+		case _trigger_overloading:
+		case _trigger_charging:
+		case _trigger_charged:
+		case _trigger_spewing:
+		case _trigger_recovering:
+			return TRUE;
+		}
+	return FALSE;
+}
+
 /* Exclude the firing weapon only from its own light. Vehicle turrets also
    supply their chassis to collision-based world blocking. */
 long muzzle_lighting_shadow_caster(long light, long emitter_object, long *collision_owner)
@@ -340,9 +364,7 @@ long muzzle_lighting_shadow_caster(long light, long emitter_object, long *collis
 		weapon = weapon_try_and_get(emitter_object);
 		if (!weapon) return launching_weapon(emitter_object);
 		if (object_try_and_get_and_verify_type(weapon->object.parent_object_index, _object_mask_biped) &&
-			(weapon->weapon.state == _weapon_state_primary_recoil || weapon->weapon.state == _weapon_state_secondary_recoil ||
-			 weapon->weapon.triggers[0].state == _trigger_spewing || weapon->weapon.triggers[1].state == _trigger_spewing ||
-			 TEST_FLAG(weapon->weapon.flags, _weapon_overheated_bit)))
+			weapon_emitting_during_fire(weapon))
 			return emitter_object;
 		return NONE;
 	}

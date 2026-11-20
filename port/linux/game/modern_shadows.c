@@ -155,9 +155,8 @@ static int map_for(long rasterizer)
 	return NONE;
 }
 
-/* Vehicle-local engine lights also exempt seated occupants and their gear.
-   Follow live parent identities, not proximity; dismounting restores casting
-   immediately. A non-vehicle owner retains the exact-object exception. */
+/* An exempt biped is the owner of a Jackal shield light. Include only its
+   equipped weapon. Ghost engine lights include seated occupants and their gear. */
 static int unshadowed_object(long owner, long object)
 {
 	int depth;
@@ -171,6 +170,16 @@ static int unshadowed_object(long owner, long object)
 		if (!datum || (parent = datum->object.parent_object_index) == NONE) return FALSE;
 		if (parent == owner)
 		{
+			if (depth == 0 && datum->object.type == _object_type_weapon)
+			{
+				unit = unit_try_and_get(owner);
+				if (unit && unit->object.type == _object_type_biped)
+				{
+					short slot = unit->unit.current_weapon_index;
+					return slot >= 0 && slot < MAXIMUM_WEAPONS_PER_UNIT &&
+						unit_inventory_get_weapon(owner, slot) == object;
+				}
+			}
 			unit = unit_try_and_get(object);
 			return unit && unit->unit.parent_seat_index != NONE &&
 				object_try_and_get_and_verify_type(owner, _object_mask_vehicle) != NULL;

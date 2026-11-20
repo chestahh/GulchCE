@@ -93,11 +93,11 @@ if args.muzzle_source_offset is not None and (args.muzzle not in ('warthog', 'sc
     parser.error('--muzzle-source-offset requires a vehicle muzzle fixture and a value between 0 and 0.5')
 if not .1 <= args.shadow_wall_gap <= 2:
     parser.error('--shadow-wall-gap must be between 0.1 and 2 world units')
-if args.shadow_omit in ('weapon', 'body') and args.shadow_scene not in ('player', 'marine', 'corpse'):
+if args.shadow_omit in ('weapon', 'body') and args.shadow_scene not in ('player', 'marine', 'corpse', 'jackal-wall'):
     parser.error('--shadow-omit requires a world-space character --shadow-scene')
 if args.shadow_omit in ('vehicle', 'occupants') and args.shadow_scene != 'ghost-engine' and args.muzzle not in ('warthog', 'scorpion'):
     parser.error('--shadow-omit vehicle/occupants requires ghost-engine or a vehicle muzzle fixture')
-if args.shadow_weapon and args.shadow_scene not in ('player', 'marine', 'corpse', 'first-person'):
+if args.shadow_weapon and args.shadow_scene not in ('player', 'marine', 'corpse', 'first-person', 'jackal-wall'):
     parser.error('--shadow-weapon requires a held-weapon --shadow-scene')
 if args.shadow_holder and args.shadow_scene != 'marine':
     parser.error('--shadow-holder requires --shadow-scene marine')

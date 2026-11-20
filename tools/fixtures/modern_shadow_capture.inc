@@ -165,7 +165,7 @@ static void modern_capture_tick(const char *scene)
 			}
 			platform_log("SHADOW SCENE driver %ld parent %ld", driver, shadow_subject);
 		}
-		if (!vehicle && !jackal && !item)
+		if (!vehicle && !item && (!jackal || getenv("HALO_SHADOW_CAPTURE_WEAPON")))
 		{
 			unit_drop_current_weapon(shadow_subject, TRUE);
 			unit_drop_current_weapon(shadow_subject, TRUE);

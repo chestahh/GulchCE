@@ -70,14 +70,15 @@ targets, not evidence of how this implementation should calculate shadows.
 - Moving weapon and projectile lights must move character and vehicle shadows
   coherently across floors, walls and other models. Living and dead bipeds,
   player bodies, NPCs and applicable first-person geometry need explicit checks.
-- Jackal shields retain radial colour spill and damage colours, illuminating
-  their Jackal without projecting its body/shield silhouette. Other objects
-  remain shadowed; another dynamic light can still shadow that Jackal.
+- Jackal shields retain radial spill and damage colours. The bearer and its
+  currently equipped weapon are lit without casting or receiving shadows from
+  that shield. Other lights can still shadow both. Switching or dropping the
+  weapon immediately restores its participation in the shield's shadow map.
 - Ghost engines retain their existing local illumination without projecting
   their own hull's strips and wedges. This applies to campaign and multiplayer
   engine emitters only; external lights still cast the Ghost's silhouette.
 - The Ghost engine exception includes its seated occupants and their attached
-  gear. The Jackal exception remains exact-owner only. Neither extends to nearby
+  gear. Neither exemption extends to nearby
   characters, dropped weapons, other vehicles, stationary shields or other lights.
 - Hard mode must retain crisp, stable edges; Soft mode must preserve the same
   silhouette and contact while softening edges. Detached shadows, surface acne,
@@ -135,10 +136,11 @@ not turned into an opaque wall. Other lighting and baked illumination remain
 unchanged. A muzzle flash participates through the same selection interface.
 For a handheld muzzle flash, Hard and Soft omit the firing weapon from its own
 light's caster list in first and third person. The shooter and first-person arms
-still cast. Weapon-mounted lights use the emitting weapon's firing state even
-when muzzle flashes are disabled. A newly fired projectile also identifies its
-launching weapon while their render bounds overlap. After it travels clear,
-its light casts the weapon normally. A different projectile or another
+still cast. For weapon-mounted lights, the exclusion also covers charge buildup,
+a held full charge, overload, automatic fire between rounds, shot recovery and overheating.
+Either trigger can activate it, even with muzzle flashes disabled. A newly fired
+projectile also identifies its launching weapon while their render bounds overlap.
+After it travels clear, its light casts the weapon normally. A different projectile or another
 shooter's light can cast the entire weapon throughout.
 For the Warthog turret and both Scorpion triggers, the firing vehicle's own
 collision hull blocks its muzzle light. A selected modern map omits only that

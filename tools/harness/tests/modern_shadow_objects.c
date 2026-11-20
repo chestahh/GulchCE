@@ -2,6 +2,7 @@
 #define _object_invisible_bit 0
 #define _object_mask_all 255
 #define _object_mask_vehicle 2
+enum { _object_type_biped, _object_type_weapon, MAXIMUM_WEAPONS_PER_UNIT=4 };
 #define MAXIMUM_OBJECTS_PER_MAP 8
 #define NUMBER_OF_OUTGOING_OBJECT_FUNCTIONS 4
 #define MODERN_SHADOW_WORLD 1
@@ -11,7 +12,7 @@ struct object_datum {
  int definition_index;
  struct {unsigned flags;float bounding_sphere_radius;real_point3d bounding_sphere_center;
   struct {unsigned long size;} node_matrices;unsigned char region_permutations[2];
-  int forced_shader_permutation_index,parent_object_index;} object;
+  int forced_shader_permutation_index,parent_object_index,type;} object;
 } objects[8];
 struct object_iterator {int index;};
 struct object_definition {struct {struct {int index;} model;} object;} definitions[8];
@@ -19,7 +20,9 @@ struct model {struct {int count;} nodes;} models[8];
 static real_matrix4x3 poses[8];
 static int submitted[8],views_used[8];
 static int vehicle[8],biped[8];
-static struct unit_datum {struct {int parent_seat_index;} unit;} units[8];
+static struct unit_datum {struct {int type;} object; struct {int parent_seat_index,current_weapon_index;} unit;} units[8];
+static long inventory[8][MAXIMUM_WEAPONS_PER_UNIT];
+static long unit_inventory_get_weapon(long owner,short slot) {return inventory[owner][slot];}
 static struct object_datum *object_try_and_get(long i) {return i>=0 && i<8 ? &objects[i] : NULL;}
 static struct unit_datum *unit_try_and_get(long i) {return i>=0 && i<8 && biped[i] ? &units[i] : NULL;}
 static void *object_try_and_get_and_verify_type(long i,int mask) {
@@ -69,8 +72,20 @@ int main(int argc,char **argv) {
        "third-person and remote player weapons retain full coverage");
  memset(submitted,0,sizeof(submitted));
  CHECK(object_casters(&origin,2,owners,2,NONE,NONE),"owner-specific map collects remaining casters");
- CHECK(!submitted[2] && submitted[3] && submitted[0] && submitted[1] && submitted[4],
-       "only exact owner is omitted; held weapon, other bodies and dropped items still cast");
+ CHECK(!submitted[2] && submitted[3] && submitted[0] && submitted[1] && submitted[4],"ordinary owner exemption");
+ biped[2]=1;objects[3].object.type=objects[4].object.type=_object_type_weapon;
+ inventory[2][0]=3;inventory[2][1]=4;objects[4].object.parent_object_index=2;
+ memset(submitted,0,sizeof(submitted));
+ CHECK(object_casters(&origin,2,owners,2,NONE,NONE) && !submitted[2] && !submitted[3] && submitted[1] && submitted[4],
+       "shield exempts its bearer and equipped gun, retaining another biped's gun and a holstered gun");
+ CHECK(unshadowed_object(2,3) && !unshadowed_object(NONE,3),"only its own shield exempts the weapon receiver");
+ units[2].unit.current_weapon_index=1;
+ CHECK(!unshadowed_object(2,3) && unshadowed_object(2,4),"exemption follows a weapon switch");
+ objects[4].object.parent_object_index=NONE;
+ CHECK(!unshadowed_object(2,4),"a dropped weapon casts even before the inventory slot clears");
+ units[2].unit.current_weapon_index=NONE;
+ CHECK(!unshadowed_object(2,3),"unarmed Jackal does not exempt stored weapons");
+ biped[2]=0;
  memset(submitted,0,sizeof(submitted));
  CHECK(object_casters(&origin,2,owners,0x10002,NONE,NONE) && submitted[2],"recycled datum cannot exclude a new owner");
  memset(submitted,0,sizeof(submitted));

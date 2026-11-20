@@ -5,7 +5,8 @@
 typedef struct { real red,green,blue; } real_rgb_color;
 typedef struct { real_point3d position; real_vector3d forward; } real_matrix4x3;
 enum { _object_invisible_bit, _point_light_port_glow_bit, _point_light_connected_to_map_bit, MAXIMUM_WEAPONS_PER_UNIT=4 };
-enum { _weapon_overheated_bit=0, _weapon_state_primary_recoil=1, _weapon_state_secondary_recoil, _trigger_spewing=6 };
+enum { _weapon_overheated_bit=0, _weapon_state_primary_recoil=1, _weapon_state_secondary_recoil };
+enum { _trigger_idle, _trigger_overloading, _trigger_charging, _trigger_charged, _trigger_recovering, _trigger_tracking, _trigger_spewing };
 #define MAXIMUM_OBJECTS_PER_MAP 64
 #define _object_mask_projectile 4
 static int modern_mode=1;
@@ -15,7 +16,7 @@ static long light_port_emitter_object(long light) { return source_for_light; }
 struct projectile_datum { struct {long owner_object_index; real bounding_sphere_radius; real_point3d bounding_sphere_center;} object; struct {real odometer;} projectile; };
 static struct projectile_datum bolt;
 static real distance_squared3d(const real_point3d *a,const real_point3d *b) {real dx=a->x-b->x;return dx*dx;}
-struct weapon_datum { struct { int state, flags; struct { int state; } triggers[2]; } weapon; long definition_index; struct { long parent_object_index; real bounding_sphere_radius; real_point3d bounding_sphere_center; int flags; struct { int size; } node_matrices; } object; };
+struct weapon_datum { struct { int state, flags; struct { int state; real rate_of_fire; } triggers[2]; } weapon; long definition_index; struct { long parent_object_index; real bounding_sphere_radius; real_point3d bounding_sphere_center; int flags; struct { int size; } node_matrices; } object; };
 struct unit_datum { struct { short current_weapon_index; } unit; };
 struct object_marker { real_matrix4x3 matrix; };
 struct observer_result { real_point3d position; };
@@ -203,6 +204,31 @@ int main(int argc,char **argv)
   CHECK(muzzle_lighting_shadow_caster(63,NONE,&collision)==NONE && collision==NONE,"other light retains shooter");
   muzzle_lighting_forget();on=0;
   CHECK(muzzle_lighting_shadow_caster(63,1,&collision)==NONE,"idle weapon casts");
+  {
+   const int states[] = { _trigger_charging, _trigger_charged, _trigger_overloading, _trigger_recovering, _trigger_spewing };
+   for (int trigger=0;trigger<2;trigger++)
+   {
+    for (int i=0;i<NUMBEROF(states);i++)
+    {
+     weapons[1].weapon.triggers[trigger].state=states[i];
+     CHECK(muzzle_lighting_shadow_caster(63,1,&collision)==1 && collision==NONE,"own attachment excludes only the active gun");
+     CHECK(muzzle_lighting_shadow_caster(63,NONE,&collision)==NONE,"external light still shadows the active gun");
+     source_for_light=1;
+     CHECK(muzzle_lighting_shadow_caster(63,NONE,&collision)==1,"stock attachment resolves the same weapon");
+     source_for_light=NONE;
+     weapons[1].weapon.triggers[trigger].state=_trigger_idle;
+    }
+    weapons[1].weapon.triggers[trigger].rate_of_fire=1.0f;
+    CHECK(muzzle_lighting_shadow_caster(63,1,&collision)==1,"automatic gun between shots");
+    weapons[1].weapon.triggers[trigger].rate_of_fire=0.0f;
+    CHECK(muzzle_lighting_shadow_caster(63,1,&collision)==NONE,"automatic gun at rest casts normally");
+   }
+   weapons[1].weapon.triggers[0].state=_trigger_charged;
+   weapons[1].object.parent_object_index=NONE;
+   CHECK(muzzle_lighting_shadow_caster(63,1,&collision)==NONE,"dropped gun with residual charge casts normally");
+   weapons[1].object.parent_object_index=20;
+   weapons[1].weapon.triggers[0].state=_trigger_idle;
+  }
   weapons[1].weapon.state=_weapon_state_secondary_recoil;
   CHECK(muzzle_lighting_shadow_caster(63,1,&collision)==1 && collision==NONE,"authored secondary fire without muzzle pulses");
   CHECK(muzzle_lighting_shadow_caster(63,NONE,&collision)==NONE,"independent light keeps firing weapon");
