@@ -50,6 +50,8 @@ static void plasma_occlusion_bind_model(const struct plasma_occlusion_uniforms *
 { gpu_calls++; bound++; }
 static void glUniform2f(int location, float a, float b)
 { gpu_calls++; mask0=a; mask1=b; }
+static int environment_active;
+static int modern_environment_model_active(void) { return environment_active; }
 #include "under_test.inc"
 static GLuint fragment_shader_get(const struct nv2a_pixel_shader_key *key)
 {
@@ -87,6 +89,34 @@ int main(int argc, char **argv)
 #else
   CHECK(enhanced==stock && !key.modern_shadow && !key.per_pixel_lighting,"Android keeps unregistered shaders stock");
 #endif
+  return 0;
+ }
+ if (!strcmp(argv[1], "environment"))
+ {
+  pp=0; shadow_mask=3;
+  for (lit=0;lit<2;lit++)
+  {
+   memset(&program,0,sizeof(program));
+#ifndef HALO_ANDROID
+   program.plasma_model=TRUE;
+   program.plasma_lighting.lights=2;
+#endif
+   program.lighting.lights=lit*2;
+   environment_active=0;
+   stock=draw_program_get(&program,FALSE,&key,0);
+   CHECK(stock && !key.modern_shadow && !key.plasma_model,"inactive environment ignores stale local slots");
+   environment_active=1;
+   enhanced=draw_program_get(&program,FALSE,&key,0);
+#ifndef HALO_GLES
+   CHECK(enhanced && key.modern_shadow==3 && key.per_pixel_lighting==2,"environment supports registered and verified model programs");
+   CHECK(!key.plasma_model && !last_optional,"environment does not activate local falloff GPU resources");
+   CHECK(translated_lighting==(lit?&program.lighting:&program.plasma_lighting),"environment uses authoritative verified lighting metadata");
+#else
+   CHECK(enhanced==stock && !key.modern_shadow,"GLES excludes environment shadows");
+#endif
+   environment_active=0;
+   CHECK(draw_program_get(&program,FALSE,&key,0)==stock,"environment off restores exact cached stock program");
+  }
   return 0;
  }
  if (!strcmp(argv[1], "gpu"))

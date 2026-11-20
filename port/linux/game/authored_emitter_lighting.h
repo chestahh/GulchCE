@@ -1,6 +1,8 @@
 #ifndef AUTHORED_EMITTER_LIGHTING_H
 #define AUTHORED_EMITTER_LIGHTING_H
 
+enum { AUTHORED_EMITTER_PLASMA_GRENADE = 3 };
+
 /* Exact object/light pairs; zero means the stock submission is untouched. */
 int authored_emitter_lighting_enabled(void);
 int authored_emitter_lighting_category_enabled(int category);

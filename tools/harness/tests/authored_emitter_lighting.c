@@ -1,4 +1,5 @@
 #include "harness.h"
+#include "../../../port/linux/game/authored_emitter_lighting.h"
 #include <string.h>
 #define NUMBEROF(a) ((int)(sizeof(a) / sizeof((a)[0])))
 #define MIN(a,b) ((a)<(b)?(a):(b))

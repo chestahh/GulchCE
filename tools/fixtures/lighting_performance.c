@@ -23,7 +23,7 @@ static long selected, lights, occlusion_updates, shadowed;
 static double occlusion_started, occlusion_seconds;
 static int screenshot_frames;
 static FILE *profile;
-enum { LIGHTING_PROFILE_PHASES = 19 };
+enum { LIGHTING_PROFILE_PHASES = 20 };
 static double phase_start[LIGHTING_PROFILE_PHASES], phase_time[LIGHTING_PROFILE_PHASES];
 static long phase_calls[LIGHTING_PROFILE_PHASES];
 
@@ -75,7 +75,8 @@ double lighting_performance_seconds(void)
    operates the real door control and walks around the exterior buttress. */
 static int lighting_snowy_route(XINPUT_GAMEPAD *pad, double elapsed)
 {
-	static const struct { double seconds; short lx, ly, rx; int use; } steps[] = {
+    struct route_step { double seconds; short lx, ly, rx; int use; };
+    static const struct route_step defaults[] = {
 		{2,0,0,0,0}, {2.85,0,32767,0,0}, {.3,0,0,0,0},
 		{1.1,32767,0,0,0}, {.3,0,0,0,0}, {.5,0,0,32767,0}, {.3,0,0,0,0},
 		{.2,0,0,0,1}, {1,0,0,0,0}, {.95,0,-32767,0,0}, {.3,0,0,0,0},
@@ -83,21 +84,55 @@ static int lighting_snowy_route(XINPUT_GAMEPAD *pad, double elapsed)
 		{.5,0,0,32767,0}, {.3,0,0,0,0}, {3.5,0,32767,0,0}, {.3,0,0,0,0},
 		{.5,0,0,-32767,0}
 	};
-	int i;
+    static struct route_step custom[128];
+    static int ready, custom_count;
+    const struct route_step *steps = defaults;
+    int i, count = NUMBEROF(defaults);
+    if (!ready)
+    {
+        const char *path = getenv("HALO_LIGHTING_BENCH_ROUTE_FILE");
+        ready = 1;
+        if (path)
+        {
+            FILE *file = fopen(path, "r");
+            double seconds;
+            int lx, ly, rx, use;
+            if (file)
+            {
+                while (custom_count < NUMBEROF(custom) &&
+                    fscanf(file, "%lf %d %d %d %d", &seconds, &lx, &ly, &rx, &use) == 5)
+                {
+                    if (!(seconds > 0 && seconds <= 30) || lx < -32767 || lx > 32767 ||
+                        ly < -32767 || ly > 32767 || rx < -32767 || rx > 32767 || use < 0 || use > 7)
+                        break;
+                    custom[custom_count].seconds = seconds;
+                    custom[custom_count].lx = (short)lx; custom[custom_count].ly = (short)ly;
+                    custom[custom_count].rx = (short)rx; custom[custom_count].use = use;
+                    custom_count++;
+                }
+                fclose(file);
+            }
+            fprintf(stderr, "BENCH custom route steps %d\n", custom_count);
+        }
+    }
+    if (custom_count) { steps = custom; count = custom_count; }
 	if (elapsed < 0) return FALSE;
 	/* The benchmark owns its complete input, including after the route. */
 	memset(pad, 0, sizeof(*pad));
-	for (i = 0; i < NUMBEROF(steps); i++)
+    for (i = 0; i < count; i++)
 	{
 		if (elapsed < steps[i].seconds)
 		{
 			pad->sThumbLX = steps[i].lx; pad->sThumbLY = steps[i].ly; pad->sThumbRX = steps[i].rx;
-			pad->bAnalogButtons[XINPUT_GAMEPAD_X] = steps[i].use ? 255 : 0;
+			/* Route actions: use, ordinary grenade throw, grenade selection. */
+			pad->bAnalogButtons[XINPUT_GAMEPAD_X] = (steps[i].use & 1) ? 255 : 0;
+			pad->bAnalogButtons[XINPUT_GAMEPAD_LEFT_TRIGGER] = (steps[i].use & 2) ? 255 : 0;
+			pad->bAnalogButtons[XINPUT_GAMEPAD_Y] = (steps[i].use & 4) ? 255 : 0;
 			break;
 		}
 		elapsed -= steps[i].seconds;
 	}
-	if (i == NUMBEROF(steps) && getenv("HALO_LIGHTING_BENCH_TURN"))
+    if (i == count && getenv("HALO_LIGHTING_BENCH_TURN"))
 	{
 		double turn = atof(getenv("HALO_LIGHTING_BENCH_TURN"));
 		if (elapsed < (turn < 0 ? -turn : turn))
@@ -172,6 +207,13 @@ int lighting_performance_capture(void)
 	if (!origin) return FALSE;
 	elapsed = clock_seconds() - origin;
 	if (elapsed < next_capture) return FALSE;
+    if (getenv("HALO_LIGHTING_BENCH_ROUTE_CAPTURES"))
+    {
+        const struct observer_result *camera = observer_get_camera(0);
+        fprintf(stderr, "BENCH route %.3f position %.6f %.6f %.6f forward %.6f %.6f %.6f\n",
+            elapsed, camera->position.x, camera->position.y, camera->position.z,
+            camera->forward.i, camera->forward.j, camera->forward.k);
+    }
 	next_capture = elapsed + (getenv("HALO_LIGHTING_BENCH_ROUTE_CAPTURES") ? 2.0 : 60.0);
 	/* Readback can delay this frame and drain the next frame's GPU queue. */
 	screenshot_frames = 3;
@@ -208,7 +250,7 @@ void lighting_performance_frame(void)
 			if (profile)
 			{
 				setvbuf(profile, NULL, _IOFBF, 65536);
-				fprintf(profile, "seconds,trace_ms,field_ms,texture_ms,bind_ms,prepare_ms,light_scene_ms,upload_ms,render_ms,traces,fields,textures,binds,prepares,light_scenes,uploads,renders,model_field_ms,model_resolve_ms,collision_scene_ms,mask_upload_ms,shadow_ms,shadow_world_ms,shadow_objects_ms,shadow_draw_ms,shadow_state_ms,shadow_resources_ms,shadow_selection_ms\n");
+				fprintf(profile, "seconds,trace_ms,field_ms,texture_ms,bind_ms,prepare_ms,light_scene_ms,upload_ms,render_ms,traces,fields,textures,binds,prepares,light_scenes,uploads,renders,model_field_ms,model_resolve_ms,collision_scene_ms,mask_upload_ms,shadow_ms,shadow_world_ms,shadow_objects_ms,shadow_draw_ms,shadow_state_ms,shadow_resources_ms,shadow_selection_ms,environment_models_ms\n");
 			}
 		}
 		if (profile)

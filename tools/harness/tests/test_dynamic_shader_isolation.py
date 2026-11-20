@@ -28,7 +28,7 @@ def executable(android=False, fault=None):
 
 
 @pytest.mark.parametrize('android', [False, True])
-@pytest.mark.parametrize('case', ['toggle', 'failure', 'unmarked', 'gpu', 'shadows', 'unmarked_shadow'])
+@pytest.mark.parametrize('case', ['toggle', 'failure', 'unmarked', 'gpu', 'shadows', 'unmarked_shadow', 'environment'])
 def test_isolation(case, android):
     status, output = run(executable(android), case)
     assert status == 0, output

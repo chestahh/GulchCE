@@ -10,7 +10,15 @@ void plasma_lighting_attachment_position(long light_index, long object_index,
 float plasma_lighting_radius(long light_index, long object_index, float radius);
 int light_port_attachment_radius(long light_index, long object_index, float *radius, int restore);
 int plasma_lighting_vehicle_occlusion(long light_index);
-long plasma_lighting_shadow_owner(long light);
+struct plasma_shadow_source
+{
+	long casing;
+	long stuck_host;
+	long emitter_object;
+	int grounded;
+};
+
+long plasma_lighting_shadow_owner(long light, struct plasma_shadow_source *grenade);
 void plasma_lighting_frame_end(void);
 void plasma_lighting_reset(void);
 void plasma_lighting_window_begin(void);

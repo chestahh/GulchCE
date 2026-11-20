@@ -1,4 +1,5 @@
 #include "harness.h"
+static void modern_environment_dispose(void) {}
 #include <stddef.h>
 typedef unsigned int GLuint;
 typedef unsigned int GLenum;
@@ -9,10 +10,12 @@ enum { GL_TEXTURE0,GL_TEXTURE_2D,GL_FRAMEBUFFER,GL_DEPTH_ATTACHMENT,
  GL_FALSE,GL_SCISSOR_TEST,GL_STENCIL_TEST,GL_BLEND,GL_CULL_FACE,
  GL_POLYGON_OFFSET_FILL,GL_FRONT_AND_BACK,GL_FILL,GL_DEPTH_BUFFER_BIT,
  GL_ARRAY_BUFFER,GL_ELEMENT_ARRAY_BUFFER,GL_FLOAT,GL_TRIANGLES,
- GL_UNSIGNED_SHORT,GL_UPPER_LEFT,GL_ZERO_TO_ONE };
+ GL_UNSIGNED_SHORT,GL_UPPER_LEFT,GL_ZERO_TO_ONE,GL_TEXTURE_CUBE_MAP };
 struct xgpu_texture_description { int unused; };
+static struct { unsigned depth[2]; int enabled; float frames[32], radius; int soft; } environment_model;
 static int fbo,allocated,handoffs,receiver,texture,element,draw_counts[16][4],fail_fbo,deleted_textures,delete_calls;
 static unsigned int bound[2];
+static int copy_count, submitted[4];
 static int map_slots[2]={0,1};
 static long resolution_scale=8;
 static int viewport_size;
@@ -30,6 +33,8 @@ static void glDepthFunc(int comparison) { CHECK(comparison==GL_GREATER,"nearest 
 #define glDepthMask(...) ((void)0)
 #define glColorMask(...) ((void)0)
 #define glDisable(...) ((void)0)
+static int offset_calls;
+static void glPolygonOffset(float factor,float units) { CHECK(factor==-.5f/256 && units==0,"accepted ground slope");offset_calls++; }
 #define glPolygonMode(...) ((void)0)
 #define glUseProgram(...) ((void)0)
 #define glBindVertexArray(...) ((void)0)
@@ -64,7 +69,15 @@ static void glUniform4fv(int location,int count,const float *v) {
 }
 static void glBindBuffer(int target,int buffer) { if(target==GL_ELEMENT_ARRAY_BUFFER) element=buffer; }
 static void glDrawElements(int mode,int count,int type,void *p) {
- CHECK(texture>=91 && texture<=106,"known world/view depth target");draw_counts[texture-91][element-10]++;
+ CHECK(texture>=91 && texture<=106,"known world/view depth target");draw_counts[texture-91][element-10]++;submitted[element-10]++;
+}
+static void glCopyImageSubData(GLuint source,GLenum source_target,int sl,int sx,int sy,int sz,
+ GLuint destination,GLenum target,int dl,int dx,int dy,int dz,int w,int h,int depth) {
+ CHECK(source_target==GL_TEXTURE_CUBE_MAP && target==GL_TEXTURE_CUBE_MAP && depth==6 &&
+       !sl && !dl && !sx && !sy && !sz && !dx && !dy && !dz,"copy exactly six complete depth faces");
+ CHECK(w==128*resolution_scale && h==w,"copy follows selected shadow resolution");
+ if (!copy_count) CHECK(!draw_counts[source-91][1] && !draw_counts[source-91][2],"copy precedes receiver-private casters");
+ memcpy(draw_counts[destination-91],draw_counts[source-91],sizeof(draw_counts[0]));copy_count++;
 }
 static void xgpu_gl_end_external_pass(void) { handoffs++; }
 static GLuint xgpu_texture_get(const void *p,void *u,GLenum *target,struct xgpu_texture_description *d) { *target=GL_TEXTURE_2D;return 5; }
@@ -114,7 +127,7 @@ static void check_surface_bounds(void) {
    if(distance>light[3]*light[3]) continue;
    for(face=0;face<6;face++) {
     float depth=(face&1)?-q[face/2]:q[face/2];
-    if(depth<.005f) continue;
+    if(depth<.00001f) continue;
     for(j=0;j<3;j++) if(j!=face/2 && (q[j]>depth || -q[j]>depth)) break;
     if(j==3) { samples++;CHECK(faces&(1<<face),"every visible skinned surface sample retains its cube face"); }
    }
@@ -128,33 +141,36 @@ int main(int argc,char **argv) {
  check_surface_bounds();
  modern_shadow_dispose();modern_shadow_dispose();
  CHECK(!delete_calls && !handoffs,"unused shadow feature never calls the driver during cleanup");
- framebuffer=9;mesh_count=3;
+ ground_slope=-.5f/256;framebuffer=9;mesh_count=3;
  for(i=0;i<3;i++) { meshes[i].indices=10+i;meshes[i].count=3; }
- CHECK(!modern_shadow_begin(-1,origin,2,0) && !modern_shadow_begin(MODERN_SHADOW_LIGHTS,origin,2,0),"invalid slot never allocates");
- CHECK(modern_shadow_begin(0,origin,2,0),"first light begins");
- CHECK(!modern_shadow_begin(1,origin,2,0),"cannot overwrite an unfinished submission");
+ CHECK(!modern_shadow_begin(-1,origin,2,0,0) && !modern_shadow_begin(MODERN_SHADOW_LIGHTS,origin,2,0,0),"invalid slot never allocates");
+ CHECK(modern_shadow_begin(0,origin,2,0,1),"first light begins");
+ CHECK(!modern_shadow_begin(1,origin,2,0,0),"cannot overwrite an unfinished submission");
  CHECK(modern_shadow_draw(1,matrix,1,NULL,uv,MODERN_SHADOW_BOTH),"shared caster");
  CHECK(modern_shadow_draw(2,matrix,1,NULL,uv,MODERN_SHADOW_WORLD),"world body/weapon");
  CHECK(modern_shadow_draw(3,matrix,1,NULL,uv,MODERN_SHADOW_VIEW),"viewmodel arms/weapon");
  CHECK(modern_shadow_end(),"complete depth maps");
+ CHECK(offset_calls==1,"ground Hard 1024 uses slope");
  CHECK(allocated==2 && handoffs==1 && !drawing,"lazy view allocation and balanced renderer handoff");
+ CHECK(copy_count==1 && submitted[0]==6 && submitted[1]==6 && submitted[2]==6,"shared casters render once without mixing private geometry");
  CHECK(draw_counts[0][0]==6 && draw_counts[0][1]==6 && !draw_counts[0][2],"world retains full body, excludes viewmodel");
  CHECK(draw_counts[1][0]==6 && !draw_counts[1][1] && draw_counts[1][2]==6,"view sees environment and own pose without hidden body");
  modern_shadow_bind(&uniforms);CHECK(bound[0]==91 && !bound[1],"only valid map binds");
- CHECK(modern_shadow_begin(1,origin,2,1),"second independent light");
+ CHECK(modern_shadow_begin(1,origin,2,1,1),"second independent light");
  modern_shadow_draw(1,matrix,1,NULL,uv,MODERN_SHADOW_BOTH);
  modern_shadow_draw(3,matrix,1,NULL,uv,MODERN_SHADOW_VIEW);
  CHECK(modern_shadow_end() && maps[0].valid && maps[1].valid,"second pass retains first light");
+ CHECK(offset_calls==1,"Soft leaves depth unmodified");
  modern_shadow_bind(&uniforms);CHECK(bound[0]==91 && bound[1]==93,"two world receiver maps");
  receiver=1;modern_shadow_bind(&uniforms);CHECK(bound[0]==92 && bound[1]==94,"two first-person receiver maps");
  map_slots[0]=1;map_slots[1]=0;modern_shadow_bind(&uniforms);
  CHECK(bound[0]==94 && bound[1]==92,"model slot order independent of depth-map ownership");
  modern_shadow_clear_draws();CHECK(!maps[0].valid && !maps[1].valid,"window invalidates both transient bindings");
- modern_shadow_begin(1,origin,2,0);
+ modern_shadow_begin(1,origin,2,0,0);
  modern_shadow_draw(1,matrix,1,NULL,uv,MODERN_SHADOW_BOTH);modern_shadow_end();
  CHECK(!maps[1].view_map && allocated==4,"hidden viewmodel adds no second pass");
  modern_shadow_bind(&uniforms);CHECK(bound[0]==93,"no stale view map after visibility change");
- modern_shadow_clear_draws();modern_shadow_begin(0,origin,2,0);
+ modern_shadow_clear_draws();modern_shadow_begin(0,origin,2,0,0);
  /* Exercise allocation failure with the previous owned name released. */
  maps[0].depth_cube[1]=0;allocated=1;fail_fbo=1;
  modern_shadow_draw(3,matrix,1,NULL,uv,MODERN_SHADOW_VIEW);
@@ -166,7 +182,7 @@ int main(int argc,char **argv) {
  CHECK(delete_calls==i,"repeated cleanup does not submit empty texture deletions");
  allocated=deleted_textures=0;fail_fbo=0;framebuffer=9;mesh_count=1;meshes[0].indices=10;meshes[0].count=3;
  for(i=0;i<MODERN_SHADOW_LIGHTS;i++) {
-  CHECK(modern_shadow_begin(i,origin,2,0),"each budget slot allocates independently");
+  CHECK(modern_shadow_begin(i,origin,2,0,0),"each budget slot allocates independently");
   modern_shadow_draw(1,matrix,1,NULL,uv,MODERN_SHADOW_BOTH);
   modern_shadow_draw(1,matrix,1,NULL,uv,MODERN_SHADOW_VIEW);
   CHECK(modern_shadow_end(),"world and first-person maps complete for every slot");
@@ -180,20 +196,20 @@ int main(int argc,char **argv) {
  /* A live size change releases all cubes, retaining immutable mesh handles.
     Re-selecting the same size must not churn resources. */
  resolution_scale=16;allocated=0;
- CHECK(modern_shadow_begin(0,origin,2,0),"2048 begins without a feature reset");
+ CHECK(modern_shadow_begin(0,origin,2,0,1),"2048 begins without a feature reset");
  CHECK(deleted_textures==2*MODERN_SHADOW_LIGHTS && allocated==1,"resize frees every old cube before lazy allocation");
  CHECK(mesh_count==1 && meshes[0].indices==10,"resize preserves converted geometry");
  modern_shadow_draw(1,matrix,1,NULL,uv,MODERN_SHADOW_BOTH);modern_shadow_end();
- CHECK(viewport_size==2048,"2048 raster dimensions");
+ CHECK(viewport_size==2048 && offset_calls==1,"2048 retains its original depth rasterization");
  i=delete_calls;
- modern_shadow_begin(0,origin,2,0);modern_shadow_end();
+ modern_shadow_begin(0,origin,2,0,0);modern_shadow_end();
  CHECK(delete_calls==i && allocated==1,"same resolution reuses resources");
  resolution_scale=32;allocated=0;resource_failed=1;
- CHECK(modern_shadow_begin(0,origin,2,0) && !resource_failed,"resolution change retries failed resources");
+ CHECK(modern_shadow_begin(0,origin,2,0,0) && !resource_failed,"resolution change retries failed resources");
  modern_shadow_draw(1,matrix,1,NULL,uv,MODERN_SHADOW_BOTH);modern_shadow_end();
  CHECK(viewport_size==4096,"4096 raster dimensions");
  resolution_scale=1;allocated=0;
- CHECK(modern_shadow_begin(0,origin,2,0),"return to stock resolution");
+ CHECK(modern_shadow_begin(0,origin,2,0,0),"return to stock resolution");
  modern_shadow_draw(1,matrix,1,NULL,uv,MODERN_SHADOW_BOTH);modern_shadow_end();
  CHECK(viewport_size==128,"128 raster dimensions");
  modern_shadow_dispose();CHECK(deleted_textures==2*MODERN_SHADOW_LIGHTS+3,"all old and replacement cubes released");
@@ -208,6 +224,17 @@ int main(int argc,char **argv) {
   vertices[0].weight=vertices[1].weight=1;
   mesh_bounds(&meshes[0],vertices,2);
   CHECK(mesh_faces(&meshes[0],bones,1,light)==63,"a box around the light retains every face");
+  {
+   struct shadow_mesh close;
+   vertices[0].position[0]=vertices[1].position[0]=.0024f;
+   vertices[0].position[1]=vertices[0].position[2]=-.0005f;
+   vertices[1].position[1]=vertices[1].position[2]=.0005f;
+   mesh_bounds(&close,vertices,2);
+   CHECK(mesh_faces(&close,bones,1,light)==1,"a close caster survives the near-plane face bound");
+   for(face=0;face<3;face++) {
+    vertices[0].position[face]=-.1f;vertices[1].position[face]=.1f;
+   }
+  }
   for(face=0;face<6;face++) {
    bones[12]=bones[13]=bones[14]=0;bones[12+face/2]=(face&1)?-10:10;
    CHECK(mesh_faces(&meshes[0],bones,1,light)==(1<<face),"isolated box selects the correct cube face");
@@ -227,12 +254,12 @@ int main(int argc,char **argv) {
   vertices[0].weight=vertices[1].weight=1;mesh_bounds(&meshes[0],vertices,2);
   framebuffer=9;mesh_count=1;meshes[0].indices=10;meshes[0].count=3;
   allocated=0;resolution_scale=8;
-  CHECK(modern_shadow_begin(0,origin,2,0),"far viewmodel test begins");
+  CHECK(modern_shadow_begin(0,origin,2,0,0),"far viewmodel test begins");
   CHECK(modern_shadow_draw(1,bones,2,NULL,uv,MODERN_SHADOW_VIEW) && !draw_count,
         "a distant viewmodel does not queue a draw or require a second cube");
   CHECK(modern_shadow_end() && !maps[0].view_map && allocated==1,"far light keeps only its world cube");
   bones[12]=.5f;
-  CHECK(modern_shadow_begin(0,origin,2,0),"near light begins");
+  CHECK(modern_shadow_begin(0,origin,2,0,0),"near light begins");
   CHECK(modern_shadow_draw(1,bones,2,NULL,uv,MODERN_SHADOW_VIEW),"near viewmodel remains a caster");
   CHECK(modern_shadow_end() && maps[0].view_map && allocated==2,"near light retains the independent first-person cube");
   modern_shadow_dispose();

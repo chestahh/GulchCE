@@ -68,6 +68,8 @@ void overshield_effect_reset(void) { resets++; }
 int main(void)
 {
     int map;
+    struct plasma_shadow_source grenade;
+    long collision_owner = 42;
     real_rgb_color color = {0.2f, 0.7f, 0.3f}, saved = color;
     real_point3d position = {{1, 2, 3}}, old_position = position;
     real_vector3d direction = {{0, 0, 1}}, old_direction = direction;
@@ -114,11 +116,14 @@ int main(void)
             needler_lighting_position(42, &position, &direction) ||
             memcmp(&position, &old_position, sizeof(position)) ||
             memcmp(&direction, &old_direction, sizeof(direction))) return 5;
+        muzzle_lighting_projectile_created(17, 42);
+        if (muzzle_lighting_shadow_caster(17, 42, &collision_owner) != NONE || collision_owner != NONE) return 6;
+        grenade.grounded = 1; grenade.emitter_object = grenade.casing = grenade.stuck_host = 42;
         if (muzzle_lighting_vehicle_occlusion(17) || plasma_lighting_vehicle_occlusion(17) ||
             covenant_emitter_lighting_vehicle_occlusion(17) ||
             covenant_emitter_lighting_occlusion_ignore(17) != NONE ||
-            covenant_emitter_lighting_shadow_owner(17) != NONE ||
-            plasma_lighting_shadow_owner(17) != NONE ||
+            covenant_emitter_lighting_shadow_owner(17, &grenade.emitter_object) != NONE ||
+            plasma_lighting_shadow_owner(17, &grenade) != NONE || grenade.grounded || grenade.stuck_host != NONE || grenade.casing != NONE || grenade.emitter_object != NONE ||
             covenant_emitter_lighting_cone(1, axis, origin, &radius) || radius != 2.5f) return 6;
         plasma_lighting_frame_end(); muzzle_lighting_frame_end(); covenant_lighting_frame_end();
         covenant_emitter_lighting_frame_end(); rocket_lighting_frame_end(); shield_glow_frame_end();
@@ -141,7 +146,9 @@ def test_android_menu_and_default_config_exclude_dynamic_lighting():
     category = next(row for row in port_settings.SCREENS['video_settings']['categories']
                     if row[1] == 'video_settings/dynamic_lighting')
     assert category[3] == 'desktop web'
-    for _, setting, _, _, platform in spec['rows']:
+    shadow_rows = port_settings.SCREENS['video_settings/shadows']['rows']
+    assert shadow_rows[1][1] == 'display.shadow_resolution' and shadow_rows[1][4] is None
+    for _, setting, _, _, platform in [*spec['rows'], shadow_rows[0]]:
         assert platform == ('desktop' if setting == 'display.modern_shadows' else 'desktop web')
         groups = {
             'lighting.weapon_glow': ['display.weapon_glow', 'display.fuel_rod_lighting',
@@ -156,7 +163,7 @@ def test_android_menu_and_default_config_exclude_dynamic_lighting():
             else:
                 assert '"false"' in declaration or member == 'display.shield_glow_intensity'
     for name, lines in port_settings.settings_files().items():
-        if name.endswith(('video_settings.xml', 'dynamic_lighting.xml')):
+        if name.endswith(('video_settings.xml', 'dynamic_lighting.xml', 'shadows.xml')):
             assert (ROOT / 'port/assets/menus/ce' / name).read_text() == '\n'.join(lines)
             widgets = ET.fromstring('\n'.join(lines))
             visible_on = set()

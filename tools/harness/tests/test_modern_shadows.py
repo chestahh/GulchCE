@@ -1,5 +1,5 @@
 """Exercise actual feature-light eligibility, shadow selection and lifecycle."""
-from tools.harness import CHECK_FAILED, build, constant, function, read, run
+from tools.harness import CHECK_FAILED, build, constant, function, read, run, structure
 
 
 def test_shared_resolution_bounds():
@@ -31,6 +31,7 @@ def check_selection(budget, fault=False):
     if fault:
         code = code.replace('unshadowed_object(selections[map].unshadowed_owner, receiver_object)', 'FALSE')
     status, output = run(build('modern_shadows', (('under_test.inc', code),
+                        ('grenade_shadow.inc', structure(read('port/linux/game/plasma_lighting.h'), 'plasma_shadow_source')),
                         ('budget.inc', f'#define MODERN_SHADOW_LIGHTS {budget}\n'))), 'all')
     assert status == (CHECK_FAILED if fault else 0), output
 
@@ -51,6 +52,7 @@ def test_external_pass_handoff():
 
 def test_viewmodel_pose_and_visibility():
     code = function(read('port/linux/game/modern_shadows_first_person.inl'), 'modern_shadows_viewmodel')
+    code += function(read('port/linux/game/modern_shadows.c'), 'viewmodel_casters')
     status, output = run(build('modern_shadow_viewmodel', (('under_test.inc', code),)), 'pose')
     assert status == 0, output
 

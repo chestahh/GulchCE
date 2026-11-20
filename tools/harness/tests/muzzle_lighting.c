@@ -5,18 +5,32 @@
 typedef struct { real red,green,blue; } real_rgb_color;
 typedef struct { real_point3d position; real_vector3d forward; } real_matrix4x3;
 enum { _object_invisible_bit, _point_light_port_glow_bit, _point_light_connected_to_map_bit, MAXIMUM_WEAPONS_PER_UNIT=4 };
-struct weapon_datum { long definition_index; struct { long parent_object_index; int flags; struct { int size; } node_matrices; } object; };
+enum { _weapon_overheated_bit=0, _weapon_state_primary_recoil=1, _weapon_state_secondary_recoil, _trigger_spewing=6 };
+#define MAXIMUM_OBJECTS_PER_MAP 64
+#define _object_mask_projectile 4
+static int modern_mode=1;
+static int modern_shadows_enabled(void) { return modern_mode; }
+static long source_for_light=NONE;
+static long light_port_emitter_object(long light) { return source_for_light; }
+struct projectile_datum { struct {long owner_object_index; real bounding_sphere_radius; real_point3d bounding_sphere_center;} object; struct {real odometer;} projectile; };
+static struct projectile_datum bolt;
+static real distance_squared3d(const real_point3d *a,const real_point3d *b) {real dx=a->x-b->x;return dx*dx;}
+struct weapon_datum { struct { int state, flags; struct { int state; } triggers[2]; } weapon; long definition_index; struct { long parent_object_index; real bounding_sphere_radius; real_point3d bounding_sphere_center; int flags; struct { int size; } node_matrices; } object; };
 struct unit_datum { struct { short current_weapon_index; } unit; };
 struct object_marker { real_matrix4x3 matrix; };
 struct observer_result { real_point3d position; };
 static struct weapon_datum weapons[21];
 static struct unit_datum unit;
 static int vehicle_owner=1;
+static struct { short local_player_index; } render;
+static int shoulder, fp_calls;
+static int third_person_active(short player) { return player==0 && shoulder; }
 #define _object_mask_vehicle 2
+#define _object_mask_biped 1
 static struct observer_result camera;
 static const char *tag="weapons\\assault rifle\\assault rifle";
 static int on=1,present=1,held=1,marker=1,world_marker,allocs,deletes,disconnects,submits,fail,missing;
-static void *object_try_and_get_and_verify_type(long i,int mask) { return present && vehicle_owner && i==20 ? &unit : NULL; }
+static void *object_try_and_get_and_verify_type(long i,int mask) { if(mask==_object_mask_projectile && (i&65535)==32) return &bolt;return present && mask==(vehicle_owner ? _object_mask_vehicle : _object_mask_biped) && i==20 ? &unit : NULL; }
 static long tick=30;
 static real render_time=1.0f, marker_x=0.5f;
 static real_vector3d forward={1,0,0};
@@ -33,7 +47,7 @@ static struct weapon_datum *object_get(long w) { return &weapons[w]; }
 static struct unit_datum *unit_try_and_get(long u) { return present && u==20 ? &unit : NULL; }
 static const char *tag_get_name(long d) { return tag; }
 static long unit_inventory_get_weapon(long u,short s) { return held; }
-static int first_person_weapon_adjust_light(long w,const char *n,real_point3d *p,real_vector3d *f,real_vector3d *u) { p->x=marker_x;p->y=p->z=0;*f=forward;return marker; }
+static int first_person_weapon_adjust_light(long w,const char *n,real_point3d *p,real_vector3d *f,real_vector3d *u) { fp_calls++;p->x=marker_x;p->y=p->z=0;*f=forward;return marker; }
 static int object_get_marker_by_name(long w,const char *n,struct object_marker *m,short c) { m->matrix.forward=forward;m->matrix.position.x=!strcmp(n,"cannon flash")?4:marker_x;m->matrix.position.y=m->matrix.position.z=0;return world_marker; }
 static short local_player_get_next(short p) { return p==NONE?0:NONE; }
 static const struct observer_result *observer_get_camera(short p) { return &camera; }
@@ -76,7 +90,21 @@ int main(int argc,char **argv)
  }
  else if(!strcmp(name,"profiles"))
  {
-  for(i=0;i<NUMBEROF(muzzle_profiles);i++) { tag=muzzle_profiles[i].tag;tick++;muzzle_lighting_shot(1,muzzle_profiles[i].triggers==2?1:0);CHECK(pulses[0].active,"supported weapon");muzzle_lighting_forget(); }
+  long collision;
+  for(i=0;i<NUMBEROF(muzzle_profiles);i++)
+  {
+   tag=muzzle_profiles[i].tag;
+   vehicle_owner=muzzle_profiles[i].vehicle_occlusion;
+   tick++;muzzle_lighting_shot(1,muzzle_profiles[i].triggers==2?1:0);
+   CHECK(pulses[0].active,"supported weapon");
+   if(!vehicle_owner)
+   {
+    muzzle_lighting_update();
+    CHECK(pulses[0].light!=NONE && muzzle_lighting_shadow_caster(pulses[0].light,NONE,&collision)==1 &&
+          collision==NONE,"every handheld muzzle profile excludes its weapon");
+   }
+   muzzle_lighting_forget();
+  }
   tag="weapons\\plasma pistol\\plasma pistol";tick++;muzzle_lighting_shot(1,1);CHECK(pulses[0].radius==2.2f && pulses[0].duration==0.16f,"charged profile");
   muzzle_lighting_forget();tag="custom\\weapon";muzzle_lighting_shot(1,0);CHECK(!pulses[0].active,"unknown stays stock");
  }
@@ -106,6 +134,15 @@ int main(int argc,char **argv)
   fail=1;muzzle_lighting_shot(1,0);muzzle_lighting_update();CHECK(!allocs && !pulses[0].active,"allocation failure stock fallback");
   fail=0;missing=1;tick++;muzzle_lighting_shot(1,0);muzzle_lighting_update();CHECK(!allocs,"missing template fallback");
   missing=0;marker=0;tick++;muzzle_lighting_shot(1,0);muzzle_lighting_update();CHECK(!allocs,"missing marker fallback");
+ }
+ else if(!strcmp(name,"camera"))
+ {
+  real_point3d position;
+  muzzle_lighting_shot(1,0);world_marker=1;shoulder=1;
+  CHECK(muzzle_position(&pulses[0],&position)&&fp_calls==0,"shoulder camera must not query retained viewmodel pose");
+  shoulder=0;CHECK(muzzle_position(&pulses[0],&position)&&fp_calls==1,"first-person pose restored immediately");
+  shoulder=1;world_marker=0;
+  CHECK(!muzzle_position(&pulses[0],&position)&&fp_calls==1,"missing world marker cannot borrow hidden viewmodel");
  }
  else if(!strcmp(name,"world"))
  {
@@ -160,11 +197,35 @@ int main(int argc,char **argv)
  }
  if(!strcmp(name,"owner"))
  {
+  long collision;
+  vehicle_owner=0;muzzle_lighting_shot(1,0);muzzle_lighting_update();
+  CHECK(muzzle_lighting_shadow_caster(pulses[0].light,NONE,&collision)==1 && collision==NONE,"handheld excludes only its firing weapon");
+  CHECK(muzzle_lighting_shadow_caster(63,NONE,&collision)==NONE && collision==NONE,"other light retains shooter");
+  muzzle_lighting_forget();on=0;
+  CHECK(muzzle_lighting_shadow_caster(63,1,&collision)==NONE,"idle weapon casts");
+  weapons[1].weapon.state=_weapon_state_secondary_recoil;
+  CHECK(muzzle_lighting_shadow_caster(63,1,&collision)==1 && collision==NONE,"authored secondary fire without muzzle pulses");
+  CHECK(muzzle_lighting_shadow_caster(63,NONE,&collision)==NONE,"independent light keeps firing weapon");
+  weapons[1].weapon.state=0;weapons[1].weapon.flags=FLAG(_weapon_overheated_bit);
+  CHECK(muzzle_lighting_shadow_caster(63,1,&collision)==1,"heat vent uses the emitting weapon");
+  weapons[1].weapon.flags=0;
+  CHECK(muzzle_lighting_shadow_caster(63,1,&collision)==NONE,"recovered gun casts immediately");
+  bolt.object.owner_object_index=20;weapons[1].object.bounding_sphere_radius=.5f;source_for_light=0x10020;
+  muzzle_lighting_projectile_created(source_for_light,1);
+  CHECK(muzzle_lighting_shadow_caster(63,NONE,&collision)==1,"own bolt overlapping gun ignores the exact firing weapon");
+  bolt.object.bounding_sphere_center.x=2;
+  CHECK(muzzle_lighting_shadow_caster(63,NONE,&collision)==NONE,"outgoing projectile shadows gun normally after separation");
+  bolt.object.bounding_sphere_center.x=0;bolt.projectile.odometer=4;
+  CHECK(muzzle_lighting_shadow_caster(63,NONE,&collision)==NONE,"returning projectile acts as external light");
+  bolt.projectile.odometer=0;source_for_light=0x20020;
+  CHECK(muzzle_lighting_shadow_caster(63,NONE,&collision)==NONE,"recycled slot cannot inherit previous gun");
+  modern_mode=0;muzzle_lighting_projectile_created(source_for_light,1);
+  CHECK(muzzle_lighting_shadow_caster(63,NONE,&collision)==NONE,"disabled shadow system records no new provenance");
+  modern_mode=1;source_for_light=NONE;on=1;vehicle_owner=1;tick++;
   tag="vehicles\\warthog\\warthog gun";muzzle_lighting_shot(1,0);muzzle_lighting_update();
-  CHECK(muzzle_lighting_vehicle_owner(pulses[0].light)==20,"turret identifies live chassis");
-  CHECK(muzzle_lighting_vehicle_owner(63)==NONE,"unrelated light cannot exempt chassis");
-  vehicle_owner=0;CHECK(muzzle_lighting_vehicle_owner(pulses[0].light)==NONE,"non-vehicle owner stays rendered");vehicle_owner=1;
-  on=0;CHECK(muzzle_lighting_vehicle_owner(pulses[0].light)==NONE,"disabled feature has no collision owner");
+  CHECK(muzzle_lighting_shadow_caster(pulses[0].light,NONE,&collision)==20 && collision==20,"turret identifies live chassis");
+  vehicle_owner=0;CHECK(muzzle_lighting_shadow_caster(pulses[0].light,NONE,&collision)==NONE && collision==NONE,"non-vehicle owner stays rendered");
+  on=0;CHECK(muzzle_lighting_shadow_caster(pulses[0].light,NONE,&collision)==NONE && collision==NONE,"disabled feature has no exemption");
  }
  return 0;
 }

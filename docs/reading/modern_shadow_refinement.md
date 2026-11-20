@@ -3,7 +3,10 @@
 This is the refinement plan following the reopened
 [modern-shadow visual acceptance](modern_dynamic_shadows.md#visual-acceptance-reopened).
 The Halo 2 pstencil references define the visual target. The implementation
-remains shadowmaps; CStencil is deferred.
+remains shadowmaps; production CStencil is deferred. The subsequently approved
+[bounded stencil investigation](shadow_backend_investigation.md) compares the
+visibility techniques without replacing the current renderer or closing visual
+acceptance.
 
 The user has approved owner-specific shadow exceptions for
 Jackal shield lights and Ghost engine lights. Their owners remain illuminated;

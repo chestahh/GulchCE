@@ -396,6 +396,12 @@ void projectile_delete(
 	return;
 }
 
+/* port: a held projectile can have a parent before its first impact. */
+boolean projectile_is_attached(struct projectile_datum const *projectile)
+{
+	return TEST_FLAG(projectile->projectile.flags, _projectile_attached_bit);
+}
+
 void projectile_set_target_object_index(
 	long projectile_index,
 	long target_object_index)

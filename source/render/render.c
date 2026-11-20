@@ -348,7 +348,10 @@ static void render_window(
 		modern_shadows_prepare(rasterizer_target == _render_target_primary);
 		render_objects();
 		structure_render_preprocess();
+		/* port: identify world receivers without modifying model lighting. */
+		modern_shadows_environment_receivers(rasterizer_target == _render_target_primary);
 		structure_render_lightmaps();
+		modern_shadows_environment_receivers(FALSE);
 		rasterizer_lens_flares_submit_occlusion_tests();
 		render_object_shadows();
 		lights_render_diffuse();

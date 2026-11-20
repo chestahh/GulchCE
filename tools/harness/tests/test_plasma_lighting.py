@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
-from harness import CHECK_FAILED, build, function, mutated, read, run
+from harness import CHECK_FAILED, build, enum_with, function, mutated, read, run, structure
 
 
 def generated(fault=None):
@@ -16,15 +16,17 @@ def generated(fault=None):
     policy = read('port/linux/game/covenant_lighting.c')
     policy = policy[policy.index('static const struct covenant_profile'):policy.index('static const real_rgb_color covenant_black')]
     code += 'typedef struct { real red, green, blue; } real_rgb_color;\n' + policy
+    code += enum_with(read('source/items/projectiles.c'), '_projectile_attached_bit =') + '\n'
+    code += function(read('source/items/projectiles.c'), 'projectile_is_attached')
     code += re.sub(r'^#include.*$', '', read('port/linux/game/plasma_lighting.c'), flags=re.M)
     code += function(read('source/objects/object_lights.c'), 'light_compute_bounding_sphere')
     code += function(read('port/linux/game/render_interpolation.c'), 'render_interpolation_frame_end')
     if fault:
         code = mutated(code, *fault)
-    return (('under_test.inc', code),)
+    return (('under_test.inc', code), ('grenade_shadow.inc', structure(read('port/linux/game/plasma_lighting.h'), 'plasma_shadow_source')))
 
 
-@pytest.mark.parametrize('case', ['placement', 'shield', 'counter_cache', 'covenant', 'muzzle', 'radius', 'rocket', 'pistol', 'model', 'off', 'filter', 'restore', 'split', 'capacity', 'unload', 'missing', 'stale', 'selection', 'disconnected', 'existing'])
+@pytest.mark.parametrize('case', ['environment', 'placement', 'stuck_grenade', 'shield', 'counter_cache', 'covenant', 'muzzle', 'radius', 'rocket', 'pistol', 'model', 'off', 'filter', 'restore', 'split', 'capacity', 'unload', 'missing', 'stale', 'selection', 'disconnected', 'existing'])
 def test_case(case):
     status, output = run(build('plasma_lighting', generated()), case)
     assert status == 0, output
@@ -46,10 +48,10 @@ def test_negative_control(before, after, case):
 def test_disabled_projectile_policy_is_required():
     # Authored emitters add a second category gate. Removing only the early
     # return is no longer a fault: the second gate still preserves stock.
-    name, code = generated()[0]
+    (name, code), grenade_header = generated()
     assert code.count('lighting_config_boolean("display.plasma_lighting")') > 1
     code = code.replace('lighting_config_boolean("display.plasma_lighting")', 'TRUE')
-    status, output = run(build('plasma_lighting', ((name, code),)), 'off')
+    status, output = run(build('plasma_lighting', ((name, code), grenade_header)), 'off')
     assert status == CHECK_FAILED, output
 
 

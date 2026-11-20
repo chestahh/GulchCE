@@ -16,7 +16,7 @@ import hashlib
 parser = argparse.ArgumentParser()
 parser.add_argument('--data-root', required=True, type=Path)
 parser.add_argument('--capture-dir', type=Path, help='Directory containing halo-capture.exe and its build manifest')
-parser.add_argument('--mcc-package', type=Path, help='Read-only Digsite Workshop package used by --map mcc-digsite')
+parser.add_argument('--mcc-package', type=Path, help='Read-only Workshop package for --map mcc-digsite or mcc-c40')
 parser.add_argument('--fps', required=True, type=int, choices=[30, 60, 120, 240])
 parser.add_argument('--enabled', required=True, type=int, choices=[0, 1])
 parser.add_argument('--shadow-switch', action='store_true', help='Cycle Off/Hard/Soft in the isolated capture config')
@@ -26,7 +26,7 @@ parser.add_argument('--modern-shadows', choices=['off', 'hard', 'soft'], default
 parser.add_argument('--shadow-resolution', type=int, choices=[128, 256, 512, 1024, 2048, 4096],
                     help='Explicit shared stock/modern shadow resolution for acceptance captures')
 parser.add_argument('--label', default='')
-parser.add_argument('--map', choices=['bloodgulch', 'sidewinder', 'carousel', 'a10', 'b40', 'c40', 'ce-deathisland', 'mcc-digsite', 'mcc-ruby-c40'])
+parser.add_argument('--map', choices=['bloodgulch', 'sidewinder', 'carousel', 'a10', 'b40', 'c40', 'ce-deathisland', 'mcc-digsite', 'mcc-ruby-c40', 'mcc-c40'])
 parser.add_argument('--kind', choices=['rifle','pistol','charged','rocket','needle','ghost','banshee','banshee-fuel','shade','fuel','wraith','mp-needle','mp-banshee-fuel','mp-shade','ce-fuel','grenade'], default='rifle')
 parser.add_argument('--muzzle', choices=['ar','handgun','shotgun','sniper','rifle','pistol','charged','needler','rocket','flamethrower','warthog','scorpion'])
 parser.add_argument('--muzzle-source-offset', type=float, help='Capture-only vehicle muzzle source distance ahead of the rendered marker, in world units')
@@ -45,6 +45,7 @@ parser.add_argument('--shadow-scene', choices=['warthog', 'ghost', 'ghost-engine
 parser.add_argument('--dump-shaders', action='store_true', help='Retain generated GPU programs for this isolated run')
 parser.add_argument('--shadow-omit', choices=['weapon', 'body', 'vehicle', 'occupants'], help='Capture-only counterfactual: omit selected casters, retaining their visible models')
 parser.add_argument('--shadow-motion', action='store_true', help='Capture every rendered frame during ticks 100-160 in a shadow scene')
+parser.add_argument('--shadow-composition', action='store_true', help='Move a real source into range and back out; optional motion capture covers ticks 100-220')
 parser.add_argument('--shadow-camera-angle', type=float, help='Rotate only the acceptance camera around the subject, in degrees')
 parser.add_argument('--shadow-weapon', help='Loaded weapon tag path for a held-weapon shadow acceptance scene')
 parser.add_argument('--shadow-holder', help='Loaded biped tag path replacing the marine in that acceptance scene')
@@ -82,6 +83,8 @@ parser.add_argument('--drop', type=float)
 parser.add_argument('--receiver-distance', type=float)
 parser.add_argument('--shadow-wall-gap', type=float, default=.7, help='Jackal fixture distance from the wall in world units')
 args = parser.parse_args()
+if args.map == 'mcc-c40' and not args.mcc_package:
+    parser.error('--map mcc-c40 requires --mcc-package')
 if args.turret_sources and (args.muzzle not in ('warthog','scorpion') or not 0 <= args.turret_radius <= .2 or not 0 <= args.turret_ahead <= .2):
     parser.error('--turret-sources requires a vehicle muzzle and disk dimensions in [0, 0.2]')
 if args.turret_timing and (args.muzzle not in ('warthog','scorpion') or not 30 <= args.turret_timing <= 120):
@@ -100,6 +103,8 @@ if args.shadow_holder and args.shadow_scene != 'marine':
     parser.error('--shadow-holder requires --shadow-scene marine')
 if args.shadow_vehicle and args.shadow_scene not in ('warthog', 'ghost', 'ghost-engine'):
     parser.error('--shadow-vehicle requires a vehicle --shadow-scene')
+if args.shadow_composition and args.shadow_scene not in ('player', 'marine', 'corpse', 'warthog', 'ghost'):
+    parser.error('--shadow-composition requires an external-light biped or vehicle scene')
 if args.shadow_motion and not args.shadow_scene:
     parser.error('--shadow-motion requires --shadow-scene')
 if args.shadow_light and not args.ambient:
@@ -110,8 +115,8 @@ if args.shadow_scene and (args.ambient or args.emitter or args.shield or args.mu
     parser.error('--shadow-scene cannot be combined with another scene fixture')
 if args.shadow_resource_failure and not args.shadow_switch:
     parser.error('--shadow-resource-failure requires --shadow-switch')
-if args.mcc_package and args.map != 'mcc-digsite':
-    parser.error('--mcc-package requires --map mcc-digsite')
+if args.mcc_package and args.map not in ('mcc-digsite', 'mcc-c40'):
+    parser.error('--mcc-package requires --map mcc-digsite or mcc-c40')
 if args.prong_lighting:
     if not args.combat or args.kind not in ('rifle', 'pistol') or args.weapon_glow or args.muzzle:
         parser.error('--prong-lighting requires rifle/pistol --combat, without other weapon-light options')
@@ -160,6 +165,13 @@ elif args.map=='mcc-digsite':
             source = args.mcc_package/('maps' if name == '1.map' else 'halo1/maps')/name
         shutil.copy2(source,target)
     level=r'mcc_maps\DigsiteMP\1'
+elif args.map=='mcc-c40':
+    for name in ['c40.map', 'bitmaps.map', 'sounds.map']:
+        target=out/'mcc_maps'/'CampaignProbe'/name
+        target.parent.mkdir(parents=True,exist_ok=True)
+        source=args.mcc_package/('maps' if name=='c40.map' else 'halo1/maps')/name
+        shutil.copy2(source,target)
+    level=r'mcc_maps\CampaignProbe\c40'
 elif args.map=='mcc-ruby-c40':
     for name in ['RubyRebalanced/c40.map', '_shared/singleplayer/bitmaps.map']:
         target=out/'mcc_maps'/name
@@ -208,9 +220,9 @@ if args.map == 'mcc-digsite':
     env.update(HALO_NETWORK_TEST='host:'+level+':slayer', HALO_NETWORK_TEST_START='12',
                HALO_NET_ADDRESS='127.0.0.1', HALO_NET_BROADCAST='127.0.0.1',
                HALO_EXIT_AFTER='35')
-if args.map in ('b40', 'c40', 'mcc-ruby-c40'):
+if args.map in ('b40', 'c40', 'mcc-ruby-c40', 'mcc-c40'):
     env['HALO_COVENANT_CAPTURE_CAMPAIGN'] = '1'
-    env['HALO_EXIT_AFTER'] = '70' if args.map in ('b40', 'mcc-ruby-c40') else '35'
+    env['HALO_EXIT_AFTER'] = '70' if args.map in ('b40', 'mcc-ruby-c40', 'mcc-c40') else '35'
 if args.prong_lighting:
     env.update(HALO_PLASMA_PRONG_LIGHTING=str(args.enabled), HALO_PLASMA_LIGHTING='0')
 if args.weapon_glow:
@@ -233,7 +245,7 @@ if args.sparse_images:
 if args.counter_detail:
     env['HALO_EMITTER_CAPTURE_COUNTER_DETAIL'] = '1'
 if args.emitter:
-    env['HALO_EXIT_AFTER'] = '70' if args.map in ('b40', 'mcc-ruby-c40') else '35'
+    env['HALO_EXIT_AFTER'] = '70' if args.map in ('b40', 'mcc-ruby-c40', 'mcc-c40') else '35'
     env['HALO_EMITTER_CAPTURE'] = args.emitter
     env['HALO_PLASMA_LIGHTING'] = '0'
     env[{'jackal':'HALO_JACKAL_SHIELD_LIGHTING', 'major':'HALO_JACKAL_SHIELD_LIGHTING',
@@ -301,6 +313,8 @@ if args.shadow_scene:
         env['HALO_SHADOW_CAPTURE_CAMERA_ANGLE'] = str(args.shadow_camera_angle)
     if args.shadow_motion:
         env['HALO_SHADOW_CAPTURE_MOTION'] = '1'
+    if args.shadow_composition:
+        env['HALO_SHADOW_CAPTURE_COMPOSITION'] = '1'
     env['HALO_SHADOW_CAPTURE_WALL_GAP'] = str(args.shadow_wall_gap)
     env.update(HALO_SHADOW_CAPTURE_SCENE=args.shadow_scene, HALO_JACKAL_SHIELD_LIGHTING=str(args.enabled if args.shadow_scene == 'jackal-wall' else 0),
                HALO_VEHICLE_LIGHTING=str(args.enabled if args.shadow_scene == 'ghost-engine' else 0), HALO_SESSION_COMPATIBILITY='gulchce_third_person',
@@ -328,7 +342,7 @@ with (out/'stdout.log').open('wb') as so, (out/'stderr.log').open('wb') as se:
     process = subprocess.Popen([str(capture_executable)], cwd=out,
                                env=env, stdout=so, stderr=se, creationflags=subprocess.CREATE_NO_WINDOW)
     try:
-        process.wait(timeout=(args.turret_timing+45 if args.turret_timing else 145 if args.map in ('b40', 'c40', 'mcc-ruby-c40') else 45) + args.startup_grace)
+        process.wait(timeout=(args.turret_timing+45 if args.turret_timing else 145 if args.map in ('b40', 'c40', 'mcc-ruby-c40', 'mcc-c40') else 45) + args.startup_grace)
     finally:
         if process.poll() is None:
             process.terminate()
@@ -461,7 +475,11 @@ if args.enabled and args.occlusion and not (report['occlusion_updates'] or repor
     raise SystemExit('Capture did not update any occlusion fields')
 
 if args.combat and not args.turret_timing and 'PLASMA combat equipped' not in logs:
-    raise SystemExit('Combat fixture did not equip the requested weapon')
+    # The AR emitter fixture equips the same weapon and returns before the
+    # combat fixture. Require both successful creation and real firing.
+    if not (args.muzzle == 'ar' and args.emitter == 'ammo-fp' and
+            report['emitter_created'] and report['muzzle_submissions'] > 0):
+        raise SystemExit('Combat fixture did not equip the requested weapon')
 if args.probe and args.enabled and report['max_selected'] < (min(args.burst, 8) if args.kind in ('needle', 'mp-needle', 'wraith') else args.burst):
     raise SystemExit('Stress capture did not select the requested simultaneous light count')
 if args.door:
@@ -531,9 +549,18 @@ if args.shadow_switch:
     from harness import constant
     budget = constant((root/'port/linux/include/modern_shadows.h').read_text(), 'MODERN_SHADOW_LIGHTS')
     released = [tuple(map(int, row)) for row in re.findall(r'SHADOW FREE cubes (\d+) remaining (\d+) meshes (\d+)', logs)]
-    assert any(0 < cubes <= 2 * budget for cubes, _, _ in released), released
-    assert all(remaining == meshes == 0 for _, remaining, meshes in released), released
-    assert report['shadow_active_samples'] > 0
+    assert released, 'No shadow-resource cleanup was recorded'
+    assert all(remaining == meshes == 0 for _, remaining, meshes in released), 'Shadow resources survived cleanup'
+    if args.enabled:
+        assert any(0 < cubes <= 2 * budget for cubes, _, _ in released), 'No local shadow maps were released'
+        assert report['shadow_active_samples'] > 0
+    else:
+        # Environmental maps are independent of the local-light cube budget.
+        # This path requires the environmental capture builder's GPU evidence.
+        assert all(cubes == 0 for cubes, _, _ in released), 'Disabled local lighting allocated shadow cubes'
+        for i in range(1, len(intervals), 3):
+            completed = 'ENV GPU complete 1' in intervals[i+2]
+            assert completed == (intervals[i+1] != 'off'), 'Environmental shadow mode did not match completed draws'
     if args.shadow_resource_failure:
         assert logs.count('SHADOW TEST resource failure injected') == 1
         assert logs.count('modern shadow resources unavailable; retaining existing lighting until reset') == 1

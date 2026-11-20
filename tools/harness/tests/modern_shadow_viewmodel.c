@@ -33,6 +33,14 @@ static void model_remap_node_matrices_to_match_animation_graph(long m,real_matri
  const real_matrix4x3 *in,const short *remap) {
  int n; copies++;for(n=0;n<model.nodes.count;n++) out[n]=in[remap[n]];
 }
+enum { NUMBER_OF_OUTGOING_OBJECT_FUNCTIONS = 1, MODERN_SHADOW_VIEW = 2 };
+static int hand_draws, weapon_draws;
+static void object_function_values_for_render(long owner, real *values) { values[0] = (real)owner; }
+static int model_caster(struct model const *m, real_matrix4x3 const *nodes, const void *regions,
+ int permutation, real const *values, int views) {
+ if (values[0] == first.unit_index) hand_draws++; else if (values[0] == first.weapon_index) weapon_draws++;
+ return 1;
+}
 #include "under_test.inc"
 int main(int argc,char **argv) {
  real_matrix4x3 nodes[64]; long index,owner; int n;
@@ -55,6 +63,14 @@ int main(int argc,char **argv) {
  first.weapon_node_remapping_table[0]=0;
  CHECK(modern_shadows_viewmodel(0,&index,&owner,nodes)==1 && index==31 && owner==21 && nodes[0].marker==7,
        "weapon changes select the new model, owner and pose without an AR-specific cache");
+ {
+  long owners[2];
+  CHECK(viewmodel_casters(owners,first.unit_index) && !hand_draws && weapon_draws==1 &&
+        owners[0]==first.weapon_index && owners[1]==first.unit_index,"stuck player keeps the held weapon casting");
+  CHECK(viewmodel_casters(owners,first.weapon_index) && hand_draws==1 && weapon_draws==1,
+        "stuck weapon keeps the player's hands casting");
+  CHECK(viewmodel_casters(owners,NONE) && hand_draws==2 && weapon_draws==2,"external light receives both draws");
+ }
  n=copies;visible=0;
  CHECK(modern_shadows_viewmodel(0,&index,&owner,nodes)==0 && copies==n,"hidden/third-person view has no viewmodel casters");
  visible=1;first.visible=0;

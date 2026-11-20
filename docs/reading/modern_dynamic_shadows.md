@@ -1,5 +1,33 @@
 # Modern dynamic shadows
 
+## Current investigation
+
+Visual acceptance remains open after further player, Ghost and grenade
+reports. The [backend investigation and bounded stencil comparison](shadow_backend_investigation.md)
+separates emitter placement, stock-shadow composition and visibility quality.
+The existing shadowmap implementation is preserved; the stencil probe is an
+offline diagnostic, not a shipped CStencil mode.
+
+The follow-up M2 environmental replacement is implemented locally; its results,
+stock fallback and open acceptance gaps are recorded in the investigation above.
+M3 verifies per-light composition with GPU/readback evidence and an in-engine video.
+M4 adds environmental model self-shadowing and render-family bounds, with
+geometry/material checks across Xbox, CE and MCC captures. The initial 236.2 FPS
+busy-combat result missed the target. A subsequent comparison found a small
+environmental-model cost; opaque-depth and tighter-bounds experiments did not
+demonstrate an overall combat gain and were discarded. Local-depth attribution
+then identified duplicated common geometry between world and first-person cubes.
+Sharing that depth produced a measured gain and a fresh two-minute result of
+254.9 FPS with all eight shadow lights active at 2560x1440 / Soft 1024. This
+meets the average-FPS gate for that run, with one 314 ms hitch still recorded;
+see the investigation for the controlled comparison and qualification limits.
+The [M4A single-source shadow experiment](shadow_emitter_m4a.md)
+follows M4 and precedes M5 stability and M6 final acceptance. Its multi-sample
+finite-emitter prototype was retired; the replacement PCSS comparison is planned,
+not implemented or accepted. M5 includes MCC
+replacement coverage and combined mode-switch hitching. Wider visual acceptance
+remains open.
+
 ## Refined shadow behaviour
 
 The [refinement milestones and reproducible baseline](modern_shadow_refinement.md)
@@ -66,17 +94,15 @@ refined effects and bounded eight-light budget. Off-default behavior, host
 policy, AMD/NVIDIA workarounds, Android exclusion and Xbox/CE/MCC ownership
 remain requirements throughout.
 
-This branch adds optional rendered shadow maps to GulchCE's dynamic lighting.
-It leaves the original object shadow projection in place. Choose **Off**, **Hard**
-or **Soft** under Video Setup → Dynamic Lighting → Modern Shadows. The modern
-Settings frontend exposes the same control under Advanced Graphics → Lighting
-and Shields. The default is **Off**. The corresponding configuration key is
+Open **Video Setup > Shadows** in any menu style to choose **Classic**,
+**Modern Hard** or **Modern Soft** and set the shared shadow resolution.
+Classic is the default and uses the original object shadows. The mode setting is
 `display.modern_shadows` (`"off"`, `"hard"`, `"soft"`); `HALO_MODERN_SHADOWS`
 remains its environment override. Android and web omit this control and compile
 no-op implementations.
 
 Changing the spinner stages a preference; Save applies it and Cancel discards
-the edit. Defaults stages Off along with the lighting page's other defaults.
+the edit. Defaults stages Classic and the default shadow resolution.
 The saved choice survives a restart. Selecting Hard or Soft does not enable
 any lighting category: shadows need an independently enabled, eligible light.
 Host lighting policy remains authoritative.
@@ -107,6 +133,13 @@ enabled, a stationary shield can supply the selected light. Opaque world and
 model triangles block its illumination. The translucent shield surface is
 not turned into an opaque wall. Other lighting and baked illumination remain
 unchanged. A muzzle flash participates through the same selection interface.
+For a handheld muzzle flash, Hard and Soft omit the firing weapon from its own
+light's caster list in first and third person. The shooter and first-person arms
+still cast. Weapon-mounted lights use the emitting weapon's firing state even
+when muzzle flashes are disabled. A newly fired projectile also identifies its
+launching weapon while their render bounds overlap. After it travels clear,
+its light casts the weapon normally. A different projectile or another
+shooter's light can cast the entire weapon throughout.
 For the Warthog turret and both Scorpion triggers, the firing vehicle's own
 collision hull blocks its muzzle light. A selected modern map omits only that
 vehicle's rendered caster and still shadows other objects, including occupants.

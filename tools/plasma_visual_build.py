@@ -24,6 +24,8 @@ parser.add_argument('--verify-traces', action='store_true')
 parser.add_argument('--shadow-reuse', action='store_true', help='Measure conservative cross-frame shadow reuse; diagnostic overhead only')
 parser.add_argument('--shadow-geometry', action='store_true', help='Dump actual shadow meshes and poses for geometry inspection; capture build only')
 parser.add_argument('--attachment-diagnostics', action='store_true', help='Log authored light eligibility and private host fixture admission; capture only')
+parser.add_argument('--defer-restored-build', action='store_true', help='Nested builders only: restore sources now; outer builder must rebuild after restoring its own inputs')
+parser.add_argument('--near-source-ticks', action='store_true', help='Dump geometry on grenade fixture ticks 115 and 130')
 args = parser.parse_args()
 source = ROOT / 'port/linux/game/render_interpolation.c'
 fixture = ROOT / 'port/linux/game/plasma_capture_fixture.c'
@@ -157,9 +159,9 @@ try:
         '/* MODERN_SHADOW_CAPTURE_FIXTURE */', shadow_fixture.read_text()))
     text = original.decode().replace('\r\n', '\n')
     text = 'struct observer_result;\nstruct observer_result const *plasma_capture_view(struct observer_result const *source);\n' + text
-    camera = 'third_person_reticle_view(local_player_index, view);\n\treturn view;'
+    camera = 'view = render_interpolation_direct_camera(local_player_index,\n\t\trender_interpolation_blended_camera(local_player_index, observer));'
     assert text.count(camera) == 1
-    text = text.replace(camera, 'third_person_reticle_view(local_player_index, view);\n\treturn plasma_capture_view(view);')
+    text = text.replace(camera, 'view = plasma_capture_view(render_interpolation_direct_camera(local_player_index,\n\t\trender_interpolation_blended_camera(local_player_index, observer)));')
     text = text.replace('void render_interpolation_tick(void)',
                         'void plasma_capture_tick(void);\nvoid plasma_capture_frame(void);\n\nvoid render_interpolation_tick(void)', 1)
     text = text.replace('long previous_tick = interpolation_tick++;',
@@ -301,7 +303,11 @@ try:
             '\t\tfwrite(&mesh_count,4,1,f); fwrite(&vertex_count,4,1,f); fwrite(&index_count,4,1,f);\n'
             '\t\tfwrite(vertices,sizeof(*vertices),vertex_count,f); fwrite(indices,2,index_count,f); fclose(f); } }\n'+marker)
         marker = '\tmap->view_map = 0;'
-        text = text.replace(marker, '\t{ static int frame; if(map==maps) frame++; if(frame==120 || frame==180) {\n'
+        selector = ('extern long near_capture_tick(void); static long seen[MODERN_SHADOW_LIGHTS]; '
+                    'int frame=(int)near_capture_tick(); if((frame==115 || frame==130) && seen[map-maps]!=frame) { '
+                    'seen[map-maps]=frame;' if args.near_source_ticks else
+                    'static int frame; if(map==maps) frame++; if(frame==120 || frame==180) {')
+        text = text.replace(marker, '\t{ '+selector+'\n'
             '\t\tchar name[80]; FILE *f; int slot=(int)(map-maps); snprintf(name,sizeof(name),"shadow-draws-%d-%d.bin",frame,slot); f=fopen(name,"wb");\n'
             # Keep the retained geometry-dump layout independent of the new
             # transient face mask in the production queue.
@@ -401,4 +407,5 @@ finally:
     collision_models.write_bytes(collision_models_original)
     fixture.unlink(missing_ok=True)
     subprocess.run([sys.executable, 'configure.py', *saved_args], cwd=ROOT, check=True)
-    subprocess.run(['ninja', 'windows'], cwd=ROOT, check=True)
+    if not args.defer_restored_build:
+        subprocess.run(['ninja', 'windows'], cwd=ROOT, check=True)

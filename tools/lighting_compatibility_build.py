@@ -9,6 +9,8 @@ import shutil
 import subprocess
 import sys
 
+from harness import function
+
 ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -57,11 +59,10 @@ def main():
         assert text.count(anchor) == 1
         input_source.write_text(text.replace(anchor, anchor+'\n\t\tif (getenv("HALO_SHADOW_COMPAT_FIRE") && fmod(t, 3.0) < 0.3) pad->bAnalogButtons[XINPUT_GAMEPAD_RIGHT_TRIGGER] = 255;'))
         text = shadow_original.decode().replace('\r\n','\n')
-        text = text.replace('void modern_shadows_prepare(int primary)', 'static void modern_shadow_probe_prepare(int primary)', 1)
-        marker = '\n#else\nvoid modern_shadows_receiver'
-        assert text.count(marker)==1
+        prepare = function(text, 'modern_shadows_prepare')
+        measured = prepare.replace('void modern_shadows_prepare(', 'static void modern_shadow_probe_prepare(', 1)
         wrapper = '\nvoid modern_shadows_prepare(int primary)\n{\n\tmodern_shadow_probe_prepare(primary);\n\tif (primary) modern_shadow_compatibility_sample(active);\n}\n'
-        shadow.write_text('void modern_shadow_compatibility_sample(int maps);\n'+text.replace(marker,wrapper+marker))
+        shadow.write_text('void modern_shadow_compatibility_sample(int maps);\n'+text.replace(prepare, measured+wrapper, 1))
         text = original.decode().replace('\r\n','\n')
         anchor = '\tshield_glow_frame_end();'
         assert text.count(anchor)==1

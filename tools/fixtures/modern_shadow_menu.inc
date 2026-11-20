@@ -35,7 +35,17 @@ void modern_shadow_menu_accept(struct widget_instance *root)
 	struct widget_instance *child;
 	unsigned long now;
 	char name[300];
-	if (!getenv("HALO_SHADOW_MENU_ACCEPT") || !(spinner = shadow_menu_spinner(root))) return;
+	if (!getenv("HALO_SHADOW_MENU_ACCEPT") || !root) return;
+	spinner = shadow_menu_spinner(root);
+	if (!spinner)
+	{
+		struct widget_instance *link = named(root, "op_shadows", 0);
+		boolean deleted = FALSE;
+		if (!link) link = named(root, "row_link_18", 0);
+		if (link && ui_widget_port_dispatch_event(link, 0, 0, &deleted))
+			platform_log("SHADOW MENU entered from video");
+		return;
+	}
 	now = system_milliseconds();
 	if (now < next) return;
 	next = now + 750;

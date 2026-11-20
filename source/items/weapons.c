@@ -2646,6 +2646,8 @@ static void trigger_create_projectiles(
 				projectile_object_index= object_new(&data);
 				if (projectile_object_index!=NONE)
 				{
+					/* port: associate the optional firing light with its launching weapon. */
+					muzzle_lighting_projectile_created(projectile_object_index, weapon_index);
 					if (inside_bsp)
 					{
 						real_point3d camera_position;

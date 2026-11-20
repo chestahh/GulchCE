@@ -625,6 +625,7 @@ void _rasterizer_model_end(
 			rasterizer_set_frustum_z(0.0f, 0.0f);
 		}
 		modern_shadows_receiver(FALSE, NONE); /* port: end receiver-specific shadows */
+		modern_environment_model_clear(); /* port: no visibility leaks into other draws */
 		local_parameters = NULL;
 	}
 
@@ -660,6 +661,8 @@ void _rasterizer_model_begin(
 
 		/* port: receiver identity keeps optional light-owner shadow exceptions local to this model. */
 		modern_shadows_receiver(TEST_FLAG(parameters->geometry_flags, _rasterizer_geometry_first_person_bit), parameters->unique_identifier);
+		/* port: feature-owned distant-light visibility, before this model draws. */
+		modern_shadows_environment_model(parameters, TEST_FLAG(parameters->geometry_flags, _rasterizer_geometry_first_person_bit));
 		local_parameters = parameters;
 		local_parameters_queued_flag = FALSE;
 		local_do_not_change_z_stencil_states =

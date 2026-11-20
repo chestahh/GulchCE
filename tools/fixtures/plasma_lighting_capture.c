@@ -941,7 +941,8 @@ int plasma_capture_should_capture(void)
 	if (getenv("HALO_SHADOW_CAPTURE_SCENE"))
 	{
 		if (getenv("HALO_SHADOW_CAPTURE_MOTION"))
-			return !getenv("HALO_PLASMA_CAPTURE_NO_IMAGES") && capture_ticks >= 100 && capture_ticks <= 160;
+			return !getenv("HALO_PLASMA_CAPTURE_NO_IMAGES") && capture_ticks >= 100 &&
+				capture_ticks <= (getenv("HALO_SHADOW_CAPTURE_COMPOSITION") ? 220 : 160);
 		if (getenv("HALO_PLASMA_CAPTURE_NO_IMAGES") || capture_ticks < 100 || capture_ticks > 220 ||
 			capture_ticks % 30 != 10 || shield_captured_tick == capture_ticks) return FALSE;
 		shield_captured_tick = capture_ticks;

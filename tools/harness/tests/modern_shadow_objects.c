@@ -58,32 +58,35 @@ int main(int argc,char **argv) {
  objects[5].object.flags=FLAG(_object_invisible_bit);
  definitions[6].object.model.index=NONE;
  objects[7].object.bounding_sphere_center.x=10;
- CHECK(object_casters(&origin,2,owners,NONE,NONE),"player, NPC and dropped models collected");
+ CHECK(object_casters(&origin,2,owners,NONE,NONE,NONE),"player, NPC and dropped models collected");
  CHECK(submitted[0] && submitted[1] && views_used[0]==1 && views_used[1]==1,
        "local body and any held weapon cast into world while excluded from first-person map");
  CHECK(submitted[2] && submitted[3] && submitted[4] && views_used[2]==3 && views_used[3]==3 && views_used[4]==3,
        "NPC, its held weapon and a dropped weapon cast into both receiver maps");
  CHECK(!submitted[5] && !submitted[6] && !submitted[7],"hidden, non-model and distant objects do not cast");
  owners[0]=owners[1]=NONE;memset(submitted,0,sizeof(submitted));
- CHECK(object_casters(&origin,2,owners,NONE,NONE) && views_used[0]==3 && views_used[1]==3,
+ CHECK(object_casters(&origin,2,owners,NONE,NONE,NONE) && views_used[0]==3 && views_used[1]==3,
        "third-person and remote player weapons retain full coverage");
  memset(submitted,0,sizeof(submitted));
- CHECK(object_casters(&origin,2,owners,2,NONE),"owner-specific map collects remaining casters");
+ CHECK(object_casters(&origin,2,owners,2,NONE,NONE),"owner-specific map collects remaining casters");
  CHECK(!submitted[2] && submitted[3] && submitted[0] && submitted[1] && submitted[4],
        "only exact owner is omitted; held weapon, other bodies and dropped items still cast");
  memset(submitted,0,sizeof(submitted));
- CHECK(object_casters(&origin,2,owners,0x10002,NONE) && submitted[2],"recycled datum cannot exclude a new owner");
+ CHECK(object_casters(&origin,2,owners,0x10002,NONE,NONE) && submitted[2],"recycled datum cannot exclude a new owner");
  memset(submitted,0,sizeof(submitted));
- CHECK(object_casters(&origin,2,owners,NONE,NONE) && submitted[2],"external light still receives owner geometry");
+ CHECK(object_casters(&origin,2,owners,NONE,NONE,NONE) && submitted[2],"external light still receives owner geometry");
  memset(submitted,0,sizeof(submitted));
- CHECK(object_casters(&origin,2,owners,NONE,2) && !submitted[2] && submitted[0] && submitted[3],
+ CHECK(object_casters(&origin,2,owners,NONE,2,NONE) && !submitted[2] && submitted[0] && submitted[3],
        "turret map omits only its collision chassis, retaining other objects");
  memset(submitted,0,sizeof(submitted));
- CHECK(object_casters(&origin,2,owners,NONE,NONE) && submitted[2],"external light restores rendered chassis");
+ CHECK(object_casters(&origin,2,owners,NONE,NONE,NONE) && submitted[2],"external light restores rendered chassis");
  vehicle[2]=1;biped[0]=1;units[0].unit.parent_seat_index=0;
  objects[0].object.parent_object_index=2;
  memset(submitted,0,sizeof(submitted));
- CHECK(object_casters(&origin,2,owners,2,NONE),"occupied vehicle collection completes");
+ CHECK(object_casters(&origin,2,owners,NONE,2,3) && !submitted[2] && !submitted[3] && submitted[0] && submitted[1] && submitted[4],
+       "a grenade attached to the vehicle keeps its rider, held weapon and nearby object casting");
+ memset(submitted,0,sizeof(submitted));
+ CHECK(object_casters(&origin,2,owners,2,NONE,NONE),"occupied vehicle collection completes");
  CHECK(!submitted[0] && !submitted[1] && !submitted[2] && submitted[3] && submitted[4],
        "own engine light exempts seated rider and held gear but not arbitrary attachments or nearby items");
  CHECK(unshadowed_object(2,0) && unshadowed_object(2,1),"same exception is available to body and gear receivers");
@@ -98,6 +101,6 @@ int main(int argc,char **argv) {
  CHECK(!unshadowed_object(2,0),"malformed parent cycle terminates without excluding an unrelated object");
  objects[0].object.parent_object_index=NONE;
  objects[3].object.node_matrices.size=0;
- CHECK(!object_casters(&origin,2,owners,NONE,NONE),"invalid held pose falls back rather than generating malformed silhouettes");
+ CHECK(!object_casters(&origin,2,owners,NONE,NONE,NONE),"invalid held pose falls back rather than generating malformed silhouettes");
  return 0;
 }

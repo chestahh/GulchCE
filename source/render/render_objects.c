@@ -90,6 +90,7 @@ symbols in this file:
 #include "math/real_math.h"
 #include "bitmaps/bitmaps.h"
 #include "render/render.h"
+#include "modern_shadows.h" /* port: optional environmental replacement */
 #include "camera/camera_scripting.h"
 #include "editor/editor_stubs.h"
 #include "rasterizer/rasterizer.h"
@@ -1415,6 +1416,22 @@ static void render_object(
 
 				size_fraction = PIN(size_fraction, 0.f, 1.f);
 				darkness_fraction = PIN(darkness_fraction, 0.f, 1.f);
+
+				/* port: a complete Modern projection owns this object before
+				   either a cached or newly drawn stock map is submitted. */
+				if (modern_shadows_enabled())
+				{
+					union real_rgb_color color;
+					real radius;
+
+					if (shadow_port_batch_count)
+						render_object_shadows_port_project();
+					render_object_shadow_port_setup(data, darkness_fraction * size_fraction,
+						&color, &radius);
+					if (modern_shadows_environment(data->object_index, &data->shadow_matrix,
+						(float const *)&color, radius))
+						return;
+				}
 
 				/* port: the shadow's maps drawn at the size its object is
 				drawn at on the screen (halo_shadow_map_size,

@@ -19,7 +19,7 @@ def main():
     parser.add_argument('--build-dir', type=Path, default=ROOT/'build/modern-shadow-menu-build')
     parser.add_argument('--inspect-modern', action='store_true', help='Capture the modern frontend scrolled to the shadow row')
     parser.add_argument('--resolution-setting', action='store_true', help='Verify the shared resolution control instead of Off/Hard/Soft')
-    parser.add_argument('--frontend', choices=['off', 'modern'], default='off')
+    parser.add_argument('--frontend', choices=['off', 'pc', 'xbox', 'modern'], default='off')
     args = parser.parse_args()
     assert re.fullmatch(r'[A-Za-z0-9_-]+', args.label)
     out = ROOT/'build/modern-shadow-menu'/args.label
@@ -38,17 +38,15 @@ def main():
     env.update(HALO_DATA_ROOT=str(out), HALO_SAVE_ROOT=str(out/'saves'), HALO_HIDDEN_WINDOW='1',
                HALO_NO_AUDIO='1', HALO_WINDOW_SIZE='2560x1440', HALO_MAX_FPS='60', HALO_NO_VSYNC='1',
                HALO_EXIT_AFTER='30', HALO_NET_ONLINE='0', HALO_UPDATE_ANSWER='never', HALO_SHADOW_MENU_ACCEPT='1',
-               HALO_MENU_FRONTEND='off', HALO_MENU_OPEN='main_menu/settings_select/player_setup/player_profile_edit/video_settings/dynamic_lighting/dynamic_lighting_settings_screen',
+               HALO_MENU_FRONTEND=args.frontend, HALO_MENU_OPEN='main_menu/settings_select/player_setup/player_profile_edit/video_settings/video_settings_screen',
                HALO_SCREENSHOT_DIR=str(out/'screenshots'), HALO_SCREENSHOT_EVERY='60')
     env['PATH'] = str(ROOT/'build/windows')+os.pathsep+env.get('PATH','')
     if args.frontend == 'modern':
-        env.update(HALO_MENU_FRONTEND='modern', HALO_MENU_OPEN='modern/lighting/settings')
+        env.update(HALO_MENU_FRONTEND='modern', HALO_MENU_OPEN='modern/settings')
     if args.inspect_modern:
-        env.update(HALO_MENU_FRONTEND='modern', HALO_MENU_OPEN='modern/lighting/settings', HALO_SHADOW_MENU_INSPECT='1')
+        env.update(HALO_MENU_FRONTEND='modern', HALO_MENU_OPEN='modern/settings', HALO_SHADOW_MENU_INSPECT='1')
     if args.resolution_setting:
         env['HALO_SHADOW_MENU_RESOLUTION'] = '1'
-        env['HALO_MENU_OPEN'] = ('modern/graphics/settings' if env['HALO_MENU_FRONTEND'] == 'modern' else
-                                'main_menu/settings_select/player_setup/player_profile_edit/video_settings/graphics/graphics_settings_screen')
     for label in (('actions',) if args.inspect_modern else ('actions', 'restart')):
         if label == 'restart': env.update(HALO_SHADOW_MENU_VERIFY='1', HALO_SCREENSHOT_EVERY='0')
         with (out/(label+'.log')).open('wb') as log:
@@ -56,6 +54,7 @@ def main():
                                     stderr=subprocess.STDOUT, timeout=55, creationflags=subprocess.CREATE_NO_WINDOW)
         assert result.returncode == 0, label
     log = (out/'actions.log').read_text(errors='replace')
+    assert 'SHADOW MENU entered from video' in log, 'Shadows was not reached from Video Setup'
     if args.inspect_modern:
         assert re.findall(r'SHADOW MENU inspect (\d+)', log) == [str(i) for i in range(18 if args.resolution_setting else 9)]
         (out/'report.json').write_text(json.dumps(dict(inspected=True, resolution='2560x1440'), indent=2))

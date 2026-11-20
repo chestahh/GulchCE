@@ -818,6 +818,13 @@ float plasma_occlusion_specular_scale(long rasterizer_index)
 	return scale > 0.0f ? scale : 1.0f;
 }
 
+long light_port_emitter_object(long light_index)
+{
+	struct light_datum *light = light_index != NONE && light_data && light_data->valid ?
+		(struct light_datum *)datum_try_and_get(light_data, light_index) : NULL;
+	return light ? light->object_index : NONE;
+}
+
 /* port: this bridge keeps private light storage and partition ownership here.
    The caller restores attachments after render interpolation ends. */
 int light_port_refresh_attachment(long light_index, long object_index)

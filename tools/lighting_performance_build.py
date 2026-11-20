@@ -55,8 +55,11 @@ def instrument_shader_stalls(text):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--output-dir', type=Path, default=ROOT/'build/lighting-performance-build')
+    parser.add_argument('--defer-restored-build', action='store_true', help='Outer builder restores and rebuilds ordinary sources')
     parser.add_argument('--turret-prototype', action='store_true', help='Test-only finite-source turret shadow comparison')
     parser.add_argument('--profile', action='store_true', help='CPU phase timers and asynchronous sampled GPU draw queries')
+    parser.add_argument('--depth-profile', action='store_true', help='Split local shadow GPU queries into setup, world, models and viewmodel; implies --profile')
+    parser.add_argument('--depth-reuse-control', action='store_true', help='Diagnostic comparison of shared and independently rendered depth cubes')
     parser.add_argument('--campaign-control', action='store_true', help='Test-only expiring controller commands for recording a fresh checkpoint; not a timing variant')
     parser.add_argument('--diagnose', action='store_true', help='Collision phase timings and retained resource counts (not acceptance timings)')
     parser.add_argument('--resources', action='store_true', help='Retained resource counts without per-ray diagnostic clocks')
@@ -65,7 +68,9 @@ def main():
     parser.add_argument('--verify-visibility', action='store_true', help='Compare packed and scalar CPU visibility reconstruction on identical fields')
     parser.add_argument('--verify-textures', action='store_true', help='Compare specialized visibility pixels against the generic loop; diagnostic only')
     parser.add_argument('--without-prongs', action='store_true', help='Diagnostic A/B: leave plasma prong flare attachments stock, retaining charge/projectile lighting')
+    parser.add_argument('--environment-model-control', action='store_true', help='Diagnostic A/B: HALO_BENCH_NO_ENV_MODEL disables only environmental model self-shadowing')
     args = parser.parse_args()
+    if args.depth_profile: args.profile = True
     if (args.verify_textures or args.verify_visibility) and (args.profile or args.verify_traces):
         parser.error('--verify-textures is a separate comparison from --profile and --verify-traces')
     output = args.output_dir.resolve()
@@ -83,7 +88,12 @@ def main():
         paths += [p for p in PATHS if p not in paths]
     if args.profile:
         paths += ['source/objects/object_lights.c', 'port/linux/src/plasma_occlusion_gl.c',
-                  'port/linux/game/modern_shadows.c', 'port/linux/src/modern_shadows_gl.c']
+                  'port/linux/game/modern_shadows.c', 'port/linux/src/modern_shadows_gl.c',
+                  'port/linux/src/modern_environment_gl.inl']
+    if args.environment_model_control and 'port/linux/game/modern_shadows.c' not in paths:
+        paths.append('port/linux/game/modern_shadows.c')
+    if args.depth_reuse_control and 'port/linux/src/modern_shadows_gl.c' not in paths:
+        paths.append('port/linux/src/modern_shadows_gl.c')
     if args.diagnose or args.resources:
         paths += ['source/physics/collision_usage.c', 'port/linux/src/xbox_textures.c']
     originals = {p: (ROOT/p).read_bytes() for p in paths}
@@ -91,9 +101,9 @@ def main():
     manifest = dict(commit=subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip(),
                     configure_args=saved, production_hashes={p: hashlib.sha256(b).hexdigest() for p, b in originals.items()},
                     fixture_sha256=hashlib.sha256((ROOT/'tools/fixtures/lighting_performance.c').read_bytes()).hexdigest(),
-                    profile=args.profile, diagnose=args.diagnose, resources=args.resources, stalls=args.stalls, verify_traces=args.verify_traces,
+                    profile=args.profile, depth_profile=args.depth_profile, depth_reuse_control=args.depth_reuse_control, diagnose=args.diagnose, resources=args.resources, stalls=args.stalls, verify_traces=args.verify_traces,
                     verify_textures=args.verify_textures, verify_visibility=args.verify_visibility,
-                    without_prongs=args.without_prongs)
+                    without_prongs=args.without_prongs, environment_model_control=args.environment_model_control)
     for path in ['port/linux/game/authored_emitter_lighting.c', 'port/linux/game/ambient_emitter_lighting.c',
                  'port/linux/game/covenant_emitter_lighting.c', 'port/linux/src/plasma_occlusion_gl.c', 'port/linux/include/plasma_occlusion.h',
                  'port/linux/include/plasma_collision.h', 'source/physics/collision_bsp.c',
@@ -105,6 +115,7 @@ def main():
                  'port/linux/game/authored_emitter_lighting.h', 'port/android/guest/dynamic_lighting_disabled.c',
                  'port/linux/game/modern_shadows.c', 'port/linux/src/modern_shadows_gl.c',
                  'port/linux/include/modern_shadows.h', 'source/render/render.c',
+                 'port/linux/src/modern_environment_gl.inl', 'port/linux/src/nv2a_psh.c', 'source/render/render_objects.c',
                  'port/linux/game/modern_shadows_first_person.inl', 'source/interface/first_person_weapons.c',
                  'source/rasterizer/xbox/rasterizer_xbox_models.c']:
         manifest['production_hashes'][path]=hashlib.sha256((ROOT/path).read_bytes()).hexdigest()
@@ -127,6 +138,8 @@ def main():
         assert text.count(before) == 1, (path, before)
         (ROOT/path).write_text(declaration+'\n'+text.replace(before, after))
 
+    if args.depth_profile or args.depth_reuse_control:
+        manifest['depth_profile_helper_sha256'] = hashlib.sha256((ROOT/'tools/shadow_depth_profile.py').read_bytes()).hexdigest()
     try:
         if args.without_prongs:
             authored = ROOT/'port/linux/game/authored_emitter_lighting.c'
@@ -153,7 +166,18 @@ def main():
         text = text.replace(marker, 'int lighting_performance_input(XINPUT_GAMEPAD *pad);\n'+marker)
         marker = '\tif (test_input_menu[0])'
         assert text.count(marker) == 1
-        input_source.write_text(text.replace(marker, '\tif (lighting_performance_input(pad)) return;\n'+marker))
+        input_source.write_text(text.replace(marker,
+            '\tif (lighting_performance_input(pad)) {\n'
+            '\t\t/* Test navigation uses the ordinary keyboard action, independent of saved pad layouts. */\n'
+            '\t\tif (pad->bAnalogButtons[XINPUT_GAMEPAD_X]) {\n'
+            '\t\t\tkeyboard_actions_held |= 1UL << HALO_KEYBOARD_ACTION;\n'
+            '\t\t\tpad->bAnalogButtons[XINPUT_GAMEPAD_X] = 0;\n'
+            '\t\t}\n'
+            '\t\tif (getenv("HALO_LIGHTING_BENCH_SNOWY_ROUTE")) {\n'
+            '\t\t\tif (pad->bAnalogButtons[XINPUT_GAMEPAD_LEFT_TRIGGER]) keyboard_actions_held |= 1UL << HALO_KEYBOARD_THROW_GRENADE;\n'
+            '\t\t\tif (pad->bAnalogButtons[XINPUT_GAMEPAD_Y]) keyboard_actions_held |= 1UL << HALO_KEYBOARD_SWITCH_GRENADE;\n'
+            '\t\t\tpad->bAnalogButtons[XINPUT_GAMEPAD_LEFT_TRIGGER] = pad->bAnalogButtons[XINPUT_GAMEPAD_Y] = 0;\n'
+            '\t\t}\n\t\treturn;\n\t}\n'+marker))
         edit(paths[0], '\t\tmain_frame_rate_debug();',
              '\t\tmain_frame_rate_debug();\n\t\tif (render_frame && game_in_progress() && !game_time_menu_scene()) lighting_performance_frame();',
              'void lighting_performance_frame(void); /* port: test-build-only timing */')
@@ -225,7 +249,8 @@ def main():
             for name, phase, signature, call, result in (
                 ('modern_shadows_prepare', 12, 'void modern_shadows_prepare(int primary)', 'primary', 'void'),
                 ('world_casters', 13, 'static int world_casters(struct structure_bsp const *bsp, real_point3d const *origin, real radius)', 'bsp, origin, radius', 'int'),
-                ('object_casters', 14, 'static int object_casters(real_point3d const *origin, real radius, long const owners[2])', 'origin, radius, owners', 'int'),
+                ('object_casters', 14, 'static int object_casters(real_point3d const *origin, real radius, long const owners[2], long unshadowed_owner, long excluded_caster, long emitter)', 'origin, radius, owners, unshadowed_owner, excluded_caster, emitter', 'int'),
+                ('modern_shadows_environment_model', 19, 'void modern_shadows_environment_model(const struct rasterizer_model_begin_parameters *parameters, int first_person)', 'parameters, first_person', 'void'),
             ):
                 body = function(text, name)
                 timed = body.replace(name+'(', 'lighting_timed_'+name+'(', 1)
@@ -249,6 +274,15 @@ def main():
                        '\tlighting_profile_end(15);\n\treturn result;\n}\n')
             shadow_gl.write_text(declarations+'void lighting_gpu_shadow_begin(void);\nvoid lighting_gpu_shadow_end(void);\n'+
                                  text.replace(body, timed+wrapper, 1))
+            environment = ROOT/'port/linux/src/modern_environment_gl.inl'
+            text = environment.read_text()
+            body = function(text, 'modern_environment_model_end')
+            timed = body.replace('modern_environment_model_end(', 'lighting_timed_environment_end(', 1)
+            wrapper = ('\nvoid modern_environment_model_end(int complete, int mask)\n{\n'
+                       '\tlighting_gpu_environment_begin();\n'
+                       '\tlighting_timed_environment_end(complete, mask);\n'
+                       '\tlighting_gpu_shadow_end();\n}\n')
+            environment.write_text('void lighting_gpu_environment_begin(void);\n'+text.replace(body, timed+wrapper, 1))
             # Phase 16 remains zero after removing synchronous GL state saves,
             # keeping older profile CSVs comparable by column name.
             replace(shadow_gl, '\tfailed = !create_resources();',
@@ -317,6 +351,36 @@ def main():
             manifest['turret_prototype'] = True
             manifest['turret_probe_hashes'] = {p:hashlib.sha256((ROOT/p).read_bytes()).hexdigest() for p in
                 ['tools/turret_shadow_probe.py','tools/fixtures/turret_shadow_probe.inc']}
+        if args.depth_reuse_control:
+            from shadow_depth_profile import install_reuse_control
+            install_reuse_control(ROOT)
+        if args.depth_profile:
+            from shadow_depth_profile import install
+            install(ROOT)
+        if args.environment_model_control:
+            fixture_text = fixture.read_text()
+            declaration = 'static int environment_disabled, environment_control_ready;\nint lighting_performance_environment_disabled(void);\n'
+            fixture_text = declaration + fixture_text
+            anchor = '\tprevious = now;\n\tocclusion_seconds = 0;'
+            assert fixture_text.count(anchor) == 1
+            fixture_text = fixture_text.replace(anchor,
+                '\t{ static FILE *control;\n'
+                '\t  if (!control) { control=fopen("environment-control.csv","w"); if(control) fprintf(control,"seconds,disabled\\n"); }\n'
+                '\t  if(control) fprintf(control,"%.6f,%d\\n",now-origin,lighting_performance_environment_disabled());\n'
+                '\t  if(getenv("HALO_BENCH_ENV_ALTERNATE")) { int part=(int)((now-origin)/2.0)%4; environment_disabled=part==1 || part==2; }\n'
+                '\t}\n'+anchor)
+            fixture_text += '\nint lighting_performance_environment_disabled(void)\n{\n' \
+                '\tif(!environment_control_ready) { environment_disabled=getenv("HALO_BENCH_NO_ENV_MODEL")!=NULL; environment_control_ready=1; }\n' \
+                '\treturn environment_disabled;\n}\n'
+            fixture.write_text(fixture_text)
+            shadow = ROOT/'port/linux/game/modern_shadows.c'
+            text = shadow.read_text()
+            # Insert in the original body before profiling wrappers; ordinary
+            # builds never expose this diagnostic control.
+            anchor = '    if (!mode || !cached_bsp || !parameters || global_window_parameters.rasterizer_target != 0 ||'
+            assert text.count(anchor) == 1
+            text = text.replace(anchor, '    if (lighting_performance_environment_disabled()) goto unavailable;\n' + anchor, 1)
+            shadow.write_text('int lighting_performance_environment_disabled(void);\n' + text)
         subprocess.run([sys.executable, 'configure.py', *saved], cwd=ROOT, check=True)
         subprocess.run(['ninja', 'windows'], cwd=ROOT, check=True)
         shutil.copy2(ROOT/'build/windows/halo.exe', output/'halo-performance.exe')
@@ -327,7 +391,8 @@ def main():
             (ROOT/path).write_bytes(content)
         fixture.unlink(missing_ok=True)
         subprocess.run([sys.executable, 'configure.py', *saved], cwd=ROOT, check=True)
-        subprocess.run(['ninja', 'windows'], cwd=ROOT, check=True)
+        if not args.defer_restored_build:
+            subprocess.run(['ninja', 'windows'], cwd=ROOT, check=True)
 
 
 if __name__ == '__main__':

@@ -173,13 +173,13 @@ class Context:
             self.window = None
 
 
-def run(context, data, copies, repeats, packet=False):
+def run(context, data, copies, repeats, packet=False, shader_source=None):
     start = time.perf_counter()
     nodes, triangles = build_tree(data['triangles'])
     build_ms = (time.perf_counter() - start) * 1000
     receivers = data['receivers'].reshape(-1, 3)
     count, sources = len(receivers), data['sources']
-    shader = SHADER.read_text()
+    shader = SHADER.read_text() if shader_source is None else shader_source
     if packet:
         shader = shader.replace('#version 430 core', '#version 430 core\n#define PACKET')
     program = context.compile(shader)

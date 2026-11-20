@@ -604,9 +604,11 @@ static void model_lighting(struct xgpu_text *text, BOOL point_lights, BOOL plasm
 		/* the ambient light, the first distant light, which also lights the
 		back by the translucency, and the second */
 		"\tfloat facing = dot(n, -model_lights[7].xyz);\n"
-		"\tvec3 light = model_lights[11].xyz + max(max(facing, -facing * model_lights[0].z), 0.0) * model_lights[8].xyz +\n"
-		"\t\tmax(dot(n, -model_lights[9].xyz), 0.0) * model_lights[10].xyz;\n",
-		XGPU_MODEL_LIGHT_COUNT, point_lights ? "in vec3 xWorldPosition;\n" : "");
+		"\tvec3 light = model_lights[11].xyz + max(max(facing, -facing * model_lights[0].z), 0.0) * model_lights[8].xyz%s +\n"
+		"\t\tmax(dot(n, -model_lights[9].xyz), 0.0) * model_lights[10].xyz%s;\n",
+		XGPU_MODEL_LIGHT_COUNT, point_lights ? "in vec3 xWorldPosition;\n" : "",
+		modern_shadow ? " * modern_environment_visibility(0,xWorldPosition)" : "",
+		modern_shadow ? " * modern_environment_visibility(1,xWorldPosition)" : "");
 	/* each point light: its position and 1 / radius squared, its cone's axis
 	and falloff scale, its color and falloff offset */
 	for (light = 0; point_lights && light < 2; light++)

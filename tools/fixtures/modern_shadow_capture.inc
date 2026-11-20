@@ -237,6 +237,18 @@ static void modern_capture_tick(const char *scene)
 		light.x += reach * (cos(angle) * shadow_forward.i + sin(angle) * shadow_right.i);
 		light.y += reach * (cos(angle) * shadow_forward.j + sin(angle) * shadow_right.j);
 		light.z += height + 0.25f * cos(angle);
+		if (getenv("HALO_SHADOW_CAPTURE_COMPOSITION"))
+		{
+			/* Move the real source through its ordinary falloff. No shadow or
+			   light strength is overridden, and the subject stays in place. */
+			real phase = PIN((capture_ticks - 100) / 120.f, 0.f, 1.f);
+			real approach = sin(phase * 3.14159265f);
+			real distance = 12.f - 10.5f * approach;
+			light = shadow_anchor;
+			light.x += distance * shadow_forward.i + (phase * 2.f - 1.f) * shadow_right.i;
+			light.y += distance * shadow_forward.j + (phase * 2.f - 1.f) * shadow_right.j;
+			light.z += 1.2f;
+		}
 		object_set_position(capture_shadow_light, &light, NULL, NULL);
 	}
 	if (capture_ticks >= 100 && capture_ticks <= 220 && capture_ticks % 30 == 10)

@@ -2860,6 +2860,29 @@ static BOOL bind_targets(BOOL *has_depth)
 }
 
 
+#ifndef HALO_GLES
+int xgpu_gl_scene_target(unsigned int *framebuffer, int size[2],
+    unsigned int *depth_format, int viewport[4], float pixel_center[2])
+{
+    BOOL has_depth;
+    struct render_target_entry *depth;
+    if (!device.gl_ready || !bind_targets(&has_depth) || !has_depth) return 0;
+    depth = render_target_get(device.depth_stencil);
+    if (!depth) return 0;
+    *framebuffer = gl_state.framebuffer;
+    size[0] = depth->target.gl_width;
+    size[1] = depth->target.gl_height;
+    *depth_format = depth->target.format;
+    pixel_center[0] = target_scale[0] * (0.5f + UI_OFFSET);
+    pixel_center[1] = target_scale[1] * 0.5f;
+    viewport[0] = target_pixel((float)device.viewport.X, 0);
+    viewport[1] = target_pixel((float)device.viewport.Y, 1);
+    viewport[2] = target_pixel((float)(device.viewport.X + device.viewport.Width), 0) - viewport[0];
+    viewport[3] = target_pixel((float)(device.viewport.Y + device.viewport.Height), 1) - viewport[1];
+    return size[0] > 0 && size[1] > 0 && viewport[2] > 0 && viewport[3] > 0;
+}
+#endif
+
 /* ---------- display.hdr */
 
 static const char *const tone_mapping_names[NUMBER_OF_XGPU_TONE_MAPPINGS] =
@@ -4515,7 +4538,7 @@ static GLuint vertex_shader_get(struct vertex_shader_object *program, BOOL immed
 		struct nv2a_vertex_lighting const *lighting = lit ? &program->lighting : NULL;
 		char *source;
 #ifndef HALO_GLES
-		if (lit && plasma_model && !program->lighting.lights)
+		if (lit && program->plasma_model && !program->lighting.lights)
 			lighting = &program->plasma_lighting;
 #endif
 		source = nv2a_vertex_shader_to_glsl(program->instructions, program->instruction_count,
@@ -4854,6 +4877,7 @@ static struct program_entry *draw_program_get(struct vertex_shader_object *progr
 #ifndef HALO_GLES
 	key->modern_shadow = (unsigned char)modern_shadows_world_stage();
 	if (plasma_model && modern_shadows_model_mask()) key->modern_shadow = 3;
+	if (modern_environment_model_active() && (program->plasma_model || program->lighting.lights == 2)) key->modern_shadow = 3;
 	if (key->modern_shadow && !(program->modern_shadow_failed & (1U << key->modern_shadow)))
 	{
 		int lights = key->modern_shadow == 3 ? 2 : program->lighting.lights;
@@ -5728,6 +5752,26 @@ static void apply_raster_state(BOOL has_depth)
 			glStencilMask(rs[D3DRS_STENCILWRITEMASK]);
 		}
 	}
+
+#ifndef HALO_GLES
+    /* Feature-owned world receiver coverage. The stock stencil uses bits 0/1;
+       retain its comparison and leave those bits untouched. Cached state is
+       updated so the next ordinary draw restores the unmodified D3D state. */
+    if (modern_environment_marking())
+    {
+        state_enable(&gl_state.stencil_test, GL_STENCIL_TEST, TRUE);
+        gl_state.stencil_function = rs[D3DRS_STENCILENABLE] ? rs[D3DRS_STENCILFUNC] : GL_ALWAYS;
+        gl_state.stencil_reference = (rs[D3DRS_STENCILREF] & 127) | 128;
+        gl_state.stencil_value_mask = rs[D3DRS_STENCILENABLE] ? rs[D3DRS_STENCILMASK] & 127 : 0;
+        gl_state.stencil_write_mask = 128;
+        gl_state.stencil_operations[0] = GL_KEEP;
+        gl_state.stencil_operations[1] = GL_KEEP;
+        gl_state.stencil_operations[2] = GL_REPLACE;
+        glStencilFunc(gl_state.stencil_function, gl_state.stencil_reference, gl_state.stencil_value_mask);
+        glStencilMask(128);
+        glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
+    }
+#endif
 
 	state_enable(&gl_state.blend, GL_BLEND, rs[D3DRS_ALPHABLENDENABLE] != 0);
 	if (rs[D3DRS_ALPHABLENDENABLE])

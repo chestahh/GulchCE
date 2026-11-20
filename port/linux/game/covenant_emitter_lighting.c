@@ -403,14 +403,18 @@ float covenant_emitter_lighting_radius(long light, float radius)
 
 /* Jackal shields and Ghost engines illuminate their owner without projecting
    its point-source silhouette. Other lights still shadow that same object. */
-long covenant_emitter_lighting_shadow_owner(long light)
+long covenant_emitter_lighting_shadow_owner(long light, long *emitter_object)
 {
 	int i;
+	*emitter_object = NONE;
 	if (light == NONE) return NONE;
 	for (i = 0; i < EMITTER_LIGHTS; i++)
 		if (emitters[i].active && emitters[i].connected && emitters[i].light == light &&
-			emitters[i].owner_unshadowed && emitter_kind_enabled(emitters[i].kind) &&
-			object_try_and_get(emitters[i].object)) return emitters[i].object;
+			emitter_kind_enabled(emitters[i].kind) && object_try_and_get(emitters[i].object))
+		{
+			*emitter_object = emitters[i].object;
+			return emitters[i].owner_unshadowed ? emitters[i].object : NONE;
+		}
 	return NONE;
 }
 

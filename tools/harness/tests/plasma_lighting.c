@@ -1,4 +1,5 @@
 #include "harness.h"
+#include "../../../port/linux/game/authored_emitter_lighting.h"
 #define NUMBEROF(a) (sizeof(a)/sizeof((a)[0]))
 #include <string.h>
 #include <math.h>
@@ -6,9 +7,13 @@
 enum { _object_type_projectile = 5 };
 enum { _point_light_dynamic_bit = 0, _point_light_connects_to_map_bit = 1,
 	_point_light_connected_to_map_bit = 2 };
+enum { _object_at_rest_bit = 3 };
+#include "grenade_shadow.inc"
+static struct plasma_shadow_source source;
 #define SET_FLAG(value, bit, enabled) ((value) = (enabled) ? ((value) | (1 << (bit))) : ((value) & ~(1 << (bit))))
-struct object_datum { long definition_index; struct { short type; } object; };
-static struct object_datum projectile = { 1, { _object_type_projectile } };
+struct object_datum { long definition_index; struct { short type; long parent_object_index; unsigned long flags; } object; };
+struct projectile_datum { struct object_datum base; struct { unsigned long flags; } projectile; };
+static struct projectile_datum grenade = { { 1, { _object_type_projectile, NONE } } };
 static const char *tag_name = "weapons\\plasma rifle\\bolt";
 static int muzzle_on, emitter_on, shield_on;
 static int enabled = 1, refreshes, present = 1, interpolation_rendering = 1;
@@ -18,7 +23,7 @@ void plasma_lighting_attachment_position(long, long, real_point3d *, real_vector
 static float connected_radius;
 static real_point3d connected_position;
 int lighting_config_boolean(const char *name) { return strcmp(name, "display.muzzle_lighting") ? enabled : muzzle_on; }
-static struct object_datum *object_try_and_get(long index) { return present ? &projectile : NULL; }
+static struct object_datum *object_try_and_get(long index) { return present ? &grenade.base : NULL; }
 static const char *tag_get_name(long index) { return tag_name; }
 struct light_datum { long object_index, parent_light_index; int flags; float radius; long definition_index; real_point3d position; real_vector3d forward; };
 struct rasterizer_light_submit_parameters { real_point3d position; real_vector3d forward; real radius; };
@@ -64,6 +69,16 @@ static void light_reconnect_to_map(long index)
 void plasma_occlusion_model_slot(long i, short s) {}
 void modern_shadows_model_slot(long i, int s) {}
 void modern_shadows_window(void) {}
+static int environmental_on;
+int modern_shadows_enabled(void) { return environmental_on; }
+static int hard_mode;
+int modern_shadows_hard_enabled(void) { return hard_mode; }
+static real_point3d render_origin = { 3, 1, 2 };
+static const real_point3d *object_get_node_matrix(long object, short node) { return &render_origin; }
+static void matrix4x3_transform_point(const real_point3d *origin, const real_point3d *local, real_point3d *out)
+{
+	out->x = origin->x + local->x; out->y = origin->y + local->y; out->z = origin->z + local->z;
+}
 void modern_shadows_submitted(long i, long r) {}
 static int visibility_resets;
 void plasma_occlusion_reset(void) { visibility_resets++; }
@@ -80,7 +95,8 @@ void plasma_occlusion_window(void) {}
 void plasma_occlusion_submit(long i,long r) {}
 void plasma_lighting_reset(void);
 int plasma_lighting_selected(long index);
-void plasma_falloff_dispose(void) {}
+static int falloff_disposals;
+void plasma_falloff_dispose(void) { falloff_disposals++; }
 void plasma_falloff_end(void) {}
 int covenant_emitter_lighting_enabled(void) { return emitter_on; }
 void covenant_emitter_lighting_frame_end(void) {}
@@ -101,8 +117,8 @@ void shield_glow_window_begin(void) {}
 void shield_glow_submitted(long l,long r) {}
 float shield_glow_radius(long l,float r) { return r; }
 int authored_emitter_lighting_enabled(void) { return authored_on && enabled; }
-int authored_emitter_lighting_profile(long o,long d,float *s,float *offset,int *owner_unshadowed) { *owner_unshadowed=0; if(!authored_on) return 0; *s=2.2f; *offset=.02f; *owner_unshadowed=1; return 2; }
-long covenant_emitter_lighting_shadow_owner(long light) { return NONE; }
+int authored_emitter_lighting_profile(long o,long d,float *s,float *offset,int *owner_unshadowed) { *owner_unshadowed=0; if(!authored_on) return 0; if(authored_on==3) return AUTHORED_EMITTER_PLASMA_GRENADE; *s=2.2f; *offset=.02f; *owner_unshadowed=1; return 2; }
+long covenant_emitter_lighting_shadow_owner(long light, long *emitter_object) { *emitter_object = NONE; return NONE; }
 int authored_emitter_lighting_category_enabled(int c) { return enabled; }
 #include "under_test.inc"
 
@@ -111,6 +127,37 @@ int main(int argc, char **argv)
 	int i;
 	const char *test = argv[1];
 
+	if (!strcmp(test, "stuck_grenade"))
+	{
+		authored_on = 3;
+		for (int attached = 0; attached <= 1; ++attached)
+			for (hard_mode = 0; hard_mode <= 1; ++hard_mode)
+			{
+				grenade.base.object.parent_object_index = attached ? 0x10007 : NONE;
+				grenade.base.object.flags = 1UL << _object_at_rest_bit;
+				grenade.projectile.flags = 0;
+				plasma_lighting_prepare(1,1,NONE);
+				plasma_lighting_shadow_owner(1, &source);
+				CHECK(source.stuck_host == NONE, "holding a grenade never exempts the thrower");
+				grenade.projectile.flags = 1UL << _projectile_attached_bit;
+				CHECK(plasma_lighting_shadow_owner(1, &source) == NONE &&
+					source.casing == 1 && source.stuck_host == grenade.base.object.parent_object_index, "only the impact parent is a caster exception; it remains a receiver");
+				CHECK(source.grounded == !attached, "only unparented resting grenade qualifies");
+				grenade.base.object.flags = 0;
+				plasma_lighting_shadow_owner(1, &source);
+				CHECK(!source.grounded, "flying grenade excluded");
+				if (attached && hard_mode)
+				{
+					CHECK(fabs(light_get(1)->position.z - (render_origin.z+.02301373f)) < .00001f, "attached hard light follows exposed casing");
+				}
+				else CHECK(light_get(1)->position.z==0, "ordinary marker retained");
+				plasma_lighting_shadow_owner(2, &source);
+				CHECK(!source.grounded && source.casing == NONE && source.stuck_host == NONE, "another light keeps the body as a caster");
+				plasma_lighting_frame_end();
+				CHECK(light_get(1)->position.z==0, "stock simulation marker restored");
+			}
+		return 0;
+	}
 	if (!strcmp(test, "placement"))
     {
         real_point3d point = {0,0,0};
@@ -118,9 +165,9 @@ int main(int argc, char **argv)
         authored_on = 1; marker_scale = 2;
         plasma_lighting_prepare(1,1,NONE);
         CHECK(fabs(light_get(1)->position.y-.04f)<.00001f, "render attachment uses rotated scaled marker");
-        CHECK(plasma_lighting_shadow_owner(1)==1 && plasma_lighting_shadow_owner(2)==NONE && plasma_lighting_shadow_owner(NONE)==NONE,
+        CHECK(plasma_lighting_shadow_owner(1, &source)==1 && plasma_lighting_shadow_owner(2, &source)==NONE && plasma_lighting_shadow_owner(NONE, &source)==NONE,
             "registered Ghost light identifies only its own owner");
-        present=0;CHECK(plasma_lighting_shadow_owner(1)==NONE,"deleted owner has no exception");present=1;
+        present=0;CHECK(plasma_lighting_shadow_owner(1, &source)==NONE,"deleted owner has no exception");present=1;
         CHECK(fabs(connected_position.y-.04f)<.00001f, "cluster bounds use the same source as rendering");
         plasma_lighting_submitted(1,3);
         light_port_refresh_attachment(1,1);
@@ -128,7 +175,7 @@ int main(int argc, char **argv)
         plasma_lighting_attachment_position(1,2,&point,&forward,1);
         CHECK(point.x==0, "wrong owner stays stock");
         enabled=0;
-        CHECK(plasma_lighting_shadow_owner(1)==NONE,"policy disable removes exception immediately");
+        CHECK(plasma_lighting_shadow_owner(1, &source)==NONE,"policy disable removes exception immediately");
         plasma_lighting_attachment_position(1,1,&point,&forward,1);
         CHECK(point.x==0, "host or setting disable immediately blocks offset");
         plasma_lighting_frame_end();
@@ -142,7 +189,7 @@ int main(int argc, char **argv)
         plasma_lighting_prepare(1,1,NONE);
         plasma_lighting_reset();
         plasma_lighting_attachment_position(1,1,&point,&forward,1);
-        CHECK(point.x==0 && plasma_lighting_shadow_owner(1)==NONE, "map reset forgets placement and owner exception");
+        CHECK(point.x==0 && plasma_lighting_shadow_owner(1, &source)==NONE, "map reset forgets placement and owner exception");
     }
     else if (!strcmp(test, "shield"))
 	{
@@ -266,7 +313,15 @@ int main(int argc, char **argv)
 		CHECK(plasma_model_lighting_mask()==1,"muzzle model slot works without projectile lighting");
 		muzzle_on=0; CHECK(!plasma_model_lighting_mask(),"both off restores stock model");
 	}
-	else if (!strcmp(test, "off"))
+	else if (!strcmp(test, "environment"))
+    {
+        enabled=0;environmental_on=1;
+        plasma_lighting_frame_end();
+        CHECK(!falloff_disposals,"environmental resources survive without local lights");
+        environmental_on=0;plasma_lighting_frame_end();
+        CHECK(falloff_disposals==1,"all off restores complete resource disposal");
+    }
+    else if (!strcmp(test, "off"))
 	{
 		enabled = 0;
 		plasma_lighting_prepare(1, 1, NONE);
@@ -277,7 +332,7 @@ int main(int argc, char **argv)
 		tag_name = "weapons\\rocket launcher\\explosion";
 		plasma_lighting_prepare(1, 1, NONE);
 		tag_name = "weapons\\plasma rifle\\bolt";
-		projectile.object.type = 0;
+		grenade.base.object.type = 0;
 		plasma_lighting_prepare(1, 1, NONE);
 		CHECK(!refreshes, "other projectile tags and object types stay stock");
 	}

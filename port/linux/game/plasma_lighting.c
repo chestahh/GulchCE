@@ -3,6 +3,7 @@
    rocket_lighting.c owns additional flight lights where rockets have none. */
 #include "cseries.h"
 #include "objects/objects.h"
+#include "items/projectiles.h"
 #include "tag_files/tag_files.h"
 #include "plasma_lighting.h"
 #include "authored_emitter_lighting.h"
@@ -26,7 +27,7 @@ static struct
 	long light_index;
 	long object_index;
 	long rasterizer_index;
-	int was_dynamic, category, owner_unshadowed;
+	int was_dynamic, category, owner_unshadowed, exposed_grenade;
 	float radius_scale, saved_radius, forward_offset;
 } plasma_lighting_attachments[PLASMA_LIGHTING_MAXIMUM];
 static int plasma_lighting_count;
@@ -106,6 +107,9 @@ void plasma_lighting_prepare(long light_index, long object_index, long definitio
 	plasma_lighting_attachments[plasma_lighting_count].category = category;
 	plasma_lighting_attachments[plasma_lighting_count].owner_unshadowed = owner_unshadowed;
 	plasma_lighting_attachments[plasma_lighting_count].forward_offset = forward_offset;
+	plasma_lighting_attachments[plasma_lighting_count].exposed_grenade =
+		category == AUTHORED_EMITTER_PLASMA_GRENADE && object->object.parent_object_index != NONE &&
+		modern_shadows_hard_enabled();
 	plasma_lighting_count++;
 	if (!light_port_refresh_attachment(light_index, object_index))
 	{
@@ -129,6 +133,14 @@ void plasma_lighting_attachment_position(long light_index, long object_index,
 			plasma_lighting_attachments[index].object_index == object_index)
 		{
 			float offset = plasma_lighting_attachments[index].forward_offset * scale;
+			if (plasma_lighting_attachments[index].exposed_grenade)
+			{
+				/* Model-space point just beyond the luminous inset and casing.
+				   The render pose moves the light with the attached projectile. */
+				static const real_point3d exposed = { -0.00602118f, -0.00510639f, 0.02301373f };
+				matrix4x3_transform_point(object_get_node_matrix(object_index, 0), &exposed, position);
+				return;
+			}
 			if (offset && authored_emitter_lighting_category_enabled(plasma_lighting_attachments[index].category))
 			{
 				position->x += offset * forward->i;
@@ -154,17 +166,33 @@ float plasma_lighting_radius(long light_index, long object_index, float radius)
 
 /* Full datum identities keep this exception local to one live light/owner
    pair. The shadow collector resolves it once per selected map, not per draw. */
-long plasma_lighting_shadow_owner(long light)
+long plasma_lighting_shadow_owner(long light, struct plasma_shadow_source *grenade)
 {
 	int i;
-	long owner = covenant_emitter_lighting_shadow_owner(light);
-	if (owner != NONE || light == NONE) return owner;
+	long owner = covenant_emitter_lighting_shadow_owner(light, &grenade->emitter_object);
+	grenade->grounded = FALSE;
+	grenade->casing = grenade->stuck_host = NONE;
+	if (grenade->emitter_object != NONE || light == NONE) return owner;
 	for (i = 0; i < plasma_lighting_count; i++)
-		if (plasma_lighting_attachments[i].light_index == light &&
-			plasma_lighting_attachments[i].owner_unshadowed &&
-			authored_emitter_lighting_category_enabled(plasma_lighting_attachments[i].category) &&
-			object_try_and_get(plasma_lighting_attachments[i].object_index))
-			return plasma_lighting_attachments[i].object_index;
+	{
+		struct object_datum *object;
+		if (plasma_lighting_attachments[i].light_index != light) continue;
+		if (!authored_emitter_lighting_category_enabled(plasma_lighting_attachments[i].category)) break;
+		object = object_try_and_get(plasma_lighting_attachments[i].object_index);
+		if (!object) break;
+		grenade->emitter_object = plasma_lighting_attachments[i].object_index;
+		if (plasma_lighting_attachments[i].category == AUTHORED_EMITTER_PLASMA_GRENADE)
+		{
+			grenade->casing = plasma_lighting_attachments[i].object_index;
+			grenade->grounded = object->object.parent_object_index == NONE && TEST_FLAG(object->object.flags, _object_at_rest_bit);
+			/* A grenade also has a parent while held before release. */
+			if (object->object.type == _object_type_projectile &&
+				projectile_is_attached((struct projectile_datum const *)object))
+				grenade->stuck_host = object->object.parent_object_index;
+		}
+		if (plasma_lighting_attachments[i].owner_unshadowed) return plasma_lighting_attachments[i].object_index;
+		break;
+	}
 	return NONE;
 }
 
@@ -184,6 +212,7 @@ void plasma_lighting_frame_end(void)
 	{
 		plasma_lighting_attachments[index].radius_scale = 1.0f;
 		plasma_lighting_attachments[index].forward_offset = 0.f;
+		plasma_lighting_attachments[index].exposed_grenade = FALSE;
 		light_port_attachment_radius(plasma_lighting_attachments[index].light_index,
 			plasma_lighting_attachments[index].object_index,
 			&plasma_lighting_attachments[index].saved_radius, TRUE);
@@ -197,7 +226,10 @@ void plasma_lighting_frame_end(void)
 		!covenant_emitter_lighting_enabled() && !authored_emitter_lighting_enabled() && !shield_glow_enabled())
 		plasma_occlusion_reset();
 	if (!lighting_config_boolean("display.plasma_lighting") && !lighting_config_boolean("display.muzzle_lighting") &&
-		!covenant_emitter_lighting_enabled() && !authored_emitter_lighting_enabled() && !shield_glow_enabled())
+		!covenant_emitter_lighting_enabled() && !authored_emitter_lighting_enabled() && !shield_glow_enabled() &&
+        !modern_shadows_enabled())
+        /* Environmental grounding remains active without local feature lights.
+           Map/shutdown disposal still releases the complete shadow owner. */
 		plasma_falloff_dispose();
 }
 

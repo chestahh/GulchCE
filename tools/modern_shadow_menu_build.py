@@ -29,6 +29,11 @@ def main():
     try:
         menu.write_text(menu.read_text()+'\n'+probe)
         text = ui.read_text()
+        # PC and Xbox normally override the requested boot screen with their
+        # main shell. Start this test at the requested Video Setup widget.
+        root_call = 'frontend_menu_root(pc_menus_root_name())'
+        assert text.count(root_call) == 1
+        text = text.replace(root_call, 'pc_menus_root_name()')
         body = function(text, 'render_ui_widgets')
         anchor = '\tmatch_assert('
         assert body.count(anchor) == 1

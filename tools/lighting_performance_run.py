@@ -113,11 +113,19 @@ def cleanup(out):
         target=path.with_suffix('.png')
         with Image.open(path) as source:
             source.save(target)
-            with Image.open(target) as saved: assert saved.size==source.size
+            with Image.open(target) as saved:
+                assert saved.size == source.size and saved.mode == source.mode
+                assert saved.tobytes() == source.tobytes()
         safe(path, out).unlink()
     for name in ['halo-performance.exe', 'SDL3.dll']:
         path=out/name
         if path.exists(): safe(path, out).unlink()
+
+
+def runtime_errors(log):
+    # A resource fallback can leave the game running faster with no shadows.
+    # Treat it as failed acceptance, even when earlier frames had valid maps.
+    return re.findall(r'(?im)^.*(?:crash: exception|exception halt|assertion failed|GL_INVALID|shader.*(?:error|failed)|GPU:.*shadow.*(?:unavailable|failed)).*$', log)
 
 
 def main():
@@ -126,6 +134,9 @@ def main():
     parser.add_argument('--settings', type=Path)
     parser.add_argument('--fps', type=int, choices=[30,60,120,240], required=True)
     parser.add_argument('--uncapped', action='store_true', help='Measure headroom without the limiter; --fps remains the reporting budget')
+    parser.add_argument('--without-environment-model', action='store_true', help='Diagnostic control build only: disable environmental model self-shadowing')
+    parser.add_argument('--alternate-environment-model', action='store_true', help='Diagnostic control build only: alternate environmental model self-shadowing in two-second ABBA blocks')
+    parser.add_argument('--depth-reuse', choices=['shared','legacy','alternate'], help='Requires depth-reuse control build; alternate uses two-second ABBA blocks')
     parser.add_argument('--enabled', type=int, choices=[0,1], required=True)
     parser.add_argument('--modern-shadows', choices=['off', 'hard', 'soft'], default='off')
     parser.add_argument('--turret-sources', type=int, choices=[1,2,4], help='Requires a turret-prototype timing build')
@@ -140,6 +151,7 @@ def main():
     parser.add_argument('--advance-seconds', type=float, default=0, help='Walk forward in the copied campaign checkpoint with normal controller input')
     parser.add_argument('--turn-seconds', type=float, default=0, help='Turn after walking or the snowy route; negative turns left, positive right')
     parser.add_argument('--route-captures', action='store_true', help='Route inspection only: capture every two seconds instead of once a minute')
+    parser.add_argument('--route-file', type=Path, help='Validated test-only controller steps: seconds lx ly rx use; requires --snowy-route')
     parser.add_argument('--bots', type=int, default=15)
     parser.add_argument('--label', required=True)
     parser.add_argument('--build-dir', type=Path, default=ROOT/'build/lighting-performance-build')
@@ -153,6 +165,15 @@ def main():
         parser.error('--invulnerable-player requires a copied campaign checkpoint')
     if args.snowy_route and (not args.checkpoint_root or args.advance_seconds):
         parser.error('--snowy-route requires a copied campaign checkpoint and cannot combine with advance')
+    if args.route_file:
+        if not args.snowy_route:
+            parser.error('--route-file requires --snowy-route')
+        route = [line.split() for line in args.route_file.read_text().splitlines() if line.strip()]
+        if not 1 <= len(route) <= 128:
+            parser.error('Route must contain 1-128 steps')
+        for step in route:
+            if len(step) != 5 or not 0 < float(step[0]) <= 30 or any(not -32767 <= int(x) <= 32767 for x in step[1:4]) or step[4] not in tuple(str(i) for i in range(8)):
+                parser.error('Invalid route step')
     if args.stationary_shield and args.map != 'c40':
         parser.error('--stationary-shield requires c40, which contains the shield tag')
     if args.advance_seconds and (args.map != 'c40' or not 0 < args.advance_seconds <= 30):
@@ -201,6 +222,9 @@ def main():
         env['HALO_LIGHTING_BENCH_DEATHLESS'] = '1'
     if args.snowy_route:
         env['HALO_LIGHTING_BENCH_SNOWY_ROUTE'] = '1'
+    if args.route_file:
+        shutil.copy2(args.route_file, out/'controller-route.txt')
+        env['HALO_LIGHTING_BENCH_ROUTE_FILE'] = 'controller-route.txt'
     if args.advance_seconds:
         env['HALO_LIGHTING_BENCH_ADVANCE'] = str(args.advance_seconds)
     if args.turn_seconds:
@@ -220,7 +244,25 @@ def main():
         env['HALO_TURRET_SOURCES']=str(args.turret_sources)
     assert build.is_relative_to((ROOT/'build').resolve())
     shutil.copy2(build/'manifest.json', out/'build-manifest.json')
+    if args.without_environment_model:
+        assert json.loads((build/'manifest.json').read_text()).get('environment_model_control'), 'Control build required'
+        env['HALO_BENCH_NO_ENV_MODEL'] = '1'
+    else:
+        env.pop('HALO_BENCH_NO_ENV_MODEL', None)
+    if args.alternate_environment_model:
+        assert not args.without_environment_model, 'Choose one environment comparison mode'
+        assert json.loads((build/'manifest.json').read_text()).get('environment_model_control'), 'Control build required'
+        env['HALO_BENCH_ENV_ALTERNATE'] = '1'
+    else:
+        env.pop('HALO_BENCH_ENV_ALTERNATE', None)
+    env.pop('HALO_BENCH_DEPTH_REUSE', None)
+    if args.depth_reuse:
+        assert not args.alternate_environment_model and not args.without_environment_model, 'Choose one comparison'
+        assert json.loads((build/'manifest.json').read_text()).get('depth_reuse_control'), 'Depth reuse control build required'
+        env['HALO_BENCH_DEPTH_REUSE'] = args.depth_reuse
     (out/'settings.json').write_text(json.dumps(dict(resolution=args.resolution, fps=args.fps, uncapped=args.uncapped,
+        depth_reuse=args.depth_reuse, environment_model_enabled=not args.without_environment_model,
+        environment_model_alternating=args.alternate_environment_model,
         frame_limit=int(env['HALO_MAX_FPS']), turret_sources=args.turret_sources,
         warmup=args.warmup, seconds=args.seconds, bots=0 if args.checkpoint_root else args.bots, map=args.map,
         stationary_shield=args.stationary_shield,
@@ -283,13 +325,16 @@ def main():
         except ValueError as error:
             report['measurement_error']=str(error)
         log=(out/'stderr.log').read_text(errors='replace')
+        if args.route_file and f'BENCH custom route steps {len(route)}\n' not in log:
+            report['route_error'] = 'Requested controller route was not loaded completely'
         report.update(exit=process.returncode, fps=args.fps, uncapped=args.uncapped, frame_limit=int(env['HALO_MAX_FPS']), enabled=args.enabled, shader_dump=args.dump_shaders,
                       modern_shadows=args.modern_shadows, resolution=args.resolution,
                       invulnerable_player=args.invulnerable_player, snowy_route=args.snowy_route,
+                      route_sha256=hashlib.sha256((out/'controller-route.txt').read_bytes()).hexdigest() if args.route_file else None,
                       captures=not (args.dump_shaders or args.no_captures),
                       unexpected_players=bool(re.search(r'\bplayer '+str(args.bots+1)+r':', log)),
                       bots_lines=[line for line in log.splitlines() if 'bots: tick' in line],
-                      errors=re.findall(r'(?im)^.*(?:crash: exception|exception halt|assertion failed|GL_INVALID|shader.*(?:error|failed)).*$',log),
+                      errors=runtime_errors(log),
                       peak_private_mib=max((m['private']/2**20 for m in memory),default=None),
                       peak_rss_mib=max((m['rss']/2**20 for m in memory),default=None),
                       # Memory uses the runner clock. Bound both windows before
@@ -299,6 +344,7 @@ def main():
         (out/'report.json').write_text(json.dumps(report,indent=2))
         print(json.dumps(dict(label=args.label, **report)),flush=True)
         assert report['exit']==0 and not report['errors'], 'Game failed; retained report and logs describe the failure'
+        assert not report.get('route_error'), report.get('route_error')
         assert not report.get('measurement_error') and report['measured_span']>=args.seconds-.2, 'Incomplete measurement'
         assert not report['unexpected_players'], 'Unexpected player joined the isolated workload'
         assert bool(report['selected_max'])==bool(args.enabled), 'Light activation mismatch'

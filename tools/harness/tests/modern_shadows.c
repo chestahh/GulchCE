@@ -1,8 +1,10 @@
 #include "harness.h"
+static void modern_environment_window(void) {}
 #define MIN(a,b) ((a)<(b)?(a):(b))
 #define MAX(a,b) ((a)>(b)?(a):(b))
 #define SHADOW_LIGHTS 128
 #include "budget.inc"
+#include "grenade_shadow.inc"
 struct structure_bsp { int identity; } map_a, map_b;
 static struct structure_bsp *map = &map_a;
 static int parts[1], begins, disposals, failed, complete = 1, mode_soft;
@@ -37,8 +39,10 @@ static float distance_squared3d(const real_point3d *a,const real_point3d *b) {
  float x=a->x-b->x,y=a->y-b->y,z=a->z-b->z; return x*x+y*y+z*z;
 }
 static float plasma_occlusion_specular_scale(long i) { return 2; }
-static int modern_shadow_begin(int slot,const float p[3],float radius,int soft) {
- begins++; captured_radius=radius; mode_soft=soft; return !failed && slot!=failed_slot;
+static int collecting_slot;
+static long skipped_world[MODERN_SHADOW_LIGHTS], skipped_view[MODERN_SHADOW_LIGHTS], skipped_emitter[MODERN_SHADOW_LIGHTS];
+static int modern_shadow_begin(int slot,const float p[3],float radius,int soft, int ground_grenade) {
+ collecting_slot=slot; begins++; captured_radius=radius; mode_soft=soft; return !failed && slot!=failed_slot;
 }
 static void modern_shadow_dispose(void) { disposals++; }
 static void modern_shadow_clear_draws(void) {}
@@ -46,12 +50,17 @@ static void plasma_falloff_begin(long light) { rebound_stage=2; rebound_light=li
 static void plasma_falloff_specular_begin(long light) { rebound_stage=1; rebound_light=light; }
 static int modern_shadow_end(void) { return !failed; }
 static int world_casters(const struct structure_bsp *b,const real_point3d *p,float r) { return complete; }
-static int viewmodel_casters(long owners[2]) { owners[0]=owners[1]=NONE; return complete; }
-static int object_casters(const real_point3d *p,float r,const long owners[2],long unshadowed_owner, long collision_owner) { return complete; }
+static int viewmodel_casters(long owners[2],long stuck_host) { skipped_view[collecting_slot]=stuck_host; owners[0]=owners[1]=NONE; return complete; }
+static int object_casters(const real_point3d *p,float r,const long owners[2],long unshadowed_owner, long excluded_caster, long emitter) { skipped_emitter[collecting_slot]=emitter; skipped_world[collecting_slot]=excluded_caster; return complete; }
 static long chassis_light=NONE, chassis_owner=NONE;
-static long muzzle_lighting_vehicle_owner(long light) { return light==chassis_light ? chassis_owner : NONE; }
+static long muzzle_light=NONE, firing_weapon=NONE;
+static long muzzle_lighting_shadow_caster(long light,long emitter_object,long *collision_owner) {
+ *collision_owner=light==chassis_light ? chassis_owner : NONE;
+ return light==muzzle_light ? firing_weapon : *collision_owner;
+}
 static long exempt_light=NONE, exempt_owner=NONE;
-static long plasma_lighting_shadow_owner(long light) { return light==exempt_light ? exempt_owner : NONE; }
+static long stuck_light=NONE, impact_parent=0x10007;
+static long plasma_lighting_shadow_owner(long light, struct plasma_shadow_source *grenade) { grenade->stuck_host=light==stuck_light ? impact_parent : NONE; grenade->casing=light==stuck_light ? 27 : NONE; grenade->emitter_object=NONE; grenade->grounded=0; return light==exempt_light ? exempt_owner : NONE; }
 #include "under_test.inc"
 static int selection_stability(void)
 {
@@ -158,7 +167,27 @@ int main(int argc,char **argv)
   allowed=0; modern_shadows_prepare(1);
   CHECK(!active, "disabled or policy-rejected categories cannot keep a map");
  }
- allowed=3;chassis_light=101;chassis_owner=0x10002;modern_shadows_prepare(1);
+ allowed=3;stuck_light=100;
+ for(i=0;i<2;i++) {
+  mode=i ? "soft" : "hard"; modern_shadows_prepare(1);
+  modern_shadows_model_slot(0,0);modern_shadows_model_slot(1,1);
+  modern_shadows_receiver(0,impact_parent);
+  CHECK(modern_shadows_model_mask()==3 && modern_shadows_collision_owner(0)==NONE,
+        "stuck host receives both maps with no chassis override");
+  CHECK(skipped_world[map_for(0)]==impact_parent && skipped_view[map_for(0)]==impact_parent &&
+        skipped_world[map_for(1)]==NONE && skipped_view[map_for(1)]==NONE &&
+        skipped_emitter[map_for(0)]==27 && skipped_emitter[map_for(1)]==NONE,
+        "only the stuck grenade omits its impact parent in world and first person");
+ }
+ mode="hard";stuck_light=NONE;modern_shadows_prepare(1);
+ CHECK(skipped_world[map_for(0)]==NONE && skipped_view[map_for(0)]==NONE,"detachment restores host casting");
+ allowed=3;muzzle_light=101;firing_weapon=0x10009;modern_shadows_prepare(1);
+ CHECK(skipped_world[map_for(1)]==firing_weapon && skipped_view[map_for(1)]==firing_weapon &&
+       skipped_world[map_for(0)]==NONE && modern_shadows_collision_owner(1)==NONE,
+       "only the handheld flash omits its firing weapon, without chassis blocking");
+ modern_shadows_model_slot(1,0);modern_shadows_receiver(0,firing_weapon);
+ CHECK(modern_shadows_map(0)!=NONE,"the firing weapon samples shadows from the biped and other geometry");
+ muzzle_light=NONE;chassis_light=101;chassis_owner=0x10002;modern_shadows_prepare(1);
  CHECK(modern_shadows_collision_owner(1)==chassis_owner && modern_shadows_collision_owner(0)==NONE,
        "collision supplement belongs only to its own muzzle light");
  modern_shadows_model_slot(1,0);modern_shadows_receiver(0,chassis_owner);

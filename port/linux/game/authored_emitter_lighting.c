@@ -19,7 +19,7 @@ static const struct authored_emitter_profile
 	int owner_unshadowed;
 } profiles[] = {
 	{'weap', "weapons\\energy sword\\energy sword", "weapons\\energy sword\\energy sword dynamic", 2.5f, 1},
-	{'proj', "weapons\\plasma grenade\\plasma grenade", "weapons\\plasma grenade\\plasma grenade", 1.5f, 3},
+	{'proj', "weapons\\plasma grenade\\plasma grenade", "weapons\\plasma grenade\\plasma grenade", 1.5f, AUTHORED_EMITTER_PLASMA_GRENADE},
 	{'weap', "weapons\\plasma pistol\\plasma pistol", "weapons\\plasma rifle\\overcharge", 1.5f, 1},
 	/* Prong flares have a short, broad forward spill (category 4). The
 	   authored pistol radius is 1.5, the rifle's 0.1: both reach 0.3 here. */
