@@ -31,7 +31,7 @@ PAGES = [
     ("profile", 5, 5, "PLAYER PROFILE", ["gamepad_setup"]),
     ("graphics", 0, 0, "ADVANCED GRAPHICS", ["video_settings/graphics"]),
     ("first_person", 0, 0, "FIRST PERSON", ["video_settings/fov_viewmodels"]),
-    ("lighting", 0, 0, "DYNAMIC LIGHTING", ["video_settings/dynamic_lighting"]),
+    ("lighting", 0, 6, "DYNAMIC LIGHTING", ["video_settings/dynamic_lighting"]),
     ("bots", 3, 3, "BOTS", ["network_setup/bots"]),
     ("sharing", 3, 3, "MAP SHARING", ["network_setup/map_sharing"]),
     ("browser", 3, 3, "SERVER BROWSER", ["network_setup/server_browser"]),
@@ -41,10 +41,10 @@ PAGES = [
     ("third_person", 0, 0, "THIRD PERSON", ["video_settings/shoulder_camera"]),
     ("extra_effects", 0, 6, "EXTRA EFFECTS", ["video_settings/extra_effects"]),
     ("mcc_packages", 3, 10, "MCC PACKAGES", ["network_setup/mcc_packages"]),
-    ("shadows", 0, 0, "SHADOWS", ["video_settings/shadows"]),
+    ("shadows", 0, 6, "SHADOWS", ["video_settings/shadows"]),
 ]
 TABS = ("VIDEO", "AUDIO", "CONTROLS", "ONLINE", "INTERFACE", "PROFILE")
-LINKS = {0: [(6, None), (7, None), (15, None), (8, "desktop web"), (18, None)], 6: [(16, None)],
+LINKS = {0: [(6, None), (7, None), (15, None)], 6: [(16, None), (8, "desktop web"), (18, None)],
          3: [(9, None), (10, None), (11, None)], 4: [(12, None), (13, None)],
          2: [(14, "android")], 10: [(17, None)]}
 STYLE = ("MENU STYLE", "display.menu_frontend",

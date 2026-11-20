@@ -8,7 +8,7 @@ static struct { char const *path; short tab, parent; char const *paused; } const
     {"pc\\modern\\profile\\settings", 5, 5, "pc\\modern\\paused\\profile\\settings"},
     {"pc\\modern\\graphics\\settings", 0, 0, "pc\\modern\\paused\\graphics\\settings"},
     {"pc\\modern\\first_person\\settings", 0, 0, "pc\\modern\\paused\\first_person\\settings"},
-    {"pc\\modern\\lighting\\settings", 0, 0, "pc\\modern\\paused\\lighting\\settings"},
+    {"pc\\modern\\lighting\\settings", 0, 6, "pc\\modern\\paused\\lighting\\settings"},
     {"pc\\modern\\bots\\settings", 3, 3, "pc\\modern\\paused\\bots\\settings"},
     {"pc\\modern\\sharing\\settings", 3, 3, "pc\\modern\\paused\\sharing\\settings"},
     {"pc\\modern\\browser\\settings", 3, 3, "pc\\modern\\paused\\browser\\settings"},
@@ -18,5 +18,5 @@ static struct { char const *path; short tab, parent; char const *paused; } const
     {"pc\\modern\\third_person\\settings", 0, 0, "pc\\modern\\paused\\third_person\\settings"},
     {"pc\\modern\\extra_effects\\settings", 0, 6, "pc\\modern\\paused\\extra_effects\\settings"},
     {"pc\\modern\\mcc_packages\\settings", 3, 10, "pc\\modern\\paused\\mcc_packages\\settings"},
-    {"pc\\modern\\shadows\\settings", 0, 0, "pc\\modern\\paused\\shadows\\settings"},
+    {"pc\\modern\\shadows\\settings", 0, 6, "pc\\modern\\paused\\shadows\\settings"},
 };

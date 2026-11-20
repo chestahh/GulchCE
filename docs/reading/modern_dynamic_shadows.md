@@ -95,8 +95,9 @@ refined effects and bounded eight-light budget. Off-default behavior, host
 policy, AMD/NVIDIA workarounds, Android exclusion and Xbox/CE/MCC ownership
 remain requirements throughout.
 
-Open **Video Setup > Shadows** in any menu style to choose **Classic**,
-**Modern Hard** or **Modern Soft** and set the shared shadow resolution.
+In the Modern menu, open **Video > Advanced Graphics > Shadows**. Other menu
+styles use **Video Setup > Shadows**. Choose **Classic**, **Modern Hard** or
+**Modern Soft** and set the shared shadow resolution.
 Classic is the default and uses the original object shadows. The mode setting is
 `display.modern_shadows` (`"off"`, `"hard"`, `"soft"`); `HALO_MODERN_SHADOWS`
 remains its environment override. Android and web omit this control and compile

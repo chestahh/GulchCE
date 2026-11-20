@@ -148,7 +148,8 @@ No shipped artwork or runtime code changed. The main promotion also passed
 
 ## Player controls
 
-Open **Settings > Video Setup > Dynamic Lighting**. All lighting switches
+Open **Video > Advanced Graphics > Dynamic Lighting** in the Modern menu, or
+**Video Setup > Dynamic Lighting** in the other styles. All lighting switches
 default to **Off**; Glow Intensity defaults to **Default**. Saving applies the
 pending choices, cancelling discards them, and Defaults restores the stock
 choices for this screen. Saved choices persist across launches.

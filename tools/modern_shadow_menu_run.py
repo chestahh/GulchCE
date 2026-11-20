@@ -55,6 +55,9 @@ def main():
         assert result.returncode == 0, label
     log = (out/'actions.log').read_text(errors='replace')
     assert 'SHADOW MENU entered from video' in log, 'Shadows was not reached from Video Setup'
+    if args.frontend == 'modern' or args.inspect_modern:
+        assert 'SHADOW MENU entered advanced graphics' in log
+        assert 'SHADOW MENU visited lighting' in log
     if args.inspect_modern:
         assert re.findall(r'SHADOW MENU inspect (\d+)', log) == [str(i) for i in range(18 if args.resolution_setting else 9)]
         (out/'report.json').write_text(json.dumps(dict(inspected=True, resolution='2560x1440'), indent=2))

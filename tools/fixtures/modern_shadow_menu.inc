@@ -31,6 +31,7 @@ void modern_shadow_menu_accept(struct widget_instance *root)
 {
 	static unsigned long next;
 	static int step;
+	static int visited_lighting;
 	struct widget_instance *spinner;
 	struct widget_instance *child;
 	unsigned long now;
@@ -41,7 +42,26 @@ void modern_shadow_menu_accept(struct widget_instance *root)
 	{
 		struct widget_instance *link = named(root, "op_shadows", 0);
 		boolean deleted = FALSE;
+		if (!visited_lighting && strstr(tag_get_name(root->definition_tag_index), "\\modern\\lighting\\settings"))
+		{
+			visited_lighting = TRUE;
+			platform_log("SHADOW MENU visited lighting");
+			shadow_menu_action(root, "port frontend back");
+			return;
+		}
+		if (!visited_lighting && !link)
+		{
+			struct widget_instance *lighting = named(root, "row_link_8", 0);
+			if (lighting && ui_widget_port_dispatch_event(lighting, 0, 0, &deleted)) return;
+		}
 		if (!link) link = named(root, "row_link_18", 0);
+		if (!link)
+		{
+			link = named(root, "row_link_6", 0);
+			if (link && ui_widget_port_dispatch_event(link, 0, 0, &deleted))
+				platform_log("SHADOW MENU entered advanced graphics");
+			return;
+		}
 		if (link && ui_widget_port_dispatch_event(link, 0, 0, &deleted))
 			platform_log("SHADOW MENU entered from video");
 		return;
