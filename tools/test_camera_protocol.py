@@ -26,6 +26,13 @@ def test_camera_admission(tmp_path):
 #include <stdio.h>
 #include <string.h>
 #include "third_person_protocol.h"
+#include "mutator_protocol.h"
+/* These camera-only cases intentionally run with mutators disabled. */
+int mutator_session_active(void){return 0;}
+void mutator_session_client_clear(void){}
+unsigned int mutator_session_version(char const *map){(void)map;return 44;}
+int mutator_protocol_unwrap(void const *m,unsigned short b,void *i,unsigned short *n)
+{(void)m;(void)b;(void)i;(void)n;return 0;}
 typedef unsigned char byte;
 typedef unsigned short word;
 typedef int boolean;
@@ -219,6 +226,13 @@ def test_camera_and_crossplay_dispatch_admit_all_map_families(tmp_path):
 #include <stdio.h>
 #include <string.h>
 #include "third_person_protocol.h"
+#include "mutator_protocol.h"
+/* These camera-only cases intentionally run with mutators disabled. */
+int mutator_session_active(void){return 0;}
+void mutator_session_client_clear(void){}
+unsigned int mutator_session_version(char const *map){(void)map;return 44;}
+int mutator_protocol_unwrap(void const *m,unsigned short b,void *i,unsigned short *n)
+{(void)m;(void)b;(void)i;(void)n;return 0;}
 typedef unsigned char byte;
 typedef unsigned short word;
 typedef int boolean;

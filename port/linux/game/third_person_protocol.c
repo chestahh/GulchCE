@@ -1,5 +1,6 @@
 #include "cseries.h"
 #include "third_person_protocol.h"
+#include "mutator_protocol.h"
 #include "networking/network_messages.h"
 #include "bungie_net/common/message_header.h"
 #include "third_person.h"
@@ -53,7 +54,7 @@ int third_person_session_set(int enabled)
 
 void third_person_session_client_begin(unsigned int version)
 {
-    camera_client = version == THIRD_PERSON_PROTOCOL_VERSION;
+    camera_client = version == THIRD_PERSON_PROTOCOL_VERSION || version == MUTATOR_CAMERA_PROTOCOL_VERSION;
     third_person_reset();
 }
 

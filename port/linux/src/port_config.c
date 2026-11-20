@@ -798,6 +798,8 @@ static const struct config_setting config_settings[] =
 		"Group identified MCC packages into the bundled Workshop collections.\n"
 		"Works with imported packages without Steam; reopen the map list after changing." },
 
+	{ "network.mutators", _config_boolean, "false", "HALO_NET_MUTATORS", _environment_value, _platform_all,
+		"Host: opt in to GulchCE mutators and require matching clients. Fixed once the lobby opens." },
 	{ "network.address", _config_string, "\"\"", "HALO_NET_ADDRESS", _environment_value, _platform_all,
 		"This machine's IPv4 address for system link, for a machine on several\n"
 		"networks; empty chooses one." },

@@ -260,6 +260,7 @@ symbols in this file:
 #include "networking/network_connection.h"
 #include "networking/network_game_globals.h"
 #include "networking/network_game_manager.h"
+#include "mutator_protocol.h"
 #include "third_person_protocol.h" /* port: port/linux/game/third_person_protocol.c */
 #include "mcc_identity.h" /* port: attach MCC content identity to host settings */
 #include "bots.h" /* port: host-owned population reporting and replaceable capacity */
@@ -1195,6 +1196,7 @@ boolean network_game_server_handle_client_message(
 	word message_type;
 	byte packet_type;
 	word camera_join[THIRD_PERSON_PROTOCOL_JOIN_MAX / sizeof(word)], camera_join_size; /* port */
+	word mutator_join[MUTATOR_PROTOCOL_JOIN_MAX / sizeof(word)], mutator_join_size;
 
 	/* port: the size comes from the wire, and an assert is no check (an
 	empty message read its packet type from before the buffer): the machine
@@ -1204,6 +1206,26 @@ boolean network_game_server_handle_client_message(
 	{
 		network_event("server received a client message of a bad size (#%d)", message_buffer_size);
 		return FALSE;
+	}
+
+	/* An envelope is never ordinary traffic, including on a stock host or
+	an already admitted connection. Reject before custom-message dispatch. */
+	if (GET_MESSAGE_TYPE(*message) == 2 && ((byte *)message)[2] == MUTATOR_PROTOCOL_JOIN_KIND &&
+		(!mutator_session_active() || network_game_server_client_machine_is_joined_to_game(server, machine)))
+		return FALSE;
+
+	/* port: unwrap the outer mutator agreement before the camera gate. No
+	ordinary join may reach token/slot admission in an opt-in session. */
+	if (mutator_session_active() && !network_game_server_client_machine_is_joined_to_game(server, machine))
+	{
+		if (!mutator_protocol_unwrap(message, message_buffer_size, mutator_join, &mutator_join_size))
+		{
+			network_event("mutator admission rejected: matching opt-in protocol %u required",
+				mutator_session_version(NULL));
+			return FALSE;
+		}
+		message = mutator_join;
+		message_buffer_size = (short)mutator_join_size;
 	}
 
 	/* port: camera sessions require compatibility before ordinary admission.
@@ -1879,8 +1901,8 @@ static boolean network_game_server_handle_message_client_broadcast_game_search(
 			/* the native builds' network version and netcode (a client
 			refuses a host of another version, or of the lockstep netcode
 			older builds had: network_client_manager.c) */
-			advertisement.reserved[HALO_PORT_ADVERTISED_VERSION_OFFSET] = (byte)(third_person_session_version(game->map.name) & 0xFF);
-			advertisement.reserved[HALO_PORT_ADVERTISED_VERSION_OFFSET + 1] = (byte)(third_person_session_version(game->map.name) >> 8);
+			advertisement.reserved[HALO_PORT_ADVERTISED_VERSION_OFFSET] = (byte)(mutator_session_version(game->map.name) & 0xFF);
+			advertisement.reserved[HALO_PORT_ADVERTISED_VERSION_OFFSET + 1] = (byte)(mutator_session_version(game->map.name) >> 8);
 			/* port: both session profiles use upstream distributed discovery flags. */
 			advertisement.reserved[HALO_PORT_ADVERTISED_FLAGS_OFFSET] =
 				HALO_PORT_ADVERTISED_DISTRIBUTED_FLAG;

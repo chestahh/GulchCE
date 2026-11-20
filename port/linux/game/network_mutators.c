@@ -26,6 +26,7 @@ has them all; edits that are not this build's leave none played.
 #include "network_mutators.h"
 #include "mutators.h"
 #include "mutator_share.h"
+#include "mutator_protocol.h"
 
 #include <stddef.h>
 #include <string.h>
@@ -147,7 +148,7 @@ void network_mutators_send(
 	short count;
 	short index;
 
-	if (game_connection() != _game_connection_network_server)
+	if (!mutator_session_active() || game_connection() != _game_connection_network_server)
 		return;
 	network_mutators_send_tag_edits(machine_index);
 	count = mutators_keys(keys, values, MAXIMUM_MUTATOR_KEYS);
@@ -186,7 +187,7 @@ void network_mutators_handle_message(
 	real values[MAXIMUM_MUTATOR_KEYS];
 	short index;
 
-	if (machine_index != NONE || game_connection() != _game_connection_network_client ||
+	if (!mutator_session_active() || machine_index != NONE || game_connection() != _game_connection_network_client ||
 		!game_in_progress() || main_menu_is_active() || network_connection_last_read_was_unreliable() ||
 		size < sizeof(message.header))
 	{

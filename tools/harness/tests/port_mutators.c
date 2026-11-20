@@ -26,6 +26,9 @@ static int file_count;
 static int folder_count, listed, reads, logged;
 static char setting[300], written[300];
 
+static int gameplay_allowed = 1, local_allowed = 1;
+int mutators_gameplay_allowed(void) { return gameplay_allowed; }
+int mutators_local_allowed(void) { return local_allowed; }
 #include "port_mutators_source.inc"
 
 static void folder(char const *name, char const *text)
@@ -340,6 +343,14 @@ int main(int argc, char **argv)
 			places[0].facing == -48.6f && places[1].facing == 0.f && places[1].position[2] == 3.f,
 			"the placements, in order");
 		CHECK(port_mutators_places(places, 1) == 1, "the most placements asked for");
+		gameplay_allowed = 0;
+		CHECK(port_mutators_addon_count() == 0 && port_mutators_places(places, 8) == 0,
+			"stock network session has no local addons or placements");
+		gameplay_allowed = 1;
+		local_allowed = 0;
+		CHECK(port_mutators_addon_count() == 0 && port_mutators_places(places, 8) == 0,
+			"client awaiting host list cannot fall back to own addons");
+		local_allowed = 1;
 		CHECK(port_mutators_details(find("falcon"), text, sizeof(text)) &&
 			strstr(text, "Adds: falcon.cevehicle, placed 2 times"), "an add-on's details: %s", text);
 	}

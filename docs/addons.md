@@ -74,9 +74,9 @@ refused. It is not a local preference: solo and hosted games use the selected
 manifests, and joining clients use the host's hash-checked manifests, including
 downloaded copies. Menu rows and variant weapon slots both count only visible
 weapons, in mutator order, even when an earlier weapon is absent from the map.
-Network version 51 is required: older builds count hidden weapons in those
-same variant slots and could otherwise select a different weapon. The packet
-layout is unchanged.
+The optional mutator session agreement is required: older builds count hidden
+weapons in those same variant slots and could otherwise select a different
+weapon. The stock version-44 layout remains unchanged when mutators are off.
 
 An add-on's kind is its file's name's: `.cevehicle` or `.ceweapon` (any
 case), which the game checks against the file. A mutator cannot be played if
@@ -280,9 +280,10 @@ speed and riders every second.
 
 The host sends its add-ons to its clients, who play them in the
 host's order, so every machine gives their tags the same indices
-([mutators.md](mutators.md), "Network games"). A client that has turned that off
-(`network.mutator_download`) plays a map without them: what it sees of them, and of
-the players in them, is not the host's.
+([mutators.md](mutators.md), "Network games"). This requires an opted-in
+mutator session; ordinary version-44 hosts never transfer these files. A client
+that disables downloads (`network.mutator_download`) must already have all
+required content, or joining is aborted rather than playing with missing tags.
 
 ## What is not done yet
 

@@ -25,6 +25,18 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 RECORD = ROOT / "port/linux/network_format.txt"
+OPTIONAL_RECORD = ROOT / "port/linux/mutator_network_format.txt"
+OPTIONAL_ENUMS = {
+    "_distributed_message_mutators", "_distributed_message_mutator_tag_edits",
+    "_distributed_message_mutator_share_ask", "_distributed_message_mutator_share_entry",
+    "_distributed_message_mutator_share_fetching", "_distributed_message_mutator_share_done",
+}
+OPTIONAL_STRUCTS = {
+    "distributed_mutator_entry", "distributed_mutators_message",
+    "distributed_mutator_tag_edits_message",
+}
+OPTIONAL_SHARE_STRUCTS = {"mutator_share_entry_message", "port_mutator_share", "port_mutator_share_file"}
+OPTIONAL_BUTTON = "DISTRIBUTED_RELAYED_ACTION_SCRIPT_BUTTONS_BIT"
 
 
 def _blocks(text, opener):
@@ -43,13 +55,16 @@ def _hash(text):
     return hashlib.sha256(" ".join(text.split()).encode()).hexdigest()[:12]
 
 
-def items():
-    """the wire format's items, name to value"""
+def items(optional=False):
+    """Stock 44 by default; optional=True includes the gated mutator wire layout."""
     paths = sorted((ROOT / "port/linux/game").glob("network_*.[ch]"))
     paths += sorted((ROOT / "port/linux/game").glob("map_share*.[ch]"))
     paths += [ROOT / "port/linux/game/vehicle_riding.h"]
     paths += [ROOT / "source/networking/network_messages.c", ROOT / "source/networking/network_messages.h"]
     texts = [re.sub(r"/\*.*?\*/|//[^\n]*", " ", path.read_text(encoding="latin-1"), flags=re.S) for path in paths]
+    if optional:
+        texts.insert(0, re.sub(r"/\*.*?\*/|//[^\n]*", " ",
+                             (ROOT / "port/linux/game/mutator_share.c").read_text(), flags=re.S))
     everything = "\n".join(texts)
     result, structs = {}, {}
 
@@ -58,8 +73,10 @@ def items():
         result[name] = str(value)
 
     for text in texts:
-        for block in _blocks(text, r"^struct distributed_\w+\s*\{"):
-            structs[re.match(r"struct (\w+)", block).group(1)] = block
+        for block in _blocks(text, r"^struct (?:distributed_\w+|mutator_share_entry_message|port_mutator_share(?:_file)?)\s*\{"):
+            name = re.match(r"struct (\w+)", block).group(1)
+            if optional or name not in OPTIONAL_STRUCTS | OPTIONAL_SHARE_STRUCTS:
+                structs[name] = block
         for block in _blocks(text, r"^enum\b[^;{]*\{"):
             if ("_distributed_" not in block and "network_game_message_type" not in block and
                     "_vehicle_riding_deck_falling_bit" not in block):
@@ -68,14 +85,15 @@ def items():
             for member in filter(None, map(str.strip, block[block.index("{") + 1:block.rindex("}")].split(","))):
                 name, _, expression = (part.strip() for part in member.partition("="))
                 value = int(expression, 0) if expression else value + 1
-                if not name.startswith("NUMBER_OF_"):
+                if not name.startswith("NUMBER_OF_") and (optional or name not in OPTIONAL_ENUMS):
                     add(f"enum {name}", value)
         for name, value in re.findall(r"^#define (DISTRIBUTED_\w+)\s+(.*?)\s*$", text, re.M):
-            add(f"define {name}", value)
+            if optional or name != OPTIONAL_BUTTON:
+                add(f"define {name}", value)
     sent = {name for name in structs if name.endswith("_message") or f"sizeof(struct {name})" in everything}
     while True:
         bodies = " ".join(structs[name].split("{", 1)[1] for name in sent)
-        held = structs.keys() & set(re.findall(r"\bstruct (distributed_\w+)", bodies))
+        held = structs.keys() & set(re.findall(r"\bstruct (\w+)", bodies))
         if held <= sent:
             break
         sent |= held
@@ -90,6 +108,8 @@ def items():
             bounds |= set(re.findall(r"\b[A-Z_][A-Z0-9_]*\b", size))
     bounds |= set(re.findall(r"^\s*(DISTRIBUTED_\w+)\s*=", everything, re.M)) - {
         key.split(" ", 1)[1] for key in result if key.startswith("enum ")}
+    if optional:
+        bounds |= {"MUTATOR_RELAYED_ACTION_MAXIMUM_SIZE", "MAXIMUM_VARIANT_ADDON_VEHICLES"}
     headers = None
     pending, done = sorted(bounds), set()
     while pending:
@@ -120,7 +140,21 @@ def items():
     # whole, and where that record puts them
     engine = re.sub(r"/\*.*?\*/|//[^\n]*", " ", (ROOT / "source/game/game_engine.h").read_text(encoding="latin-1"),
                     flags=re.S)
-    add("struct game_variant_options", _hash(next(_blocks(engine, r"^struct game_variant_options\s*\{"))))
+    variant = next(_blocks(engine, r"^struct game_variant_options\s*\{"))
+    if not optional:
+        # Exactly four addon bytes occupy the old reserved space; never erase
+        # arbitrary declarations or a changed array bound/type.
+        assert re.search(r"\bMAXIMUM_VARIANT_ADDON_VEHICLES\s*=\s*2\s*,", engine)
+        assert "sizeof(struct game_variant_options) == 0x2C" in engine
+        variant, count = re.subn(
+            r"byte addon_vehicles_fewer\[2\]\[MAXIMUM_VARIANT_ADDON_VEHICLES\];\s*byte reserved\[1\];",
+            "byte reserved[5];", variant)
+        assert count == 1, "unrecognized game_variant_options reserved-byte layout"
+    add("struct game_variant_options", _hash(variant))
+    if optional:
+        protocol = (ROOT / "port/linux/game/mutator_protocol.h").read_text()
+        for name, value in re.findall(r"^#define (MUTATOR_(?:CAMERA_)?PROTOCOL_\w+) ([^\n]+)", protocol, re.M):
+            add(f"define {name}", value)
     limits = (ROOT / "port/linux/include/halo_port_limits.h").read_text()
     for name, value in re.findall(r"^#define (HALO_PORT_NETWORK_GAME_(?:VARIANT_OPTIONS_OFFSET|LOCAL_DATA_OFFSET|SIZE)) "
                                   r"(.*)$", limits, re.M):
@@ -164,8 +198,8 @@ def version():
     return int(re.search(r"#define HALO_PORT_NETWORK_VERSION (\d+)", limits).group(1))
 
 
-def recorded():
-    lines = [line.split(" ", 2) for line in RECORD.read_text().splitlines()]
+def recorded(path=None):
+    lines = [line.split(" ", 2) for line in (path or RECORD).read_text().splitlines()]
     return int(lines[0][1]), {f"{kind} {name}": value for kind, name, value in lines[1:]}
 
 
@@ -174,16 +208,26 @@ def changes(old, new):
     return sorted(name for name in old if old[name] != new.get(name)), sorted(name for name in new if name not in old)
 
 
+def optional_version():
+    return int(items(optional=True)["define MUTATOR_PROTOCOL_VERSION"])
+
+
 def check():
-    """what is wrong with the record, as lines to show"""
+    """Check both agreements; extension changes must never disappear in the base view."""
     problems = []
-    recorded_version, old = recorded()
-    breaking, added = changes(old, items())
-    for names, what in ((breaking, "changed or removed (older builds cannot read them: raise the version)"),
-                        (added, "added (raise the version unless older builds ignore them)")):
-        problems += [what + ":"] + [f"  {name}" for name in names] if names else []
-    if recorded_version != version():
-        problems.append(f"recorded for version {recorded_version}, the sources' is {version()}")
+    for path, optional, current in ((RECORD, False, version()),
+                                    (OPTIONAL_RECORD, True, optional_version())):
+        if not path.exists():
+            problems.append(f"{path.name}: missing snapshot; run network_format.py --record")
+            continue
+        recorded_version, old = recorded(path)
+        breaking, added = changes(old, items(optional=optional))
+        for names, what in ((breaking, "changed or removed (raise the version)"),
+                            (added, "added (record if compatible)")):
+            if names:
+                problems += [f"{path.name}: {what}:"] + [f"  {name}" for name in names]
+        if recorded_version != current:
+            problems.append(f"{path.name}: recorded for version {recorded_version}, sources {current}")
     if problems:
         problems.append("then record them: python tools/network_format.py --record")
     netcode = (ROOT / "port/linux/NETCODE.md").read_text()
@@ -193,12 +237,21 @@ def check():
 
 
 def record():
-    new = items()
-    recorded_version, old = recorded()
-    breaking = changes(old, new)[0]
-    if breaking and recorded_version == version():
-        sys.exit("changed or removed: " + ", ".join(breaking) + "\nraise HALO_PORT_NETWORK_VERSION first")
-    RECORD.write_text(f"version {version()}\n" + "".join(f"{name} {new[name]}\n" for name in sorted(new)))
+    updates = []
+    for path, optional, current in ((RECORD, False, version()),
+                                    (OPTIONAL_RECORD, True, optional_version())):
+        new = items(optional=optional)
+        if path.exists():
+            recorded_version, old = recorded(path)
+            breaking = changes(old, new)[0]
+            if breaking and recorded_version == current:
+                sys.exit(f"{path.name}: changed or removed: " + ", ".join(breaking) +
+                         "\nraise the corresponding protocol version first")
+        updates.append((path, f"version {current}\n" +
+                        "".join(f"{name} {new[name]}\n" for name in sorted(new))))
+    # Validate both before updating either snapshot.
+    for path, text in updates:
+        path.write_text(text)
 
 
 if __name__ == "__main__":

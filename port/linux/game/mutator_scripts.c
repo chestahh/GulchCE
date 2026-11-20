@@ -26,6 +26,8 @@ host moves other objects. Private programs have no file or engine-script access.
 #include "mutator_scripts.h"
 #include "mutator_share.h"
 
+int mutators_gameplay_allowed(void);
+
 
 #include "mutator_hs.h"
 #include "hs/hs.h"
@@ -1638,13 +1640,13 @@ void mutator_scripts_tick(
 byte mutator_scripts_local_buttons(
 	void)
 {
-	return mutator_scripts.running ? mutator_scripts.local_buttons : 0;
+	return mutators_gameplay_allowed() && mutator_scripts.running ? mutator_scripts.local_buttons : 0;
 }
 
 byte mutator_scripts_player_buttons(
 	short player_index)
 {
-	return mutator_scripts.running && player_index >= 0 && player_index < MAXIMUM_SCRIPT_PLAYERS ?
+	return mutators_gameplay_allowed() && mutator_scripts.running && player_index >= 0 && player_index < MAXIMUM_SCRIPT_PLAYERS ?
 		mutator_scripts.player_buttons[player_index] : 0;
 }
 
@@ -1653,7 +1655,7 @@ void mutator_scripts_note_buttons(
 	byte buttons)
 {
 	if (player_index >= 0 && player_index < MAXIMUM_SCRIPT_PLAYERS)
-		mutator_scripts.player_buttons[player_index] = buttons;
+		mutator_scripts.player_buttons[player_index] = mutators_gameplay_allowed() ? buttons : 0;
 }
 
 void mutator_scripts_render(

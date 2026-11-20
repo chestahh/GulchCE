@@ -107,8 +107,8 @@ Omitting the key, or setting it to `true`, includes the weapon (the DMR's
 default). Only TOML booleans with a weapon add-on are accepted. This applies
 to local selected mutators and to the host's hash-checked manifests on clients,
 not to a client's independent menu preference. Visible weapon order defines
-variant slots on all machines; network version 51 separates this ordering
-from older builds. See [Add-ons](addons.md) for loading and slot semantics.
+variant slots on all machines; the optional mutator session agreement separates
+this ordering from older builds. See [Add-ons](addons.md) for loading and slot semantics.
 
 ## Tag edits
 
@@ -646,8 +646,29 @@ it.
 
 ## Network games
 
-- Network version 49 has the mutators (`port/linux/NETCODE.md`): a machine of
-  another version does not join, whatever mutators are on.
+Network mutators are **off by default**, independently of the mutators selected
+in MUTATOR OPTIONS. To host them, set `mutators = true` under `[network]` in
+`config.toml` (or launch with `HALO_NET_MUTATORS=1`) **before opening the host**.
+Close and reopen the host to change this setting. It is frozen for that host's
+lifetime, including subsequent rounds; editing configuration cannot upgrade an
+already admitted stock client.
+
+With this setting off, ordinary Crossplay games retain OpenCE network version
+44: no mutator content is sent or requested, local add-ons are not injected, and
+scripts cannot add input bytes. A client joining a stock host ignores its own
+selected mutators. Solo play can still use them.
+
+Opted-in hosts advertise a separate session agreement: **32747** for mutators,
+or **32748** for mutators plus GulchCE's online third-person camera. These are
+not version-44 games. Clients need this implementation and must send the exact
+session admission envelope before joining; stock OpenCE, unmodified GulchCE,
+and earlier mutator builds cannot join them. The combined agreement also
+requires the existing camera envelope. Compatible clients learn the agreement
+from discovery; selecting a host does not enable scripts or bypass download
+consent. Stock hosts and GulchCE camera-only hosts remain joinable normally.
+
+- The base network version remains 44; the optional agreements are recorded
+  separately in `port/linux/mutator_network_format.txt`.
 - The host, and a game of one machine, plays the mutators that are on when
   the map loads. Changes take effect in the next game.
 - A client plays the host's mutators, never its own. As each client is ready

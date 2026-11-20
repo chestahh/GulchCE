@@ -1,4 +1,5 @@
 """Run the actual native HS VM linked to the Linux game, without assets."""
+import os
 import re
 import shlex
 import subprocess
@@ -12,6 +13,10 @@ ROOT = Path(__file__).resolve().parents[3]
 def test_grapple_activation(tmp_path):
     if not (ROOT / 'build/linux/halo').exists():
         pytest.skip('needs ninja linux')
+    repo = Path(os.environ.get('HALO_TEST_MUTATOR_REPO', ROOT.parent / 'clmb-mutator-repo'))
+    package = repo / 'grappling_hook/main.hsc'
+    if not package.is_file():
+        pytest.skip('needs grappling_hook/main.hsc; set HALO_TEST_MUTATOR_REPO')
     source = (ROOT / 'port/linux/game/mutator_scripts.c').read_text()
     table = source.split('static const struct mutator_hs_api script_api[] =')[1].split('};')[0]
     apis = []
@@ -33,6 +38,5 @@ def test_grapple_activation(tmp_path):
     line = next(x for x in graph.splitlines() if x.startswith('build build/linux/halo:'))
     objects = shlex.split(line.split(': linux_link ')[1].split(' | ')[0].replace('$ ', '\\ '))
     subprocess.run(['clang','-m32','-no-pie','-flto=full','-fuse-ld=lld','-O2','-Wl,--wrap=main','-o',str(exe),str(obj),*objects,'-lSDL3','-lm','-lpthread','-ldl'],cwd=ROOT,check=True)
-    package = ROOT.parent/'clmb-mutator-repo/grappling_hook/main.hsc'
-    run = subprocess.run([str(exe),str(package)],capture_output=True,text=True,cwd=tmp_path)
+    run = subprocess.run([str(exe),str(package.resolve())],capture_output=True,text=True,cwd=tmp_path)
     assert run.returncode == 0, run.stdout + run.stderr

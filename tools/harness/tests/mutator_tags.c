@@ -18,6 +18,10 @@ does not take; and edits' bytes that are not edits' refused whole.
 #include "tomlc17.inc"
 #pragma clang diagnostic pop
 
+/* Tag parser/undo cases run as local solo play, not a network host. */
+int mutators_gameplay_allowed(void) { return 1; }
+int mutators_local_allowed(void) { return 1; }
+
 typedef unsigned short word;
 #define csmemcpy memcpy
 #define MIN(a, b) ((a) < (b) ? (a) : (b))

@@ -29,7 +29,25 @@ take one for another; one this build does not have is passed over and said.
 #include "scenario/scenario_definitions.h"
 
 #include "mutators.h"
+#include "mutator_protocol.h"
 #include "mutator_scripts.h"
+
+/* Shared with the native add-on loader: clients must never fall back to
+ * their own list while waiting for the host, including stock hosts. */
+int mutators_gameplay_allowed(void)
+{
+	/* The main-menu game can still be local while a network host's lobby
+	 * exists. Its saved variant must obey that host's frozen agreement. */
+	if (global_network_game_server_get())
+		return mutator_session_active();
+	return (game_connection() != _game_connection_network_client &&
+		game_connection() != _game_connection_network_server) || mutator_session_active();
+}
+
+int mutators_local_allowed(void)
+{
+	return game_connection() != _game_connection_network_client && mutators_gameplay_allowed();
+}
 
 #include <stdio.h>
 #include <string.h>
@@ -127,8 +145,13 @@ void mutators_new_game(
 	mutators_globals.tag_edit_size = 0;
 	/* (a client's are the host's: network_mutators.c; the main menu's map
 	plays none) */
-	if (game_connection() == _game_connection_network_client || global_scenario_get()->type == _scenario_type_main_menu)
+	if (game_connection() == _game_connection_network_client ||
+		!mutators_gameplay_allowed() ||
+		global_scenario_get()->type == _scenario_type_main_menu)
+	{
+		mutator_scripts_commit();
 		return;
+	}
 	/* (port_mutators.c checked each of them with mutators_tag_edit_check) */
 	mutators_globals.tag_edit_size = port_mutators_tag_edits(mutators_globals.tag_edits,
 		MAXIMUM_MUTATOR_TAG_EDIT_BYTES);
@@ -202,6 +225,8 @@ boolean mutators_set_host(
 {
 	short index;
 
+	if (!mutator_session_active())
+		return FALSE;
 	/* (all of them checked before any is played) */
 	for (index = 0; index < count; index++)
 	{

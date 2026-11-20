@@ -199,6 +199,7 @@ static struct
 	/* hosting: the game as the game's server tells it
 	(p2p_set_game_listing), and whether it is public (p2p_set_hosting_public) */
 	int public;
+	unsigned int network_version; /* game-owned session contract, never native config */
 	char name[P2P_LISTING_NAME_SIZE + 1];
 	char map[P2P_LISTING_MAP_SIZE + 1];
 	char gametype[P2P_LISTING_GAMETYPE_SIZE + 1];
@@ -293,6 +294,15 @@ static int signing_key_hash(const unsigned char *key, unsigned char *hash)
 
 /* ---------- the listing */
 
+/* Shared protocol constants only: never call guest game code on this thread. */
+#include "../game/third_person_protocol.h"
+#include "../game/mutator_protocol.h"
+static int listing_version_supported(unsigned int version)
+{
+	return version == HALO_PORT_NETWORK_VERSION || version == THIRD_PERSON_PROTOCOL_VERSION ||
+		version == MUTATOR_PROTOCOL_VERSION || version == MUTATOR_CAMERA_PROTOCOL_VERSION;
+}
+
 static void put_long(unsigned char *bytes, unsigned long value)
 {
 	bytes[0] = (unsigned char)(value >> 24);
@@ -331,8 +341,8 @@ static int listing_make_token(unsigned char *bytes, int flags, const unsigned ch
 	bytes[size++] = 'H';
 	bytes[size++] = 'L';
 	bytes[size++] = LISTING_FORMAT;
-	bytes[size++] = (unsigned char)(HALO_PORT_NETWORK_VERSION >> 8);
-	bytes[size++] = (unsigned char)HALO_PORT_NETWORK_VERSION;
+	bytes[size++] = (unsigned char)((lobby.network_version ? lobby.network_version : HALO_PORT_NETWORK_VERSION) >> 8);
+	bytes[size++] = (unsigned char)(lobby.network_version ? lobby.network_version : HALO_PORT_NETWORK_VERSION);
 	bytes[size++] = (unsigned char)flags;
 	put_long(bytes + size, ++lobby.sequence);
 	size += 4;
@@ -842,7 +852,7 @@ static int listing_wanted(const unsigned char *payload, int size, int retained, 
 
 	if (!listing_read(payload, size, &listing))
 		return 0;
-	if (listing.version != HALO_PORT_NETWORK_VERSION)
+	if (!listing_version_supported(listing.version))
 	{
 		if (listing.version > HALO_PORT_NETWORK_VERSION && !(listing.flags & _listing_closed))
 			newer_heard(key_hash);
@@ -873,7 +883,7 @@ static void update_browsing(void)
 		/* (listing_wanted let it in; its key and its time are checked
 		again here, where its signature is: the time it was queued at may
 		have run out) */
-		if (!listing_read(queued.payload, queued.size, &listing) || listing.version != HALO_PORT_NETWORK_VERSION ||
+		if (!listing_read(queued.payload, queued.size, &listing) || !listing_version_supported(listing.version) ||
 			!signing_key_hash(listing.key, key_hash) || memcmp(key_hash, queued.key_hash, P2P_KEY_HASH_SIZE) ||
 			!listing_current(&listing, queued.retained))
 		{
@@ -1102,6 +1112,18 @@ void p2p_set_hosting_password(const char *password)
 	}
 	pthread_mutex_unlock(&p2p_lock);
 	memset(key, 0, sizeof(key));
+}
+
+/* Game-to-native bridge: called on the game thread like set_game_listing;
+ * the P2P thread only reads the captured contract under p2p_lock. */
+void p2p_set_game_network_version(unsigned int version)
+{
+	if (version == lobby.network_version) return;
+	pthread_mutex_lock(&p2p_lock);
+	lobby.network_version = version;
+	if (lobby.listed) republish_soon(0);
+	pthread_mutex_unlock(&p2p_lock);
+	server_master_changed();
 }
 
 void p2p_set_game_listing(const char *name, const char *map, const char *gametype, int engine_type, int kind,
@@ -1391,13 +1413,13 @@ void p2p_lobby_sort(struct p2p_listing *games, int count, int order, int reverse
 	for (index = 1; index < count; index++)
 	{
 		struct p2p_listing game = games[index];
-		int other_version = game.network_version != HALO_PORT_NETWORK_VERSION;
+		int other_version = !listing_version_supported(game.network_version);
 		int place = index;
 
 		while (place > 0)
 		{
 			const struct p2p_listing *before = &games[place - 1];
-			int before_other = before->network_version != HALO_PORT_NETWORK_VERSION;
+			int before_other = !listing_version_supported(before->network_version);
 			int difference = sort_order(before, &game, order);
 
 			if (before_other != other_version ? !before_other : (reverse ? -difference : difference) <= 0)

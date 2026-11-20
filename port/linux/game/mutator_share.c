@@ -40,6 +40,7 @@ host mutators is played.
 #include "network_distributed.h"
 #include "halo_keyboard.h"
 #include "mutator_share.h"
+#include "mutator_protocol.h"
 
 #include <stddef.h>
 #include <stdio.h>
@@ -175,7 +176,7 @@ void port_mutators_host_clear(void);
 static struct network_game *share_client_game(
 	void)
 {
-	if (!global_network_game_client_get() || global_network_game_server_get())
+	if (!mutator_session_active() || !global_network_game_client_get() || global_network_game_server_get())
 		return NULL;
 	return network_game_get_game();
 }
@@ -198,7 +199,8 @@ static void client_send(
 	struct distributed_message_header header;
 
 	share_fill_header(&header, type, (word)sizeof(header));
-	network_distributed_client_send_reliably(&header, (word)sizeof(header));
+	if (mutator_session_active())
+		network_distributed_client_send_reliably(&header, (word)sizeof(header));
 }
 
 /* A failed admission remains a load barrier until the abort has completed. */
@@ -541,7 +543,7 @@ static void host_answer(
 	long count = port_mutators_share_count();
 	long index;
 
-	if (machine_index < 0 || machine_index >= HALO_PORT_MAXIMUM_NETWORK_MACHINES)
+	if (!mutator_session_active() || machine_index < 0 || machine_index >= HALO_PORT_MAXIMUM_NETWORK_MACHINES)
 		return;
 	if (count > MAXIMUM_SHARED_MUTATORS)
 		count = MAXIMUM_SHARED_MUTATORS;
@@ -707,7 +709,7 @@ boolean mutator_share_handles_message(
 {
 	struct distributed_message_header header;
 
-	if (size < sizeof(header))
+	if (!mutator_session_active() || size < sizeof(header))
 		return FALSE;
 	csmemcpy(&header, message, sizeof(header));
 	return header.type >= _distributed_message_mutator_share_ask && header.type <= _distributed_message_mutator_share_done;

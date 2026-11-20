@@ -73,6 +73,7 @@ their handlers open opens.
 #include "third_person.h"
 #include "lighting_menu.h"
 #include "third_person_protocol.h"
+#include "mutator_protocol.h"
 #include "cseries/errors.h"
 
 #include "input/input.h"
@@ -5918,7 +5919,7 @@ static void lobby_browser_game_lines(struct p2p_listing const *game, wchar_t *pl
 		text_append_word(players, size, !game->open ? _browser_word_full : _browser_word_under_way);
 	}
 	rules[0] = 0;
-	if (game->network_version != HALO_PORT_NETWORK_VERSION)
+	if (!mutator_session_compatible(game->map, game->network_version, HALO_PORT_ADVERTISED_DISTRIBUTED_FLAG))
 	{
 		text_append_word(rules, size, game->network_version > HALO_PORT_NETWORK_VERSION ?
 			_browser_word_newer_build : _browser_word_older_build);
@@ -6061,7 +6062,7 @@ static void lobby_browser_update(struct widget_instance *list)
 		if (index >= lobby_browser.count)
 			continue;
 		game = &lobby_browser.games[index];
-		other_version = game->network_version != HALO_PORT_NETWORK_VERSION;
+		other_version = !mutator_session_compatible(game->map, game->network_version, HALO_PORT_ADVERTISED_DISTRIBUTED_FLAG);
 		text_to_wide(game->name, text, ROW_TEXT_LENGTH);
 		text_set(named(row, "server_item_server_name", 0), text);
 		map_display_name(game->map, text);
@@ -6372,7 +6373,7 @@ static boolean lobby_browser_select(struct widget_instance *widget, short contro
 	if (index >= lobby_browser.count)
 		return campaign_fail();
 	game = &lobby_browser.games[index];
-	if (game->network_version != HALO_PORT_NETWORK_VERSION)
+	if (!mutator_session_compatible(game->map, game->network_version, HALO_PORT_ADVERTISED_DISTRIBUTED_FLAG))
 	{
 		network_game_client_tell_version(game->network_version, TRUE);
 		return campaign_fail();

@@ -57,7 +57,7 @@ int main(int argc, char **argv)
 		action(&written, 0x05);
 		size = distributed_relayed_action_write(&written, buffer);
 		CHECK(size == DISTRIBUTED_RELAYED_ACTION_MINIMUM_SIZE + 1 + 2 * 2 &&
-			size <= DISTRIBUTED_RELAYED_ACTION_MAXIMUM_SIZE, "the buttons' byte (%d)", size);
+			size <= MUTATOR_RELAYED_ACTION_MAXIMUM_SIZE, "the buttons' byte (%d)", size);
 		CHECK(TEST_FLAG(buffer[1], DISTRIBUTED_RELAYED_ACTION_SCRIPT_BUTTONS_BIT), "not flagged");
 		CHECK(distributed_relayed_action_read(buffer, buffer + size, &read) == size &&
 			!memcmp(&read, &written, sizeof(read)) && read.script_buttons == 0x05, "not read back");
@@ -67,6 +67,23 @@ int main(int argc, char **argv)
 		size = distributed_relayed_action_write(&written, buffer);
 		buffer[1] |= 1 << DISTRIBUTED_RELAYED_ACTION_SCRIPT_BUTTONS_BIT;
 		CHECK(!distributed_relayed_action_read(buffer, buffer + size - 2 * 2, &read), "a missing byte read");
+	}
+	else if (!strcmp(case_name, "stock"))
+	{
+		static byte const expected[] = { 3, 6, 1, 0, 0, 0xD2, 4, 0xBF, 0xFE,
+			0, 0, 200, 1, 0, 16, 0, 1, 0 };
+		mutator_mode = 0;
+		action(&written, 0x05); /* stale script state must not change stock bytes */
+		size = distributed_relayed_action_write(&written, buffer);
+		CHECK(size == sizeof(expected) && !memcmp(buffer, expected, sizeof(expected)),
+			"stock relay differs from OpenCE 44");
+		CHECK(distributed_relayed_action_read(buffer, buffer + size, &read) == size &&
+			read.script_buttons == 0, "stock decoded script buttons");
+		mutator_mode = 1;
+		size = distributed_relayed_action_write(&written, buffer);
+		mutator_mode = 0;
+		CHECK(!distributed_relayed_action_read(buffer, buffer + size, &read),
+			"unnegotiated script extension accepted");
 	}
 	else
 	{

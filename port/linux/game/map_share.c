@@ -67,6 +67,7 @@ what it says it has grows.
 #include "custom_edition_maps.h"
 #include "map_share.h"
 #include "mutator_share.h"
+#include "mutator_protocol.h"
 #include "mcc_share.h"
 #include "server_director.h"
 #include "../src/p2p.h"
@@ -2654,8 +2655,8 @@ static void connection_read(
 			case _frame_refuse: frame_refuse(connection, body, size); break;
 			case _frame_hashes_request: frame_hashes_request(connection, body, size); break;
 			case _frame_hashes: frame_hashes(connection, body, size); break;
-			case _frame_mutator_request: frame_mutator_request(connection, body, size); break;
-			case _frame_mutator_block: frame_mutator_block(connection, body, size); break;
+			case _frame_mutator_request: if (mutator_session_active()) frame_mutator_request(connection, body, size); break;
+			case _frame_mutator_block: if (mutator_session_active()) frame_mutator_block(connection, body, size); break;
 			}
 		}
 		if (!connection->used)
@@ -2854,7 +2855,7 @@ static void serve_mutator_blocks(
 	{
 		struct connection *connection = &globals->connections[index];
 
-		while (connection->used && connection->state == _connection_open && connection->mutator_serving &&
+		while (mutator_session_active() && connection->used && connection->state == _connection_open && connection->mutator_serving &&
 			globals->upload_tokens >= MAP_SHARE_BLOCK_BYTES && frame_room(connection, 12 + MAP_SHARE_BLOCK_BYTES))
 		{
 			unsigned long left = connection->mutator_size - connection->mutator_offset;
@@ -3724,7 +3725,7 @@ boolean map_share_host_in_game(
 static boolean map_share_mutators_shared(
 	void)
 {
-	return map_share_host() && port_mutators_share_any();
+	return mutator_session_active() && map_share_host() && port_mutators_share_any();
 }
 
 /* the client's connection to the host for them, or NULL */
@@ -3733,6 +3734,8 @@ static struct connection *mutator_connection(
 {
 	short index;
 
+	if (!mutator_session_active())
+		return NULL;
 	for (index = 0; index < MAXIMUM_CONNECTIONS; index++)
 	{
 		struct connection *connection = &map_share_globals.connections[index];
@@ -3762,6 +3765,8 @@ boolean map_share_mutator_request(
 	unsigned long now = system_milliseconds();
 	byte *body;
 
+	if (!mutator_session_active())
+		return FALSE;
 	if (!connection)
 	{
 		if (!address || (connected_at && !elapsed(connected_at, now, SOURCE_RETRY_INTERVAL)))

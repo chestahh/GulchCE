@@ -76,11 +76,9 @@ on a vehicle rides it (a unit's state carries the deck it stands on, the map's
 riding choice has its own message: port/linux/NETCODE.md).
 Version 44: MCC package offers are automatic under Map Sharing, and a joiner
 may satisfy omitted base resources with its own validated local files.
-Version 52 adds the mutators to version 44: their tag tables, scripts,
-add-on variant options and add-on weapon slots counted among menu-visible
-weapons only (port/linux/NETCODE.md). It is above the mutator builds' own
-50 and 51, which predate version 44, so none of them joins another. */
-#define HALO_PORT_NETWORK_VERSION 52
+Optional mutator sessions use 32747 (32748 with the camera extension),
+not the base protocol: stock sessions remain version 44. */
+#define HALO_PORT_NETWORK_VERSION 44
 /* ... the advertisement's reserved bytes: the version (a little-endian word),
 then flags, then the game's kind (an OpenCE gametype's mode, and Hardcore:
 port/linux/game/game_modes.h's game_modes_kind), for the server browser */

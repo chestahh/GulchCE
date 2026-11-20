@@ -6,6 +6,11 @@ from pathlib import Path
 import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+
+
+def test_session_gates():
+    assert run(build('mutators', generated=generated()), 'gates')[0] == 0
+
 from harness import CHECK_FAILED, build, mutated, read, run
 
 
@@ -26,7 +31,7 @@ def generated(fault=None):
     if fault == 'number':
         game = mutated(game, '!(values[index] == values[index] &&', '!(TRUE ||')
     if fault == 'authority':
-        network = mutated(network, 'if (machine_index != NONE ||', 'if (FALSE ||')
+        network = mutated(network, 'machine_index != NONE || game_connection()', 'FALSE || game_connection()')
     if fault == 'client':
         game = mutated(game, 'if (game_connection() == _game_connection_network_client ||', 'if (')
     if fault == 'order':
@@ -109,7 +114,7 @@ def test_hooks():
 
 def test_message_id():
     import network_format
-    messages = {name: int(value) for name, value in network_format.items().items()
+    messages = {name: int(value) for name, value in network_format.items(optional=True).items()
                 if name.startswith('enum _distributed_message_')}
     assert len(set(messages.values())) == len(messages), messages
     assert messages['enum _distributed_message_mutators'] == 112

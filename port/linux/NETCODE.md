@@ -593,11 +593,24 @@ Version 44 unifies MCC offers under Map Sharing and lets a receiver satisfy
 omitted base resources with its own validated local files. Message layouts
 are unchanged; the changed sharing agreement requires matching peers.
 
-Then version 52 adds the mutators to version 44: their tag tables and edits
+Then the experimental mutator build used version 52 for its tag tables and edits
 (messages 112 to 117), scripts, add-on variant options, and add-on weapon
-slots numbered among the menu-visible weapons only (`addon_weapon_menu`).
-The mutator builds numbered their own protocol 50 and 51 before version 44
-existed; 52 is above both, so no build of either joins this one.
+slots numbered among menu-visible weapons (`addon_weapon_menu`).
+
+GulchCE now retains **network version 44** for ordinary Crossplay. Network
+mutators require `network.mutators = true` before hosting, and select optional
+session **32747**, or **32748** when combined with the camera agreement.
+The host freezes this choice for its lifetime. Discovery advertises the exact
+agreement and admission requires a versioned kind-103 envelope before ordinary
+join handling (around the camera envelope in combined sessions). Stock hosts
+reject this envelope; opted-in hosts reject stock joins. This is a compatibility
+handshake, not authentication or a claim that content is trusted.
+
+In ordinary sessions the implementation sends no mutator messages, plays no
+local add-ons, and sends no script-button extension. The base and optional
+layouts are pinned separately by `tools/network_format.py`; older experimental
+mutator versions 50/51/52 are not admitted to these new optional agreements.
+See `docs/mutators.md`, "Network games", for configuration and consent.
 
 `port/linux/network_format.txt` records the wire format of the current
 version (`tools/network_format.py`): `test_linux_port.py` fails when the

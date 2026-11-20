@@ -9,11 +9,11 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from harness import CHECK_FAILED, build, constant, function, mutated, read, run, structure  # noqa: E402
 
-CASES = ["none", "buttons"]
+CASES = ["none", "buttons", "stock"]
 
 # a fault in the code, and the case that must catch it
 NEGATIVE_CONTROLS = {
-    "always-sent": (("\tif (relayed->script_buttons)\n\t{\n", "\t{\n"), "none"),
+    "always-sent": (("\tif (mutator_session_active() && relayed->script_buttons)\n\t{\n", "\t{\n"), "none"),
     "never-flagged": (("\t\tSET_FLAG(parts, DISTRIBUTED_RELAYED_ACTION_SCRIPT_BUTTONS_BIT, TRUE);\n", ""), "buttons"),
 }
 
@@ -24,12 +24,13 @@ def generated(fault=None):
                                                                 "DISTRIBUTED_INPUT_HISTORY")
     config += "#define DISTRIBUTED_RELAYED_ACTION_SCRIPT_BUTTONS_BIT %d\n" % constant(
         netcode, "DISTRIBUTED_RELAYED_ACTION_SCRIPT_BUTTONS_BIT")
-    config += "enum { DISTRIBUTED_RELAYED_ACTION_MINIMUM_SIZE = %d, DISTRIBUTED_RELAYED_ACTION_MAXIMUM_SIZE = %s };\n" % (
+    config += "enum { DISTRIBUTED_RELAYED_ACTION_MINIMUM_SIZE = %d, MUTATOR_RELAYED_ACTION_MAXIMUM_SIZE = %s };\n" % (
         constant(netcode, "DISTRIBUTED_RELAYED_ACTION_MINIMUM_SIZE"),
         "15 + 2 * (DISTRIBUTED_INPUT_HISTORY - 1)")
     # (GulchCE's shoulder byte is sent only in a third-person session: off,
     # the layout this test pins)
     config += "static int third_person_session_active(void) { return 0; }\n"
+    config += "static int mutator_mode = 1;\nstatic int mutator_session_active(void) { return mutator_mode; }\n"
     text = structure(netcode, "distributed_relayed_action") + "\n"
     for name in ("distributed_put", "distributed_take", "distributed_relayed_action_write",
                  "distributed_relayed_action_read"):
@@ -42,7 +43,9 @@ def generated(fault=None):
 
 def test_maximum_size():
     """the most bytes an action takes, as the netcode declares it: the buttons' byte and every tick's buttons"""
-    assert "DISTRIBUTED_RELAYED_ACTION_MAXIMUM_SIZE = 15 + 2 * (DISTRIBUTED_INPUT_HISTORY - 1)," in read(
+    assert "MUTATOR_RELAYED_ACTION_MAXIMUM_SIZE = 15 + 2 * (DISTRIBUTED_INPUT_HISTORY - 1)," in read(
+        "port/linux/game/network_distributed.c")
+    assert "DISTRIBUTED_RELAYED_ACTION_MAXIMUM_SIZE = 14 + 2 * (DISTRIBUTED_INPUT_HISTORY - 1)," in read(
         "port/linux/game/network_distributed.c")
 
 

@@ -122,6 +122,8 @@ static word wire_size;
 static byte sent[8][4096];
 static word sent_sizes[8];
 static short game_connection(void) { return (short)connection; }
+static int pregame_host;
+static void *global_network_game_server_get(void) { return pregame_host ? &pregame_host : NULL; }
 static boolean game_in_progress(void) { return playing; }
 static boolean main_menu_is_active(void) { return menu; }
 enum { _scenario_type_solo, _scenario_type_multiplayer, _scenario_type_main_menu };
@@ -193,6 +195,8 @@ short mutator_scripts_keys(char keys[][32], short maximum)
 
 static volatile int admission_failures;
 static void mutator_share_fail(char const *reason) { (void)reason; admission_failures++; }
+static int session_active = 1;
+static int mutator_session_active(void) { return session_active; }
 #include "mutators.inc"
 #include "network_mutators.inc"
 #include "object_pose.inc"
@@ -320,6 +324,27 @@ static boolean near(real a, real b)
 int main(int argc, char **argv)
 {
 	char const *case_name = argv[1];
+	if (!strcmp(case_name, "gates"))
+	{
+		session_active = 0;
+		connection = _game_connection_network_server;
+		CHECK(!mutators_gameplay_allowed() && !mutators_local_allowed(), "stock host blocks local mutators");
+		network_mutators_send(0);
+		connection = _game_connection_network_client;
+		CHECK(!mutators_gameplay_allowed() && !mutators_local_allowed(), "stock client blocks local mutators");
+		connection = _game_connection_local;
+		CHECK(mutators_gameplay_allowed() && mutators_local_allowed(), "solo remains enabled");
+		pregame_host = 1;
+		CHECK(!mutators_gameplay_allowed() && !mutators_local_allowed(), "stock pregame host also blocks local mutators");
+		script_key_count = 1;
+		mutators_new_game();
+		CHECK(script_key_count == 0 && script_commits == 1, "stock game commits empty selection to destroy stale VMs");
+		pregame_host = 0;
+		session_active = 1;
+		connection = _game_connection_network_client;
+		CHECK(mutators_gameplay_allowed() && !mutators_local_allowed(), "negotiated client uses host only");
+		return 0;
+	}
 	long index_unused;
 
 	CHECK(argc == 2, "case");

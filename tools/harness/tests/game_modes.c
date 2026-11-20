@@ -38,6 +38,8 @@ static boolean hardcore=TRUE;
 static boolean game_modes_hardcore(void){return hardcore;}
 static struct player_datum *player_try_and_get(long index){return index==1?&killer_player:NULL;}
 static struct unit_datum *unit_try_and_get(long index){return index==7?&killer_unit:NULL;}
+static int gameplay_allowed = 1;
+static int mutators_gameplay_allowed(void) { return gameplay_allowed; }
 #include "under_test.inc"
 
 static void wounded_killer(real body,real shield)
@@ -123,6 +125,16 @@ int main(int argc,char **argv)
   CHECK(options.force_team_spawns==TRUE,"forced spawns normalized");
   for(int index=0;index<(int)sizeof(options.reserved);index++) CHECK(options.reserved[index]==0,"reserved cleared");
  } else CASE("sanitize_keeps") {
+  gameplay_allowed=0;
+  memset(&options,0,sizeof(options));
+  memset(options.addon_vehicles_fewer,7,sizeof(options.addon_vehicles_fewer));
+  options.primary_weapon=16; options.secondary_weapon=23;
+  game_modes_options_sanitize(&options);
+  CHECK(options.primary_weapon==_loadout_weapon_rocket_launcher &&
+        options.secondary_weapon==_loadout_weapon_rocket_launcher,"stock invalid weapon fallback");
+  for(unsigned i=0;i<sizeof(options.addon_vehicles_fewer);i++)
+   CHECK(((byte*)options.addon_vehicles_fewer)[i]==0,"stock reserved addon bytes cleared");
+  gameplay_allowed=1;
   memset(&options,0,sizeof(options));
   options.mode=_game_mode_infection;options.infection_initial_zombies=16;options.infection_zombie_speed=200;
   options.infection_skull_damage=100;options.infection_respawn_time=30;options.infection_countdown=30;

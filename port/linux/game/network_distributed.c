@@ -90,6 +90,7 @@ machine (their datum identifiers need not be).
 #include "network_mutators.h"
 #include "mutators.h"
 #include "mutator_scripts.h"
+#include "mutator_protocol.h"
 #include "network_riding_map.h"
 #include "map_share.h"
 #include "mcc_share.h"
@@ -473,7 +474,8 @@ enum
 	DISTRIBUTED_UNIT_STATE_MAXIMUM_SIZE = 3 + 4 + (4 + 2) + (12 + 3 * 6) + DISTRIBUTED_DECK_SIZE + 2 + 2 * 2 + 4 * 2 +
 		2 * NUMBER_OF_PLAYER_POWERUPS + 2 + 1 + NUMBER_OF_DISTRIBUTED_POSE_VECTORS * 6,
 	DISTRIBUTED_RELAYED_ACTION_MINIMUM_SIZE = 14,
-	DISTRIBUTED_RELAYED_ACTION_MAXIMUM_SIZE = 15 + 2 * (DISTRIBUTED_INPUT_HISTORY - 1),
+	DISTRIBUTED_RELAYED_ACTION_MAXIMUM_SIZE = 14 + 2 * (DISTRIBUTED_INPUT_HISTORY - 1),
+	MUTATOR_RELAYED_ACTION_MAXIMUM_SIZE = 15 + 2 * (DISTRIBUTED_INPUT_HISTORY - 1),
 };
 
 struct distributed_pickup
@@ -3926,7 +3928,7 @@ static void distributed_client_send_inputs(
 		input->player_index = distributed_player_to_byte(player_index);
 		/* (a mutator's script's buttons, in the action's pad; the first local
 		player's are all there are) */
-		input->action.pad = local_player_index == 0 ? mutator_scripts_local_buttons() : 0;
+		input->action.pad = mutator_session_active() && local_player_index == 0 ? mutator_scripts_local_buttons() : 0;
 		input->structure_bsp_index = (byte)global_structure_bsp_index_get();
 		input->coop_no_friendly_fire = network_coop_active() && !network_coop_own_friendly_fire();
 		input->host_time = distributed_host_time;
@@ -3997,7 +3999,7 @@ static void distributed_handle_inputs(
 		/* (the sticks and the trigger no further than a controller's) */
 		action = input->action;
 		/* (only bits: a client that sets them all has held every button) */
-		mutator_scripts_note_buttons(input->player_index, (byte)action.pad);
+		mutator_scripts_note_buttons(input->player_index, mutator_session_active() ? (byte)action.pad : 0);
 		action.pad = 0;
 		/* Only the defined input bits are accepted; forced-off wins. */
 		action.control_flags &= 0x1FFFFUL;
@@ -4126,7 +4128,7 @@ static boolean distributed_relayed_action_from(
 		static byte sent_buttons[MAXIMUM_TRACKED_PLAYERS];
 		static long buttons_time[MAXIMUM_TRACKED_PLAYERS];
 
-		relayed->script_buttons = mutator_scripts_player_buttons(player_index);
+		relayed->script_buttons = mutator_session_active() ? mutator_scripts_player_buttons(player_index) : 0;
 		if (relayed->script_buttons || relayed->script_buttons != sent_buttons[player_index])
 			buttons_time[player_index] = game_time_get();
 		sent_buttons[player_index] = relayed->script_buttons;
@@ -4159,7 +4161,7 @@ static word distributed_relayed_action_write(
 	cursor = distributed_put(cursor, &relayed->throttle_i, sizeof(relayed->throttle_i));
 	cursor = distributed_put(cursor, &relayed->throttle_j, sizeof(relayed->throttle_j));
 	cursor = distributed_put(cursor, &relayed->primary_trigger, sizeof(relayed->primary_trigger));
-	if (relayed->script_buttons)
+	if (mutator_session_active() && relayed->script_buttons)
 	{
 		SET_FLAG(parts, DISTRIBUTED_RELAYED_ACTION_SCRIPT_BUTTONS_BIT, TRUE);
 		cursor = distributed_put(cursor, &relayed->script_buttons, sizeof(relayed->script_buttons));
@@ -4203,7 +4205,7 @@ static word distributed_relayed_action_read(
 		!distributed_take(&cursor, end, &relayed->throttle_j, sizeof(relayed->throttle_j)) ||
 		!distributed_take(&cursor, end, &relayed->primary_trigger, sizeof(relayed->primary_trigger)) ||
 		(TEST_FLAG(parts, DISTRIBUTED_RELAYED_ACTION_SCRIPT_BUTTONS_BIT) &&
-		!distributed_take(&cursor, end, &relayed->script_buttons, sizeof(relayed->script_buttons))) ||
+		(!mutator_session_active() || !distributed_take(&cursor, end, &relayed->script_buttons, sizeof(relayed->script_buttons)))) ||
 		!distributed_take(&cursor, end, &relayed->control_flags[0], sizeof(relayed->control_flags[0])))
 	{
 		return 0;
@@ -4467,7 +4469,7 @@ static void distributed_host_send_players(
 			&distributed_host_update_number, sizeof(distributed_host_update_number));
 		for (player_index = 0; player_index < MAXIMUM_TRACKED_PLAYERS; player_index++)
 		{
-			byte entry[DISTRIBUTED_RELAYED_ACTION_MAXIMUM_SIZE + 1]; /* optional camera byte */
+			byte entry[MUTATOR_RELAYED_ACTION_MAXIMUM_SIZE + 1]; /* optional camera byte */
 
 			if (TEST_FLAG(distributed_sends[machine_index][player_index], _distributed_send_action_bit))
 			{
@@ -4524,7 +4526,7 @@ static void distributed_handle_actions(
 		action.desired_weapon_index = relayed.desired_weapon_index;
 		action.desired_grenade_index = relayed.desired_grenade_index;
 		action.desired_zoom_level = relayed.desired_zoom_level;
-		mutator_scripts_note_buttons(relayed.player_index, relayed.script_buttons);
+		mutator_scripts_note_buttons(relayed.player_index, mutator_session_active() ? relayed.script_buttons : 0);
 		update_client_handle_relayed_action(relayed.player_index, update_number, &action,
 			relayed.control_flags, DISTRIBUTED_INPUT_HISTORY);
 	}

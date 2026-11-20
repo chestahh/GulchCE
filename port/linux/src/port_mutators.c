@@ -227,6 +227,9 @@ static struct port_mutator host_mutators[MAXIMUM_SHARED_MUTATORS];
 static long host_mutator_count;
 static int host_mutators_on;
 
+int mutators_gameplay_allowed(void);
+int mutators_local_allowed(void);
+
 /* ---------- prototypes/MUTATORS.C (port/linux/game/mutators.h's) */
 
 int mutators_key_check(const char *key, double value, char *reason, unsigned long size);
@@ -2175,6 +2178,9 @@ static const struct port_mutator *addon_mutator(long index)
 {
 	long mutator_index;
 
+	if (!mutators_gameplay_allowed() || (!host_mutators_on && !mutators_local_allowed()))
+		return NULL;
+
 	/* (a client's are its host's, in the host's order) */
 	if (host_mutators_on)
 	{
@@ -2666,6 +2672,9 @@ long port_mutators_places(struct port_mutator_place *places, long maximum)
 {
 	long count = 0;
 	long index;
+
+	if (!mutators_gameplay_allowed() || (!host_mutators_on && !mutators_local_allowed()))
+		return 0;
 
 	if (!port_mutators.scans)
 		port_mutators_scan();
