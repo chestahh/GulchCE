@@ -27,6 +27,9 @@ def generated(fault=None):
     config += "enum { DISTRIBUTED_RELAYED_ACTION_MINIMUM_SIZE = %d, DISTRIBUTED_RELAYED_ACTION_MAXIMUM_SIZE = %s };\n" % (
         constant(netcode, "DISTRIBUTED_RELAYED_ACTION_MINIMUM_SIZE"),
         "15 + 2 * (DISTRIBUTED_INPUT_HISTORY - 1)")
+    # (GulchCE's shoulder byte is sent only in a third-person session: off,
+    # the layout this test pins)
+    config += "static int third_person_session_active(void) { return 0; }\n"
     text = structure(netcode, "distributed_relayed_action") + "\n"
     for name in ("distributed_put", "distributed_take", "distributed_relayed_action_write",
                  "distributed_relayed_action_read"):

@@ -77,7 +77,7 @@ def test_hooks():
     assert 'port: and posed' in hook
     objects = read('source/objects/objects.c')
     grown = objects.index('object_pose_bounding_radius(object_index,')
-    assert grown < objects.index('object_bounds_cache_update(object_index, &object->object.bounding_sphere_center')
+    assert grown < objects.index('object_bounds_cache_update(object_index, object->object.type, &object->object.bounding_sphere_center')
     assert "port: grown to hold the nodes a mutator's poses moved" in objects[grown - 120:grown]
     header = read('source/objects/objects.h')
     render = header[header.index('void object_get_render_bounding_sphere('):]
