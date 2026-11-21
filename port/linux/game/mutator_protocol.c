@@ -3,32 +3,57 @@
 #include "third_person_protocol.h"
 #include "networking/network_messages.h"
 #include "bungie_net/common/message_header.h"
+#include "networking/network_game_globals.h"
+#include "networking/network_game_manager.h"
 
 int config_boolean(char const *name);
+int port_mutators_selected(void);
+struct network_game *network_game_server_get_game(struct network_game_server *server);
+boolean network_game_server_send_game_data_pregame(struct network_game_server *server);
 
-/* Only the host's explicit setting or the selected advertisement grants this
- * agreement. Freeze it (including camera composition) for the host's lifetime. */
-static int mutator_host;
+/* Menu selection is explicit opt-in too. Setup can enable it only before
+ * remote admission/lobby lock; afterward the agreement is immutable. */
+static int mutator_host, mutator_locked;
 static unsigned int mutator_host_version, mutator_client_version;
 
 void mutator_session_host_begin(void)
 {
     mutator_host = 1;
+    mutator_locked = 0;
     mutator_client_version = 0;
-    mutator_host_version = config_boolean("network.mutators") ?
+    mutator_host_version = (config_boolean("network.mutators") || port_mutators_selected()) ?
         (third_person_session_active() ? MUTATOR_CAMERA_PROTOCOL_VERSION : MUTATOR_PROTOCOL_VERSION) : 0;
     if (mutator_host_version) third_person_session_lock();
 }
 
 void mutator_session_host_end(void)
 {
-    mutator_host = 0;
+    mutator_host = mutator_locked = 0;
     mutator_host_version = mutator_client_version = 0;
+}
+
+/* Called after the user keeps MUTATOR OPTIONS. A local-only setup host has
+ * no remote client whose accepted stock contract could be invalidated. The
+ * loopback client uses host-owned session state, just as camera setup does. */
+int mutator_session_enable_selected(void)
+{
+    struct network_game_server *server;
+    struct network_game *game;
+    if (!mutator_host || mutator_host_version || !port_mutators_selected()) return 1;
+    server = global_network_game_server_get();
+    if (!server || mutator_locked) return 0;
+    game = network_game_server_get_game(server);
+    if (!game || game->machine_count > 1) return 0;
+    mutator_host_version = third_person_session_active() ?
+        MUTATOR_CAMERA_PROTOCOL_VERSION : MUTATOR_PROTOCOL_VERSION;
+    third_person_session_lock();
+    network_game_server_send_game_data_pregame(server);
+    return 1;
 }
 
 void mutator_session_lock(void)
 {
-    /* Already immutable from host_begin; keep the camera half immutable too. */
+    if (mutator_host) mutator_locked = 1;
     if (mutator_host && mutator_host_version) third_person_session_lock();
 }
 

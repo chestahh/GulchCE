@@ -3498,21 +3498,27 @@ static void mods_update(struct widget_instance *list)
 	text_set(named(list, "button_mutators", 0), mods_screen.mutators ? L"MODS" : L"MUTATORS");
 }
 
-/* "port mods save" (OK): kept, and played at once (port_mods_save keeps
-what it cannot write until the game quits) */
-static boolean mods_save(void)
+/* "port mutators save" (MUTATOR OPTIONS' OK): selecting mutators is opt-in
+while alone in setup; a locked stock lobby must be reopened. */
+static boolean mutators_save(void)
 {
-	port_mods_save();
-	port_mutators_save();
-	mods_apply();
+	if (!port_mutators_save())
+		return campaign_fail();
+	if (!mutator_session_enable_selected())
+	{
+		display_error_text_deferred(L"Mutators saved for the next host.\r\nThis lobby's agreement is already locked.\r\nClose it and create a new game to enable them.", NONE);
+		return campaign_fail();
+	}
 	return TRUE;
 }
 
-/* "port mutators save" (MUTATOR OPTIONS' OK): kept, and played from the
-next game */
-static boolean mutators_save(void)
+/* "port mods save" (OK): resource mods apply now; mutators apply next game. */
+static boolean mods_save(void)
 {
-	port_mutators_save();
+	port_mods_save();
+	if (!mutators_save())
+		return FALSE;
+	mods_apply();
 	return TRUE;
 }
 

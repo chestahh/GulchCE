@@ -646,17 +646,24 @@ it.
 
 ## Network games
 
-Network mutators are **off by default**, independently of the mutators selected
-in MUTATOR OPTIONS. To host them, set `mutators = true` under `[network]` in
-`config.toml` (or launch with `HALO_NET_MUTATORS=1`) **before opening the host**.
-Close and reopen the host to change this setting. It is frozen for that host's
-lifetime, including subsequent rounds; editing configuration cannot upgrade an
-already admitted stock client.
+Network mutators are **off when none are selected**. Select mutators in MUTATOR
+OPTIONS and keep them with OK: this is also the opt-in to a mutator session.
+Saved selections activate the agreement when the next host opens. Selections
+made during Server Setup activate it while the host is still alone, before the
+lobby opens or a remote client is admitted. If a stock lobby is already locked,
+the menu explains that the selection is saved for the next host: close it and
+create a new game. Bot-only matches use the same selection path.
 
-With this setting off, ordinary Crossplay games retain OpenCE network version
-44: no mutator content is sent or requested, local add-ons are not injected, and
-scripts cannot add input bytes. A client joining a stock host ignores its own
-selected mutators. Solo play can still use them.
+To force a mutator-capable agreement even with no selected mutators, set
+`mutators = true` under `[network]` in `config.toml` (or launch with
+`HALO_NET_MUTATORS=1`) before hosting. Once the lobby opens or a remote player
+is admitted, editing configuration or selections cannot upgrade that session's
+agreement. Already opted-in games can change their selection for later rounds.
+
+In ordinary Crossplay games (no selected mutators and no forced opt-in), OpenCE
+network version 44 is retained: no mutator content is sent or requested, local
+add-ons are not injected, and scripts cannot add input bytes. A client joining
+a stock host ignores its own selected mutators. Solo play can still use them.
 
 Opted-in hosts advertise a separate session agreement: **32747** for mutators,
 or **32748** for mutators plus GulchCE's online third-person camera. These are

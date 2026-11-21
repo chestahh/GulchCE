@@ -436,6 +436,12 @@ int main(int argc, char **argv)
 		port_mutators_turn(find("zeta"), 0);
 		port_mutators_turn(find("bad"), 1);
 		CHECK(port_mutators_save() && !strcmp(written, "big_head"), "kept: %s", written);
+		gameplay_allowed = local_allowed = 0;
+		CHECK(port_mutators_selected(), "menu intent must enable a host before gameplay is allowed");
+		port_mutators_turn(find("big_head"), 0);
+		CHECK(!port_mutators_selected(), "a refused-only selection must not opt in");
+		port_mutators_turn(find("big_head"), 1);
+		gameplay_allowed = local_allowed = 1;
 		port_mutators_turn(find("zeta"), 1);
 		port_mutators_revert();
 		CHECK(!port_mutators_on(find("zeta")) && port_mutators_on(find("big_head")), "reverted to what was kept");

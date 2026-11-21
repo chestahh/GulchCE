@@ -597,10 +597,13 @@ Then the experimental mutator build used version 52 for its tag tables and edits
 (messages 112 to 117), scripts, add-on variant options, and add-on weapon
 slots numbered among menu-visible weapons (`addon_weapon_menu`).
 
-GulchCE now retains **network version 44** for ordinary Crossplay. Network
-mutators require `network.mutators = true` before hosting, and select optional
-session **32747**, or **32748** when combined with the camera agreement.
-The host freezes this choice for its lifetime. Discovery advertises the exact
+GulchCE now retains **network version 44** for ordinary Crossplay. Selecting
+valid mutators is explicit opt-in; `network.mutators = true` can also force it.
+Saved selections activate optional session **32747**, or **32748** when combined
+with the camera agreement, when the host opens. Keeping selections while alone
+in Server Setup can still enable it; opening the lobby, starting the match, or
+admitting a remote client locks the agreement for that host's remaining lifetime.
+Discovery advertises the exact
 agreement and admission requires a versioned kind-103 envelope before ordinary
 join handling (around the camera envelope in combined sessions). Stock hosts
 reject this envelope; opted-in hosts reject stock joins. This is a compatibility

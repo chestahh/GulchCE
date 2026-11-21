@@ -2703,6 +2703,23 @@ long port_mutators_places(struct port_mutator_place *places, long maximum)
 	return count;
 }
 
+/* Selection is user intent, not gameplay eligibility: host admission needs
+ * this before a network agreement has been chosen. Never inspect a client's
+ * downloaded host list here. */
+int port_mutators_selected(void)
+{
+	long index;
+
+	if (!port_mutators.scans)
+		port_mutators_scan();
+	for (index = 0; index < port_mutators.count; index++)
+	{
+		if (port_mutators.mutators[index].on && !port_mutators.mutators[index].refusal[0])
+			return 1;
+	}
+	return 0;
+}
+
 long port_mutators_count(void)
 {
 	return port_mutators.count;

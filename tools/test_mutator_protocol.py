@@ -15,11 +15,13 @@ def test_mutator_admission(tmp_path):
     server = (ROOT / 'source/networking/network_server_message_handler.c').read_text()
     gate = function(server, 'network_game_server_handle_client_message')
     gate = gate[:gate.index('\tmessage_type =')] + '(void)result;(void)message_type;(void)packet_type;return TRUE;\n}\n'
+    menu_save = function((ROOT / 'port/linux/game/menu_functions.c').read_text(), 'mutators_save')
     limits = (ROOT / 'port/linux/include/halo_port_limits.h').read_text()
     version = re.search(r'^#define HALO_PORT_NETWORK_VERSION \d+$', limits, re.M).group()
     code = r'''
 #include <stdio.h>
 #include <string.h>
+#include <stddef.h>
 #include "third_person_protocol.h"
 #include "mutator_protocol.h"
 typedef unsigned char byte;
@@ -36,14 +38,19 @@ struct network_game {int machine_count;unsigned char cooperative_flags;};
 struct network_game_server {struct network_game game;};
 struct network_game_server_client_machine {int joined;};
 static struct network_game_server *host;
-static int optin;
+static int optin, selected, settings_sent, notices;
+#define NONE -1
+static int port_mutators_save(void){return 1;}
+static boolean campaign_fail(void){return FALSE;}
+static void display_error_text_deferred(wchar_t const *text,int unused){(void)text;(void)unused;notices++;}
+int port_mutators_selected(void){return selected;}
 static char const *mode="opence_crossplay";
 char const *config_string(char const *name){(void)name;return mode;}
 int config_boolean(char const *name){return !strcmp(name,"network.mutators") && optin;}
 int config_write(char const *name,char const *value){(void)name;mode=value;return 1;}
 static struct network_game_server *global_network_game_server_get(void){return host;}
 struct network_game *network_game_server_get_game(struct network_game_server *s){return &s->game;}
-boolean network_game_server_send_game_data_pregame(struct network_game_server *s){(void)s;return 1;}
+boolean network_game_server_send_game_data_pregame(struct network_game_server *s){(void)s;settings_sent++;return 1;}
 static short third_person_host_policy(void){return 1;}
 static void third_person_reset(void){}
 static int network_game_server_client_machine_is_joined_to_game(struct network_game_server *s,
@@ -52,7 +59,7 @@ static void network_event(char const *fmt,...){(void)fmt;}
 ''' + version + '\n' + (ROOT / 'source/bungie_net/common/message_header.h').read_text().replace('#pragma once', '') + '\n' + enum_with(
         (ROOT / 'source/networking/network_messages.h').read_text(), '_message_client_broadcast_game_search') + r'''
 void build_message_header(word *out,word bytes,byte type,byte flags){*out=(word)((bytes<<4)|(type<<2)|flags);}
-''' + implementation('third_person_protocol') + '\n' + implementation('mutator_protocol') + '\n' + gate + r'''
+''' + implementation('third_person_protocol') + '\n' + implementation('mutator_protocol') + '\n' + menu_save + '\n' + gate + r'''
 int main(void){
  struct network_game_server server={0};struct network_game_server_client_machine machine={0};
  word join[256],camera[260],outer[264],inner[264],bad[264];unsigned short size;int combined,bytes,i;
@@ -88,6 +95,31 @@ int main(void){
   CHECK(!network_game_server_handle_client_message(&server,&machine,outer,520));
   mutator_session_host_end();third_person_session_host_end();
  }
+ /* Saved menu selection must activate a bot host with the default config. */
+ mode="opence_crossplay";optin=0;selected=1;server.game.machine_count=1;
+ third_person_session_host_begin();mutator_session_host_begin();
+ CHECK(mutator_session_active() && mutator_session_version(NULL)==32747);
+ mutator_session_host_end();third_person_session_host_end();
+ /* Host setup opens its socket before MUTATOR OPTIONS. Keeping a selection
+    while alone must upgrade the agreement, and publish fresh settings. */
+ selected=0;third_person_session_host_begin();mutator_session_host_begin();
+ CHECK(!mutator_session_active());selected=1;
+ CHECK(mutators_save());CHECK(mutator_session_active());
+ CHECK(settings_sent==1 && mutator_session_version(NULL)==32747);
+ mutator_session_host_end();third_person_session_host_end();
+ /* A remote stock player or a locked/started lobby forbids upgrading. */
+ selected=0;third_person_session_host_begin();mutator_session_host_begin();
+ selected=1;server.game.machine_count=2;
+ CHECK(!mutators_save() && !mutator_session_active());CHECK(notices==1);
+ server.game.machine_count=1;mutator_session_lock();
+ CHECK(!mutators_save() && !mutator_session_active());CHECK(notices==2);
+ CHECK(settings_sent==1);
+ mutator_session_host_end();third_person_session_host_end();
+ /* Selection after camera setup must use the combined agreement. */
+ selected=0;mode="gulchce_third_person";
+ third_person_session_host_begin();mutator_session_host_begin();selected=1;
+ CHECK(mutator_session_enable_selected() && mutator_session_version(NULL)==32748);
+ mutator_session_host_end();third_person_session_host_end();selected=0;
  host=NULL;mutator_session_client_begin(32748);third_person_session_client_begin(32748);
  CHECK(mutator_session_active() && third_person_session_active());CHECK(mutator_session_version(NULL)==32748);
  mutator_session_client_clear();third_person_session_client_clear();CHECK(!mutator_session_active());

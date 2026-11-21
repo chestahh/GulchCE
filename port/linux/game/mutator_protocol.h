@@ -12,6 +12,8 @@ int mutator_session_active(void);
 void mutator_session_host_begin(void);
 void mutator_session_host_end(void);
 void mutator_session_lock(void);
+/* Menu selection opts in only while the host is still alone in setup. */
+int mutator_session_enable_selected(void);
 void mutator_session_client_begin(unsigned int version);
 void mutator_session_client_clear(void);
 unsigned int mutator_session_version(char const *map);
