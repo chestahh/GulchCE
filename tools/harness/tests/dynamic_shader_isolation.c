@@ -51,6 +51,7 @@ static void plasma_occlusion_bind_model(const struct plasma_occlusion_uniforms *
 static void glUniform2f(int location, float a, float b)
 { gpu_calls++; mask0=a; mask1=b; }
 static int environment_active;
+static int modern_spot_model_active(void) { return 0; }
 static int modern_environment_model_active(void) { return environment_active; }
 #include "under_test.inc"
 static GLuint fragment_shader_get(const struct nv2a_pixel_shader_key *key)

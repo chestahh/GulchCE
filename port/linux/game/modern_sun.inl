@@ -2,8 +2,8 @@
    Reserve the full light-space depth of the BSP so distant cliffs still block
    sunlight. Only fully covered families transfer their old shadow ownership. */
 extern int config_boolean(const char *name);
-enum { SUN_FAMILIES = 64 };
-static long sun_families[SUN_FAMILIES];
+static long sun_families[MAXIMUM_OBJECTS_PER_MAP];
+static int prepared_families;
 int modern_shadows_sun_casters(void) { return sun_count; }
 
 static int sun_owns(long object)
@@ -83,7 +83,7 @@ static int sun_classify_surfaces(void)
     return 1;
 }
 
-void modern_shadows_sun_project(void)
+static void sun_prepare(void)
 {
     const float radius = 12.f;
     real_matrix4x3 basis;
@@ -92,11 +92,11 @@ void modern_shadows_sun_project(void)
     real_point3d focus;
     struct object_iterator it;
     struct object_datum *obj;
-    float frame[16], camera[16], color[3], depth_extent = 1.f;
-    float reach[6] = {1,1,1,-1,-1,1};
-    int families = 0, ok = 1, reuse, i;
+    float frame[16], color[3], depth_extent = 1.f;
+    int ok = 1, reuse, i;
     short sky;
-    sun_count = 0;
+    prepared_families = 0;
+    prepared_sky = NONE;
     int mode = setting();
     if (!cached_bsp || !mode || !config_boolean("display.environment_sun") ||
         !game_engine_allow_dynamic_lighting() || !rasterizer_debug_options.draw_environment_shadows ||
@@ -129,43 +129,7 @@ void modern_shadows_sun_project(void)
     point_from_line3d(&basis.position,&basis.up,mid,&basis.position);
     matrix_to_gl(&basis,frame);
     for (i = 0; i < 3; i++) frame[8+i] *= radius/depth_extent;
-    /* Scenery has no independently moving pose in the bake. Admit mobile
-       families and machines, keeping equipment attached to the parent pose. */
-    object_iterator_new(&it,_object_mask_unit | _object_mask_item | FLAG(_object_type_machine),0);
-    while ((obj = object_iterator_next(&it)) != NULL && families < SUN_FAMILIES)
-    {
-        real_point3d center;
-        real extent;
-        real_vector3d delta;
-        int remaining = 128;
-        if (obj->object.parent_object_index != NONE || TEST_FLAG(obj->object.flags,_object_shadowless_bit) ||
-            sun_cluster_sky(obj->object.location.cluster_index) != sky) continue;
-        object_get_render_bounding_sphere(it.index,&center,&extent);
-        render_interpolation_object_point(it.index,&center);
-        vector_from_points3d(&basis.position,&center,&delta);
-        /* The complete family must fit. Descendants can only increase its
-           radius, so reject distant roots before traversing attachments. */
-        if (fabsf(dot_product3d(&basis.forward,&delta)) + extent >= radius ||
-            fabsf(dot_product3d(&basis.left,&delta)) + extent >= radius) continue;
-        if (obj->object.first_child_object_index != NONE &&
-            !environmental_family_bounds(it.index,&center,&extent,&remaining,1)) continue;
-        if (fabsf(dot_product3d(&basis.forward,&delta)) + extent >= radius ||
-            fabsf(dot_product3d(&basis.left,&delta)) + extent >= radius ||
-            fabsf(dot_product3d(&basis.up,&delta)) + extent >= depth_extent ||
-            !sun_reaches_view(&center,extent,&toward)) continue;
-        /* Bound the downstream volume containing every possible receiver.
-           Two texels of margin at the lowest resolution cover raster rounding. */
-        for (i = 0; i < 3; i++)
-        {
-            real_vector3d const *axis = i == 0 ? &basis.forward : i == 1 ? &basis.left : &basis.up;
-            float scale = i < 2 ? radius : depth_extent;
-            float along = dot_product3d(axis,&delta);
-            reach[i] = MIN(reach[i],(along-extent)/scale-.04f);
-            if (i < 2) reach[i+3] = MAX(reach[i+3],(along+extent)/scale+.04f);
-        }
-        sun_families[families++] = it.index;
-    }
-    if (!families || !sun_classify_surfaces()) return;
+    if (!sun_classify_surfaces()) return;
     reuse = modern_environment_sun_begin(frame,radius,sun_static_unchanged(),sky,mode == 2);
     if (!reuse) return;
     if (reuse == 1)
@@ -173,15 +137,44 @@ void modern_shadows_sun_project(void)
         sun_cutout_count=0;
         ok = modern_environment_sun_static(world_casters_clipped(cached_bsp,&basis.position,radius,frame));
     }
-    for (i = 0; ok && i < families; i++)
+    /* Intersect the caster with the tile. A large or offscreen mesh may
+       shadow a visible receiver even when its origin lies outside the tile. */
+    object_iterator_new(&it,_object_mask_all,0);
+    while (ok && (obj = object_iterator_next(&it)) != NULL)
     {
+        real_point3d center;
+        real_vector3d delta;
+        real extent;
         int remaining = 128;
-        ok = environmental_casters(sun_families[i],&remaining);
+        if (obj->object.parent_object_index != NONE) continue;
+        if (obj->object.first_child_object_index == NONE &&
+            (TEST_FLAG(obj->object.flags,_object_invisible_bit) ||
+             object_definition_get(obj->definition_index)->object.model.index == NONE)) continue;
+        object_get_render_bounding_sphere(it.index,&center,&extent);
+        render_interpolation_object_point(it.index,&center);
+        if (obj->object.first_child_object_index != NONE &&
+            !environmental_family_bounds(it.index,&center,&extent,&remaining,1)) continue;
+        vector_from_points3d(&basis.position,&center,&delta);
+        float x = fabsf(dot_product3d(&basis.forward,&delta));
+        float y = fabsf(dot_product3d(&basis.left,&delta));
+        float z = fabsf(dot_product3d(&basis.up,&delta));
+        if (x > radius+extent || y > radius+extent || z > depth_extent+extent ||
+            !sun_reaches_view(&center,extent,&toward)) continue;
+        remaining = 128;
+        ok = environmental_casters(it.index,&remaining);
+        if (x+extent < radius && y+extent < radius && z+extent < depth_extent &&
+            sun_cluster_sky(obj->object.location.cluster_index) == sky)
+            sun_families[prepared_families++] = it.index;
     }
-    /* Legacy bakes mix direct and bounced light. Bound the estimated direct
-       share and apply it before additive scene lights, only on sky-visible BSP. */
-    for (i = 0; i < 3; i++) color[i] = 1.f - .32f * PIN(tint.n[i],0.f,1.f);
+    for (i=0;i<3;i++) color[i] = .65f*PIN(tint.n[i],0.f,1.f);
+    if (modern_environment_sun_finish(ok,color)) prepared_sky = sky;
+}
+
+void modern_shadows_sun_project(void)
+{
+    float camera[16];
+    if (prepared_sky == NONE) return;
     matrix_to_gl(&global_window_parameters.frustum.view_to_world,camera);
-    if (modern_environment_sun_end(ok,camera,(const float *)global_window_parameters.frustum.projection_matrix,color,reach))
-        sun_count = families;
+    if (modern_environment_sun_project(camera,(const float *)global_window_parameters.frustum.projection_matrix))
+        sun_count = prepared_families;
 }

@@ -24,7 +24,9 @@ int modern_shadows_sun_casters(void);
 int modern_environment_sun_begin(const float frame[16], float radius, int cache_static, int sky, int soft);
 void modern_environment_sun_surfaces(const unsigned char *owners);
 int modern_environment_sun_static(int complete);
-int modern_environment_sun_end(int complete, const float camera[16], const float projection[16], const float color[3], const float reach[6]);
+int modern_environment_sun_finish(int complete, const float color[3]);
+int modern_environment_sun_project(const float camera[16], const float projection[16]);
+void modern_environment_sun_model(int enabled);
 void modern_environment_receivers(int enabled);
 int modern_environment_marking(void);
 void modern_shadows_receiver(int first_person, long object);
@@ -89,9 +91,11 @@ struct xgpu_text;
 struct modern_shadow_uniforms
 {
 	int light, other_light, slots, filter, extent;
-    unsigned long long spot_window;
+    unsigned long long spot_window, sun_window;
+    int sun_enabled;
     int last_flash_slots;
     int spot_frames, spot_origins, spot_colors, spot_mask, spot_flash_slots, spot_camera, spot_projection, spot_viewport, spot_reversed, spot_soft;
+    int sun_frame, sun_color_radius, sun_soft;
     int environment_frames, environment_radius, environment_mask, environment_filter;
 };
 void modern_shadow_emit(struct xgpu_text *text);

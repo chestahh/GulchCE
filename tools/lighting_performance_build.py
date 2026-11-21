@@ -119,7 +119,7 @@ def main():
                  'port/linux/game/modern_shadows.c', 'port/linux/src/modern_shadows_gl.c',
                  'port/linux/include/modern_shadows.h', 'port/linux/game/modern_sun.inl', 'source/render/render.c',
                  'source/render/render_sky.c', 'port/linux/src/port_config.c',
-        'port/linux/src/modern_environment_gl.inl', 'port/linux/game/modern_sun.inl', 'source/render/render_sky.c',
+        'port/linux/src/modern_environment_gl.inl', 'port/linux/src/modern_sun_shader.inl',
         'port/linux/game/modern_spots.inl', 'port/linux/game/modern_fixture_patches.inl', 'port/linux/src/modern_spots_gl.inl',
         'port/linux/src/nv2a_psh.c', 'source/render/render_objects.c',
                  'port/linux/game/modern_shadows_first_person.inl', 'source/interface/first_person_weapons.c',

@@ -318,6 +318,8 @@ int modern_shadow_mesh_create(const struct modern_shadow_vertex *vertices, int v
 	return ++mesh_count;
 }
 
+static int sun_draw_batch(void);
+
 int modern_shadow_draw(int mesh, const float *matrices, int node_count,
 	const void *alpha_texture, const float uv_transform[8], int views)
 {
@@ -325,6 +327,7 @@ int modern_shadow_draw(int mesh, const float *matrices, int node_count,
 	GLenum target;
 	struct xgpu_texture_description description;
 	int faces;
+	if (draw_count == SHADOW_DRAWS && environment_drawing) sun_draw_batch();
 	if (mesh < 1 || mesh > mesh_count || node_count < 1 || node_count > SHADOW_NODES ||
 		draw_count == SHADOW_DRAWS || !drawing || views < 1 || views > MODERN_SHADOW_BOTH) { failed = 1; return 0; }
 	faces = environment_drawing ? 63 : mesh_faces(&meshes[mesh - 1], matrices, node_count, map->light);
@@ -474,6 +477,8 @@ void modern_shadow_dispose(void)
 
 void modern_shadow_emit(struct xgpu_text *text)
 {
+	xgpu_text_append(text,shadow_filter);
+	xgpu_text_append(text,sun_lighting);
 	xgpu_text_append(text,
 		"uniform sampler2D modern_environment_depth0, modern_environment_depth1;\n"
 		"uniform mat4 modern_environment_frames[2];\n"
@@ -530,7 +535,7 @@ void modern_shadow_emit(struct xgpu_text *text)
 		/* Recover radial distance / radius from hardware perspective depth.
 		   Clear depth zero remains an empty ray (distance at least radius). */
 		" float stored=min(0.00001*length(q)/(0.00001+textureLod(depth,q,0.0).r*(radius-0.00001)),1.0);\n"
-		" return step(z,stored);\n}\n"
+		" return shadow_visible(z,stored);\n}\n"
 		"float modern_visibility_map(samplerCube depth, vec4 light, vec3 d, bool contributes, bool model) {\n"
 		/* Viewmodels and high-resolution receivers have very small screen
 		   derivatives. Test only degeneracy, not world-space triangle size.
@@ -551,14 +556,14 @@ void modern_shadow_emit(struct xgpu_text *text)
 		" }\n"
 		/* World lighting covers the screen once per light. Keep its four
 		   samples independent so the GPU can issue their lookups together. */
-		" if(!model) return mix(mix(modern_compare(depth,light.w,direction,d,n),modern_compare(depth,light.w,direction+u,d,n),f.x),\n"
-		"  mix(modern_compare(depth,light.w,direction+v,d,n),modern_compare(depth,light.w,direction+u+v,d,n),f.x),f.y);\n"
+		" if(!model) return shadow_filter4(vec4(modern_compare(depth,light.w,direction,d,n),modern_compare(depth,light.w,direction+u,d,n),\n"
+		"  modern_compare(depth,light.w,direction+v,d,n),modern_compare(depth,light.w,direction+u+v,d,n)),f);\n"
 		" vec4 samples=vec4(0);\n"
 		" for(int tap=0;tap<=3*modern_soft;tap++) {\n"
 		"  vec3 ray=direction; if((tap&1)!=0) ray+=u; if(tap>=2) ray+=v;\n"
 		"  samples[tap]=modern_compare(depth,light.w,ray,d,n);\n"
 		" }\n"
-		" return mix(mix(samples.x,samples.y,f.x),mix(samples.z,samples.w,f.x),f.y);\n}\n"
+		" return shadow_filter4(samples,f);\n}\n"
 		"float modern_visibility(vec3 d) { return modern_visibility_map(modern_depth,modern_light,d,true,true); }\n"
 		"float modern_world(vec3 d,vec4 attenuation) { return modern_visibility_map(modern_depth,modern_light,d,any(notEqual(attenuation,vec4(0))),false); }\n"
 		"float modern_model(int slot,vec3 p) { if(modern_slots[slot]<0.5) return 1.0;\n"
@@ -568,6 +573,13 @@ void modern_shadow_emit(struct xgpu_text *text)
 void modern_shadow_uniforms_initialize(unsigned long linked, struct modern_shadow_uniforms *uniforms)
 {
     spot_locations(linked,uniforms);
+    uniforms->sun_window = 0;
+    uniforms->sun_enabled = 0;
+    uniforms->sun_frame = glGetUniformLocation(linked,"sun_frame");
+    uniforms->sun_color_radius = glGetUniformLocation(linked,"sun_color_radius");
+    uniforms->sun_soft = glGetUniformLocation(linked,"sun_soft");
+    glUniform1i(glGetUniformLocation(linked,"sun_bsp"),14);
+    glUniform1i(glGetUniformLocation(linked,"sun_objects"),15);
     uniforms->environment_frames = glGetUniformLocation(linked, "modern_environment_frames");
     uniforms->environment_radius = glGetUniformLocation(linked, "modern_environment_radius");
     uniforms->environment_mask = glGetUniformLocation(linked, "modern_environment_mask");
@@ -588,6 +600,18 @@ void modern_shadow_bind(struct modern_shadow_uniforms *uniforms)
 	float enabled[2] = {0,0};
 	int slot;
     spot_bind(uniforms);
+    if (uniforms->sun_color_radius >= 0 &&
+        (uniforms->sun_enabled != sun.model || (sun.model && uniforms->sun_window != spot_window)))
+    {
+        uniforms->sun_enabled = sun.model;
+        if (sun.model && uniforms->sun_window != spot_window)
+        {
+            uniforms->sun_window = spot_window;
+            glUniformMatrix4fv(uniforms->sun_frame,1,GL_FALSE,sun.frame);
+            glUniform1i(uniforms->sun_soft,sun.soft);
+        }
+        glUniform4fv(uniforms->sun_color_radius,1,(const float[4]){sun.tint[0],sun.tint[1],sun.tint[2],sun.model ? sun.radius : 0});
+    }
     glUniform1i(uniforms->environment_mask, environment_model.enabled);
     if (environment_model.enabled)
     {

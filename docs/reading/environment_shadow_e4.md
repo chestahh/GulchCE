@@ -10,13 +10,18 @@ desktop platform gates apply before preparing the sun pass.
 ## Outdoor coverage
 
 Use one stabilized directional map with a 12-world-unit half-width. The sun
-uses the active sky and a separate budget. Eligible nearby casters block
-the estimated direct portion of the BSP lightmap where static geometry lets
-sunlight through. The existing environmental path covers families outside
-the modern tile. An actor under a roof should retain the authored shade.
+uses the active sky and a separate budget. BSP triangles and placed models
+use the same material eligibility as local shadows, including alpha cutouts.
+Casters can lie outside the camera frustum or cross the edge of the tile.
+Models and lightmapped world surfaces sample both depth maps. The renderer
+adds a directional sunlight contribution to exposed surfaces and preserves
+the underlying bake in shadow. Open ground can therefore appear brighter
+with Sun Shadows enabled. At the outer edge the added light fades into the
+authored lighting. The existing environmental path covers families outside
+the tile.
 The map's original lightmap and tags remain usable in Sapien and other engines.
 
-At 1280 × 720 on Sidewinder a ten-second camera pullback showed the tradeoff.
+The original mobile-caster prototype compared camera ranges at 1280 × 720 on Sidewinder.
 At the far end of the move the six-unit tile contributed zero shadow pixels.
 The 12-unit tile still changed 143 pixels. A second stabilized tile with a
 36-unit half-width contributed 24 additional pixels from a distant vehicle.
@@ -32,17 +37,43 @@ Those short runs have different frame timings from the release measurements.
 
 ## Filtering and memory
 
-Hard tests the owning texel. Soft interpolates four comparisons of the same
-depth map, correcting receiver depth for each sample. Samples beyond the
-tile or behind static geometry contribute zero shadow. The center also has
-to belong to the sunlit BSP receiver. The filter costs no additional caster
-passes and does not consume a local shadow slot.
+Hard tests the owning texel. Soft interpolates four comparisons using the same
+two depth maps, correcting receiver depth for each sample. Hard and Soft
+share their comparison and interpolation code with local-light shadows.
+The sun uses an orthographic projection. A blocker in either map removes
+the added directional light. The filter adds no caster passes or local slots.
 
-A 1024² 32-bit moving depth texture and 32-bit static visibility texture
-occupy 8 MiB together. At 4096² they occupy 128 MiB. These figures exclude
-other render targets, driver overhead and temporary storage while resizing.
+The two dedicated 32-bit sun textures occupy 8 MiB at 1024² and 128 MiB at
+4096². BSP generation also uses the shared environmental scratch depth
+(4 MiB at 1024² or 64 MiB at 4096²). These figures exclude the scene depth
+copy, other render targets, driver overhead and temporary storage while resizing.
 The renderer validates a replacement attachment before releasing the
 previous texture. The menu uses the existing 128 through 4096 tiers.
+
+## Geometry checks
+
+On Sidewinder, compare the same camera with a placed pine present in the sun
+depth map, omitted from that map, and then restored. Keep the tree visible
+in all three frames. Its silhouette should disappear from the snow only
+during the omission. Check the alpha-tested branches and the lower trunk at
+native resolution.
+
+On the i7-14700K and RTX 5070 Ti, the full-geometry build averaged 271.1 FPS
+in Hard and 277.5 FPS in Soft in the first snowy Two Betrayals encounter.
+Each uncapped run measured 120 seconds at 2560 × 1440, AA off, shadow
+resolution 1024 and the Shared flashlight setting. Hard had zero frames
+over 100 ms and Soft had three. The AI encounters vary between runs.
+
+A full-screen 1440p Soft filter comparison on that GPU measured 0.0594 ms
+for individual depth reads and 0.0599 ms for gathered reads. No pixel
+differed by more than 0.00001. This check establishes equivalent output.
+The renderer also binds the sun textures once per view and reuses each
+model shader's sun uniforms across consecutive draws.
+
+The GPU receiver tests also put a BSP blocker across one half of a model
+and a posed-model blocker across the other. Removing either blocker should
+restore only that side's sun contribution. A roof should preserve the baked
+base even in a scene with no model casters.
 
 ## Checking a build
 
@@ -54,7 +85,8 @@ the two-lamp room on Rat Race. Enable the fixtures, sun and stock beam, use
 the Shared flashlight budget, and leave the eight-slot local capacity intact.
 The busy-combat target is a two-minute average of at least 240 FPS.
 
-On the i7-14700K and RTX 5070 Ti, the uncapped 2560 × 1440 runs with AA off
+Before extending sun coverage to placed scenery and model receivers, the
+uncapped 2560 × 1440 runs with AA off on the i7-14700K and RTX 5070 Ti
 gave the following results. Each run used 25 seconds of warmup, followed
 by 120 measured seconds.
 

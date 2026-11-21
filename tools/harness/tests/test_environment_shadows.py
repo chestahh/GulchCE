@@ -58,7 +58,7 @@ int main(void) {
 
 def test_environmental_model_family_and_lifecycle():
     source = read('port/linux/game/modern_shadows.c')
-    code = function(source, 'environmental_family_bounds') + function(source, 'modern_shadows_environment_model')
+    code = ''.join(function(source, n) for n in ('environmental_family_bounds', 'environment_model_family', 'modern_shadows_environment_model'))
     status, output = run(build('environment_model_shadows', (('under_test.inc', code),)), 'all')
     assert status == 0, output
 
@@ -70,6 +70,7 @@ def test_environmental_model_gpu_resource_lifecycle():
         'modern_environment_window', 'modern_environment_dispose',
         'modern_environment_model_clear', 'modern_environment_model_active',
         'modern_environment_model_reuse', 'modern_environment_model_begin',
-        'modern_environment_model_end'))
+        'modern_environment_model_end', 'sun_draw_batch', 'modern_environment_sun_static',
+        'modern_environment_sun_finish', 'modern_environment_sun_model'))
     status, output = run(build('environment_model_maps', (('under_test.inc', code),)), 'all')
     assert status == 0, output

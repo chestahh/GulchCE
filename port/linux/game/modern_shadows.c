@@ -87,6 +87,7 @@ static unsigned short mesh_index[MESH_BUCKETS];
 static int patches_ready;
 static unsigned char *sun_surface_sky;
 static int sun_count;
+static short prepared_sky = NONE;
 enum { SUN_CUTOUTS = 64 };
 static struct
 {
@@ -135,6 +136,7 @@ void modern_shadows_reset(void)
 	sun_surface_sky = NULL;
 	patches_ready = 0;
 	sun_cutout_count = sun_count = 0;
+	prepared_sky = NONE;
 	modern_shadow_dispose();
 	memset(parts, 0, sizeof(parts));
 	memset(mesh_index, 0, sizeof(mesh_index));
@@ -828,7 +830,7 @@ static int environmental_family_bounds(long index, const real_point3d *center, r
 
 /* Draw-packet lighting is authoritative, including queued material passes.
    Shadow only the two distant terms; ambient/local illumination is untouched. */
-void modern_shadows_environment_model(const struct rasterizer_model_begin_parameters *parameters, int first_person)
+static void environment_model_family(const struct rasterizer_model_begin_parameters *parameters, int first_person)
 {
     static long previous = NONE;
     static float previous_frames[32], previous_radius;
@@ -883,6 +885,16 @@ unavailable:
     modern_environment_model_clear();
 }
 
+void modern_shadows_environment_model(const struct rasterizer_model_begin_parameters *parameters, int first_person)
+{
+    environment_model_family(parameters,first_person);
+    if (cached_bsp && prepared_sky != NONE && parameters && !first_person)
+    {
+        struct object_datum *object = object_try_and_get(parameters->unique_identifier);
+        modern_environment_sun_model(object && sun_cluster_sky(object->object.location.cluster_index) == prepared_sky);
+    }
+}
+
 int modern_shadows_environment(long object, const real_matrix4x3 *frame, const float color[3], float radius)
 {
     float basis[16], camera[16];
@@ -903,6 +915,7 @@ void modern_shadows_prepare(int primary)
 	int mode = setting(), complete, slot;
 	long owners[2];
 	active = world_stage = 0;
+	prepared_sky = NONE;
 	sun_count = flash_world = 0;
 	flashlight_index = NONE;
 	modern_environment_window();
@@ -911,6 +924,8 @@ void modern_shadows_prepare(int primary)
 	bsp = global_structure_bsp_get();
 	if (bsp != cached_bsp) { modern_shadows_reset(); cached_bsp = bsp; }
 	if (!bsp || receiver_failed) return;
+	extern boolean render_shadows;
+	if (render_shadows) sun_prepare();
 	prepare_spots(mode);
 	select_lights();
 	for (slot = 0; slot < MODERN_SHADOW_LIGHTS; slot++)

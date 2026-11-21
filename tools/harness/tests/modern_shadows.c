@@ -1,4 +1,7 @@
 #include "harness.h"
+static short prepared_sky;
+boolean render_shadows = TRUE;
+static void sun_prepare(void) {}
 static int patches_ready, sun_count;
 static void prepare_spots(int mode) { (void)mode; }
 static unsigned char *sun_surface_sky;

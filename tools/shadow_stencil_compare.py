@@ -228,6 +228,7 @@ class Replay:
         self.solid = self.program(vs, '#version 330 core\nout vec4 color;void main(){color=vec4(0,0,0,1);}')
         source = (ROOT/'port/linux/src/modern_shadows_gl.c').read_text()
         body = source.split('void modern_shadow_emit(',1)[1].split('void modern_shadow_uniforms_initialize',1)[0]
+        body = (ROOT/'port/linux/src/modern_sun_shader.inl').read_text() + body
         shader = ''.join(ast.literal_eval(s) for s in re.findall(r'"(?:[^"\\]|\\.)*"', body))
         self.compare = self.program(vs, '#version 330 core\nin vec3 world;out vec4 color;\n'+shader+
             '\nvoid main(){float v=modern_visibility(world-modern_light.xyz);color=vec4(v,v,v,1);}')

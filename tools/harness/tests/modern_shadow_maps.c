@@ -1,4 +1,7 @@
 #include "harness.h"
+static struct { int model,soft; unsigned static_depth,object_depth; float tint[3],frame[16],radius; } sun;
+static int sun_draw_batch(void) {return 0;}
+static unsigned long long spot_window;
 struct modern_shadow_uniforms;
 static void spot_bind(const struct modern_shadow_uniforms *u) { (void)u; }
 static void modern_environment_dispose(void) {}

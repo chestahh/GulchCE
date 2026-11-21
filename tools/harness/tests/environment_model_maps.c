@@ -6,7 +6,7 @@ typedef unsigned GLenum;
 enum { GL_TEXTURE9, GL_TEXTURE_2D, GL_DEPTH_COMPONENT32F, GL_DEPTH_COMPONENT,
  GL_FLOAT, GL_TEXTURE_MIN_FILTER, GL_TEXTURE_MAG_FILTER, GL_NEAREST,
  GL_TEXTURE_WRAP_S, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE, GL_FRAMEBUFFER,
- GL_DEPTH_ATTACHMENT, GL_NONE, GL_FRAMEBUFFER_COMPLETE, GL_NO_ERROR,
+ GL_COLOR_ATTACHMENT0, GL_DEPTH_ATTACHMENT, GL_NONE, GL_FRAMEBUFFER_COMPLETE, GL_NO_ERROR,
  GL_UPPER_LEFT, GL_ZERO_TO_ONE };
 static int drawing, environment_drawing, draw_count, failed, ready=1, scale=8;
 static int deletion_calls;
@@ -21,6 +21,8 @@ static void glDeleteFramebuffers(int n, const GLuint *v) { deletion_calls++;whil
 static void glDeleteProgram(GLuint p) {}
 static void glGenTextures(int n, GLuint *v) { while(n--) {v[n]=next_id++;allocations++;} }
 static void glGenFramebuffers(int n, GLuint *v) { while(n--) {v[n]=next_id++;allocations++;} }
+static void glBindTextures(int unit,int n,const GLuint *tex) {}
+static void glBindSampler(int unit,GLuint sampler) {}
 static void glActiveTexture(GLenum t) {}
 static void glBindTexture(GLenum t,GLuint v) {}
 static void glTexImage2D(GLenum t,int l,int f,int w,int h,int b,GLenum e,GLenum s,const void *p) {}
@@ -58,5 +60,16 @@ int main(int argc,char **argv)
  fail_fbo=0;scale=8;CHECK(modern_environment_model_begin(frames,2,0),"new resolution can recover");draw_count=1;modern_environment_model_end(1,3);
  modern_environment_dispose();CHECK(!environment_model.depth[0] && !environment_model.framebuffer[1] && !modern_environment_model_active(),"dispose clears maps and receiver state");
  CHECK(deletions>=8,"old and final depth/framebuffer resources released");
+ float tint[3]={.5f,.4f,.3f};
+ sun.projecting=sun.writing=drawing=environment_drawing=1;
+ draw_count=SHADOW_DRAWS;environment.depth_fbo=43;sun.object_fbo=44;
+ CHECK(sun_draw_batch() && sun.partial && !draw_count && targets[(draws-1)%2]==43,"full BSP batch flushed into static depth");
+ draw_count=2;
+ CHECK(modern_environment_sun_static(1) && !sun.partial && !sun.writing,"last BSP batch keeps depth; object map starts clear");
+ draw_count=0;
+ CHECK(modern_environment_sun_finish(1,tint) && targets[(draws-1)%2]==44 && !drawing,"empty object map still publishes static-only sunlight");
+ modern_environment_sun_model(1);CHECK(modern_environment_model_active(),"prepared sun reaches models independently");
+ modern_environment_window();modern_environment_sun_model(1);
+ CHECK(!modern_environment_model_active(),"next view cannot sample stale sun");
  return 0;
 }

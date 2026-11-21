@@ -29,9 +29,11 @@ def test_directional_receiver_depth_and_empty_rays(reverse,soft,depth_stencil,su
         r=Replay(c,64,64); g=c.gl
         r.program(shader('caster_vertex'),shader('caster_fragment'))
         fragment=shader('receiver_fragment')
-        if sun: fragment=fragment.replace('#version 330 core', '#version 330 core\n#define SUN',1)
+        if sun: fragment=fragment.replace('#version 330 core', '#version 400 core\n#define SUN\n' +
+            shader('shadow_filter','modern_sun_shader.inl') + shader('sun_lighting','modern_sun_shader.inl'),1)
         fullscreen=r.program(shader('receiver_vertex'),fragment)
         volume=r.program(shader('sun_vertex'),fragment) if sun else None
+        reference = r.program(shader('receiver_vertex'),fragment.replace('#if __VERSION__ >= 400 || defined(SUN_GATHER)', '#if 0')) if sun and soft else None
         p=fullscreen
         projection=np.zeros((4,4),np.float32)
         projection[0,0]=projection[1,1]=1
@@ -49,7 +51,9 @@ def test_directional_receiver_depth_and_empty_rays(reverse,soft,depth_stencil,su
             clip=projection@np.array([0,0,view_z,1]);d=clip[2]/clip[3]
             data=np.full((64,64),1-d if reverse else d,np.float32)
             shadow=np.zeros((64,64),np.float32)
-            if not empty:shadow[16:48,16:48]=.5
+            if not empty:
+                shadow[16:48,16:48]=.5
+                shadow[20:30,24:28]=0  # Asymmetric opening catches swapped gather taps.
             arrays=[data,shadow]
             if sun: arrays.append(np.full_like(data, .9 if roof else .5+.5*z))
             for unit,array in enumerate(arrays):
@@ -64,7 +68,16 @@ def test_directional_receiver_depth_and_empty_rays(reverse,soft,depth_stencil,su
             for name,value in {'scene_depth':0,'shadow_depth':1,'camera':camera,'projection':projection,
                                'frame':frame,'viewport':[0,0,64,64],'color':[.5,.5,.5,1],
                                'reversed_depth':reverse,'soft':soft}.items():r.uniform(p,name,value)
-            if sun: r.uniform(p,'static_depth',2)
+            if sun:
+                r.uniform(p,'sun_bsp',2)
+                r.uniform(p,'sun_objects',1)
+                r.uniform(p,'sun_frame',frame)
+                r.uniform(p,'sun_color_radius',[.5,.5,.5,1])
+                r.uniform(p,'sun_soft',soft)
+                g('ClearColor',None,F,F,F,F)(.4,.4,.4,1)
+                g('Clear',None,U)(0x4000)
+                g('Enable',None,U)(0x0BE2)
+                g('BlendFunc',None,U,U)(0x0306,1)
             if volume and p==volume:
                 g('Enable',None,U)(0x864F)  # GL_DEPTH_CLAMP on the exit faces
                 g('Enable',None,U)(0x0B71)
@@ -72,13 +85,16 @@ def test_directional_receiver_depth_and_empty_rays(reverse,soft,depth_stencil,su
                 g('Clear',None,U)(0x100)
                 g('DepthMask',None,U)(0)
                 g('DepthFunc',None,U)(0x0203 if reverse else 0x0206)
-                r.uniform(p,'reach_min',[-.55,-.55,-.1,0])
-                r.uniform(p,'reach_max',[.55,.55,1,0])
+                r.uniform(p,'reach_min',[-1,-1,-1,0])
+                r.uniform(p,'reach_max',[1,1,1,0])
             location=g('GetUniformLocation',I,U,C.c_char_p)(p,b'radius')
             g('Uniform1f',None,I,F)(location,1)
             g('BindVertexArray',None,U)(r.vao);g('DrawArrays',None,U,I,I)(4,0,36 if volume and p==volume else 3)
             return r.read()
         behind=draw(-.5)
+        if reference:
+            p=reference
+            assert np.allclose(draw(-.5),behind,atol=1e-5), 'Gathered Soft taps must match individual depth reads'
         if volume:
             p=volume
             assert np.array_equal(draw(-.5),behind), 'Bounded sun projection must match the full-screen reference'
@@ -88,15 +104,24 @@ def test_directional_receiver_depth_and_empty_rays(reverse,soft,depth_stencil,su
             p=volume
             assert np.array_equal(draw(-.5),inside), 'Camera crossing into the receiver volume'
             camera[2,3]=3
-        assert np.allclose(behind[31:33,31:33,:3],.5 if sun else .5625,atol=.002)
+        assert np.allclose(behind[31:33,31:33,:3],.4 if sun else .5625,atol=.002)
         if sun:
             # Offset the shadow texel grid from the screen pixel grid.
             frame[0,3] += .013
             edge = draw(-.5)[:,:,0]
-            fractional = (edge > .502) & (edge < .998)
+            if reference:
+                p=reference
+                assert np.allclose(draw(-.5)[:,:,0],edge,atol=1e-5)
+                p=volume
+            band = edge[29:35,26:38]
+            fractional = (band > .402) & (band < .598)
             assert bool(fractional.any()) == bool(soft)
             frame[0,3] -= .013
-        if sun: assert np.allclose(draw(-.5,roof=True)[:,:,:3],1), "Roof already blocks direct sunlight"
+        if sun:
+            assert np.allclose(draw(-.5,roof=True)[:,:,:3],.4), "A roof must preserve the baked base"
+            for surface in (draw(.25),draw(-.5,True)):
+                assert np.allclose(surface[30:34,30:34,:3],.6), "Unblocked surface receives direct sun"
+            return
         assert np.allclose(behind[:4,:,:3],1)
         assert np.allclose(draw(.25)[:,:,:3],1), 'Surface in front of caster must remain lit'
         assert np.allclose(draw(-.5,True)[:,:,:3],1), 'Empty rays must never occlude'
