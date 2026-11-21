@@ -2151,11 +2151,14 @@ static boolean network_game_server_handle_message_client_join_game_request(
 						struct network_machine *client_machine;
 						long machine_index = NONE;
 
-						/* port: setup opens the socket before the host's loopback client
-						has its index. Only remote admission fixes the camera contract. */
+						/* Setup opens the socket before the loopback client has
+						its index. Remote admission freezes both agreements. */
 						if (source_address.address.long_words[0] != IPV4_LOOPBACK_ADDRESS ||
 							network_game_server_get_game(server)->machine_count > 1)
+						{
+							mutator_session_lock();
 							third_person_session_lock();
+						}
 
 						client_machine = network_game_server_get_client_machine(
 							server,

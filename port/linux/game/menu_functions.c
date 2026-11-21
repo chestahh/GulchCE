@@ -6828,6 +6828,7 @@ extern void halo_virtual_gamepads_start(void);
 /* "port lobby open" (the lobby made, or come back to): no player being added */
 static boolean lobby_join_reset(void)
 {
+	mutator_session_lock();
 	third_person_session_lock();
 	halo_virtual_gamepads_start();
 	lobby_join.adding = FALSE;

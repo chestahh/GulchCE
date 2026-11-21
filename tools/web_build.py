@@ -399,6 +399,7 @@ def generate_web_build(n: Writer, sln: Any) -> None:
     )
     version_file = site_dir / "version.json"
     n.build(outputs=version_file, rule="web_version", inputs=[halo_js, halo_wasm, *site_files],
-            implicit=[PORT_DIR / "stamp_version.py", Path("port/linux/include/halo_port_limits.h")])
+            implicit=[PORT_DIR / "stamp_version.py", Path("port/linux/include/halo_port_limits.h"),
+                      Path("port/linux/game/third_person_protocol.h"), Path("port/linux/game/mutator_protocol.h")])
     n.build(outputs="web", rule="phony", inputs=[halo_js, halo_wasm, version_file, *site_files])
     n.newline()

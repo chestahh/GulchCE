@@ -15,7 +15,9 @@ def test_mutator_admission(tmp_path):
     server = (ROOT / 'source/networking/network_server_message_handler.c').read_text()
     gate = function(server, 'network_game_server_handle_client_message')
     gate = gate[:gate.index('\tmessage_type =')] + '(void)result;(void)message_type;(void)packet_type;return TRUE;\n}\n'
-    menu_save = function((ROOT / 'port/linux/game/menu_functions.c').read_text(), 'mutators_save')
+    menu_source = (ROOT / 'port/linux/game/menu_functions.c').read_text()
+    menu_save = function(menu_source, 'mutators_save')
+    lobby_open = function(menu_source, 'lobby_join_reset')
     limits = (ROOT / 'port/linux/include/halo_port_limits.h').read_text()
     version = re.search(r'^#define HALO_PORT_NETWORK_VERSION \d+$', limits, re.M).group()
     code = r'''
@@ -39,6 +41,9 @@ struct network_game_server {struct network_game game;};
 struct network_game_server_client_machine {int joined;};
 static struct network_game_server *host;
 static int optin, selected, settings_sent, notices;
+void mutator_share_host_reset(void){}
+static struct {int adding,controller;} lobby_join;
+static void halo_virtual_gamepads_start(void){}
 #define NONE -1
 static int port_mutators_save(void){return 1;}
 static boolean campaign_fail(void){return FALSE;}
@@ -59,7 +64,7 @@ static void network_event(char const *fmt,...){(void)fmt;}
 ''' + version + '\n' + (ROOT / 'source/bungie_net/common/message_header.h').read_text().replace('#pragma once', '') + '\n' + enum_with(
         (ROOT / 'source/networking/network_messages.h').read_text(), '_message_client_broadcast_game_search') + r'''
 void build_message_header(word *out,word bytes,byte type,byte flags){*out=(word)((bytes<<4)|(type<<2)|flags);}
-''' + implementation('third_person_protocol') + '\n' + implementation('mutator_protocol') + '\n' + menu_save + '\n' + gate + r'''
+''' + implementation('third_person_protocol') + '\n' + implementation('mutator_protocol') + '\n' + menu_save + '\n' + lobby_open + '\n' + gate + r'''
 int main(void){
  struct network_game_server server={0};struct network_game_server_client_machine machine={0};
  word join[256],camera[260],outer[264],inner[264],bad[264];unsigned short size;int combined,bytes,i;
@@ -111,7 +116,7 @@ int main(void){
  selected=0;third_person_session_host_begin();mutator_session_host_begin();
  selected=1;server.game.machine_count=2;
  CHECK(!mutators_save() && !mutator_session_active());CHECK(notices==1);
- server.game.machine_count=1;mutator_session_lock();
+ server.game.machine_count=1;CHECK(lobby_join_reset());
  CHECK(!mutators_save() && !mutator_session_active());CHECK(notices==2);
  CHECK(settings_sent==1);
  mutator_session_host_end();third_person_session_host_end();

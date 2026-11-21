@@ -686,12 +686,28 @@ void mutator_share_block(
 	client_next_file();
 }
 
+void mutator_share_machine_reset(
+	long machine_index)
+{
+	if (machine_index >= 0 && machine_index < HALO_PORT_MAXIMUM_NETWORK_MACHINES)
+		mutator_share.machine_asked_at[machine_index] = 0;
+}
+
+void mutator_share_host_reset(
+	void)
+{
+	long machine_index;
+
+	for (machine_index = 0; machine_index < HALO_PORT_MAXIMUM_NETWORK_MACHINES; machine_index++)
+		mutator_share_machine_reset(machine_index);
+}
+
 boolean mutator_share_machine_fetching(
 	long machine_index)
 {
 	unsigned long asked_at;
 
-	if (machine_index < 0 || machine_index >= HALO_PORT_MAXIMUM_NETWORK_MACHINES)
+	if (!mutator_session_active() || machine_index < 0 || machine_index >= HALO_PORT_MAXIMUM_NETWORK_MACHINES)
 		return FALSE;
 	asked_at = mutator_share.machine_asked_at[machine_index];
 	return asked_at && system_milliseconds() - asked_at < FETCHING_TIMEOUT;

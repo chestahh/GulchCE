@@ -9,6 +9,9 @@ void mutator_share_fail(char const *reason);
 boolean mutator_share_busy(void);
 /* whether a client of this host is fetching them */
 boolean mutator_share_machine_fetching(long machine_index);
+/* Forget a departed/reused machine, or all machines on host session changes. */
+void mutator_share_machine_reset(long machine_index);
+void mutator_share_host_reset(void);
 /* whether this client's players wait for that */
 boolean mutator_share_holds_players(void);
 /* a block of the file being fetched (map_share.c's connection) */

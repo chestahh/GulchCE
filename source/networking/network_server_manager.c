@@ -481,6 +481,7 @@ symbols in this file:
 #include "interface/player_ui.h"
 #include "third_person.h" /* port: port/linux/game/third_person_policy.c */
 #include "mutator_protocol.h"
+#include "mutator_share.h"
 #include "third_person_protocol.h" /* port: session compatibility lifecycle */
 #include "tag_files/tag_files.h"
 #include "map_share.h" /* port: port/linux/game/map_share.c */
@@ -2470,6 +2471,8 @@ address, real address or hardware id) */
 			{
 				struct transport_address address = { { { 0 } } };
 
+				mutator_share_machine_reset(machine_index);
+
 				network_connection_get_address(
 					machine->connection,
 					&address,
@@ -4006,6 +4009,7 @@ boolean network_game_server_remove_client_machine_from_game(
 	match_assert(NETWORK_SERVER_MANAGER_FILE, 0x230, client);
 	/* port: release MCC transfers before this connection slot is reused */
 	mcc_share_game_peer_left(client);
+	mutator_share_machine_reset(client->machine_index);
 
 	if (_network_game_server_state_ingame == server->state)
 	{
@@ -4204,6 +4208,7 @@ boolean network_game_server_remove_machine_from_game(
 	{
 		int i;
 
+		mutator_share_machine_reset(machine->machine_index);
 		for (i = 0; i < MAXIMUM_NETWORK_MACHINE_COUNT; i++)
 		{
 			if (server->client_machines[i].machine_index == machine->machine_index)
@@ -5047,6 +5052,7 @@ static boolean network_game_server_add_new_client(
 					}
 					else
 					{
+						mutator_share_machine_reset(i);
 						server->client_machines[i].connection = new_connection;
 						network_game_invalidate_machine(&server->game, i);
 						server->client_machines[i].machine_index = (short)i;

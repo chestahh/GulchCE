@@ -1069,6 +1069,7 @@ document.addEventListener('visibilitychange', async () => {
   checkForUpdate();
   window.HaloServers.start({
     networkVersion: () => stamp.network_version,
+    supportedNetworkVersions: () => stamp.supported_network_versions,
     visible: () => !gameStarted,
     onPlay: joinServer,
   });

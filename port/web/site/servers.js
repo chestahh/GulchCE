@@ -275,11 +275,25 @@ seconds while the page shows, and joined with Play here (the page's ?join=).
       in_progress: (flags & LISTING_IN_PROGRESS) !== 0, network_version: (bytes[3] << 8) | bytes[4] };
   }
 
+  // Older manifests advertise only their base version. Never infer extension
+  // support from a version number or allow an unknown build to join everything.
+  function supportedVersions(networkVersion, supportedNetworkVersions) {
+    const valid = (version) => Number.isInteger(version) && version > 0 && version <= 65535;
+    const versions = valid(networkVersion) ? [networkVersion] : [];
+    if (Array.isArray(supportedNetworkVersions)) {
+      versions.push(...supportedNetworkVersions.filter(valid).slice(0, 16));
+    }
+    return [...new Set(versions)];
+  }
+
   // ---------- fetching
 
   async function fetchMaster(master, options) {
-    const { fetch: get, subtle, now, networkVersion } = options;
-    const query = Number.isInteger(networkVersion) ? `?network_version=${networkVersion}` : '';
+    const { fetch: get, subtle, now, networkVersion, supportedNetworkVersions } = options;
+    const versions = supportedVersions(networkVersion, supportedNetworkVersions);
+    // The master accepts a single version filter, not an array. Its unfiltered
+    // response has the same signed format and is bounded to 512 entries.
+    const query = versions.length === 1 ? `?network_version=${versions[0]}` : '';
     let response;
     try {
       response = await get(`${master.url}/v1/servers${query}`, { mode: 'cors', credentials: 'omit', cache: 'no-store' });
@@ -306,13 +320,13 @@ seconds while the page shows, and joined with Play here (the page's ?join=).
   }
 
   // what a row shows, and whether Play here can join it
-  function serverRow(entry, networkVersion) {
+  function serverRow(entry, networkVersion, supportedNetworkVersions) {
     const players = `${entry.players}/${entry.max_players} players`;
     const game = [entry.map, entry.variant || entry.gametype].filter(Boolean).join(', ');
     const detail = [game, players, entry.region, entry.dedicated ? 'dedicated' : 'player-hosted',
       entry.publisher && `by ${entry.publisher}`].filter(Boolean).join(' · ');
     let reason = '';
-    if (Number.isInteger(networkVersion) && entry.network_version !== networkVersion) {
+    if (!supportedVersions(networkVersion, supportedNetworkVersions).includes(entry.network_version)) {
       reason = `Needs network version ${entry.network_version} (this build is ${networkVersion})`;
     } else if (entry.locked || !entry.invite) {
       reason = 'A password: join it from the game\'s server browser';
@@ -334,7 +348,7 @@ seconds while the page shows, and joined with Play here (the page's ?join=).
 
     function render(results) {
       const lists = results.map((result) => result.entries);
-      const rows = mergeServers(lists).map((entry) => serverRow(entry, options.networkVersion()));
+      const rows = mergeServers(lists).map((entry) => serverRow(entry, options.networkVersion(), options.supportedNetworkVersions?.()));
       $('servers-list').replaceChildren(...rows.map((row) => {
         const item = doc.createElement('li');
         const label = doc.createElement('span');
@@ -369,7 +383,8 @@ seconds while the page shows, and joined with Play here (the page's ?join=).
       try {
         const now = () => Math.floor(Date.now() / 1000);
         render(await Promise.all(masters.map((master) => fetchMaster(master, {
-          fetch: root.fetch.bind(root), subtle: root.crypto.subtle, now, networkVersion: options.networkVersion() }))));
+          fetch: root.fetch.bind(root), subtle: root.crypto.subtle, now, networkVersion: options.networkVersion(),
+          supportedNetworkVersions: options.supportedNetworkVersions?.() }))));
       } finally {
         busy = false;
       }

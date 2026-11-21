@@ -1,5 +1,6 @@
 #include "cseries.h"
 #include "mutator_protocol.h"
+#include "mutator_share.h"
 #include "third_person_protocol.h"
 #include "networking/network_messages.h"
 #include "bungie_net/common/message_header.h"
@@ -18,6 +19,7 @@ static unsigned int mutator_host_version, mutator_client_version;
 
 void mutator_session_host_begin(void)
 {
+    mutator_share_host_reset();
     mutator_host = 1;
     mutator_locked = 0;
     mutator_client_version = 0;
@@ -28,6 +30,7 @@ void mutator_session_host_begin(void)
 
 void mutator_session_host_end(void)
 {
+    mutator_share_host_reset();
     mutator_host = mutator_locked = 0;
     mutator_host_version = mutator_client_version = 0;
 }

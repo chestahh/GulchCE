@@ -248,6 +248,14 @@ def test_version_json_names_the_build_and_its_files(tmp_path, monkeypatch):
     assert written["files"] == ["halo.js", "icons/icon.png"]
     limits = (ROOT / "port/linux/include/halo_port_limits.h").read_text()
     assert written["network_version"] == int(re.search(r"HALO_PORT_NETWORK_VERSION (\d+)", limits).group(1))
+    expected = [written["network_version"]]
+    for header, constant in [("third_person_protocol.h", "THIRD_PERSON_PROTOCOL_VERSION"),
+                             ("mutator_protocol.h", "MUTATOR_PROTOCOL_VERSION"),
+                             ("mutator_protocol.h", "MUTATOR_CAMERA_PROTOCOL_VERSION")]:
+        text = (ROOT / "port/linux/game" / header).read_text()
+        expected.append(int(re.search(r"#define " + constant + r" (\d+)", text).group(1)))
+        assert "port/linux/game/" + header in graph()
+    assert written["supported_network_versions"] == expected
     (site / "halo.js").write_text("js changed")
     again = stamp_version.stamp(site / "version.json", [site / "halo.js", site / "icons" / "icon.png"], "release")
     assert again["version"] != written["version"]
