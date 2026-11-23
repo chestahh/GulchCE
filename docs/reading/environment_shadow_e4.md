@@ -14,10 +14,11 @@ uses the active sky and a separate budget. BSP triangles and placed models
 use the same material eligibility as local shadows, including alpha cutouts.
 Casters can lie outside the camera frustum or cross the edge of the tile.
 Models and lightmapped world surfaces sample both depth maps. The renderer
-adds a directional sunlight contribution to exposed surfaces and preserves
-the underlying bake in shadow. Open ground can therefore appear brighter
-with Sun Shadows enabled. At the outer edge the added light fades into the
-authored lighting. The existing environmental path covers families outside
+adds directional sunlight on exposed surfaces. When a model blocks sunlight
+on otherwise exposed lightmapped ground, its silhouette also removes a
+bounded estimate of the direct share of the bake, based on the sky colour
+and surface angle. A roof or other BSP blocker keeps its authored shade.
+Both adjustments fade at the edge of the tile. The existing environmental path covers families outside
 the tile.
 The map's original lightmap and tags remain usable in Sapien and other engines.
 

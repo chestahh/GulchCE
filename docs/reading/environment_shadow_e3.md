@@ -28,6 +28,9 @@ direction and range. The renderer rejects BSP batches and object bounds
 outside the beam. It uses the existing world triangles, posed meshes and
 alpha-cutout materials inside it. The visibility result masks the stock beam
 on world geometry and the corresponding stock light on eligible models.
+The beam omits its wearer from its own caster map. A beam mounted on a held
+weapon also omits that emitter. Other bipeds can cross and interrupt the beam,
+and other lights can still cast the wearer's silhouette.
 With multiple players' flashlights in one view, only one receives this extra
 map. In Shared mode, a successfully prepared beam uses one of the eight local shadow slots.
 When all eight would be occupied, the lowest-scoring local light keeps its

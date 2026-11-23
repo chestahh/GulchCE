@@ -1,5 +1,6 @@
 /* Localized baked emitters and the submitted flashlight have separate
    ownership from both the directional sun and the eight dynamic lights. */
+#include "objects/object_lights.h"
 #include "devices/devices.h"
 #include "devices/device_light_fixtures.h"
 
@@ -136,6 +137,22 @@ static int fixture_casters(const struct spot_source *s,long families[MAXIMUM_OBJ
     return count;
 }
 
+/* Resolve the submitted beam's owner per view. Other lights still see its wearer. */
+static int flashlight_object_casters(real_point3d const *origin, real radius, long emitter)
+{
+    const long owners[2] = {NONE, NONE};
+    struct object_datum *object = object_try_and_get(emitter);
+    long wearer = emitter, held_emitter = NONE;
+    if (object && object->object.type == _object_type_weapon)
+    {
+        wearer = object->object.parent_object_index;
+        object = object_try_and_get(wearer);
+        if (object && object->object.type == _object_type_biped) held_emitter = emitter;
+    }
+    if (!object || object->object.type != _object_type_biped) wearer = NONE;
+    return object_casters(origin, radius, owners, NONE, wearer, held_emitter);
+}
+
 static void prepare_spots(int mode)
 {
     int fixtures=config_boolean("display.environment_fixtures");
@@ -189,13 +206,13 @@ static void prepare_spots(int mode)
         if (normalize3d(&s.axis)>0.f)
         {
             spot_frame(&s,frame);
-            const long owners[2]={NONE,NONE};
+            long emitter = best < SHADOW_LIGHTS ? light_port_emitter_object(identities[best]) : NONE;
             if (modern_spot_begin(4,frame,0))
             {
                 spot_clip_planes(frame);
                 clipping_spot=1;
                 int complete=world_casters(cached_bsp,&s.origin,s.range) &&
-                    object_casters(&s.origin,s.range,owners,NONE,NONE,NONE);
+                    flashlight_object_casters(&s.origin,s.range,emitter);
                 clipping_spot=0;
                 if (modern_spot_end(complete))
                 {

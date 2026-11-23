@@ -77,7 +77,7 @@ def test_directional_receiver_depth_and_empty_rays(reverse,soft,depth_stencil,su
                 g('ClearColor',None,F,F,F,F)(.4,.4,.4,1)
                 g('Clear',None,U)(0x4000)
                 g('Enable',None,U)(0x0BE2)
-                g('BlendFunc',None,U,U)(0x0306,1)
+                g('BlendFunc',None,U,U)(0x0306,0x0303)  # DST_COLOR, ONE_MINUS_SRC_ALPHA
             if volume and p==volume:
                 g('Enable',None,U)(0x864F)  # GL_DEPTH_CLAMP on the exit faces
                 g('Enable',None,U)(0x0B71)
@@ -104,7 +104,7 @@ def test_directional_receiver_depth_and_empty_rays(reverse,soft,depth_stencil,su
             p=volume
             assert np.array_equal(draw(-.5),inside), 'Camera crossing into the receiver volume'
             camera[2,3]=3
-        assert np.allclose(behind[31:33,31:33,:3],.4 if sun else .5625,atol=.002)
+        assert np.allclose(behind[31:33,31:33,:3],.2 if sun else .5625,atol=.002)
         if sun:
             # Offset the shadow texel grid from the screen pixel grid.
             frame[0,3] += .013
@@ -114,10 +114,11 @@ def test_directional_receiver_depth_and_empty_rays(reverse,soft,depth_stencil,su
                 assert np.allclose(draw(-.5)[:,:,0],edge,atol=1e-5)
                 p=volume
             band = edge[29:35,26:38]
-            fractional = (band > .402) & (band < .598)
+            fractional = (band > .202) & (band < .598)
             assert bool(fractional.any()) == bool(soft)
             frame[0,3] -= .013
         if sun:
+            assert np.allclose(draw(-.00008)[31:33,31:33,:3],.2,atol=.002), "Retain close object-to-ground contact"
             assert np.allclose(draw(-.5,roof=True)[:,:,:3],.4), "A roof must preserve the baked base"
             for surface in (draw(.25),draw(-.5,True)):
                 assert np.allclose(surface[30:34,30:34,:3],.6), "Unblocked surface receives direct sun"

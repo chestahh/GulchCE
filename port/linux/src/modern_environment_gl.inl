@@ -237,7 +237,7 @@ static int environment_resources_for(int projector)
         "if(any(greaterThan(abs(q.xy),vec2(1)))||q.z< -1||q.z>4||nl<1.e-12) discard;\n"
         "#ifdef SUN\n"
         "if(dot(n,camera[3].xyz-world)<0.) n=-n;\n"
-        "result=vec4(sun_light(world,n/nl,true),0);\n"
+        "result=sun_light(world,n/nl,true);\n"
         "#else\n"
         "float shadow=compare_at(uv,depth,gradient);\n"
         "if(soft!=0){vec2 size=vec2(textureSize(shadow_depth,0)), f=fract(uv*size-0.5), base=uv-f/size;\n"
@@ -537,7 +537,7 @@ int modern_environment_end(int complete, const float camera[16], const float pro
         glEnable(GL_STENCIL_TEST); glStencilFunc(GL_EQUAL,128,129);
         glStencilOp(GL_KEEP,GL_KEEP,GL_KEEP); glStencilMask(0);
         glColorMask(GL_TRUE,GL_TRUE,GL_TRUE,GL_FALSE);
-        glEnable(GL_BLEND); glBlendEquation(GL_FUNC_ADD); glBlendFunc(sun.projecting ? GL_DST_COLOR : GL_ZERO,sun.projecting ? GL_ONE : GL_SRC_COLOR);
+        glEnable(GL_BLEND); glBlendEquation(GL_FUNC_ADD); glBlendFunc(sun.projecting ? GL_DST_COLOR : GL_ZERO,sun.projecting ? GL_ONE_MINUS_SRC_ALPHA : GL_SRC_COLOR);
         glUseProgram(p);
         glBindTextures(8,1,sun.projecting ? &sun.object_depth : &environment.depth); glBindSampler(8,0);
         glBindTextures(10,1,&environment.scene_depth); glBindSampler(10,0);

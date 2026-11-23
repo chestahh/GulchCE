@@ -388,9 +388,10 @@ establish a historical regression against an older GulchCE release.
 The local stock reports are `e5-opence-stock-control` (OpenCE 1440p/1024)
 and `e5-common-{gulch1024,gulch128,opence128,gulch720,opence720}` under
 `build/lighting-performance/`. The saved map SHA-256 starts `b5fb3db5`,
-the encounter core `a9188c28`. Keep the current scene as the E5 control
-when profiling BSP surface selection, temporary lighting triangles and
-model drawing.
+the encounter core `a9188c28`. Further shared-renderer profiling is parked
+under E5. Resume with the matched OpenCE and GulchCE controls in this scene
+to separate BSP surface selection, temporary lighting triangles and model
+drawing before attributing the difference to OpenGL or a renderer change.
 
 ### Loading, compatibility and driver checks
 

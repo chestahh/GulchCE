@@ -82,6 +82,15 @@ int main(int argc,char **argv) {
  CHECK(object_casters(&origin,2,owners,2,NONE,NONE),"owner-specific map collects remaining casters");
  CHECK(!submitted[2] && submitted[3] && submitted[0] && submitted[1] && submitted[4],"ordinary owner exemption");
  biped[2]=1;objects[3].object.type=objects[4].object.type=_object_type_weapon;
+ memset(submitted,0,sizeof(submitted));
+ CHECK(flashlight_object_casters(&origin,2,2) && !submitted[2] && submitted[0] && submitted[3] && submitted[4],
+       "beam skips its own wearer and preserves other bipeds and objects");
+ memset(submitted,0,sizeof(submitted));
+ CHECK(flashlight_object_casters(&origin,2,3) && !submitted[2] && !submitted[3] && submitted[0] && submitted[4],
+       "a weapon-mounted beam resolves its current wearer");
+ memset(submitted,0,sizeof(submitted));
+ CHECK(flashlight_object_casters(&origin,2,4) && submitted[0] && submitted[2] && submitted[4],
+       "an unheld light does not exempt a previous wearer or dropped weapon");
  inventory[2][0]=3;inventory[2][1]=4;objects[4].object.parent_object_index=2;
  memset(submitted,0,sizeof(submitted));
  CHECK(object_casters(&origin,2,owners,2,NONE,NONE) && !submitted[2] && !submitted[3] && submitted[1] && submitted[4],

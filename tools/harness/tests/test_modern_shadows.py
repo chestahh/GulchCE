@@ -98,6 +98,7 @@ def test_materials_and_animated_casters():
 def test_player_and_npc_held_objects():
     source = read('port/linux/game/modern_shadows.c')
     code = function(source, 'unshadowed_object') + function(source, 'object_casters')
+    code += function(read('port/linux/game/modern_spots.inl'), 'flashlight_object_casters')
     status, output = run(build('modern_shadow_objects', (('under_test.inc', code),)), 'objects')
     assert status == 0, output
 
@@ -109,6 +110,7 @@ def test_owner_receiver_exemption_is_required():
 def test_owner_caster_exemption_is_required():
     source = read('port/linux/game/modern_shadows.c')
     code = function(source, 'unshadowed_object') + function(source, 'object_casters')
+    code += function(read('port/linux/game/modern_spots.inl'), 'flashlight_object_casters')
     code = code.replace('unshadowed_object(unshadowed_owner, iterator.index)', 'FALSE')
     status, output = run(build('modern_shadow_objects', (('under_test.inc', code),)), 'objects')
     assert status == CHECK_FAILED, output
@@ -117,6 +119,7 @@ def test_owner_caster_exemption_is_required():
 def test_seated_occupant_exemption_is_required():
     source = read('port/linux/game/modern_shadows.c')
     code = function(source, 'unshadowed_object') + function(source, 'object_casters')
+    code += function(read('port/linux/game/modern_spots.inl'), 'flashlight_object_casters')
     code = code.replace('unit->unit.parent_seat_index != NONE', 'unit->unit.parent_seat_index == NONE')
     status, output = run(build('modern_shadow_objects', (('under_test.inc', code),)), 'objects')
     assert status == CHECK_FAILED, output
