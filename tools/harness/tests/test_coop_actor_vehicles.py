@@ -10,7 +10,7 @@ from harness import build, read, run, function, structure, mutated, CHECK_FAILED
 def generated(fault=None):
     source = read('port/linux/game/network_actors.c')
     held = re.search(r'CONTROL_HELD_TICKS = [^,\n]+', source).group(0)
-    drive = function(source, 'actor_unit_valid') + '\n' + function(source, 'client_actor_release') + '\n' + \
+    drive = function(source, 'actor_slot_set') + '\n' + function(source, 'client_actor_remove') + '\n' + function(source, 'actor_unit_valid') + '\n' + function(source, 'client_actor_release') + '\n' + \
         function(source, 'network_actors_drive')
     if fault == 'vehicles-skipped':
         # (as before: a vehicle neither marked nor driven)

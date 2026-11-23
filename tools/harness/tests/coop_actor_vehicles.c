@@ -61,6 +61,8 @@ static void unit_port_play_user_animation(long unit, long graph, short animation
 #include "client_actor.inc"
 static struct client_actor client_actors[MAXIMUM_NETWORK_ACTORS];
 static short client_actor_count;
+#define MAXIMUM_OBJECTS_PER_MAP 8
+static short client_actor_slots[MAXIMUM_OBJECTS_PER_MAP];
 #include "drive.inc"
 
 enum { VEHICLE = 1, BIPED = 2, DRIVER = 3 };
