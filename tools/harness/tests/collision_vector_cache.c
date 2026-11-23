@@ -29,7 +29,7 @@ static boolean collision_bsp3d_enter_node(const struct collision_bsp *b,long n,s
 static boolean collision_bsp_valid_leaf(const struct collision_bsp *b,long n)
 { return n>=0 && n<b->leaves.count; }
 static long collision_leaf_test_vector(const struct collision_bsp *b,short count,const byte *bits,
- const real_point3d *p,const real_vector3d *v,long leaf,long plane,real t,boolean surface)
+ const real_point3d *p,const real_vector3d *v,long leaf,long plane,real t,boolean surface,struct collision_bsp_vector_cache *cache)
 { return plane==NONE?NONE:0; }
 #include "under_test.inc"
 static struct {

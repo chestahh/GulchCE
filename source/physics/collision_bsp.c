@@ -281,7 +281,8 @@ static long collision_leaf_test_vector(
 	long leaf_index,
 	long plane_index,
 	real t,
-	boolean test_surface);
+	boolean test_surface,
+	/* port: optional render batch */ struct collision_bsp_vector_cache *cache);
 static boolean collision_bsp_test_vector_recursive(
 	struct collision_bsp_test_vector_context *data,
 	long node_index,
@@ -1993,16 +1994,37 @@ static long collision_leaf_test_vector(
 	long leaf_index,
 	long plane_index,
 	real t,
-	boolean test_surface)
+	boolean test_surface,
+	/* port: optional render batch */ struct collision_bsp_vector_cache *cache)
 {
 	struct collision_leaf const *leaf = TAG_BLOCK_GET_ELEMENT(
 		&bsp->leaves,
 		leaf_index,
 		struct collision_leaf);
 	long reference_index;
+	/* port: adjacent light rays often cross the same leaf boundary. Only
+	cache where its reference scan starts. Each ray still tests its own
+	projected point, surface and breakable flags, in original order. */
+	long first = leaf->first_bsp2d_reference_index;
+	unsigned long slot = 0;
+	boolean fill = FALSE;
+	if (cache && leaf->bsp2d_reference_count > 1)
+	{
+		slot = ((unsigned long)leaf_index * 33u + (unsigned long)plane_index) % 64u;
+		if (cache->references[slot].leaf_plus_one == leaf_index + 1 &&
+			cache->references[slot].plane == plane_index)
+			first = cache->references[slot].first;
+		else
+		{
+			cache->references[slot].leaf_plus_one = leaf_index + 1;
+			cache->references[slot].plane = plane_index;
+			cache->references[slot].first = first + leaf->bsp2d_reference_count;
+			fill = TRUE;
+		}
+	}
 
 	for (
-		reference_index = leaf->first_bsp2d_reference_index;
+		reference_index = first; /* port: verified first reference */
 		reference_index <
 			leaf->first_bsp2d_reference_index + leaf->bsp2d_reference_count;
 		reference_index++)
@@ -2027,6 +2049,12 @@ static long collision_leaf_test_vector(
 			real_point2d point2d;
 			long surface_index;
 
+			/* port: a later matching reference may still be needed. */
+			if (fill)
+			{
+				cache->references[slot].first = reference_index;
+				fill = FALSE;
+			}
 			if (absolute_k >= absolute_j && absolute_k >= absolute_i)
 				projection = _z;
 			else
@@ -2460,7 +2488,7 @@ static boolean collision_bsp_test_vector_recursive(
 				test_leaf_index,
 				data->last_plane_index,
 				t0,
-				test_surface);
+				test_surface, data->cache); /* port: render batch reference lookup */
 
 			if (surface_index != NONE)
 			{

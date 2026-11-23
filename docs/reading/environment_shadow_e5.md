@@ -60,7 +60,18 @@ engine's cluster eligibility and root bounds. The [model node
 test](../../port/linux/game/plasma_collision_models.c) uses the stock bounded
 segment and closest-node limit. Rays whose entire octant stays in a single
 BSP leaf share the validated leaf result while testing each ray against the
-objects in that leaf. These are render queries only.
+objects in that leaf. For a full light query, `trace_batch_starts` walks from
+the BSP root towards the light's origin once. It checks the endpoints against
+planes close enough to split the light volume. For example, if the first
+three nodes contain an entire ray and the fourth separates its endpoints,
+ordinary traversal starts at node four with the original depth budget. A
+malformed origin path falls back to the existing traversal.
+
+At a leaf boundary the [surface query](../../source/physics/collision_bsp.c)
+can reuse the first reference matching that leaf and plane during the same
+batch. It still projects the current ray and checks later matching references
+when an earlier surface is ineligible. The batch owns this lookup alongside
+the BSP node cache. Stock simulation queries pass a null cache.
 
 ## Acceptance method
 
@@ -139,6 +150,50 @@ run averaged 263.6. Pixel workload accounts for part of the gap. Substantial
 work remains at the lower display resolution too. Fixed-quality 360 FPS in
 the snowy fight remains the open E5 performance gate.
 
+
+### Collision tracing follow-up
+
+The frozen-input diagnostic rotated the timing order and compared each
+returned depth with the stock query before the simulation could advance.
+Across 32,379 batches (49,734,144 rays), all four paths returned identical
+depths. With both changes bypassed, tracing took 8,638.6 ms. Classifying the first split
+took 8,389.5 ms, and adding the leaf-reference cache brought that to
+8,303.0 ms. Together the changes saved 3.9% of tracing time in this check.
+These timings cover complete batches and include the object tests.
+
+The following uncapped two-minute runs used the same 1440p exterior setup as
+above, with a 25-second warmup and fixed quality. The lighting-only control
+was repeated on the preceding executable. The preceding Hard and Soft
+figures come from the E5 runs in the table above.
+
+| Mode | Earlier average FPS | New average FPS | New 99th percentile (ms) | New worst frame (ms) |
+| --- | ---: | ---: | ---: | ---: |
+| Dynamic lighting only | 279.4 | 286.9 | 5.28 | 8.29 |
+| Hard 1024 | 241.9 | 246.7 | 5.94 | 15.46 |
+| Soft 1024 | 240.9 | 242.5 | 6.01 | 9.09 |
+
+Both shadowed runs used sunlight throughout and reached eight local shadow
+slots including the shared flashlight. Each mode averaged approximately 29
+selected lights. These live AI runs measure the whole frame and can vary
+between runs. A lighting-only control alternated the two optimisations in
+two-second intervals (on, off, off, on). Across 14 complete eight-second
+blocks inside the measured window, the enabled intervals averaged 272.1 FPS
+and the bypassed intervals 272.5 FPS. Six blocks favoured the new path.
+The matched-ray check establishes a CPU tracing improvement. The alternating
+control did not demonstrate a whole-frame FPS gain. The 360 FPS target
+remains open.
+
+The before/after NVIDIA image check used 25 pairs from the same frozen
+exterior pose at tick 270, with four local shadows and 24 sun casters.
+The largest mean absolute error in any RGB channel was 0.295 on a 0–255
+scale, with particles and shields still animating.
+
+On the final source, 140 collision and GPU regression checks passed, and
+the Windows, Android and web builds succeeded. A live Soft run crossed
+Xbox Two Betrayals, MCC Digsite, CE Death Island and Xbox Blood Gulch.
+In a separate two-peer CE Death Island run the Classic host reported zero
+active local-shadow samples and the Hard client reported 46. Both respected
+the host's stock shield policy. The tests used NVIDIA hardware on Windows.
 
 ### Loading, compatibility and driver checks
 

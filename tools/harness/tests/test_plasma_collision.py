@@ -47,3 +47,10 @@ def test_vector_cache_preserves_traversal_results(fault):
               ('prepare.inc',prepare), ('under_test.inc',traversal))
     status,output=run(build('collision_vector_cache',includes),'cache')
     assert status==(CHECK_FAILED if fault else 0),output
+
+
+def test_leaf_reference_preserves_surface_order():
+    cache = structure(read('source/physics/collision_bsp.h'), 'collision_bsp_vector_cache')
+    leaf = function(read('source/physics/collision_bsp.c'), 'collision_leaf_test_vector')
+    status, output = run(build('collision_leaf_reference', (('cache.inc', cache), ('under_test.inc', leaf))), 'surface')
+    assert status == 0, output

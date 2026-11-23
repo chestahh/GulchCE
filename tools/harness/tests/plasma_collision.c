@@ -154,6 +154,24 @@ int main(int argc,char **argv)
  CHECK(queried_node==0 && queried_depth==0,"invalid descendant falls back");plasma_collision_end();
  nodes[0].children[1]=NONE;plasma_collision_begin(flags,&p,NONE);plasma_collision_depth(flags,&p,&v,NONE);
  CHECK(queried_node==NONE && queried_depth==1,"contained solid leaf preserves entry depth");plasma_collision_end();
+ /* The root first divides positive X at .5. The Y plane below it is
+    reached even when exactly on its front boundary. */
+ {
+  real_vector3d rays[5]={{1,1,0},{0,1,0},{0,0,0},{0,-1,0},{.5f,-1,0}};
+  long expected_node[5]={0,1,LONG_MIN,LONG_MIN,0};
+  short expected_depth[5]={0,1,2,2,0};
+  setup();planes[0].d=.5f;nodes[0].children[0]=1;
+  planes[1].n.i=0;planes[1].n.j=1;planes[1].d=.25f;nodes[1].children[0]=LONG_MIN;
+  plasma_collision_begin(flags,&p,NONE);trace_batch_starts(rays,5,1.f);
+  CHECK(batch.starts_ready,"valid origin path");
+  for(i=0;i<5;i++){
+   struct trace_start_node node=batch.origin_nodes[batch.starts[i]];
+   CHECK(node.index==expected_node[i] && node.depth==expected_depth[i],"first crossed plane in tree order");
+  }
+  plasma_collision_end();nodes[1].children[0]=0;
+  plasma_collision_begin(flags,&p,NONE);trace_batch_starts(rays,5,1.f);
+  CHECK(!batch.starts_ready,"cyclic origin path uses guarded traversal");plasma_collision_end();
+ }
  /* Compare the moved invariant arithmetic against the engine predicate,
     including inside starts, zero vectors, tangencies and large origins. */
  for(i=0;i<10000;i++)
@@ -176,6 +194,9 @@ int main(int argc,char **argv)
   real_vector3d vectors[PLASMA_COLLISION_RAYS+1];
   real expected[PLASMA_COLLISION_RAYS+1],actual[PLASMA_COLLISION_RAYS+1];
   setup();p.x=p.y=p.z=0;root_count=2;object_depth[0]=-1;
+  /* Each positive X ray crosses the synthetic partition. The stub below
+     that partition supplies both test clusters. */
+  planes[0].d=.5f;
   objects[0].object.first_child_object_index=1;objects[1].object.next_object_index=2;
   object_depth[1]=.4f;object_depth[2]=.2f;objects[2].object.bounding_sphere_center.y=.8f;
   objects[2].object.bounding_sphere_radius=.3f;

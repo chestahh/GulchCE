@@ -67,7 +67,7 @@ static boolean collision_bsp_valid_leaf(struct collision_bsp const *bsp, long le
 static long leaf_tests;
 static long collision_leaf_test_vector(struct collision_bsp const *bsp, short breakable_surface_count,
 	byte const *breakable_surface_flags, real_point3d const *point, real_vector3d const *vector, long leaf_index,
-	long plane_index, real t, boolean test_surface)
+	long plane_index, real t, boolean test_surface, struct collision_bsp_vector_cache *cache)
 {
 	leaf_tests++;
 	return NONE;
