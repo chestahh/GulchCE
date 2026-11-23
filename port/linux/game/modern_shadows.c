@@ -33,6 +33,7 @@
 #include "objects/light_definitions.h"
 #include "render/render.h"
 #include "game/game_engine.h"
+#include "interface/progress_bar.h"
 #include "rasterizer/rasterizer_console_vars.h"
 
 extern char const *config_string(char const *name);
@@ -97,6 +98,7 @@ static struct
 } sun_cutouts[SUN_CUTOUTS];
 static int sun_cutout_count;
 static int part_count;
+static int map_mode, prepare_pending;
 static struct structure_bsp const *cached_bsp;
 static long identities[SHADOW_LIGHTS];
 static struct shadow_selection
@@ -118,8 +120,14 @@ static const float identity[16] = {1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1};
 
 static int setting(void)
 {
-	char const *value = config_string("display.modern_shadows");
-	return !strcmp(value, "hard") ? 1 : !strcmp(value, "soft") ? 2 : 0;
+	return map_mode;
+}
+
+void modern_shadows_map_loaded(int gameplay)
+{
+	char const *value = gameplay ? config_string("display.modern_shadows") : "off";
+	map_mode = !strcmp(value, "hard") ? 1 : !strcmp(value, "soft") ? 2 : 0;
+	prepare_pending = map_mode != 0;
 }
 
 int modern_shadows_enabled(void) { return setting() != 0; }
@@ -129,7 +137,7 @@ void modern_shadows_environment_receivers(int primary)
     modern_environment_receivers(primary && setting() != 0 && cached_bsp != NULL);
 }
 
-void modern_shadows_reset(void)
+static void forget_shadow_geometry(void)
 {
 	int i;
 	if (sun_surface_sky) free(sun_surface_sky);
@@ -137,7 +145,6 @@ void modern_shadows_reset(void)
 	patches_ready = 0;
 	sun_cutout_count = sun_count = 0;
 	prepared_sky = NONE;
-	modern_shadow_dispose();
 	memset(parts, 0, sizeof(parts));
 	memset(mesh_index, 0, sizeof(mesh_index));
 	part_count = active = world_stage = receiver_failed = 0;
@@ -148,6 +155,28 @@ void modern_shadows_reset(void)
 	memset(selections, 0, sizeof(selections));
 	for (i = 0; i < MODERN_SHADOW_LIGHTS; i++)
 		selections[i].identity = selections[i].rasterizer = selections[i].challenger = selections[i].unshadowed_owner = NONE;
+}
+
+/* Sun and fixture depth include the current breakable surfaces. A map can
+   contain glass without changing it on every frame. Invalidate all three
+   static images together, even when a fixture is temporarily out of view. */
+static void check_static_breakables(struct structure_bsp const *bsp)
+{
+	static byte previous[MAXIMUM_BREAKABLE_SURFACES_PER_MAP / 8];
+	const byte *flags;
+	if (!bsp->breakable_surfaces.count) return;
+	flags = breakable_surface_flags_get();
+	if (memcmp(previous, flags, sizeof(previous)))
+	{
+		modern_environment_invalidate_static();
+		memcpy(previous, flags, sizeof(previous));
+	}
+}
+
+void modern_shadows_reset(void)
+{
+	modern_shadow_dispose();
+	forget_shadow_geometry();
 }
 
 void modern_shadows_window(void)
@@ -828,6 +857,33 @@ static int environmental_family_bounds(long index, const real_point3d *center, r
 #include "modern_sun.inl"
 #include "modern_spots.inl"
 
+/* Object placement has finished. A restart or BSP switch can initialise
+   game state again, but must never start a second material preparation. */
+int modern_shadows_prepare_loaded_map(void)
+{
+    int sunlight, fixtures;
+    if (!prepare_pending) return FALSE;
+    prepare_pending = FALSE;
+    if (!game_engine_allow_dynamic_lighting()) return FALSE;
+    cached_bsp = global_structure_bsp_get();
+    if (!cached_bsp) return FALSE;
+    /* A cached map can bypass the copy progress loop entirely. Leave the
+       stock loading frame on screen during GPU setup and material draws. */
+    if (!progress_bar_is_active())
+    {
+        progress_bar_eachframe();
+        progress_bar_begin(TRUE);
+        progress_bar_present_standalone(.95f);
+        progress_bar_end();
+    }
+    sunlight = config_boolean("display.environment_sun");
+    fixtures = config_boolean("display.environment_fixtures");
+    if (sunlight) sun_classify_surfaces();
+    if (fixtures) prepare_fixture_patches();
+    modern_shadow_preload(sunlight, fixtures, config_boolean("display.flashlight_shadows"));
+    return TRUE;
+}
+
 /* Draw-packet lighting is authoritative, including queued material passes.
    Shadow only the two distant terms; ambient/local illumination is untouched. */
 static void environment_model_family(const struct rasterizer_model_begin_parameters *parameters, int first_person)
@@ -922,8 +978,14 @@ void modern_shadows_prepare(int primary)
 	if (!mode) { if (cached_bsp) modern_shadows_reset(); return; }
 	if (!primary) return;
 	bsp = global_structure_bsp_get();
-	if (bsp != cached_bsp) { modern_shadows_reset(); cached_bsp = bsp; }
+	if (bsp != cached_bsp)
+	{
+		modern_shadow_change_bsp();
+		forget_shadow_geometry();
+		cached_bsp = bsp;
+	}
 	if (!bsp || receiver_failed) return;
+	check_static_breakables(bsp);
 	extern boolean render_shadows;
 	if (render_shadows) sun_prepare();
 	prepare_spots(mode);
@@ -967,6 +1029,8 @@ int modern_shadows_environment(long o, const struct real_matrix4x3 *f, const flo
 void modern_shadows_receiver(int first_person, long object) {}
 int modern_shadows_view_receiver(void) { return 0; }
 int modern_shadows_map(int slot) { return -1; }
+void modern_shadows_map_loaded(int gameplay) {}
+int modern_shadows_prepare_loaded_map(void) { return 0; }
 void modern_shadows_prepare(int primary) {}
 void modern_shadows_reset(void) {}
 void modern_shadows_window(void) {}

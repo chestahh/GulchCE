@@ -25,16 +25,8 @@ static const char spot_shader[] =
 void modern_spot_emit(struct xgpu_text *text) { xgpu_text_append(text,"%s",spot_shader); }
 int modern_spot_mask(void) { return spots.mask; }
 
-int modern_spot_begin(int layer, const float frame[16], int cacheable)
+static void spot_depth_resources(int size, int layers)
 {
-    int size = 128 * (int)halo_shadow_resolution_scale();
-    int fixture = layer - 2;
-    /* A flashlight-only scene needs one layer. Grow on first fixture use. */
-    int layers = layer == 4 && spots.layers <= 1 ? 1 : 5;
-    if (drawing || !xgpu_gl_ready()) return 0;
-    if (cacheable && spots.size == size && fixture >= 0 && fixture < 2 &&
-        (spots.valid_static & (1 << fixture)) && !memcmp(frame,spots.static_frames[fixture],64)) return 2;
-    if (!environment_resources_for(1)) goto failed_begin;
     if (!spots.depth || spots.size != size || spots.layers != layers)
     {
         if (spots.depth) glDeleteTextures(1,&spots.depth);
@@ -46,6 +38,19 @@ int modern_spot_begin(int layer, const float frame[16], int cacheable)
         glTexParameteri(GL_TEXTURE_2D_ARRAY,GL_TEXTURE_MAG_FILTER,GL_NEAREST);
     }
     if (!spots.fbo) glGenFramebuffers(1,&spots.fbo);
+}
+
+int modern_spot_begin(int layer, const float frame[16], int cacheable)
+{
+    int size = 128 * (int)halo_shadow_resolution_scale();
+    int fixture = layer - 2;
+    /* A flashlight-only scene needs one layer. Grow on first fixture use. */
+    int layers = layer == 4 && spots.layers <= 1 ? 1 : 5;
+    if (drawing || !xgpu_gl_ready()) return 0;
+    if (cacheable && spots.size == size && fixture >= 0 && fixture < 2 &&
+        (spots.valid_static & (1 << fixture)) && !memcmp(frame,spots.static_frames[fixture],64)) return 2;
+    if (!environment_resources_for(1)) goto failed_begin;
+    spot_depth_resources(size, layers);
     glBindFramebuffer(GL_FRAMEBUFFER,spots.fbo);
     glFramebufferTextureLayer(GL_FRAMEBUFFER,GL_DEPTH_ATTACHMENT,spots.depth,0,layers==1?0:layer);
     if (!(spots.checked_layers & (1<<layer)))
@@ -151,10 +156,9 @@ static void spot_bind(struct modern_shadow_uniforms *u)
     glUniform1i(u->spot_soft,spots.soft);
 }
 
-void modern_spot_bsp(void)
+static struct modern_shadow_uniforms spot_receiver_uniforms;
+static int spot_receiver_prepare(void)
 {
-    static struct modern_shadow_uniforms uniforms;
-    if (!(spots.mask&3)) return;
     if (!spots.receiver)
     {
         char frag[sizeof(spot_shader)+512];
@@ -162,10 +166,16 @@ void modern_spot_bsp(void)
         strcat(frag,"uniform sampler2D scene;out vec4 color;void main(){float d=texelFetch(scene,ivec2(gl_FragCoord.xy),0).r;"
             "vec3 p=spot_world(d),n=cross(dFdx(p),dFdy(p));n*=inversesqrt(max(dot(n,n),1.e-24));if(dot(n,spot_camera[3].xyz-p)<0.)n=-n;color=vec4(fixture_visibility(p,n),1);}");
         spots.receiver=environment_program("#version 330 core\nvoid main(){vec2 p=vec2((gl_VertexID<<1)&2,gl_VertexID&2);gl_Position=vec4(p*2.-1.,0,1);}",frag);
-        if (!spots.receiver) return;
-        glUseProgram(spots.receiver); spot_locations(spots.receiver,&uniforms);
+        if (!spots.receiver) return 0;
+        glUseProgram(spots.receiver); spot_locations(spots.receiver,&spot_receiver_uniforms);
         glUniform1i(glGetUniformLocation(spots.receiver,"scene"),10);
     }
+    return 1;
+}
+
+void modern_spot_bsp(void)
+{
+    if (!(spots.mask&3) || !spot_receiver_prepare()) return;
     if (environment_snapshot())
     {
         glBindFramebuffer(GL_FRAMEBUFFER,environment.destination); glClipControl(GL_UPPER_LEFT,GL_ZERO_TO_ONE);
@@ -175,7 +185,7 @@ void modern_spot_bsp(void)
         glColorMask(GL_TRUE,GL_TRUE,GL_TRUE,GL_FALSE);
         glEnable(GL_BLEND); glBlendEquation(GL_FUNC_ADD); glBlendFunc(GL_ZERO,GL_SRC_COLOR);
         glUseProgram(spots.receiver); glBindTextures(10,1,&environment.scene_depth); glBindSampler(10,0);
-        spot_bind(&uniforms); glBindVertexArray(vao); glDrawArrays(GL_TRIANGLES,0,3);
+        spot_bind(&spot_receiver_uniforms); glBindVertexArray(vao); glDrawArrays(GL_TRIANGLES,0,3);
     }
     xgpu_gl_end_external_pass();
 }

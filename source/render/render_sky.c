@@ -21,6 +21,7 @@ symbols in this file:
 #include "cseries.h"
 
 #include "render.h"
+#include "bitmaps/bitmaps.h" /* port: floating-point brightness for the sky sun */
 #include "cseries/errors.h"
 #include "models/model_animation_definitions.h"
 #include "models/model_definitions.h"

@@ -7,7 +7,6 @@
 #include "game/players.h"
 #include "memory/data.h"
 #include <stdio.h>
-#include <string.h>
 
 int config_boolean(char const *name);
 int lighting_compatibility_policy_received(void);
@@ -47,25 +46,26 @@ void lighting_compatibility_sample(void)
 
 /* Sample after shadow preparation, including Off. Accumulate short flashes
    between one-second records so the probe does not miss their entire pulse. */
-const char *config_string(const char *name);
-void modern_shadow_compatibility_sample(int maps)
+void modern_shadow_compatibility_sample(int mode, int maps, int sun, int spots)
 {
 	static FILE *file;
 	static long previous = -30;
-	static int seen;
+	static int seen, seen_sun, seen_spots;
 	long tick = game_time_get();
-	const char *mode = config_string("display.modern_shadows");
-	if (!game_in_progress()) return;
+	if (!game_in_progress() || game_time_menu_scene()) return;
+	if (tick < previous) seen = seen_sun = seen_spots = 0;
+	seen_sun |= sun;
+	seen_spots |= spots;
 	seen |= maps;
 	if (tick >= previous && tick - previous < 30) return;
 	previous = tick;
 	if (!file) {
 		file = fopen("shadow-state.csv", "w");
-		if (file) fprintf(file, "tick,mode,maps\n");
+		if (file) fprintf(file, "tick,mode,maps,sun,spots\n");
 	}
 	if (file) {
-		fprintf(file, "%ld,%d,%d\n", tick, !strcmp(mode,"hard") ? 1 : !strcmp(mode,"soft") ? 2 : 0, seen);
+		fprintf(file, "%ld,%d,%d,%d,%d\n", tick, mode, seen, seen_sun, seen_spots);
 		fflush(file);
 	}
-	seen = 0;
+	seen = seen_sun = seen_spots = 0;
 }

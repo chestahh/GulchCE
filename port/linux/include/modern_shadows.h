@@ -3,6 +3,8 @@
 #ifndef MODERN_SHADOWS_H
 #define MODERN_SHADOWS_H
 
+void modern_shadows_map_loaded(int gameplay);
+int modern_shadows_prepare_loaded_map(void);
 void modern_shadows_prepare(int primary);
 int modern_shadows_enabled(void);
 int modern_shadows_hard_enabled(void);
@@ -84,6 +86,9 @@ int modern_shadow_draw(int mesh, const float *matrices, int node_count,
 	const void *alpha_texture, const float uv_transform[8], int views);
 int modern_shadow_begin(int slot, const float position[3], float radius, int soft, int ground_grenade);
 int modern_shadow_end(void);
+void modern_shadow_preload(int sunlight, int fixtures, int beam);
+void modern_shadow_change_bsp(void);
+void modern_environment_invalidate_static(void);
 void modern_shadow_dispose(void);
 void modern_shadow_clear_draws(void);
 

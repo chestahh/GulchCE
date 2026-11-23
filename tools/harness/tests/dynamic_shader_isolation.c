@@ -46,7 +46,7 @@ static int glGetUniformLocation(GLuint program, const char *name)
 { gpu_calls++; looked_up++; return 42; }
 static void plasma_occlusion_model_initialize(GLuint program, struct plasma_occlusion_uniforms *uniforms)
 { gpu_calls++; }
-static void plasma_occlusion_bind_model(const struct plasma_occlusion_uniforms *uniforms)
+static void plasma_occlusion_bind_model(const struct plasma_occlusion_uniforms *uniforms, unsigned int light_mask)
 { gpu_calls++; bound++; }
 static void glUniform2f(int location, float a, float b)
 { gpu_calls++; mask0=a; mask1=b; }

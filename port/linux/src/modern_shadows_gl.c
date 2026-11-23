@@ -27,6 +27,8 @@ static struct shadow_map
 	GLuint depth_cube[2];
 	float light[4];
 	int valid, view_map;
+	/* Only confirmed clear faces survive between uses of this cube. */
+	unsigned int clear_faces, view_clear_faces;
 } maps[MODERN_SHADOW_LIGHTS];
 static struct shadow_map *map = &maps[0];
 static GLuint framebuffer, program, vao, alpha_sampler;
@@ -246,6 +248,23 @@ static int create_resources(void)
 	return 1;
 }
 
+/* Keep the same lazy and load-time validation for a complete depth cube. */
+static int prepare_depth_cube(GLuint *cube)
+{
+	GLenum status, error;
+	if (*cube) return 1;
+	create_depth_cube(cube);
+	glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_CUBE_MAP_POSITIVE_X, *cube, 0);
+	status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+	error = glGetError();
+	if (status == GL_FRAMEBUFFER_COMPLETE && error == GL_NO_ERROR)
+		return 1;
+	glDeleteTextures(1, cube);
+	*cube = 0;
+	return 0;
+}
+
 int modern_shadow_begin(int slot, const float position[3], float radius, int soft, int ground_grenade)
 {
 	if (slot < 0 || slot >= MODERN_SHADOW_LIGHTS || drawing) return 0;
@@ -256,14 +275,7 @@ int modern_shadow_begin(int slot, const float position[3], float radius, int sof
 	draw_count = 0;
 	if (resource_failed) return 0;
 	drawing = 1;
-	failed = !create_resources();
-	if (!failed && !map->depth_cube[0])
-	{
-		create_depth_cube(&map->depth_cube[0]);
-		glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
-		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_CUBE_MAP_POSITIVE_X, map->depth_cube[0], 0);
-		failed = glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE || glGetError() != GL_NO_ERROR;
-	}
+	failed = !create_resources() || !prepare_depth_cube(&map->depth_cube[0]);
 	memcpy(map->light, position, 3 * sizeof(float));
 	map->light[3] = radius;
 	soft_filter = soft;
@@ -352,7 +364,7 @@ int modern_shadow_draw(int mesh, const float *matrices, int node_count,
 int modern_shadow_end(void)
 {
 	int previous = -1;
-	int face, draw, pass, shared, unique_faces[2] = {0, 0};
+	int face, draw, pass, shared, common_faces = 0, unique_faces[2] = {0, 0};
 	if (!drawing) return 0;
 	map->view_map = 0;
 	for (draw = 0; draw < draw_count; draw++)
@@ -360,18 +372,13 @@ int modern_shadow_end(void)
 		if (draws[draw].views == MODERN_SHADOW_VIEW) map->view_map = 1;
 		if (draws[draw].views != MODERN_SHADOW_BOTH)
 			unique_faces[draws[draw].views - 1] |= draws[draw].faces;
+		else common_faces |= draws[draw].faces;
 	}
 	shared = map->view_map;
-	if (!failed && map->view_map && !map->depth_cube[1])
+	if (!failed && map->view_map && !prepare_depth_cube(&map->depth_cube[1]))
 	{
-		glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
-		create_depth_cube(&map->depth_cube[1]);
-		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_CUBE_MAP_POSITIVE_X, map->depth_cube[1], 0);
-		if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE || glGetError() != GL_NO_ERROR)
-		{
-			failed = resource_failed = 1;
-			platform_log("GPU: viewmodel shadow map unavailable; retaining existing lighting until reset");
-		}
+		failed = resource_failed = 1;
+		platform_log("GPU: viewmodel shadow map unavailable; retaining existing lighting until reset");
 	}
 	if (!failed)
 	{
@@ -408,14 +415,28 @@ int modern_shadow_end(void)
 		for (pass = 0; pass < (shared ? 3 : 1 + map->view_map); pass++)
 		{
 			if (shared && pass == 1)
-				glCopyImageSubData(map->depth_cube[0], GL_TEXTURE_CUBE_MAP, 0, 0, 0, 0,
-					map->depth_cube[1], GL_TEXTURE_CUBE_MAP, 0, 0, 0, 0, shadow_size, shadow_size, 6);
+			{
+				/* Empty on both sides already has the right depth. Keep a single
+				   contiguous copy, including any empty faces between its ends. */
+				unsigned int copy = common_faces | (63 & ~map->view_clear_faces);
+				if (copy)
+				{
+					int first = 0, last = 5;
+					while (!(copy & (1U << first))) first++;
+					while (!(copy & (1U << last))) last--;
+					glCopyImageSubData(map->depth_cube[0], GL_TEXTURE_CUBE_MAP, 0, 0, 0, first,
+						map->depth_cube[1], GL_TEXTURE_CUBE_MAP, 0, 0, 0, first, shadow_size, shadow_size, last-first+1);
+				}
+			}
 			for (face = 0; face < 6; face++)
 			{
-				if (shared && pass && !(unique_faces[pass - 1] & (1 << face))) continue;
+				int bit = 1 << face;
+				if (shared && pass && !(unique_faces[pass - 1] & bit)) continue;
+				if (!pass && (map->clear_faces & bit) &&
+					!((common_faces | (shared ? 0 : unique_faces[0])) & bit)) continue;
 				glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_CUBE_MAP_POSITIVE_X + face,
 					map->depth_cube[shared ? pass == 2 : pass], 0);
-				if (!shared || !pass) glClear(GL_DEPTH_BUFFER_BIT);
+				if ((!pass && !(map->clear_faces & bit)) || (pass && !shared)) glClear(GL_DEPTH_BUFFER_BIT);
 				glUniform1i(face_uniform, face);
 				for (draw = 0; draw < draw_count; draw++)
 				{
@@ -429,6 +450,8 @@ int modern_shadow_end(void)
 			}
 		}
 		if (correct_ground_depth) glDisable(GL_POLYGON_OFFSET_FILL);
+		map->clear_faces = 63 & ~(common_faces | unique_faces[0]);
+		if (map->view_map) map->view_clear_faces = 63 & ~(common_faces | unique_faces[1]);
 		map->valid = 1;
 	}
 	/* Do not retain a partially allocated high-resolution set after a
@@ -454,24 +477,76 @@ void modern_shadow_clear_draws(void)
 #include "modern_environment_gl.inl"
 #include "modern_spots_gl.inl"
 
-void modern_shadow_dispose(void)
+void modern_shadow_preload(int sunlight, int fixtures, int beam)
+{
+	GLint read_fbo, draw_fbo;
+	if (!xgpu_gl_ready()) return;
+	glGetIntegerv(GL_READ_FRAMEBUFFER_BINDING, &read_fbo);
+	glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &draw_fbo);
+	resize_maps(128 * (int)halo_shadow_resolution_scale());
+	/* A full set at 1024 consumes 192 MiB. Keep larger cubes and
+	   first-person copies demand-allocated so sparse maps can still run. */
+	if (shadow_size <= 1024 && create_resources())
+	{
+		int slot;
+		for (slot = 0; slot < MODERN_SHADOW_LIGHTS; slot++)
+			if (!prepare_depth_cube(&maps[slot].depth_cube[0])) break;
+	}
+	sun.projecting = sunlight;
+	if (environment_resources_for(0))
+	{
+		if (shadow_size <= 1024) environment_model_resources();
+		if (sunlight) sun_depth_resources();
+		if (fixtures || beam) spot_depth_resources(shadow_size, fixtures ? SPOT_LAYERS : 1);
+		if (fixtures) spot_receiver_prepare();
+	}
+	sun.projecting = 0;
+	glBindFramebuffer(GL_READ_FRAMEBUFFER, read_fbo);
+	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, draw_fbo);
+	xgpu_gl_end_external_pass();
+}
+
+static void dispose_shadow_meshes(void)
 {
 	int i;
-	modern_environment_dispose();
-	if (drawing) { failed = 1; modern_shadow_end(); }
 	for (i = 0; i < mesh_count; i++)
 	{
 		glDeleteBuffers(1, &meshes[i].vertices);
 		glDeleteBuffers(1, &meshes[i].indices);
 		glDeleteVertexArrays(1, &meshes[i].array);
 	}
+	mesh_count = mesh_bytes = draw_count = 0;
+}
+
+void modern_environment_invalidate_static(void)
+{
+	sun.valid = spots.valid_static = 0;
+}
+
+void modern_shadow_change_bsp(void)
+{
+	/* This hook runs between windows. The images may be reused, but no
+	   visibility, cutout pointers or immutable mesh belongs to the next BSP. */
+	dispose_shadow_meshes();
+	modern_shadow_clear_draws();
+	modern_environment_window();
+	memset(sun.surface_sky, 0, sizeof(sun.surface_sky));
+	modern_environment_invalidate_static();
+	environment_model.unavailable = environment.failed_size = resource_failed = 0;
+}
+
+void modern_shadow_dispose(void)
+{
+	modern_environment_dispose();
+	if (drawing) { failed = 1; modern_shadow_end(); }
+	dispose_shadow_meshes();
 	release_maps();
 	map = &maps[0];
 	if (framebuffer) glDeleteFramebuffers(1, &framebuffer);
 	if (program) glDeleteProgram(program);
 	if (vao) glDeleteVertexArrays(1, &vao);
 	if (alpha_sampler) glDeleteSamplers(1, &alpha_sampler);
-	mesh_count = mesh_bytes = draw_count = resource_failed = 0;
+	resource_failed = 0;
 	framebuffer = program = vao = alpha_sampler = 0;
 }
 
@@ -639,6 +714,7 @@ void modern_shadow_bind(struct modern_shadow_uniforms *uniforms)
 }
 
 #else
+void modern_shadow_preload(int sunlight, int fixtures, int beam) { (void)sunlight; (void)fixtures; (void)beam; }
 int modern_spot_mask(void) { return 0; }
 void modern_environment_model_clear(void) {}
 int modern_environment_model_active(void) { return 0; }
@@ -656,6 +732,8 @@ int modern_shadow_draw(int mesh, const float *m, int n, const void *a, const flo
 int modern_shadow_begin(int slot, const float p[3], float r, int soft, int ground_grenade) { return 0; }
 int modern_shadow_end(void) { return 0; }
 void modern_shadow_clear_draws(void) {}
+void modern_shadow_change_bsp(void) {}
+void modern_environment_invalidate_static(void) {}
 void modern_shadow_dispose(void) {}
 void modern_shadow_emit(struct xgpu_text *text) {}
 void modern_shadow_uniforms_initialize(unsigned long p, struct modern_shadow_uniforms *u) { u->light = -1; }

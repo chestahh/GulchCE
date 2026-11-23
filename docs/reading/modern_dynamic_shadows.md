@@ -28,7 +28,7 @@ criterion. The earlier runs establish the starting point.
 Dedicate this milestone to dynamic lighting, local and environmental shadows,
 and the shared renderer. At 360 FPS the whole frame has 2.78 ms. Relative to
 E4, the reference machine needs to recover about 0.83–0.91 ms per frame.
-Measure throughput and individual stalls separately.
+Measure throughput and individual stalls separately. The [E5 implementation and measurements](environment_shadow_e5.md) use a replacement checkpoint in the same snowy encounter.
 
 1. **Establish a matched baseline.** Use the same snowy Two Betrayals checkpoint
    and recorded combat route, i7-14700K and RTX 5070 Ti, release PGO/LTO,

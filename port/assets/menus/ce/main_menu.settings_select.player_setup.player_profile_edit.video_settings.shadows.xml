@@ -100,7 +100,7 @@
 	</strings>
 	<strings name="main_menu/settings_select/player_setup/player_profile_edit/video_settings/shadows/help_strings">
 		<string text=""/>
-		<string text="Choose classic shadows or modern shadows\nwith hard or soft edges."/>
+		<string text="Choose Classic, Hard or Soft shadows.\nApplies on next map load."/>
 		<string text="Shadow map size for both systems.\n1024 is recommended for modern shadows."/>
 		<string text="Use the outdoor sky light to cast shadows\nwith the selected Modern shadow mode."/>
 		<string text="Let nearby indoor lamps cast independent\nshadows with either Modern shadow mode."/>

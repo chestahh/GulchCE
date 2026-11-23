@@ -20,7 +20,7 @@ struct xgpu_texture_description { int unused; };
 static struct { unsigned depth[2]; int enabled; float frames[32], radius; int soft; } environment_model;
 static int fbo,allocated,handoffs,receiver,texture,element,draw_counts[16][4],fail_fbo,deleted_textures,delete_calls;
 static unsigned int bound[2];
-static int copy_count, submitted[4];
+static int copy_count, copied_faces, submitted[4];
 static int map_slots[2]={0,1};
 static long resolution_scale=8;
 static int viewport_size;
@@ -45,7 +45,8 @@ static void glPolygonOffset(float factor,float units) { CHECK(factor==-.5f/256 &
 #define glBindVertexArray(array) (element=(int)(array))
 #define glActiveTexture(...) ((void)0)
 #define glBindSampler(...) ((void)0)
-#define glClear(...) ((void)0)
+static int face_clears;
+#define glClear(...) ((void)++face_clears)
 #define glUniform1i(...) ((void)0)
 #define glEnableVertexAttribArray(...) ((void)0)
 #define glVertexAttribPointer(...) ((void)0)
@@ -60,7 +61,7 @@ static void glPolygonOffset(float factor,float units) { CHECK(factor==-.5f/256 &
 #define glDeleteSamplers(...) ((void)0)
 static void glDeleteTextures(int n,const GLuint *textures) {
  delete_calls++;
- CHECK(n==2,"dispose owns world/view pair");deleted_textures+=!!textures[0]+!!textures[1];
+ CHECK(n==1 || n==2,"release failed cube or owned pair");deleted_textures+=!!textures[0]+(n==2 && !!textures[1]);
 }
 static void glBindFramebuffer(int target,int value) { fbo=value; }
 static void create_depth_cube(GLuint *value) { allocated++;*value=90+allocated; }
@@ -78,10 +79,11 @@ static void glDrawElements(int mode,int count,int type,void *p) {
 }
 static void glCopyImageSubData(GLuint source,GLenum source_target,int sl,int sx,int sy,int sz,
  GLuint destination,GLenum target,int dl,int dx,int dy,int dz,int w,int h,int depth) {
- CHECK(source_target==GL_TEXTURE_CUBE_MAP && target==GL_TEXTURE_CUBE_MAP && depth==6 &&
-       !sl && !dl && !sx && !sy && !sz && !dx && !dy && !dz,"copy exactly six complete depth faces");
+ CHECK(source_target==GL_TEXTURE_CUBE_MAP && target==GL_TEXTURE_CUBE_MAP && depth>=1 && sz>=0 && sz+depth<=6 && dz==sz &&
+       !sl && !dl && !sx && !sy && !dx && !dy,"copy aligned whole depth faces within each cube");
  CHECK(w==128*resolution_scale && h==w,"copy follows selected shadow resolution");
  if (!copy_count) CHECK(!draw_counts[source-91][1] && !draw_counts[source-91][2],"copy precedes receiver-private casters");
+ copied_faces = ((1U << depth)-1) << sz;
  memcpy(draw_counts[destination-91],draw_counts[source-91],sizeof(draw_counts[0]));copy_count++;
 }
 static void xgpu_gl_end_external_pass(void) { handoffs++; }
@@ -267,6 +269,21 @@ int main(int argc,char **argv) {
   CHECK(modern_shadow_begin(0,origin,2,0,0),"near light begins");
   CHECK(modern_shadow_draw(1,bones,2,NULL,uv,MODERN_SHADOW_VIEW),"near viewmodel remains a caster");
   CHECK(modern_shadow_end() && maps[0].view_map && allocated==2,"near light retains the independent first-person cube");
+  CHECK(copied_faces==63, "a new view cube is fully initialised");
+  {
+   unsigned int previous_dirty = 63 & ~maps[0].view_clear_faces;
+   CHECK(previous_dirty && previous_dirty != 63, "near caster covers a subset of faces");
+   modern_shadow_begin(0,origin,2,0,0);
+   modern_shadow_draw(1,bones,2,NULL,uv,MODERN_SHADOW_VIEW);
+   modern_shadow_end();
+   CHECK((copied_faces & previous_dirty)==previous_dirty && copied_faces!=63,
+         "view cube clears every previous private caster without copying known empty faces");
+  }
+  modern_shadow_begin(0,origin,4,0,0); modern_shadow_end();
+  CHECK(maps[0].clear_faces==63,"an empty world cube clears previous private casters");
+  face_clears=0;
+  modern_shadow_begin(0,origin,4,0,0); modern_shadow_end();
+  CHECK(!face_clears,"previously empty depth faces need no attachment clear");
   modern_shadow_dispose();
  }
  return 0;

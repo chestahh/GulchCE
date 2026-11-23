@@ -166,12 +166,9 @@ boolean collision_model_test_point(
 
 static LARGE_INTEGER collision_model_test_vector_time;
 
-/* port: (object_bounds_cache.c) */
-boolean collision_bsp_bounds_cache_sphere(struct collision_bsp const *bsp, real_point3d *center, real *radius);
-
 /* port: whether the segment from point along vector up to maximum_t comes
 within radius of center (FALSE only when it surely does not) */
-static boolean collision_model_port_vector_near_sphere(
+boolean collision_model_port_vector_near_sphere(
 	real_point3d const *point,
 	real_vector3d const *vector,
 	real maximum_t,

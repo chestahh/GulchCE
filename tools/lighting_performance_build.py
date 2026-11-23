@@ -282,6 +282,10 @@ def main():
                 if result != 'void': wrapper += '\treturn result;\n'
                 text = text.replace(body, timed+wrapper+'}\n', 1)
             shadow.write_text(declarations+text)
+            replace(shadow, 'if (render_shadows) sun_prepare();',
+                    'if (render_shadows) { lighting_profile_begin(20); sun_prepare(); lighting_profile_end(20); }')
+            replace(shadow, '\tprepare_spots(mode);',
+                    '\tlighting_profile_begin(21);\n\tprepare_spots(mode);\n\tlighting_profile_end(21);')
             replace(shadow, '\tselect_lights();', '\tlighting_profile_begin(18);\n\tselect_lights();')
             replace(shadow, '\tselect_lights();', '\tselect_lights();\n\tlighting_profile_end(18);')
             shadow_gl = ROOT/'port/linux/src/modern_shadows_gl.c'
@@ -295,7 +299,17 @@ def main():
             shadow_gl.write_text(declarations+'void lighting_gpu_shadow_begin(void);\nvoid lighting_gpu_shadow_end(void);\n'+
                                  text.replace(body, timed+wrapper, 1))
             environment = ROOT/'port/linux/src/modern_environment_gl.inl'
+            replace(environment, '    sun.ready = complete && sun.valid && sun_draw_batch();',
+                    '    lighting_profile_begin(22);\n    sun.ready = complete && sun.valid && sun_draw_batch();\n    lighting_profile_end(22);')
+            replace(environment, '        sun.object_checked = sun.ready = glGetError() == GL_NO_ERROR;',
+                    '    { lighting_profile_begin(23); sun.object_checked = sun.ready = glGetError() == GL_NO_ERROR; lighting_profile_end(23); }')
             text = environment.read_text()
+            for name, phase in [('environment_snapshot', 24), ('environment_draw_receiver', 25)]:
+                original = function(text, name)
+                assert 'glGetError()' in original
+                text = text.replace(original, original.replace('glGetError()', f'lighting_timed_gl_error({phase})'), 1)
+            text = ('static GLenum lighting_timed_gl_error(int phase) { GLenum error; lighting_profile_begin(phase); '
+                    'error = glGetError(); lighting_profile_end(phase); return error; }\n' + text)
             body = function(text, 'modern_environment_model_end')
             timed = body.replace('modern_environment_model_end(', 'lighting_timed_environment_end(', 1)
             wrapper = ('\nvoid modern_environment_model_end(int complete, int mask)\n{\n'
@@ -305,9 +319,17 @@ def main():
             environment.write_text('void lighting_gpu_environment_begin(void);\n'+text.replace(body, timed+wrapper, 1))
             # Phase 16 remains zero after removing synchronous GL state saves,
             # keeping older profile CSVs comparable by column name.
-            replace(shadow_gl, '\tfailed = !create_resources();',
-                    '\tlighting_profile_begin(17);\n\tfailed = !create_resources();\n\tlighting_profile_end(17);')
+            resource_call = '\tfailed = !create_resources() || !prepare_depth_cube(&map->depth_cube[0]);'
+            replace(shadow_gl, resource_call, '\tlighting_profile_begin(17);\n'+resource_call+'\n\tlighting_profile_end(17);')
             occlusion.write_text(declarations+occlusion.read_text())
+            collision = ROOT/'port/linux/game/plasma_collision.c'
+            collision.write_text(declarations + collision.read_text())
+            loop = '\t\tfor (ray = 0; ray < count && !batch.failed; ray++)'
+            replace(collision, loop, '\t\tlighting_profile_begin(26);\n' + loop)
+            call = '\t\t\tdepths[ray] = plasma_collision_depth(flags, point, &vectors[ray], ignore);'
+            replace(collision, call, call + '\n\t\tlighting_profile_end(26);\n\t\tlighting_profile_begin(27);')
+            tail = '\n\t}\n\telse batch.failed = 1;'
+            replace(collision, tail, '\n\t\tlighting_profile_end(27);' + tail)
             replace(occlusion, '\t\ttrace_depths(extent,', '\t\tlighting_profile_begin(0);\n\t\ttrace_depths(extent,')
             replace(occlusion, '\t\tfield->traced = now;', '\t\tlighting_profile_end(0);\n\t\tfield->traced = now;')
             replace(occlusion, '\tmemcpy(previous,', '\tlighting_profile_begin(1);\n\tmemcpy(previous,')
@@ -318,7 +340,7 @@ def main():
             replace(occlusion, scene_call, '\tlighting_profile_begin(10);\n'+scene_call+'\n\tlighting_profile_end(10);')
             model = ROOT/'port/linux/src/plasma_occlusion_gl.c'
             model.write_text(declarations+model.read_text())
-            call = '\t\tresource = plasma_occlusion_model_texture(slot, transform);'
+            call = '\t\tresource = (light_mask & (1u << slot)) ? plasma_occlusion_model_texture(slot, transform) : NULL;'
             replace(model, call, '\t\tlighting_profile_begin(8);\n'+call+'\n\t\tlighting_profile_end(8);')
             call = '\ttexture = xgpu_texture_get(resource, NULL, &target, &description);'
             replace(model, call, '\tlighting_profile_begin(9);\n'+call+'\n\tlighting_profile_end(9);')
@@ -345,15 +367,18 @@ def main():
             render = 'main_game_render((double)main_globals.seconds_elapsed);'
             replace(main, render, 'lighting_profile_begin(7);\n\t\t\t\t\t'+render+'\n\t\t\t\t\tlighting_profile_end(7);')
             replace(backend, '\tif (plasma_mask && entry->plasma_model_slots >= 0)\n\t{', '\tlighting_profile_model = plasma_mask && entry->plasma_model_slots >= 0 ? 1 : 0;\n\tif (plasma_mask && entry->plasma_model_slots >= 0)\n\t{')
-            bind='\t\tplasma_occlusion_bind_model(&entry->plasma_occlusion);'
+            bind='\t\tplasma_occlusion_bind_model(&entry->plasma_occlusion, plasma_mask);'
             replace(backend, bind, '\t\tlighting_profile_begin(3);\n'+bind+'\n\t\tlighting_profile_end(3);')
             gpu=(ROOT/'tools/fixtures/lighting_gpu_profile.inc').read_text()
             manifest['gpu_fixture_sha256']=hashlib.sha256(gpu.encode()).hexdigest()
             replace(backend, 'static GLenum primitive_mode(', gpu+'\nstatic GLenum primitive_mode(')
             text=backend.read_text()
-            text,count=re.subn(r'(\bglDraw(?:ElementsBaseVertex|Elements|Arrays)\([^;]+;)',r'lighting_gpu_begin();\n\t\t\1\n\t\tlighting_gpu_end();',text)
+            # The offscreen loading draws precede the GPU timer definitions
+            # and are outside the steady-state workload being measured.
+            begin=text.index('static GLenum primitive_mode(')
+            gameplay,count=re.subn(r'(\bglDraw(?:ElementsBaseVertex|Elements|Arrays)\([^;]+;)',r'lighting_gpu_begin();\n\t\t\1\n\t\tlighting_gpu_end();',text[begin:])
             assert count==9, count
-            backend.write_text(text)
+            backend.write_text(text[:begin]+gameplay)
             replace(backend, '\tdevice.frame++;', '\tlighting_gpu_frame(device.frame);\n\tdevice.frame++;')
             falloff=ROOT/paths[4]
             falloff.write_text('extern int lighting_profile_world;\n'+falloff.read_text())

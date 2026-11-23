@@ -696,7 +696,7 @@ static const struct config_setting config_settings[] =
 		"Directional sun shadows on eligible nearby map geometry and objects in Modern Hard and Soft." },
 	{ "display.modern_shadows", _config_string, "\"off\"", "HALO_MODERN_SHADOWS", _environment_value, _platform_desktop,
 		"Rendered shadows for up to eight enabled dynamic lights: \"off\",\n"
-		"\"hard\" or \"soft\". Classic shadows remain unchanged. Desktop only." },
+		"\"hard\" or \"soft\". Changes apply on the next map load. Desktop only." },
 	{ "display.plasma_occlusion", _config_boolean, "false", "HALO_PLASMA_OCCLUSION", _environment_value, _platform_desktop,
 		"Collision-filtered projectile, Covenant emitter and Shield Glow visibility.\n"
 		"Off preserves unoccluded plasma lighting. At most eight occluded lights." },

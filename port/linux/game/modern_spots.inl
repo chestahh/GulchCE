@@ -156,7 +156,7 @@ static void prepare_spots(int mode)
             int count=fixture_casters(s,families);
             if (!count) continue;
             spot_frame(s,frame);
-            int begin=modern_spot_begin(i+2,frame,!cached_bsp->breakable_surfaces.count);
+            int begin=modern_spot_begin(i+2,frame,1);
             if (!begin || (begin==1 && !modern_spot_end(world_casters(cached_bsp,&s->origin,s->range)))) continue;
             if (!modern_spot_begin(i,frame,0)) continue;
             int ok=1;

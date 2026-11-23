@@ -19,6 +19,7 @@ parser.add_argument('--capture-dir', type=Path, help='Directory containing halo-
 parser.add_argument('--mcc-package', type=Path, help='Read-only Workshop package for --map mcc-digsite or mcc-c40')
 parser.add_argument('--fps', required=True, type=int, choices=[30, 60, 120, 240])
 parser.add_argument('--enabled', required=True, type=int, choices=[0, 1])
+parser.add_argument('--ghost-reveal', choices=['load', 'control'], help='Turn from cover to the Ghost at tick 120, with or without load preparation')
 parser.add_argument('--shadow-switch', action='store_true', help='Cycle Off/Hard/Soft in the isolated capture config')
 parser.add_argument('--shadow-resource-failure', action='store_true', help='Fail the first shadow resource creation in the capture build; requires --shadow-switch')
 parser.add_argument('--shadow-view-switch', action='store_true', help='Switch first/third/first person during the shadow capture')
@@ -190,6 +191,12 @@ env = {k:v for k,v in os.environ.items() if not k.startswith('HALO_')}
 if args.dump_shaders:
     (out/'shaders').mkdir()
     env['HALO_GPU_DUMP_SHADERS'] = str(out/'shaders')
+if args.ghost_reveal:
+    if args.map != 'sidewinder' or args.shadow_scene != 'ghost' or args.modern_shadows == 'off' or args.shadow_switch:
+        parser.error('--ghost-reveal requires the Sidewinder Ghost scene and a fixed active shadow mode')
+    env['HALO_CAPTURE_GHOST_REVEAL'] = '1'
+    if args.ghost_reveal == 'control':
+        env['HALO_CAPTURE_SKIP_SHADOW_PREP'] = '1'
 if args.shadow_resource_failure:
     env['HALO_SHADOW_CAPTURE_RESOURCE_FAILURE'] = '1'
 if args.shadow_switch:
@@ -368,6 +375,14 @@ report = dict(kind=args.kind, mixed=args.mixed, cap=args.fps, enabled=args.enabl
               max_selected=max([int(x) for x in re.findall(r'selected (\d+)',logs)] or [0]), burst=args.burst, combat=args.combat, door=args.door, toggle=args.toggle, occlusion=args.occlusion, probe=args.probe, occlusion_updates=len(re.findall('PLASMA occlusion extent',logs)), map=args.map, model=args.model, per_pixel=args.per_pixel, specular_only=args.specular_only)
 report['authored_light_flags'] = sorted({int(x, 16) for x in re.findall(r'PLASMA enabled [01] light flags ([0-9a-f]+)', logs)})
 report['glow_template_flags'] = sorted({int(x, 16) for x in re.findall(r'PLASMA glow template [^\r\n]+ flags ([0-9a-f]+)', logs)})
+if args.ghost_reveal:
+    frames = [(int(ms), int(tick)) for ms, tick in re.findall(r'PLASMA frame (\d+) tick (\d+)', logs)]
+    crossing = [b[0] - a[0] for a, b in zip(frames, frames[1:]) if a[1] < 120 <= b[1]]
+    assert len(crossing) == 1, 'Ghost reveal transition was not observed exactly once'
+    report['material_prepare_ms'] = [int(ms) for ms in re.findall(r'SHADOW LOAD materials (\d+) ms', logs)]
+    report['ghost_reveal'] = args.ghost_reveal
+    report['reveal_ms'] = crossing[0]
+    report['worst_reveal_ms'] = max(b[0] - a[0] for a, b in zip(frames, frames[1:]) if 120 <= b[1] <= 123)
 report['no_images'] = args.no_images
 report['shadow_resource_failure'] = args.shadow_resource_failure
 active_frames = [(int(t), int(n)) for t, n in re.findall(r'PLASMA frame (\d+)[^\r\n]+ selected (\d+)', logs)]
@@ -451,7 +466,7 @@ if args.crouch and not args.shield and report['holder_crouch_samples'] != [1.0, 
     raise SystemExit('Holder did not crouch and return to standing')
 if not args.turret_timing and bool(report['selected_frames']) != bool(args.enabled or (args.muzzle and args.both_lighting)):
     raise SystemExit('Lighting selection did not match the requested mode')
-if not args.turret_timing and (report['average_fps'] is None or report['average_fps'] < args.fps * .95):
+if not args.ghost_reveal and not args.turret_timing and (report['average_fps'] is None or report['average_fps'] < args.fps * .95):
     raise SystemExit('Capture did not sustain the requested FPS within 5 percent')
 
 if args.enabled and args.model and not report['model_draws']:

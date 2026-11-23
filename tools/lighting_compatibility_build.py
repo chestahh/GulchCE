@@ -61,8 +61,8 @@ def main():
         text = shadow_original.decode().replace('\r\n','\n')
         prepare = function(text, 'modern_shadows_prepare')
         measured = prepare.replace('void modern_shadows_prepare(', 'static void modern_shadow_probe_prepare(', 1)
-        wrapper = '\nvoid modern_shadows_prepare(int primary)\n{\n\tmodern_shadow_probe_prepare(primary);\n\tif (primary) modern_shadow_compatibility_sample(active);\n}\n'
-        shadow.write_text('void modern_shadow_compatibility_sample(int maps);\n'+text.replace(prepare, measured+wrapper, 1))
+        wrapper = '\nvoid modern_shadows_prepare(int primary)\n{\n\tmodern_shadow_probe_prepare(primary);\n\tif (primary) modern_shadow_compatibility_sample(setting(), active, prepared_sky != NONE, modern_spot_mask());\n}\n'
+        shadow.write_text('void modern_shadow_compatibility_sample(int mode, int maps, int sun, int spots);\n'+text.replace(prepare, measured+wrapper, 1))
         text = original.decode().replace('\r\n','\n')
         anchor = '\tshield_glow_frame_end();'
         assert text.count(anchor)==1

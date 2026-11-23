@@ -58,8 +58,9 @@ static void glUniform4fv(GLint location, int count, const float *values)
 { transform_location[location%10-1]=location;memcpy(gpu_transform[location/10][location%10-1],values,4*sizeof(float));uniform_writes++; }
 static void glUniform2f(GLint location,float a,float b)
 { enabled_location=location; enabled_value[0]=a; enabled_value[1]=b;gpu_enabled[location/10][0]=a;gpu_enabled[location/10][1]=b;uniform_writes++; }
+static int requests[2];
 static void *plasma_occlusion_model_texture(int slot,float transform[4])
-{ int i; for(i=0;i<4;i++) transform[i]=(float)i; return selected&(1<<slot) ? &resources[slot] : NULL; }
+{ int i; requests[slot]++; for(i=0;i<4;i++) transform[i]=(float)i; return selected&(1<<slot) ? &resources[slot] : NULL; }
 static GLuint xgpu_texture_get(const DWORD *resource,void *unused,GLenum *target,struct xgpu_texture_description *description)
 { GLuint texture=11+(resource==&resources[1]);fetches++;glBindTexture(GL_TEXTURE_3D,texture);return texture; }
 #include "under_test.inc"
@@ -70,10 +71,10 @@ int main(int argc,char **argv)
  plasma_occlusion_model_initialize(1,&a);
  plasma_occlusion_model_initialize(2,&b);
  CHECK(lookups==10 && sampler_uniforms==4,"uniform lookup and sampler assignments occur at link time");
- plasma_occlusion_bind_model(&a);
+ plasma_occlusion_bind_model(&a,3);
  CHECK(fallback_parameters==10 && !sampler_parameters,"failed sampler allocation uses previous texture parameters");
  fail_sampler=0;
- for(n=0;n<100;n++) plasma_occlusion_bind_model(n&1 ? &a : &b);
+ for(n=0;n<100;n++) plasma_occlusion_bind_model(n&1 ? &a : &b,3);
  CHECK(lookups==10 && sampler_uniforms==4,"draws do not repeat program lookup or sampler assignment");
  CHECK(samplers==2 && sampler_parameters==5 && fallback_parameters==10,"immutable sampling state is created once after recovery");
 #ifdef HALO_GLES
@@ -90,16 +91,18 @@ int main(int argc,char **argv)
  CHECK(!state_queries && texture_binds==5,"desktop uploads and material draws never query active-unit state");
 #endif
  CHECK(bound_textures[0]==11 && bound_textures[1]==12,"uploads cannot leave the wrong resource bound");
- view_serial++;plasma_occlusion_bind_model(&a);
+ view_serial++;plasma_occlusion_bind_model(&a,3);
  CHECK(fetches==4 && uniform_writes==6,"new views revalidate backing textures without redundant uniforms");
- plasma_occlusion_model_initialize(1,&a);plasma_occlusion_bind_model(&a);
+ plasma_occlusion_model_initialize(1,&a);plasma_occlusion_bind_model(&a,3);
  CHECK(uniform_writes==9,"relinked program resets cached uniform values");
- selected=0; plasma_occlusion_bind_model(&b);
+ selected=0; plasma_occlusion_bind_model(&b,3);
  CHECK(enabled_location==20 && !enabled_value[0] && !enabled_value[1],"disabled slots clear both uniforms");
- selected=2; plasma_occlusion_bind_model(&a);
+ selected=2; plasma_occlusion_bind_model(&a,3);
  CHECK(!enabled_value[0] && enabled_value[1],"activation change keeps independent slots");
  CHECK(bound_textures[0]==88 && bound_textures[1]==12,"slot changes replace the correct bound texture");
- a.enabled=-1; n=sampler_parameters; previous_active=active; plasma_occlusion_bind_model(&a);
+ n=requests[0]; plasma_occlusion_bind_model(&a,2);
+ CHECK(requests[0]==n,"an unselected companion slot never requests a collision field");
+ a.enabled=-1; n=sampler_parameters; previous_active=active; plasma_occlusion_bind_model(&a,3);
  CHECK(sampler_parameters==n && active==previous_active,"unrelated shader requires no binding work");
  return 0;
 }

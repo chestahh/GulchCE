@@ -35,13 +35,21 @@ void plasma_collision_model_depths(struct collision_model_instance const *instan
 		short permutation;
 		struct collision_bsp const *bsp;
 		real_matrix4x3 inverse;
-		real_point3d origin;
+		real_point3d origin, center, world_center;
+		real radius;
+		boolean bounded;
 		if (node->region_index == NONE) continue;
 		permutation = instance->region_permutation_indices[node->region_index];
 		if (permutation == NONE || node->bsps.count <= 0) continue;
 		permutation = PIN(permutation, 0, node->bsps.count - 1);
 		bsp = TAG_BLOCK_GET_ELEMENT(&node->bsps, permutation, struct collision_bsp);
 		if (bsp->bsp3d.nodes.count <= 0) continue;
+		bounded = instance->matrices[node_index].scale > 0.f && collision_bsp_bounds_cache_sphere(bsp, &center, &radius);
+		if (bounded)
+		{
+			matrix4x3_transform_point(&instance->matrices[node_index], &center, &world_center);
+			radius *= instance->matrices[node_index].scale;
+		}
 		matrix4x3_inverse(&instance->matrices[node_index], &inverse);
 		matrix4x3_transform_point(&inverse, point, &origin);
 		memset(&cache, 0, sizeof(cache));
@@ -50,6 +58,12 @@ void plasma_collision_model_depths(struct collision_model_instance const *instan
 			{
 				real_vector3d vector;
 				struct collision_bsp_test_vector_result result;
+				if (bounded && !collision_model_port_vector_near_sphere(point, &vectors[ray],
+					PIN(closest[ray], 0.f, 1.f), &world_center, radius))
+				{
+					if (closest[ray] < 0.f) closest[ray] = 0.f;
+					continue;
+				}
 				matrix4x3_transform_vector(&inverse, &vectors[ray], &vector);
 				/* Same node order and nearest-node limit as the original model
 				   query. Cache only the fixed BSP/origin inside this node. */

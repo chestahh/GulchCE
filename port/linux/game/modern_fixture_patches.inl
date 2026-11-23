@@ -99,18 +99,22 @@ static void material_patches(const struct structure_material *m)
     }
 }
 
+static void prepare_fixture_patches(void)
+{
+    int lm, m;
+    if (patches_ready) return;
+    patch_count=0;
+    for (lm=0;lm<cached_bsp->lightmaps.count;lm++)
+    {
+        const struct structure_lightmap *l=TAG_BLOCK_GET_ELEMENT(&cached_bsp->lightmaps,lm,struct structure_lightmap);
+        for (m=0;m<l->materials.count;m++)
+            material_patches(TAG_BLOCK_GET_ELEMENT(&l->materials,m,struct structure_material));
+    }
+    patches_ready=1;
+}
+
 static void admit_patches(struct spot_source chosen[2])
 {
-    if (!patches_ready)
-    {
-        patch_count=0;
-        for (int lm=0;lm<cached_bsp->lightmaps.count;lm++)
-        {
-            const struct structure_lightmap *l=TAG_BLOCK_GET_ELEMENT(&cached_bsp->lightmaps,lm,struct structure_lightmap);
-            for (int m=0;m<l->materials.count;m++)
-                material_patches(TAG_BLOCK_GET_ELEMENT(&l->materials,m,struct structure_material));
-        }
-        patches_ready=1;
-    }
+    prepare_fixture_patches();
     for (int i=0;i<patch_count;i++) admit_fixture(chosen,patches[i]);
 }

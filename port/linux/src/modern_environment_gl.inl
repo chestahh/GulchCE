@@ -1,13 +1,20 @@
 /* Environmental object shadows. Included beside the immutable Modern mesh
    cache so conversion/poses/materials have one owner. One 2D map is reused
    sequentially; no local-light cube or selection slot is borrowed. */
+struct environment_receiver_uniforms
+{
+    GLint frame, camera, projection, radius, reversed_depth, viewport, soft, color;
+    GLint clip_offset, sun_frame, sun_color_radius, sun_soft;
+};
+
 static struct
 {
     GLuint depth, depth_fbo, scene_depth, scene_fbo, caster, receiver;
     int size, scene_size[2], copied, count, failed_size, soft, marking;
     GLenum scene_format;
     GLint caster_frame, caster_radius, caster_alpha_map, caster_bones, caster_uv, caster_alpha;
-    GLuint destination;
+    struct environment_receiver_uniforms uniforms;
+    GLuint destination, verified_copy_source;
     int viewport[4];
     float frame[16], radius, pixel_center[2];
 } environment;
@@ -22,12 +29,13 @@ static struct
    maps alive across model draws that reuse the environmental scratch depth. */
 static struct
 {
-    GLuint static_depth, object_depth, object_fbo, receiver, static_caster;
+    GLuint static_depth, object_depth, object_fbo, receiver, static_caster, checked_receiver_target;
     const unsigned char *surface_sky[SHADOW_DRAWS];
+    struct environment_receiver_uniforms uniforms;
     float tint[3];
     int ready, model, soft, partial;
     int writing, sky;
-    int size, valid, projecting;
+    int size, valid, projecting, object_checked;
     float frame[16], radius;
 } sun;
 
@@ -136,6 +144,37 @@ static int environment_resize_texture(GLuint *current, GLuint *target, int size,
 
 #include "modern_sun_shader.inl"
 
+/* Uniform locations belong to the linked program. Set constant samplers and
+   the fixed unit-tile bounds once for its lifetime. */
+static void environment_receiver_locations(GLuint program, struct environment_receiver_uniforms *u, int sunlight)
+{
+    glUseProgram(program);
+    u->frame = glGetUniformLocation(program, "frame");
+    u->camera = glGetUniformLocation(program, "camera");
+    u->projection = glGetUniformLocation(program, "projection");
+    u->radius = glGetUniformLocation(program, "radius");
+    u->reversed_depth = glGetUniformLocation(program, "reversed_depth");
+    u->viewport = glGetUniformLocation(program, "viewport");
+    glUniform1i(glGetUniformLocation(program, "scene_depth"), 10);
+    if (sunlight)
+    {
+        glUniform1i(glGetUniformLocation(program, "sun_objects"), 8);
+        glUniform1i(glGetUniformLocation(program, "sun_bsp"), 9);
+        glUniform4fv(glGetUniformLocation(program, "reach_min"), 1, (const float[4]){-1,-1,-1,0});
+        glUniform4fv(glGetUniformLocation(program, "reach_max"), 1, (const float[4]){1,1,1,0});
+        u->clip_offset = glGetUniformLocation(program, "clip_offset");
+        u->sun_frame = glGetUniformLocation(program, "sun_frame");
+        u->sun_color_radius = glGetUniformLocation(program, "sun_color_radius");
+        u->sun_soft = glGetUniformLocation(program, "sun_soft");
+    }
+    else
+    {
+        glUniform1i(glGetUniformLocation(program, "shadow_depth"), 8);
+        u->soft = glGetUniformLocation(program, "soft");
+        u->color = glGetUniformLocation(program, "color");
+    }
+}
+
 static int environment_resources_for(int projector)
 {
     static const char caster_vertex[] =
@@ -227,7 +266,11 @@ static int environment_resources_for(int projector)
     /* A fixture or flashlight writes its own depth array. It needs the caster
        program, but never the legacy environmental depth attachment. */
     if (projector) return environment.caster != 0;
-    if (!environment.receiver) environment.receiver = environment_program(receiver_vertex, receiver_fragment);
+    if (!environment.receiver)
+    {
+        environment.receiver = environment_program(receiver_vertex, receiver_fragment);
+        if (environment.receiver) environment_receiver_locations(environment.receiver, &environment.uniforms, 0);
+    }
     if (sun.projecting && !sun.static_caster)
     {
         /* The sign records sky ownership. Both signs block model receivers. */
@@ -252,6 +295,7 @@ static int environment_resources_for(int projector)
         strcat(source, receiver_fragment + sizeof(version) - 1);
         sun.receiver = environment_program(sun_vertex, source);
         if (!sun.receiver) return 0;
+        environment_receiver_locations(sun.receiver, &sun.uniforms, 1);
     }
     if (!environment.caster || !environment.receiver) return 0;
     if (!environment.depth || environment.size != size)
@@ -277,6 +321,8 @@ static int environment_snapshot(void)
     {
         if (environment.scene_depth) glDeleteTextures(1, &environment.scene_depth);
         environment.scene_depth = 0;
+        sun.checked_receiver_target = 0;
+        environment.verified_copy_source = 0;
         environment.copied = 0;
         memcpy(environment.scene_size, size, sizeof(size));
         environment.scene_format = format;
@@ -286,6 +332,7 @@ static int environment_snapshot(void)
     if (!environment.scene_depth)
     {
         glGenTextures(1, &environment.scene_depth);
+        if (!environment.scene_depth) return 0;
         glActiveTexture(GL_TEXTURE10);
         glBindTexture(GL_TEXTURE_2D, environment.scene_depth);
         glTexImage2D(GL_TEXTURE_2D, 0, format, size[0], size[1], 0, GL_DEPTH_STENCIL,
@@ -298,10 +345,23 @@ static int environment_snapshot(void)
        always samples its private image, including on the multisample path. */
     if (sun.projecting && source && glCopyImageSubData)
     {
+        if (environment.verified_copy_source != source) sun.checked_receiver_target = 0;
         glCopyImageSubData(source,GL_TEXTURE_2D,0,0,0,0,environment.scene_depth,
             GL_TEXTURE_2D,0,0,0,0,size[0],size[1],1);
-        if (glGetError()==GL_NO_ERROR) { environment.copied=1; return 1; }
+        /* Source/target format, dimensions and sample count are fixed for
+           this image pair. Validate a new pair before trusting it. A rejected
+           copy still takes the depth-blit path on the same frame. */
+        if (environment.verified_copy_source == source || glGetError() == GL_NO_ERROR)
+        {
+            environment.verified_copy_source = source;
+            environment.copied = 1;
+            return 1;
+        }
+        environment.verified_copy_source = 0;
     }
+    sun.checked_receiver_target = 0;
+    environment.verified_copy_source = 0;
+    if (!environment.scene_fbo) return 0;
     glBindFramebuffer(GL_FRAMEBUFFER, environment.scene_fbo);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, environment.scene_depth, 0);
     { GLenum none = GL_NONE; glDrawBuffers(1, &none); }
@@ -436,8 +496,25 @@ static int environment_draw_depth(GLuint target)
     return success;
 }
 
+/* The sun projects the same 36 vertices with the same program and images
+   until a target changes. Validate a new combination, then let the driver
+   queue its draws. The per-object and resolved-depth paths still check each
+   draw so a failed replacement can return to the stock object shadow. */
+static int environment_draw_receiver(void)
+{
+    GLuint target = sun.projecting && environment.verified_copy_source ? environment.destination : 0;
+    int validated = target && target == sun.checked_receiver_target;
+    if (!validated && glGetError() != GL_NO_ERROR) return 0;
+    glDrawArrays(GL_TRIANGLES, 0, sun.projecting ? 36 : 3);
+    if (validated) return 1;
+    if (glGetError() != GL_NO_ERROR) return 0;
+    if (target) sun.checked_receiver_target = target;
+    return 1;
+}
+
 int modern_environment_end(int complete, const float camera[16], const float projection[16], const float color[3])
 {
+    const struct environment_receiver_uniforms *u = sun.projecting ? &sun.uniforms : &environment.uniforms;
     GLuint p;
     float viewport[4], rgba[4] = {color[0],color[1],color[2],1};
     int scissor[4];
@@ -464,7 +541,6 @@ int modern_environment_end(int complete, const float camera[16], const float pro
         glUseProgram(p);
         glBindTextures(8,1,sun.projecting ? &sun.object_depth : &environment.depth); glBindSampler(8,0);
         glBindTextures(10,1,&environment.scene_depth); glBindSampler(10,0);
-        glUniform1i(glGetUniformLocation(p,"shadow_depth"),8); glUniform1i(glGetUniformLocation(p,"scene_depth"),10);
         if (sun.projecting)
         {
             /* Model and BSP draws run between depth generation and projection. */
@@ -476,33 +552,27 @@ int modern_environment_end(int complete, const float camera[16], const float pro
             glEnable(GL_DEPTH_TEST);
             glEnable(GL_DEPTH_CLAMP);
             glDepthFunc(xgpu_reversed_depth ? GL_LEQUAL : GL_GEQUAL);
-            glUniform4fv(glGetUniformLocation(p,"reach_min"),1,(const float[4]){-1,-1,-1,0});
-            glUniform4fv(glGetUniformLocation(p,"reach_max"),1,(const float[4]){1,1,1,0});
-            glUniform2f(glGetUniformLocation(p,"clip_offset"),2.f*environment.pixel_center[0]/environment.viewport[2],
+            glUniform2f(u->clip_offset,2.f*environment.pixel_center[0]/environment.viewport[2],
                 -2.f*environment.pixel_center[1]/environment.viewport[3]);
             glBindTextures(9,1,&sun.static_depth); glBindSampler(9,0);
-            glUniform1i(glGetUniformLocation(p,"sun_bsp"),9);
-            glUniform1i(glGetUniformLocation(p,"sun_objects"),8);
-            glUniformMatrix4fv(glGetUniformLocation(p,"sun_frame"),1,GL_FALSE,sun.frame);
-            glUniform4fv(glGetUniformLocation(p,"sun_color_radius"),1,(const float[4]){color[0],color[1],color[2],sun.radius});
-            glUniform1i(glGetUniformLocation(p,"sun_soft"),sun.soft);
+            glUniformMatrix4fv(u->sun_frame,1,GL_FALSE,sun.frame);
+            glUniform4fv(u->sun_color_radius,1,(const float[4]){color[0],color[1],color[2],sun.radius});
+            glUniform1i(u->sun_soft,sun.soft);
         }
-        glUniform1i(glGetUniformLocation(p,"soft"),environment.soft);
-        glUniform1i(glGetUniformLocation(p,"reversed_depth"),xgpu_reversed_depth);
+        else
+        {
+            glUniform1i(u->soft,environment.soft);
+            glUniform4fv(u->color,1,rgba);
+        }
+        glUniform1i(u->reversed_depth,xgpu_reversed_depth);
         for (draw=0;draw<4;draw++) viewport[draw]=(float)environment.viewport[draw];
         viewport[0] += environment.pixel_center[0]; viewport[1] += environment.pixel_center[1];
-        glUniform4fv(glGetUniformLocation(p,"viewport"),1,viewport);
-        glUniformMatrix4fv(glGetUniformLocation(p,"frame"),1,GL_FALSE,environment.frame);
-        glUniformMatrix4fv(glGetUniformLocation(p,"camera"),1,GL_FALSE,camera);
-        glUniformMatrix4fv(glGetUniformLocation(p,"projection"),1,GL_FALSE,projection);
-        glUniform1f(glGetUniformLocation(p,"radius"),environment.radius);
-        glUniform4fv(glGetUniformLocation(p,"color"),1,rgba);
-        success = glGetError() == GL_NO_ERROR;
-        if (success)
-        {
-            glDrawArrays(GL_TRIANGLES,0,sun.projecting ? 36 : 3);
-            success = glGetError() == GL_NO_ERROR;
-        }
+        glUniform4fv(u->viewport,1,viewport);
+        glUniformMatrix4fv(u->frame,1,GL_FALSE,environment.frame);
+        glUniformMatrix4fv(u->camera,1,GL_FALSE,camera);
+        glUniformMatrix4fv(u->projection,1,GL_FALSE,projection);
+        glUniform1f(u->radius,environment.radius);
+        success = environment_draw_receiver();
     }
     if (sun.projecting) glDisable(GL_DEPTH_CLAMP);
     glClipControl(GL_UPPER_LEFT,GL_ZERO_TO_ONE);
@@ -511,19 +581,26 @@ int modern_environment_end(int complete, const float camera[16], const float pro
     return success;
 }
 
+static int sun_depth_resources(void)
+{
+    if (sun.size != environment.size || !sun.static_depth || !sun.object_depth)
+    {
+        if (!environment_resize_texture(&sun.static_depth, &environment.depth_fbo, environment.size, 1)) return 0;
+        sun.valid = sun.object_checked = 0;
+        sun.checked_receiver_target = 0;
+        if (!environment_resize_texture(&sun.object_depth,&sun.object_fbo,environment.size,0)) return 0;
+        sun.size = environment.size;
+    }
+    return 1;
+}
+
 /* Returns 2 on a static cache hit, 1 when the caller must submit BSP depth. */
 int modern_environment_sun_begin(const float frame[16], float radius, int cache_static, int sky, int soft)
 {
     if (drawing || !xgpu_gl_ready()) return 0;
     sun.projecting = 1;
     if (!environment_resources()) goto fail;
-    if (sun.size != environment.size || !sun.static_depth)
-    {
-        if (!environment_resize_texture(&sun.static_depth, &environment.depth_fbo, environment.size, 1)) goto fail;
-        sun.valid = 0;
-        if (!environment_resize_texture(&sun.object_depth,&sun.object_fbo,environment.size,0)) goto fail;
-        sun.size = environment.size;
-    }
+    if (!sun_depth_resources()) goto fail;
     memcpy(environment.frame,frame,sizeof(environment.frame));
     environment.radius = radius;
     environment.soft = soft;
@@ -580,7 +657,12 @@ int modern_environment_sun_static(int complete)
 
 int modern_environment_sun_finish(int complete, const float color[3])
 {
-    sun.ready = complete && sun.valid && sun_draw_batch() && glGetError()==GL_NO_ERROR;
+    sun.ready = complete && sun.valid && sun_draw_batch();
+    /* Validate the first posed draw on each new target. Later draws use the
+       same checked framebuffer and program. Polling the GL worker for an
+       error every frame serializes unrelated lighting work ahead of this pass. */
+    if (sun.ready && !sun.object_checked)
+        sun.object_checked = sun.ready = glGetError() == GL_NO_ERROR;
     memcpy(sun.tint,color,sizeof(sun.tint));
     sun.partial = sun.projecting = drawing = environment_drawing = draw_count = 0;
     glClipControl(GL_UPPER_LEFT,GL_ZERO_TO_ONE);
@@ -611,14 +693,9 @@ void modern_environment_model_clear(void) { environment_model.enabled = sun.mode
 int modern_environment_model_active(void) { return environment_model.enabled || sun.model; }
 int modern_environment_model_reuse(void) { environment_model.enabled = environment_model.valid; return environment_model.enabled != 0; }
 
-int modern_environment_model_begin(const float frames[32], float radius, int soft)
+static int environment_model_resources(void)
 {
     int i;
-    environment_model.enabled = environment_model.valid = 0;
-    if (drawing || !xgpu_gl_ready() || environment_model.count >= 32) return 0;
-    environment_model.count++;
-    if ((!environment.caster || !program || environment.size != 128 * (int)halo_shadow_resolution_scale()) &&
-        !environment_resources()) { xgpu_gl_end_external_pass(); return 0; }
     if (environment_model.size != environment.size)
     {
         glDeleteTextures(2, environment_model.depth);
@@ -655,6 +732,17 @@ int modern_environment_model_begin(const float frames[32], float radius, int sof
             return 0;
         }
     }
+    return 1;
+}
+
+int modern_environment_model_begin(const float frames[32], float radius, int soft)
+{
+    environment_model.enabled = environment_model.valid = 0;
+    if (drawing || !xgpu_gl_ready() || environment_model.count >= 32) return 0;
+    environment_model.count++;
+    if ((!environment.caster || !program || environment.size != 128 * (int)halo_shadow_resolution_scale()) &&
+        !environment_resources()) { xgpu_gl_end_external_pass(); return 0; }
+    if (!environment_model_resources()) return 0;
     memcpy(environment_model.frames, frames, sizeof(environment_model.frames));
     environment_model.radius = radius;
     environment_model.soft = soft;

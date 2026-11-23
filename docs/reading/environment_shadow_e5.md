@@ -1,0 +1,173 @@
+# E5 map-load preparation and combat performance
+
+Modern Hard and Soft apply when a gameplay map loads. The menu may save a new
+mode during play. The current level and checkpoint reverts keep the mode that
+loaded with the map. Classic remains the default. This change governs Shadow
+Mode in each menu style. The existing host lighting policy still applies.
+
+## From a saved setting to a gameplay frame
+
+1. [game_load](../../source/game/game.c) latches the preference after a
+   successful scenario load. `game_initialize_for_new_map` already runs
+   material selection after object placement. These shared boundaries cover
+   Xbox, CE and converted MCC maps. MCC discovery and conversion retain their
+   separate lifecycle.
+2. [material_prepare_map](../../port/linux/game/material_prepare.c) asks
+   [modern_shadows_prepare_loaded_map](../../port/linux/game/modern_shadows.c)
+   to consume the pending preparation once. A cached load can bypass the copy
+   screen, so this path can present the stock loading frame using
+   [progress_bar_present_standalone](../../source/interface/progress_bar.c).
+   Reverts and BSP transitions do not re-arm the pending flag.
+3. [modern_shadow_preload](../../port/linux/src/modern_shadows_gl.c) prepares
+   the selected desktop resources. At 1024, eight six-face 32-bit primary
+   local depth maps occupy up to 192 MiB. Private viewmodel cubes and large
+   tiers retain on-demand allocation. Through 1024, both environmental model
+   depth targets are also allocated during loading. Initial BSP sun ownership and emissive fixture patches are
+   prepared when their respective settings are enabled. Sun and spot resources use
+   their own paths. Allocation failure retains the established fallback.
+4. [prepare_shadow_models](../../port/linux/src/d3d8_gl.c) draws a triangle
+   to a private 1×1 target for each distinct discovered shadow model program.
+   This lets the driver perform first-draw work while the loading frame is on
+   screen. Vertex formats, material limits and unusual later combinations can
+   still leave some work for gameplay. The general shader and texture
+   preparation settings remain independent.
+5. Map unload clears the preference, GPU resources and borrowed references.
+   Changing BSP clears geometry and cached depths while retaining reusable
+   shadow allocations. Desktop hosts enforce their lighting policy on use.
+   GLES builds retain their existing exclusions.
+
+## Recurring costs
+
+[Local depth rendering](../../port/linux/src/modern_shadows_gl.c) remembers
+which cube faces already contain clear depth. It clears dirty faces before
+reuse and copies only the contiguous range required by the world and private
+viewmodel layers. [Static sunlight](../../port/linux/game/modern_sun.inl) and
+[fixture depth](../../port/linux/game/modern_spots.inl) survive frames with
+intact breakable geometry. Changing any breakable bit invalidates all three
+static images, including fixtures outside the current view.
+
+For the [sun receiver](../../port/linux/src/modern_environment_gl.inl), the first
+posed draw validates the current depth target. Reusing it keeps later uploads
+and draws queued on the driver. The first direct scene-depth copy for each
+single-sample image pair is checked as well. A rejected copy falls back to
+the depth blit on the same frame. Replacing the destination or changing the
+source requires validation again. Multisample depth still uses the resolve.
+
+[Model lighting](../../port/linux/src/plasma_occlusion_gl.c) requests a
+collision field only for a slot the material actually samples. The
+[collision batch](../../port/linux/game/plasma_collision.c) observes the
+engine's cluster eligibility and root bounds. The [model node
+test](../../port/linux/game/plasma_collision_models.c) uses the stock bounded
+segment and closest-node limit. Rays whose entire octant stays in a single
+BSP leaf share the validated leaf result while testing each ray against the
+objects in that leaf. These are render queries only.
+
+## Acceptance method
+
+The earlier recorded route and checkpoint were unavailable. The replacement
+uses a core save in the first snowy exterior of Xbox Two Betrayals, with a
+fixed exterior camera and a deathless player. The setup placed the map’s
+`e3_a` and `c3_base_tier_2` AI squads before saving the encounter. Each run
+restored that same state, with active enemy fire and 19 living Covenant in
+the measured group. The enemies continue to simulate. This
+provides a repeatable camera and starting state while combat timing can vary.
+The older 271.1/277.5 FPS results used another route and cannot establish a
+gain or loss here.
+
+Use 2560×1440, AA and VSync off, release PGO and LTO, uncapped presentation,
+25 seconds of warmup and 120 measured seconds. Enable all lighting categories,
+sun, fixtures and the flashlight, use Shared, and fix the shadow resolution at
+1024. The beam occupies one local slot while active. The separate indoor
+control uses the two Rat Race fixtures. GPU and collision instrumentation
+run separately from throughput measurements.
+
+
+### Snowy exterior results
+
+Release Windows on an i7-14700K and RTX 5070 Ti. Each row covers 120 measured
+seconds using the camera and settings above. The Soft reference is the repeat
+run. The first Soft reference averaged 178.3 FPS.
+
+| Rendering in the snowy fight | Average FPS | 99th percentile (ms) | Worst frame (ms) | Frames above 16.7 / 33 / 50 / 100 ms |
+| --- | ---: | ---: | ---: | --- |
+| Stock, reference | 418.4 | 3.87 | 164.62 | 8 / 7 / 5 / 3 |
+| Stock, E5 | 423.5 | 3.24 | 9.00 | 0 / 0 / 0 / 0 |
+| Dynamic lighting only, reference | 240.9 | 7.90 | 25.80 | 9 / 0 / 0 / 0 |
+| Dynamic lighting only, E5 | 278.8 | 5.36 | 7.68 | 0 / 0 / 0 / 0 |
+| Hard 1024, reference | 199.2 | 6.78 | 11.54 | 0 / 0 / 0 / 0 |
+| Hard 1024, E5 | 241.9 | 6.00 | 8.03 | 0 / 0 / 0 / 0 |
+| Soft 1024, reference | 200.7 | 6.52 | 13.03 | 0 / 0 / 0 / 0 |
+| Soft 1024, E5 | 240.9 | 6.03 | 8.65 | 0 / 0 / 0 / 0 |
+
+Both final combat runs reached all eight local slots, with sunlight active
+throughout. The earlier lighting-only control used the same settings and
+camera with Classic shadows. Hard still needs about 1.36 ms per frame to reach 360 FPS here.
+The 15-bot Rat Race control with two independently shadowed lamps averaged
+381.8 FPS over two minutes on an earlier E5 build. A separate 30-second
+profile recorded both lamps on every frame and 405.8 FPS. The indoor scene
+measures a different workload. Results and frame series are retained locally under
+`build/lighting-performance/`.
+
+One isolated comparison moved the recurring sun driver check to first use of
+each target and raised Hard from 205.5 to 218.7 FPS. Checking a newly used
+scene-depth image pair once raised Hard to 222.1 FPS. Profiling then located
+another 0.46 ms per frame waiting for the sunlight projection. The same
+single-sample sun receiver now validates its fixed draw on a new target and
+queues subsequent draws, giving the final figures above. Per-object draws and
+multisample resolves still check for fallback. In the preceding CPU capture,
+world and cluster rays used 0.64 ms per frame, posed-model rays 0.03 ms and
+visibility reconstruction 0.28 ms. The phase timings are inclusive and may
+include queued driver work. The
+collision reference compared 38,976,000 render rays against the stock
+queries with zero mismatches in its combat run. A separate same-pose
+experiment partitioned ray batches by their dominant axis as well as their
+octant. Across 45,766,656 rays, it matched the stock hits but needed
+8.65 seconds of tracing versus 8.08 seconds with the existing octants. The
+narrower partition was discarded. Suppressing object tests in that
+diagnostic changed 428,454 results.
+
+Environmental model depth occupied about 0.47 ms per frame on the GPU in a
+separate profile. In the last 5,000 nonempty windows of a combat capture,
+all 84,167 model-shadow submissions included an alpha-tested draw. A cache
+restricted to fully opaque submissions would save no draws in that sample.
+Reusing depth across frames for these models would also need to establish
+that the cutout texture, its coordinates and the posed geometry still match.
+
+At 960×540 with Hard shadows still fixed at 1024, a 30-second diagnostic
+averaged 286.0 FPS. The same 30-second window of the native-resolution Hard
+run averaged 263.6. Pixel workload accounts for part of the gap. Substantial
+work remains at the lower display resolution too. Fixed-quality 360 FPS in
+the snowy fight remains the open E5 performance gate.
+
+
+### Loading, compatibility and driver checks
+
+Four menu styles passed Save, Cancel, Defaults and restart checks. The live
+map-transition probe kept Soft selected through Xbox Two Betrayals, MCC
+Digsite, CE Death Island and Xbox Blood Gulch. It recorded three map tick
+resets, 51 samples with active local maps, 84 with sunlight, 26 with a spot
+source, and eight captures. Separate Hard and Classic transitions exercised
+the same map families. This covers the tested transitions and exposed
+materials. In a two-peer CE test the host selected Classic, the client selected
+Hard, and the host required stock shield effects. Both peers respected that
+shield setting. With scripted weapon fire, the client reported local shadow
+maps in 49 samples and the host in zero. Without scripted fire an earlier
+run saw no local maps on either peer and could not establish the client's
+positive case. AMD hardware and a native Linux playthrough remain unverified.
+
+In paired, warm Sidewinder hidden-Ghost runs, map preparation took 84 ms in
+Hard and 82 ms in Soft. The worst reveal frame went from 38 to 36 ms in Hard
+and from 38 to 35 ms in Soft. A separate first visit with no map history
+measured 3.15 seconds of preparation and a 34 ms reveal. An unprepared
+first visit saw a 483 ms reveal. The driver cache was not independently
+cleared between trials, so that pair does not establish a cold-driver
+speedup. A later warm repeat measured 77/80 ms of preparation and 36/34 ms
+worst reveal in Hard/Soft. Five paired Ghost captures per mode differed by
+at most 0.46 of 255 in mean absolute error per RGB channel. Some first-use
+work and reveal hitches remain.
+
+The final sun receiver was also compared against its preceding implementation
+in a frozen exterior pose on NVIDIA. At tick 270 both runs reported 24 sun
+casters and four local shadows. Across 24 paired 1280×720 images the largest
+per-channel mean absolute difference was 0.262 on a 0–255 scale. The snow
+and shield animations continue to draw while simulation is frozen.

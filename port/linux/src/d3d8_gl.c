@@ -23,6 +23,7 @@ Conventions carried over from the Xbox:
 
 #include "xgpu.h"
 #include "shader_prepare.h"
+#include "../game/material_prepare.h"
 #include "plasma_model_shader.h"
 #include "modern_shadows.h"
 #include "plasma_occlusion.h"
@@ -762,6 +763,9 @@ struct program_entry
 	/* port: the last map it was drawn with, counting maps loaded
 	(program_map_drawn) */
 	unsigned long map_drawn;
+#ifndef HALO_GLES
+	BOOL shadow_draw_prepared;
+#endif
 	GLuint program;
 	GLint constants;
 	GLint viewport_scale;
@@ -1717,7 +1721,14 @@ struct gl_device
 };
 
 static struct gl_device device;
-static BOOL material_preparing;
+static int material_preparing;
+#ifndef HALO_GLES
+/* Owned only by the loading pass. Gameplay targets and vertex streams are
+   never used for preparatory draws. */
+static GLuint prepare_fbo, prepare_color, prepare_array;
+static BOOL prepare_spot_models;
+static GLint prepare_draw_target;
+#endif
 
 int render_prepare_texture(void const *header)
 {
@@ -1735,8 +1746,40 @@ int render_material_prepare_mode(int enabled)
 {
 #ifndef HALO_GLES
 	if (!device.gl_ready) return 0;
-	material_preparing = enabled != 0;
-	if (!enabled) memset(device.textures, 0, sizeof(device.textures));
+	material_preparing = enabled;
+	if (enabled & MATERIAL_PREPARE_SHADOWS)
+	{
+		GLint previous;
+		glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &prepare_draw_target);
+		glGetIntegerv(GL_RENDERBUFFER_BINDING, &previous);
+		glGenRenderbuffers(1, &prepare_color);
+		glGenFramebuffers(1, &prepare_fbo);
+		if (prepare_color && prepare_fbo)
+		{
+			glBindRenderbuffer(GL_RENDERBUFFER, prepare_color);
+			glRenderbufferStorageMultisample(GL_RENDERBUFFER, 0, GL_RGBA8, 1, 1);
+			glBindFramebuffer(GL_DRAW_FRAMEBUFFER, prepare_fbo);
+			glFramebufferRenderbuffer(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, prepare_color);
+			if (glCheckFramebufferStatus(GL_DRAW_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE)
+				glGenVertexArrays(1, &prepare_array);
+		}
+		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, prepare_draw_target);
+		glBindRenderbuffer(GL_RENDERBUFFER, previous);
+		prepare_spot_models = config_boolean("display.environment_fixtures") || config_boolean("display.flashlight_shadows");
+	}
+	if (!enabled)
+	{
+		if (prepare_array) glDeleteVertexArrays(1, &prepare_array);
+		if (prepare_fbo)
+		{
+			glBindFramebuffer(GL_DRAW_FRAMEBUFFER, prepare_draw_target);
+			glDeleteFramebuffers(1, &prepare_fbo);
+			xgpu_gl_end_external_pass();
+		}
+		if (prepare_color) glDeleteRenderbuffers(1, &prepare_color);
+		prepare_array = prepare_fbo = prepare_color = 0;
+		memset(device.textures, 0, sizeof(device.textures));
+	}
 	return 1;
 #else
 	(void)enabled;
@@ -4858,6 +4901,34 @@ static struct program_entry *program_get(GLuint vertex_shader, GLuint fragment_s
 
 /* Select both stages together. Only actual selected feature lights need the
    optional variant; the mask already respects local settings and host policy. */
+#ifndef HALO_GLES
+static void prepare_shadow_models(struct vertex_shader_object *program,
+	struct nv2a_pixel_shader_key key)
+{
+	int variant, plasma;
+	if (!prepare_array || !(program->plasma_model || program->lighting.lights == 2)) return;
+	key.per_pixel_lighting = 2;
+	for (variant = 3; variant <= (prepare_spot_models ? 5 : 3); variant += 2)
+	{
+		key.modern_shadow = (unsigned char)variant;
+		for (plasma = 0; plasma <= (program->plasma_model != 0); plasma++)
+		{
+			struct program_entry *entry;
+			key.plasma_model = (unsigned char)plasma;
+			entry = program_get(vertex_shader_get(program, FALSE, TRUE, plasma),
+				fragment_shader_get(&key), plasma, TRUE);
+			if (!entry || entry->shadow_draw_prepared) continue;
+			state_program(entry->program);
+			glBindFramebuffer(GL_DRAW_FRAMEBUFFER, prepare_fbo);
+			glBindVertexArray(prepare_array);
+			glDrawArrays(GL_TRIANGLES, 0, 3);
+			xgpu_gl_end_external_pass();
+			entry->shadow_draw_prepared = TRUE;
+		}
+	}
+}
+#endif
+
 static BOOL per_pixel_lighting(void);
 static struct program_entry *draw_program_get(struct vertex_shader_object *program, BOOL immediate,
 	struct nv2a_pixel_shader_key *key, unsigned int plasma_mask)
@@ -6102,6 +6173,11 @@ static struct program_entry *prepare_draw(BOOL immediate)
 #endif
 #ifndef HALO_GLES
 	shadow_world = modern_shadows_world_stage();
+	if (material_preparing & MATERIAL_PREPARE_SHADOWS)
+	{
+		prepare_shadow_models(program, key);
+		if (!(material_preparing & MATERIAL_PREPARE_STOCK)) return NULL;
+	}
 #endif
 	entry = draw_program_get(program, immediate, &key, plasma_mask);
 #ifndef HALO_GLES
@@ -6200,7 +6276,7 @@ static struct program_entry *prepare_draw(BOOL immediate)
 #ifndef HALO_ANDROID
 	if (plasma_mask && entry->plasma_model_slots >= 0)
 	{
-		plasma_occlusion_bind_model(&entry->plasma_occlusion);
+		plasma_occlusion_bind_model(&entry->plasma_occlusion, plasma_mask);
 		glUniform2f(entry->plasma_model_slots, (plasma_mask & 1) ? 1.0f : 0.0f, (plasma_mask & 2) ? 1.0f : 0.0f);
 	}
 #endif

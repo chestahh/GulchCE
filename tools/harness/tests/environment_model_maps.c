@@ -9,7 +9,7 @@ enum { GL_TEXTURE9, GL_TEXTURE_2D, GL_DEPTH_COMPONENT32F, GL_DEPTH_COMPONENT,
  GL_COLOR_ATTACHMENT0, GL_DEPTH_ATTACHMENT, GL_NONE, GL_FRAMEBUFFER_COMPLETE, GL_NO_ERROR,
  GL_UPPER_LEFT, GL_ZERO_TO_ONE };
 static int drawing, environment_drawing, draw_count, failed, ready=1, scale=8;
-static int deletion_calls;
+static int deletion_calls, error_queries, next_error = GL_NO_ERROR;
 static int allocations, deletions, checks, attachments, draws, handoffs, fail_fbo, fail_draw;
 static unsigned program=1, next_id=10;
 static GLuint targets[2];
@@ -32,7 +32,7 @@ static void glFramebufferTexture2D(GLenum t,GLenum a,GLenum d,GLuint v,int l) { 
 static void glDrawBuffers(int n,const GLenum *p) {}
 static void glReadBuffer(GLenum b) {}
 static int glCheckFramebufferStatus(GLenum t) { checks++;return fail_fbo?-1:GL_FRAMEBUFFER_COMPLETE; }
-static int glGetError(void) { return GL_NO_ERROR; }
+static int glGetError(void) { int error=next_error; next_error=GL_NO_ERROR; error_queries++; return error; }
 static void glClipControl(GLenum a,GLenum b) {}
 static int environment_resources(void);
 static int environment_draw_depth(GLuint target) { targets[draws++%2]=target;return !fail_draw; }
@@ -67,7 +67,13 @@ int main(int argc,char **argv)
  draw_count=2;
  CHECK(modern_environment_sun_static(1) && !sun.partial && !sun.writing,"last BSP batch keeps depth; object map starts clear");
  draw_count=0;
+ next_error=GL_NO_ERROR+1;
+ CHECK(!modern_environment_sun_finish(1,tint) && !sun.object_checked,"first draw failure leaves the target retryable");
+ sun.projecting=drawing=environment_drawing=1;
  CHECK(modern_environment_sun_finish(1,tint) && targets[(draws-1)%2]==44 && !drawing,"empty object map still publishes static-only sunlight");
+ int queries=error_queries;
+ sun.projecting=drawing=environment_drawing=1;
+ CHECK(modern_environment_sun_finish(1,tint) && error_queries==queries,"validated posed target draws without a driver round trip");
  modern_environment_sun_model(1);CHECK(modern_environment_model_active(),"prepared sun reaches models independently");
  modern_environment_window();modern_environment_sun_model(1);
  CHECK(!modern_environment_model_active(),"next view cannot sample stale sun");

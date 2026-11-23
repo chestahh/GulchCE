@@ -36,7 +36,7 @@ static int sun_reaches_view(real_point3d const *center, real radius, real_vector
 static int sun_static_unchanged(void)
 {
     int i;
-    if (cached_bsp->breakable_surfaces.count || sun_cutout_count > SUN_CUTOUTS) return 0;
+    if (sun_cutout_count > SUN_CUTOUTS) return 0;
     for (i=0; i<sun_cutout_count; i++)
     {
         const struct structure_material *m = sun_cutouts[i].material;

@@ -51,6 +51,9 @@ static long skipped_world[MODERN_SHADOW_LIGHTS], skipped_view[MODERN_SHADOW_LIGH
 static int modern_shadow_begin(int slot,const float p[3],float radius,int soft, int ground_grenade) {
  collecting_slot=slot; begins++; captured_radius=radius; mode_soft=soft; return !failed && slot!=failed_slot;
 }
+static void check_static_breakables(struct structure_bsp const *bsp) { (void)bsp; }
+static int bsp_changes;
+static void modern_shadow_change_bsp(void) { bsp_changes++; }
 static void modern_shadow_dispose(void) { disposals++; }
 static void modern_shadow_clear_draws(void) {}
 static void plasma_falloff_begin(long light) { rebound_stage=2; rebound_light=light; }
@@ -79,7 +82,7 @@ static int selection_stability(void)
  for (fps=30; fps<=120; fps*=2) {
   modern_shadows_reset(); modern_shadows_window();
   modern_shadows_submitted(100,0); modern_shadows_submitted(101,1); modern_shadows_submitted(102,2);
-  allowed=7; mode="hard";
+  allowed=7; mode="hard"; modern_shadows_map_loaded(1);
   rasterizer_lights.lights[0].color.red=2;
   rasterizer_lights.lights[1].color.red=1;
   rasterizer_lights.lights[2].color.red=.7f;
@@ -127,7 +130,7 @@ static int full_budget(void)
 {
  int i,j,original[8];
  modern_shadows_reset(); modern_shadows_window();
- rasterizer_lights.light_count=10; allowed=1023; mode="hard";
+ rasterizer_lights.light_count=10; allowed=1023; mode="hard"; modern_shadows_map_loaded(1);
  for(i=0;i<10;i++) {
   rasterizer_lights.lights[i].radius=2;
   rasterizer_lights.lights[i].color.red=i<8?2.f:1.f;
@@ -176,6 +179,9 @@ int main(int argc,char **argv)
  modern_shadows_prepare(1);
  CHECK(!begins && !active, "off performs no depth setup");
  mode="hard";
+ modern_shadows_prepare(1);
+ CHECK(!begins && !active, "pending setting cannot change a running map");
+ modern_shadows_map_loaded(1);
  for(i=0;i<7;i++) {
   allowed=1U<<i;
   modern_shadows_prepare(1);
@@ -188,7 +194,7 @@ int main(int argc,char **argv)
  }
  allowed=3;stuck_light=100;
  for(i=0;i<2;i++) {
-  mode=i ? "soft" : "hard"; modern_shadows_prepare(1);
+  mode=i ? "soft" : "hard"; modern_shadows_map_loaded(1); modern_shadows_prepare(1);
   modern_shadows_model_slot(0,0);modern_shadows_model_slot(1,1);
   modern_shadows_receiver(0,impact_parent);
   CHECK(modern_shadows_model_mask()==3 && modern_shadows_collision_owner(0)==NONE,
@@ -198,7 +204,7 @@ int main(int argc,char **argv)
         skipped_emitter[map_for(0)]==27 && skipped_emitter[map_for(1)]==NONE,
         "only the stuck grenade omits its impact parent in world and first person");
  }
- mode="hard";stuck_light=NONE;modern_shadows_prepare(1);
+ mode="hard"; modern_shadows_map_loaded(1);stuck_light=NONE;modern_shadows_prepare(1);
  CHECK(skipped_world[map_for(0)]==NONE && skipped_view[map_for(0)]==NONE,"detachment restores host casting");
  allowed=3;muzzle_light=101;firing_weapon=0x10009;modern_shadows_prepare(1);
  CHECK(skipped_world[map_for(1)]==firing_weapon && skipped_view[map_for(1)]==firing_weapon &&
@@ -240,7 +246,7 @@ int main(int argc,char **argv)
  modern_shadows_prepare(1);
  CHECK(map_for(0)==0 && map_for(1)==1, "near-equal scores do not reshuffle maps");
  modern_shadows_submitted(200,0); rasterizer_lights.lights[1].color.red=2;
- mode="soft"; modern_shadows_prepare(1);
+ mode="soft"; modern_shadows_map_loaded(1); modern_shadows_prepare(1);
  CHECK(modern_shadows_selected(1) && mode_soft, "new identity and stronger light are reconsidered");
  modern_shadows_receiver(1, NONE);
  CHECK(modern_shadows_view_receiver(), "first-person receiver selects its depth map");
@@ -256,12 +262,12 @@ int main(int argc,char **argv)
  CHECK(rebound_stage==2 && rebound_light==1, "failed world shader restores the already-bound collision mask");
  before=begins; modern_shadows_prepare(1);
  CHECK(begins==before, "failed receiver stops unused depth passes until reset");
- before=disposals; map=&map_b; modern_shadows_prepare(1);
- CHECK(disposals==before+1, "BSP transition releases old meshes");
+ before=bsp_changes; map=&map_b; modern_shadows_prepare(1);
+ CHECK(bsp_changes==before+1, "BSP transition releases old meshes");
  CHECK(active, "BSP transition retries receiver resources");
  modern_shadows_world_begin(1,1); modern_shadows_cancel();
  CHECK(rebound_stage==1 && rebound_light==1, "failed specular shader restores its collision mask");
- before=disposals; mode="off"; modern_shadows_prepare(1);
+ before=disposals; mode="off"; modern_shadows_map_loaded(1); modern_shadows_prepare(1);
  CHECK(disposals==before+1 && !cached_bsp && !active, "disable releases resources");
  modern_shadows_window();
  CHECK(identities[0]==NONE && slots[0]==NONE, "window transition clears light identities and slots");

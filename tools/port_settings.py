@@ -402,7 +402,7 @@ SCREENS["video_settings/shadows"] = {
     "rows": [
         ("SHADOW MODE:", "display.modern_shadows",
          [("CLASSIC", "off"), ("MODERN HARD", "hard"), ("MODERN SOFT", "soft")],
-         "Choose classic shadows or modern shadows\nwith hard or soft edges.", "desktop"),
+         "Choose Classic, Hard or Soft shadows.\nApplies on next map load.", "desktop"),
         ("SHADOW RESOLUTION:", "display.shadow_resolution",
          [(str(size), str(size)) for size in (128, 256, 512, 1024, 2048, 4096)],
          "Shadow map size for both systems.\n1024 is recommended for modern shadows.", None),

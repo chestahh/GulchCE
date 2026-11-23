@@ -65,12 +65,26 @@ def test_environmental_model_family_and_lifecycle():
 
 def test_environmental_model_gpu_resource_lifecycle():
     source = read('port/linux/src/modern_environment_gl.inl')
-    code = source[source.index('static struct'):source.index('static GLuint environment_program')]
+    code = source[source.index('struct environment_receiver_uniforms'):source.index('static GLuint environment_program')]
     code += '\n'.join(function(source, n) for n in (
         'modern_environment_window', 'modern_environment_dispose',
         'modern_environment_model_clear', 'modern_environment_model_active',
-        'modern_environment_model_reuse', 'modern_environment_model_begin',
+        'modern_environment_model_reuse', 'environment_model_resources', 'modern_environment_model_begin',
         'modern_environment_model_end', 'sun_draw_batch', 'modern_environment_sun_static',
         'modern_environment_sun_finish', 'modern_environment_sun_model'))
     status, output = run(build('environment_model_maps', (('under_test.inc', code),)), 'all')
+    assert status == 0, output
+
+
+def test_breakable_changes_invalidate_offscreen_fixture_and_sun_maps():
+    code = function(read('port/linux/game/modern_shadows.c'), 'check_static_breakables')
+    status, output = run(build('environment_breakables', (('under_test.inc', code),)), 'all')
+    assert status == 0, output
+
+
+def test_scene_depth_copy_validates_new_images_and_retains_msaa_fallback():
+    source = read('port/linux/src/modern_environment_gl.inl')
+    state = source[source.index('struct environment_receiver_uniforms'):source.index('static GLuint environment_program')]
+    code = state + function(source, 'environment_snapshot') + function(source, 'environment_draw_receiver')
+    status, output = run(build('environment_snapshot', (('under_test.inc', code),)), 'all')
     assert status == 0, output

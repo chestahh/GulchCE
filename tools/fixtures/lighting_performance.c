@@ -23,7 +23,7 @@ static long selected, lights, occlusion_updates, shadowed;
 static double occlusion_started, occlusion_seconds;
 static int screenshot_frames;
 static FILE *profile;
-enum { LIGHTING_PROFILE_PHASES = 20 };
+enum { LIGHTING_PROFILE_PHASES = 28 };
 static double phase_start[LIGHTING_PROFILE_PHASES], phase_time[LIGHTING_PROFILE_PHASES];
 static long phase_calls[LIGHTING_PROFILE_PHASES];
 
@@ -267,7 +267,7 @@ void lighting_performance_frame(void)
 			if (profile)
 			{
 				setvbuf(profile, NULL, _IOFBF, 65536);
-				fprintf(profile, "seconds,trace_ms,field_ms,texture_ms,bind_ms,prepare_ms,light_scene_ms,upload_ms,render_ms,traces,fields,textures,binds,prepares,light_scenes,uploads,renders,model_field_ms,model_resolve_ms,collision_scene_ms,mask_upload_ms,shadow_ms,shadow_world_ms,shadow_objects_ms,shadow_draw_ms,shadow_state_ms,shadow_resources_ms,shadow_selection_ms,environment_models_ms\n");
+				fprintf(profile, "seconds,trace_ms,field_ms,texture_ms,bind_ms,prepare_ms,light_scene_ms,upload_ms,render_ms,traces,fields,textures,binds,prepares,light_scenes,uploads,renders,model_field_ms,model_resolve_ms,collision_scene_ms,mask_upload_ms,shadow_ms,shadow_world_ms,shadow_objects_ms,shadow_draw_ms,shadow_state_ms,shadow_resources_ms,shadow_selection_ms,environment_models_ms,sun_prepare_ms,spots_prepare_ms,sun_draw_ms,sun_error_check_ms,snapshot_error_ms,receiver_error_ms,world_and_cluster_rays_ms,posed_model_rays_ms\n");
 			}
 		}
 		if (profile)

@@ -27,7 +27,7 @@ def check_selection(budget, fault=False):
     source = read('port/linux/game/modern_shadows.c')
     code = source[source.index('static int part_count;'):source.index('static int setting(void)')]
     code += function(read('port/linux/game/plasma_lighting.c'), 'plasma_lighting_selected')
-    for name in ('setting', 'modern_shadows_reset', 'modern_shadows_window',
+    for name in ('setting', 'modern_shadows_map_loaded', 'forget_shadow_geometry', 'modern_shadows_reset', 'modern_shadows_window',
                  'modern_shadows_submitted', 'modern_shadows_model_slot',
                  'map_for', 'model_map', 'modern_shadows_map', 'modern_shadows_model_mask', 'modern_shadows_selected',
                  'modern_shadows_receiver', 'modern_shadows_view_receiver', 'modern_shadows_collision_owner',
@@ -81,7 +81,7 @@ def test_receiver_specific_depth_maps():
     code = code[:code.index('/* Meshes are immutable')] + re.search(
         r'struct modern_shadow_uniforms\s*\{[^}]+\};', header)[0]
     code += source[source.index('enum { SHADOW_MESHES'):source.index('static void create_depth_cube')]
-    for name in ('modern_shadow_begin', 'modern_shadow_draw', 'modern_shadow_end', 'modern_shadow_clear_draws', 'modern_shadow_dispose', 'modern_shadow_bind'):
+    for name in ('prepare_depth_cube', 'modern_shadow_begin', 'modern_shadow_draw', 'modern_shadow_end', 'modern_shadow_clear_draws', 'dispose_shadow_meshes', 'modern_shadow_dispose', 'modern_shadow_bind'):
         code += function(source, name)
     status, output = run(build('modern_shadow_maps', (('under_test.inc', code),)), 'maps')
     assert status == 0, output

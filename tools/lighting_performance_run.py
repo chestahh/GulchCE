@@ -41,6 +41,7 @@ def distribution(values, cap):
                 budget_ms=1000/cap,
                 over_budget_percent=100*sum(v>1000/cap for v in values)/len(values),
                 over_1_5_budget_percent=100*sum(v>1500/cap for v in values)/len(values),
+                over_16_7ms=sum(v>16.7 for v in values), over_33ms=sum(v>33 for v in values),
                 over_50ms=sum(v>50 for v in values), over_100ms=sum(v>100 for v in values))
 
 
@@ -172,7 +173,7 @@ def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--data-root', type=Path, required=True)
     parser.add_argument('--settings', type=Path)
-    parser.add_argument('--fps', type=int, choices=[30,60,120,240], required=True)
+    parser.add_argument('--fps', type=int, choices=[30,60,120,240,360], required=True)
     parser.add_argument('--uncapped', action='store_true', help='Measure headroom without the limiter; --fps remains the reporting budget')
     parser.add_argument('--without-environment-model', action='store_true', help='Diagnostic control build only: disable environmental model self-shadowing')
     parser.add_argument('--alternate-environment-model', action='store_true', help='Diagnostic control build only: alternate environmental model self-shadowing in two-second ABBA blocks')
