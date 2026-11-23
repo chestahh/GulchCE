@@ -28,9 +28,11 @@ def test_directional_receiver_depth_and_empty_rays(reverse,soft,depth_stencil,su
     try:
         r=Replay(c,64,64); g=c.gl
         r.program(shader('caster_vertex'),shader('caster_fragment'))
-        fragment=shader('receiver_fragment')
-        if sun: fragment=fragment.replace('#version 330 core', '#version 400 core\n#define SUN\n' +
-            shader('shadow_filter','modern_sun_shader.inl') + shader('sun_lighting','modern_sun_shader.inl'),1)
+        version = '#version 400 core\n#define SUN' if sun else '#version 330 core'
+        helpers = shader('sun_coverage','modern_sun_shader.inl')
+        if sun:
+            helpers += shader('shadow_filter','modern_sun_shader.inl') + shader('sun_lighting','modern_sun_shader.inl')
+        fragment = shader('receiver_fragment').replace('#version 330 core',version+'\n'+helpers,1)
         fullscreen=r.program(shader('receiver_vertex'),fragment)
         volume=r.program(shader('sun_vertex'),fragment) if sun else None
         reference = r.program(shader('receiver_vertex'),fragment.replace('#if __VERSION__ >= 400 || defined(SUN_GATHER)', '#if 0')) if sun and soft else None
@@ -46,7 +48,7 @@ def test_directional_receiver_depth_and_empty_rays(reverse,soft,depth_stencil,su
         for unit,tex in enumerate(textures):
             g('ActiveTexture',None,U)(0x84C0+unit);g('BindTexture',None,U,U)(0x0DE1,tex)
             for param in (0x2801,0x2800):g('TexParameteri',None,U,U,I)(0x0DE1,param,0x2600)
-        def draw(z,empty=False,roof=False,detail=False):
+        def draw(z,empty=False,roof=False,detail=False,region=None):
             world_z=z;view_z=world_z-camera[2,3]
             clip=projection@np.array([0,0,view_z,1]);d=clip[2]/clip[3]
             data=np.full((64,64),1-d if reverse else d,np.float32)
@@ -68,6 +70,10 @@ def test_directional_receiver_depth_and_empty_rays(reverse,soft,depth_stencil,su
             for name,value in {'scene_depth':0,'shadow_depth':1,'camera':camera,'projection':projection,
                                'frame':frame,'viewport':[0,0,64,64],'color':[.5,.5,.5,1],
                                'reversed_depth':reverse,'soft':soft}.items():r.uniform(p,name,value)
+            if region is not None:
+                r.uniform(p,'sun_region[0]',[1,0,0,region])
+                r.uniform(p,'sun_region[1]',[0,1,0,0])
+                if not sun:r.uniform(p,'color',[.5,.5,.5,0])
             if sun:
                 r.uniform(p,'sun_bsp',2)
                 r.uniform(p,'sun_objects',1)
@@ -105,6 +111,14 @@ def test_directional_receiver_depth_and_empty_rays(reverse,soft,depth_stencil,su
             p=volume
             assert np.array_equal(draw(-.5),inside), 'Camera crossing into the receiver volume'
             camera[2,3]=3
+        # A stationary receiver crosses the continuous fade even when the
+        # cached depth tile stays put. The old projector gives way in reverse.
+        p=volume or fullscreen
+        values=np.array([draw(-.5,region=float(x))[32,32,0] for x in np.linspace(.45,1.,25)])
+        steps=np.diff(values if sun else -values)
+        assert steps.min()>=-.002 and steps.max()<.065 and np.count_nonzero(steps>.001)>=10
+        r.uniform(p,'sun_region[0]',[0,0,0,0])
+        r.uniform(p,'sun_region[1]',[0,0,0,0])
         assert np.allclose(behind[31:33,31:33,:3],.2 if sun else .5625,atol=.002)
         if sun:
             # Offset the shadow texel grid from the screen pixel grid.

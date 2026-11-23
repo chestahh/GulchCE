@@ -1,6 +1,6 @@
 /* One near-field orthographic map, independent of the feature-light selector.
    Reserve the full light-space depth of the BSP so distant cliffs still block
-   sunlight. Only fully covered families transfer their old shadow ownership. */
+   sunlight. Families at the edge share a receiver-space fade with their old projection. */
 extern int config_boolean(const char *name);
 static long sun_families[MAXIMUM_OBJECTS_PER_MAP];
 static int prepared_families;
@@ -83,10 +83,33 @@ static int sun_classify_surfaces(void)
     return 1;
 }
 
+/* Looking down in first person puts the old forward focus beyond the body,
+   often below the floor. Fit towards the player's shadow-map footprint as
+   the camera approaches the body and pitches down. Detached cameras keep
+   their own near coverage. */
+static float sun_detail_focus(real_point3d *focus, float radius)
+{
+    long unit;
+    real_point3d center;
+    float extent, pitch, proximity, weight;
+    if (render.local_player_index == NONE || render.camera.forward.k >= -.1f) return radius;
+    unit = player_control_get_unit_index(render.local_player_index);
+    if (unit == NONE || !object_try_and_get(unit)) return radius;
+    object_get_bounding_sphere(unit,&center,&extent);
+    render_interpolation_object_point(unit,&center);
+    if (!(extent > 0.f && extent < radius)) return radius;
+    proximity = PIN(2.f-distance3d(&center,&render.camera.position),0.f,1.f);
+    pitch = PIN((-render.camera.forward.k-.1f)/.5f,0.f,1.f);
+    weight = pitch*proximity;
+    weight *= weight*(3.f-2.f*weight);
+    points_interpolate(focus,&center,weight,focus);
+    return radius + weight*(MAX(.25f,extent*1.15f)-radius);
+}
+
 static void sun_prepare(void)
 {
-    const float radius = 12.f, detail_radius = 3.f;
-    float detail[2];
+    const float radius = 12.f;
+    float detail[2], detail_radius, region[8];
     real_matrix4x3 basis;
     real_vector3d toward;
     real_rgb_color tint;
@@ -111,6 +134,7 @@ static void sun_prepare(void)
     cross_product3d(&basis.up,&basis.forward,&basis.left);
     point_from_line3d(&render.camera.position,&render.camera.forward,radius*.65f,&focus);
     point_from_line3d(&render.camera.position,&render.camera.forward,4.f,&near_focus);
+    detail_radius = sun_detail_focus(&near_focus,3.f);
     basis.position = *global_origin3d;
     /* World-anchored tile steps are integral texels at all supported tiers.
        Quantize translation in the shadow plane only. Depth stays BSP-fixed. */
@@ -122,7 +146,12 @@ static void sun_prepare(void)
         float near_along = dot_product3d(axis,(real_vector3d const *)&near_focus);
         /* Express the finer tile in the wide tile's light plane. Both share
            the same BSP-fixed depth, including blockers far above the camera. */
-        detail[i] = floorf(near_along / .375f + .5f) * .375f - snapped;
+        float detail_step = detail_radius/64.f;
+        detail[i] = floorf(near_along/detail_step+.5f)*detail_step - snapped;
+        /* Cache the BSP on a snapped grid, but move coverage continuously.
+           Even the far end of the fade stays inside the snapped depth map. */
+        for (int j=0;j<3;j++) region[4*i+j] = axis->n[j]/radius;
+        region[4*i+3] = -along/radius;
         point_from_line3d(&basis.position,axis,snapped,&basis.position);
     }
     const real_rectangle3d *bounds = &cached_bsp->world_bounds;
@@ -136,7 +165,7 @@ static void sun_prepare(void)
     matrix_to_gl(&basis,frame);
     for (i = 0; i < 3; i++) frame[8+i] *= radius/depth_extent;
     if (!sun_classify_surfaces()) return;
-    reuse = modern_environment_sun_begin(frame,radius,detail,detail_radius,sun_static_unchanged(),sky,mode == 2);
+    reuse = modern_environment_sun_begin(frame,radius,region,detail,detail_radius,sun_static_unchanged(),sky,mode == 2);
     if (!reuse) return;
     if (reuse == 1)
     {
@@ -171,7 +200,7 @@ static void sun_prepare(void)
             fabsf(x-detail[0]) <= detail_radius+extent &&
             fabsf(y-detail[1]) <= detail_radius+extent);
         ok = environmental_casters(it.index,&remaining);
-        if (fabsf(x)+extent < radius && fabsf(y)+extent < radius && z+extent < depth_extent &&
+        if (z+extent < depth_extent &&
             sun_cluster_sky(obj->object.location.cluster_index) == sky)
             sun_families[prepared_families++] = it.index;
     }

@@ -6,10 +6,19 @@ static const char shadow_filter[] =
     "    return mix(mix(samples.x,samples.y,f.x),mix(samples.z,samples.w,f.x),f.y);\n"
     "}\n";
 
+/* Both projections evaluate the same continuous light-space distance at the
+   receiver. The outer edge leaves room for half a cache-grid step. */
+static const char sun_coverage[] =
+    "uniform vec4 sun_region[2];\n"
+    "float sun_fallback(vec3 world) {\n"
+    "    vec4 p=vec4(world,1);\n"
+    "    return smoothstep(.60,.925,max(abs(dot(p,sun_region[0])),abs(dot(p,sun_region[1]))));\n"
+    "}\n";
+
 /* RGB adds exposed sunlight. Alpha attenuates baked light only where a posed
    object blocks a ray that the BSP alone leaves open. Separate object and
    receiver meshes do not need the self-shadow depth bias used on models.
-   The fine half of the posed atlas has four times the linear density. Blend
+   The fine region concentrates posed depth around nearby receivers. Blend
    visibility at its rim before applying the sun contribution once. */
 static const char sun_lighting[] =
     "uniform mat4 sun_frame;\n"
@@ -63,7 +72,8 @@ static const char sun_lighting[] =
     "    ivec2 size=textureSize(sun_bsp,0), cell=ivec2(floor(uv*vec2(size)));\n"
     "    float facing=max(dot(normal,-normalize(sun_frame[2].xyz)),0.);\n"
     "    if (facing<=0.) return vec4(0);\n"
-    "    float edge=1.-smoothstep(.9,1.,max(abs(q.x),abs(q.y)));\n"
+    "    float edge=1.-sun_fallback(world);\n"
+    "    if (edge<=0.) return vec4(0);\n"
     "    vec2 detail=sun_detail_visibility(uv,depth,gradient,size,bsp);\n"
     "    vec2 visibility;\n"
     "    if (sun_soft==0) {\n"

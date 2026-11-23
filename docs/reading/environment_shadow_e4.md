@@ -18,8 +18,11 @@ adds directional sunlight on exposed surfaces. When a model blocks sunlight
 on otherwise exposed lightmapped ground, its silhouette also removes a
 bounded estimate of the direct share of the bake, based on the sky colour
 and surface angle. A roof or other BSP blocker keeps its authored shade.
-Both adjustments fade at the edge of the tile. The existing environmental path covers families outside
-the tile.
+The depth grid moves in cacheable steps. Its visible strength follows the
+unsnapped camera focus instead, fading between 7.2 and 11.1 world units
+along the axes of the shadow map. A placed object's previous projection
+uses the complementary strength at each receiver in that band. This also
+covers terrain, which fades back to its authored lightmap.
 The map's original lightmap and tags remain usable in Sapien and other engines.
 
 The original mobile-caster prototype compared camera ranges at 1280 × 720 on Sidewinder.
@@ -45,7 +48,9 @@ The sun uses an orthographic projection. A blocker in either map removes
 the added directional light. The filter adds no caster passes or local slots.
 
 Nearby posed objects also render into a six-world-unit-wide region of the
-object depth atlas. Both regions use the same sun direction and depth range.
+object depth atlas. When the camera looks down near the local biped, this
+region contracts towards its shadow bounds so the player's silhouette uses
+more of the selected resolution. Both regions use the same sun direction and depth range.
 BSP depth stays in the wide map. Hard samples the finer object depth and
 Soft filters it at its own texel spacing. Visibility blends into the wide
 object depth at the rim. An allocation failure falls back to wide coverage.
@@ -58,6 +63,19 @@ The renderer validates a replacement attachment before releasing the
 previous texture. The menu uses the existing 128 through 4096 tiers.
 
 ## Geometry checks
+
+On Mercury Rising II, approach the two outdoor Covenant caches with a fixed
+camera heading. Track the same patch of paving beside a cache as its shadow
+appears, then retreat along the same path. Compare against Sun Shadows off
+at each position to distinguish shadow strength from the floor texture.
+In a Soft 1024 Windows capture the largest approach step changed the patch
+by 6.2 RGB levels on a 0–255 scale, down from 31.9 in the previous build.
+This measures one camera route and one receiver.
+
+For the local biped, compare Soft 1024 to Soft 4096 from a frozen first-person
+view looking down. On Death Island the Sun Shadows off control showed no local
+body shadow from that viewpoint. Use the higher-resolution sun silhouette as
+the edge reference in that case.
 
 On Sidewinder, compare the same camera with a placed pine present in the sun
 depth map, omitted from that map, and then restored. Keep the tree visible

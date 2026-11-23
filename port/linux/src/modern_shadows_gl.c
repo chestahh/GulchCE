@@ -557,6 +557,7 @@ void modern_shadow_dispose(void)
 void modern_shadow_emit(struct xgpu_text *text)
 {
 	xgpu_text_append(text,shadow_filter);
+	xgpu_text_append(text,sun_coverage);
 	xgpu_text_append(text,sun_lighting);
 	xgpu_text_append(text,
 		"uniform sampler2D modern_environment_depth0, modern_environment_depth1;\n"
@@ -658,6 +659,7 @@ void modern_shadow_uniforms_initialize(unsigned long linked, struct modern_shado
     uniforms->sun_color_radius = glGetUniformLocation(linked,"sun_color_radius");
     uniforms->sun_soft = glGetUniformLocation(linked,"sun_soft");
     uniforms->sun_detail = glGetUniformLocation(linked,"sun_detail");
+    uniforms->sun_region = glGetUniformLocation(linked,"sun_region[0]");
     glUniform1i(glGetUniformLocation(linked,"sun_bsp"),14);
     glUniform1i(glGetUniformLocation(linked,"sun_objects"),15);
     uniforms->environment_frames = glGetUniformLocation(linked, "modern_environment_frames");
@@ -690,6 +692,7 @@ void modern_shadow_bind(struct modern_shadow_uniforms *uniforms)
             glUniformMatrix4fv(uniforms->sun_frame,1,GL_FALSE,sun.frame);
             glUniform1i(uniforms->sun_soft,sun.soft);
             glUniform4fv(uniforms->sun_detail,1,sun.detail);
+            glUniform4fv(uniforms->sun_region,2,sun.region);
         }
         glUniform4fv(uniforms->sun_color_radius,1,(const float[4]){sun.tint[0],sun.tint[1],sun.tint[2],sun.model ? sun.radius : 0});
     }
@@ -732,7 +735,7 @@ int modern_environment_marking(void) { return 0; }
 void modern_environment_window(void) {}
 void modern_environment_dispose(void) {}
 int modern_environment_begin(const float f[16], float r, int s) { return 0; }
-int modern_environment_end(int c, const float v[16], const float p[16], const float rgb[3]) { return 0; }
+int modern_environment_end(int c, const float v[16], const float p[16], const float rgb[3], int handoff) { return 0; }
 int modern_shadow_mesh_create(const struct modern_shadow_vertex *v, int nv, const unsigned short *i, int ni) { return 0; }
 int modern_shadow_draw(int mesh, const float *m, int n, const void *a, const float uv[8], int views) { return 0; }
 int modern_shadow_begin(int slot, const float p[3], float r, int soft, int ground_grenade) { return 0; }

@@ -33,7 +33,10 @@ static int model_caster(const struct model *model,const real_matrix4x3 *pose,con
  submitted[i]++;return caster_ok;
 }
 static int modern_environment_begin(const float *frame,float radius,int soft) { begins++;soft_mode=soft;return begin_ok; }
-static int modern_environment_end(int complete,const float *camera,const float *projection,const float *color) {
+static int last_handoff, inside=1;
+static int modern_environment_sun_interior(const float *f,float r) { return inside; }
+static int modern_environment_end(int complete,const float *camera,const float *projection,const float *color,int handoff) {
+ last_handoff=handoff;
  ends++;return complete && gpu_ok;
 }
 static long sun_owner = NONE;
@@ -53,10 +56,11 @@ int main(int argc,char **argv) {
  global_window_parameters.rasterizer_target=0;
  sun_owner=0;
  CHECK(modern_shadows_environment(0,&frame,color,1) && !begins,"completed sun pass owns the family before either old map");
+ inside=0;CHECK(modern_shadows_environment(0,&frame,color,1) && last_handoff,"tile rim keeps complementary projection");
  sun_owner=NONE;
  objects[0].object.first_child_object_index=1;objects[1].object.first_child_object_index=2;
- CHECK(modern_shadows_environment(0,&frame,color,1),"complete replacement owns projection");
- CHECK(submitted[0]==1 && submitted[1]==1 && submitted[2]==1 && !submitted[3],"only root and held/attached descendants");
+ CHECK(modern_shadows_environment(0,&frame,color,1) && !last_handoff,"independent projection keeps full strength");
+ CHECK(submitted[0]==2 && submitted[1]==1 && submitted[2]==1 && !submitted[3],"only root and held/attached descendants");
  gpu_ok=0;
  CHECK(!modern_shadows_environment(0,&frame,color,1),"receiver failure keeps stock fallback");
  gpu_ok=1;begin_ok=0;i=ends;

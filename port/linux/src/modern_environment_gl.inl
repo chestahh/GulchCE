@@ -4,7 +4,7 @@
 struct environment_receiver_uniforms
 {
     GLint frame, camera, projection, radius, reversed_depth, viewport, soft, color;
-    GLint clip_offset, sun_frame, sun_color_radius, sun_soft, sun_detail;
+    GLint clip_offset, sun_frame, sun_color_radius, sun_soft, sun_detail, sun_region;
 };
 
 static struct
@@ -37,7 +37,7 @@ static struct
     int writing, sky;
     int size, valid, projecting, object_checked;
     float frame[16], radius;
-    float detail_frame[16], detail_radius, detail[4];
+    float detail_frame[16], detail_radius, detail[4], region[8];
     int detail_atlas, drawing_detail, detail_drawn;
 } sun;
 
@@ -158,6 +158,7 @@ static void environment_receiver_locations(GLuint program, struct environment_re
     u->reversed_depth = glGetUniformLocation(program, "reversed_depth");
     u->viewport = glGetUniformLocation(program, "viewport");
     glUniform1i(glGetUniformLocation(program, "scene_depth"), 10);
+    u->sun_region = glGetUniformLocation(program,"sun_region[0]");
     if (sunlight)
     {
         glUniform1i(glGetUniformLocation(program, "sun_objects"), 8);
@@ -248,6 +249,7 @@ static int environment_resources_for(int projector)
         "mix(compare_at(base+vec2(0,1)/size,depth+dot(base+vec2(0,1)/size-uv,gradient),gradient),compare_at(base+1/size,depth+dot(base+1/size-uv,gradient),gradient),f.x),f.y);}\n"
         "float fade=clamp(1-q.z/4,0,1)*clamp(1+q.z*2,0,1);\n"
         "float facing=abs(dot(n/nl,frame[2].xyz));\n"
+        "if(color.w==0.) shadow*=sun_fallback(world);\n"
         "result=vec4(mix(vec3(1),color.xyz,shadow*fade*facing),1);\n"
         "#endif\n}\n";
     int size = 128 * (int)halo_shadow_resolution_scale();
@@ -271,7 +273,12 @@ static int environment_resources_for(int projector)
     if (projector) return environment.caster != 0;
     if (!environment.receiver)
     {
-        environment.receiver = environment_program(receiver_vertex, receiver_fragment);
+        const char version[] = "#version 330 core\n";
+        char source[sizeof(receiver_fragment)+sizeof(sun_coverage)];
+        strcpy(source,version);
+        strcat(source,sun_coverage);
+        strcat(source,receiver_fragment+sizeof(version)-1);
+        environment.receiver = environment_program(receiver_vertex,source);
         if (environment.receiver) environment_receiver_locations(environment.receiver, &environment.uniforms, 0);
     }
     if (sun.projecting && !sun.static_caster)
@@ -289,11 +296,12 @@ static int environment_resources_for(int projector)
     {
         static const char sun_extensions[] =
             "#ifdef GL_ARB_texture_gather\n#extension GL_ARB_texture_gather : enable\n#define SUN_GATHER\n#endif\n#define SUN\n";
-        char source[sizeof(receiver_fragment)+sizeof(shadow_filter)+sizeof(sun_lighting)+sizeof(sun_extensions)];
+        char source[sizeof(receiver_fragment)+sizeof(shadow_filter)+sizeof(sun_coverage)+sizeof(sun_lighting)+sizeof(sun_extensions)];
         const char version[] = "#version 330 core\n";
         strcpy(source, version);
         strcat(source,sun_extensions);
         strcat(source,shadow_filter);
+        strcat(source,sun_coverage);
         strcat(source,sun_lighting);
         strcat(source, receiver_fragment + sizeof(version) - 1);
         sun.receiver = environment_program(sun_vertex, source);
@@ -516,11 +524,11 @@ static int environment_draw_receiver(void)
     return 1;
 }
 
-int modern_environment_end(int complete, const float camera[16], const float projection[16], const float color[3])
+int modern_environment_end(int complete, const float camera[16], const float projection[16], const float color[3], int handoff)
 {
     const struct environment_receiver_uniforms *u = sun.projecting ? &sun.uniforms : &environment.uniforms;
     GLuint p;
-    float viewport[4], rgba[4] = {color[0],color[1],color[2],1};
+    float viewport[4], rgba[4] = {color[0],color[1],color[2],handoff ? 0.f : 1.f};
     int scissor[4];
     int draw, success = complete && !failed && (sun.projecting ? sun.ready : draw_count > 0);
     if (!environment_drawing) return 0;
@@ -569,6 +577,7 @@ int modern_environment_end(int complete, const float camera[16], const float pro
             glUniform1i(u->soft,environment.soft);
             glUniform4fv(u->color,1,rgba);
         }
+        if (sun.projecting || handoff) glUniform4fv(u->sun_region,2,sun.region);
         glUniform1i(u->reversed_depth,xgpu_reversed_depth);
         for (draw=0;draw<4;draw++) viewport[draw]=(float)environment.viewport[draw];
         viewport[0] += environment.pixel_center[0]; viewport[1] += environment.pixel_center[1];
@@ -601,7 +610,7 @@ static int sun_depth_resources(void)
 }
 
 /* Returns 2 on a static cache hit, 1 when the caller must submit BSP depth. */
-int modern_environment_sun_begin(const float frame[16], float radius, const float detail[2], float detail_radius, int cache_static, int sky, int soft)
+int modern_environment_sun_begin(const float frame[16], float radius, const float region[8], const float detail[2], float detail_radius, int cache_static, int sky, int soft)
 {
     if (drawing || !xgpu_gl_ready()) return 0;
     sun.projecting = 1;
@@ -615,6 +624,7 @@ int modern_environment_sun_begin(const float frame[16], float radius, const floa
     sun.partial = 0;
     sun.soft = soft;
     sun_detail_caster = sun_detail_in_batch = sun.detail_drawn = 0;
+    memcpy(sun.region,region,sizeof(sun.region));
     sun.detail_radius = detail_radius;
     memcpy(sun.detail_frame,frame,sizeof(sun.detail_frame));
     for (int i=0;i<3;i++) {
@@ -712,9 +722,24 @@ int modern_environment_sun_project(const float camera[16], const float projectio
     failed = draw_count = 0;
     memcpy(environment.frame,sun.frame,sizeof(sun.frame));
     environment.radius = sun.radius;
-    int ok = modern_environment_end(environment_snapshot(),camera,projection,sun.tint);
+    int ok = modern_environment_end(environment_snapshot(),camera,projection,sun.tint,0);
     sun.projecting = 0;
     return ok;
+}
+
+/* Skip the old projection only if its complete receiver volume is inside
+   the full-strength sun region. The volume has half-width one and extends
+   four radii down its axis, so every corner is within sqrt(18) radii. */
+int modern_environment_sun_interior(const float frame[16], float radius)
+{
+    float limit = .60f - 4.25f*radius/sun.radius;
+    for (int i=0;i<2;i++)
+    {
+        const float *axis = sun.region + 4*i;
+        float distance = axis[3]+axis[0]*frame[12]+axis[1]*frame[13]+axis[2]*frame[14];
+        if (distance < -limit || distance > limit) return 0;
+    }
+    return 1;
 }
 
 void modern_environment_sun_model(int eligible) { sun.model = sun.ready && eligible; }

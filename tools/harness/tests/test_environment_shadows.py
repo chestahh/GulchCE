@@ -43,7 +43,7 @@ int main(void) {
     modern_environment_receivers(1);
     if (modern_shadows_enabled() || modern_environment_marking()) return 1;
     if (modern_shadows_environment(0, 0, v, 1) || modern_environment_begin(v, 1, 1) ||
-        modern_environment_end(1, v, v, v)) return 2;
+        modern_environment_end(1, v, v, v, 0)) return 2;
     modern_shadows_environment_model(0, 0);
     modern_environment_model_clear();
     if (modern_environment_model_active() || modern_environment_model_reuse() || modern_environment_model_begin(v, 1, 0)) return 3;

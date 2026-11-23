@@ -33,6 +33,7 @@
 #include "objects/light_definitions.h"
 #include "render/render.h"
 #include "game/game_engine.h"
+#include "game/players.h"
 #include "interface/progress_bar.h"
 #include "rasterizer/rasterizer_console_vars.h"
 
@@ -954,15 +955,16 @@ void modern_shadows_environment_model(const struct rasterizer_model_begin_parame
 int modern_shadows_environment(long object, const real_matrix4x3 *frame, const float color[3], float radius)
 {
     float basis[16], camera[16];
-    int remaining = 128, complete, mode = setting();
+    int remaining = 128, complete, handoff, mode = setting();
     if (!mode || !cached_bsp || global_window_parameters.rasterizer_target != 0 /* primary, as in the stock shadow pass */ ||
         !rasterizer_debug_options.draw_environment_shadows || !(radius > 0.001f && radius < REAL_MAX)) return 0;
-    if (sun_owns(object)) return 1;
     matrix_to_gl(frame, basis);
+    handoff = sun_owns(object);
+    if (handoff && modern_environment_sun_interior(basis,radius)) return 1;
     matrix_to_gl(&global_window_parameters.frustum.view_to_world, camera);
     if (!modern_environment_begin(basis, radius, mode == 2)) return 0;
     complete = environmental_casters(object, &remaining);
-    return modern_environment_end(complete, camera, (float const *)global_window_parameters.frustum.projection_matrix, color);
+    return modern_environment_end(complete, camera, (float const *)global_window_parameters.frustum.projection_matrix, color, handoff);
 }
 
 void modern_shadows_prepare(int primary)

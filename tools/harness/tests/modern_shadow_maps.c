@@ -1,5 +1,5 @@
 #include "harness.h"
-static struct { int model,soft; unsigned static_depth,object_depth; float tint[3],frame[16],radius,detail[4]; } sun;
+static struct { int model,soft; unsigned static_depth,object_depth; float tint[3],frame[16],radius,detail[4],region[8]; } sun;
 static int sun_detail_caster, sun_detail_in_batch;
 static int sun_draw_batch(void) {return 0;}
 static unsigned long long spot_window;
