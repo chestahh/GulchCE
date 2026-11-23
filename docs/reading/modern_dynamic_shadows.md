@@ -25,67 +25,69 @@ criterion. The earlier runs establish the starting point.
 
 ### E5 — Rendering performance and hitch removal
 
-Dedicate this milestone to dynamic lighting, local and environmental shadows,
-and the shared renderer. At 360 FPS the whole frame has 2.78 ms. Relative to
-E4, the reference machine needs to recover about 0.83–0.91 ms per frame.
-Measure throughput and individual stalls separately. The [E5 implementation and measurements](environment_shadow_e5.md) use a replacement checkpoint in the same snowy encounter.
+The Windows playtest at `2864bc026` is the accepted visual reference for
+the Mercury Rising II outdoor sun fade and the first-person player silhouette
+at Soft 1024. Keep the approach and retreat past the Covenant caches and the
+matched Death Island pose as regression checks. The combat cost of that build
+is still unmeasured. [Sun coverage and visual checks](environment_shadow_e4.md)
 
-1. **Establish a matched baseline.** Use the same snowy Two Betrayals checkpoint
-   and recorded combat route, i7-14700K and RTX 5070 Ti, release PGO/LTO,
+Map-load preparation and next-map shadow-mode changes are implemented. On
+Xbox, CE and MCC maps, selection takes effect behind the existing gameplay-map
+loading screen. A checkpoint revert or mid-level BSP change keeps the active
+mode. Some first-use stalls remain. [Loading and driver measurements](environment_shadow_e5.md#loading-compatibility-and-driver-checks)
+
+1. **Measure the accepted fix first.** Alternate the previous playtest
+   (`9f114ec33`) and accepted playtest (`2864bc026`) in the same snowy
+   Two Betrayals encounter. Use the same exterior checkpoint, camera and
+   combat workload on the i7-14700K and RTX 5070 Ti. Run release PGO/LTO at
    2560×1440, AA and VSync off, 25 seconds of warmup and 120 seconds uncapped.
-   Compare stock, dynamic lighting alone, then local and environmental shadows.
-   Qualify Hard and Soft separately at fixed 1024 with all lighting categories,
-   the sun, fixtures and flashlight enabled, Shared selected, all eight local
-   slots available and adaptive controls off. Log active slots, beam and combat
-   activity. Alternate baseline and candidate runs to account for varying AI.
-   Use busy Rat Race with both lamps as an indoor control.
-2. **Test loading-screen preparation first.** Compare cold and warm loads with
-   the same hidden Ghost reveal on Sidewinder. Extend the desktop renderer's
-   existing preparation path to allocate the active mode's shadow resources
-   and exercise relevant material variants with representative offscreen draws
-   behind the loading screen. Include a first visit with no map history.
-   Earlier tests found 54–63 ms first draws even with compiled programs.
-   Measure added loading time, worst reveal frame, memory and any work deferred
-   to gameplay. Check map changes, failed preparation, cleanup and Classic.
-   [Renderer preparation](../render_preparation.md) · [First-draw evidence](shadow_backend_investigation.md)
-3. **Make the active shadow mode stable during play.** Let players save a
-   pending Classic, Hard or Soft choice and label it “Applies on next map load”
-   in every menu style. The current session keeps its active mode. Returning
-   to the main menu and reloading applies the saved choice immediately on
-   re-entry. Verify Save, Cancel, Defaults, restart and the host policy at
-   activation. Limit this change to shadow type.
-4. **Optimise recurring frame costs alongside first use.** Capture CPU and GPU
-   timings separately for the actual slow frames. Start with model lighting,
-   collision and visibility reconstruction, caster collection, tile rebuilds,
-   draw submission and driver waits. Rank by time on the frame's critical path.
-   Pursue the largest repeatable cost first and take independently measurable
-   smaller gains alongside it. Verify shared renderer changes with stock and
-   enhanced rendering. Keep timing instrumentation out of acceptance runs.
-5. **Exit on evidence.** Repeat 360+ average FPS in both fixed-quality modes
-   on the busy combat route. Report FPS, worst frame, 99th-percentile frame
-   time and counts above 16.7, 33, 50 and 100 ms, separating first visit from
-   warm play. Demonstrate improvement on reproducible hitches and check for new
-   ones. Compare matched visual captures for thin contacts, moving silhouettes,
-   cutouts, self-shadowing and light spill. Maintain all eight local slots and
-   the authored light and shadow quality.
+   Enable all dynamic lighting categories. Compare lighting alone, Hard 1024
+   and Soft 1024. For both shadow runs, enable the sun, fixtures and Shared
+   flashlight with all eight local slots available and adaptive scaling off.
+   Record actual light, beam and combat activity. Keep busy Rat Race with both lamps as the indoor control.
+2. **Find where the frame time goes.** Retain matched stock OpenCE and
+   GulchCE controls. In the earlier heavier minute, stock GulchCE took
+   2.63 ms/frame, lighting alone 3.68 ms, Hard 4.21 ms and Soft 4.22 ms.
+   Start with the 1.05 ms stock-to-lighting gap. Time collision tracing and
+   visibility reconstruction separately from BSP surface selection, temporary
+   lighting triangles and model drawing. Then time local and environmental
+   shadow depth generation and reuse, receiver shading, draw submission and
+   driver waits. CPU and GPU measurements can overlap. Optimise the largest
+   repeatable cost on the critical path and verify each gain with ordinary
+   release timings and matched images. [Stock controls and benchmark procedure](environment_shadow_e5.md#upstream-stock-control)
+3. **Recheck hitches independently.** Use Sidewinder's hidden Ghost reveal
+   on first visit and warm reload. Record map preparation time, peak memory,
+   worst reveal frame, 99th-percentile frame time and counts over 16.7, 33,
+   50 and 100 ms. Check what still happens on the first real draw. Keep
+   preparation behind map loading and check Classic, host policy, failed
+   preparation, cleanup and map transitions after changes.
+4. **Qualify fixed quality.** Report the full two-minute average and the
+   busier second minute for each mode. The minimum is 240 FPS average and
+   the E5 goal is repeatable 360+ in both Hard and Soft (2.78 ms/frame).
+   Record recurring drops alongside the averages. Retain all eight local
+   slots, independent environmental budgets and the signed-off sun visuals.
+   Check thin contacts, cutouts, self-shadowing and light spill against matched
+   captures. E5 stays open while the 360+ result is outstanding.
 
 ### E6 — Distant sunlight and smooth transitions
 
-Keep the detailed near sun tile (12 world units half-width). Its 1.5-unit
-snap currently exceeds its 1.2-unit edge fade. Prototype a cached outer tile
-starting at 36 units half-width. Retain eligibility for all supported world
-and object geometry, including off-camera casters that can shadow the view.
-Reuse static depth where valid and refresh moving casters. Invalidate on
-relevant sky, BSP, geometry and map changes.
+The near sun map has a 12-world-unit half-width. Its visible strength already
+fades continuously between 7.2 and 11.1 units in the sun's projection plane,
+including the handoff to existing object shadows and baked BSP lighting.
+E6 extends the distance at which geometry can cast and receive sunlight.
+Compare a cached outer tile starting at 36 units half-width against the
+accepted near-only build. The earlier prototype showed extra vehicle shadow
+on Sidewinder and added submission time. Use those captures and timings as
+the starting comparison. [Near coverage and outer-tile experiment](environment_shadow_e4.md#outdoor-coverage)
 
-Blend near and far visibility once per sun contribution. Drive the blend by
-continuous camera position and allow overlap for tile snapping and filtering.
-At the outer edge fade sunlight back into the authored BSP lighting and
-coordinate the handoff to the fallback per-object shadow. Preserve silhouette
-sharpness in Hard and avoid applying sun occlusion twice. Record Sidewinder
-drives in both directions, strafes and camera turns across both boundaries.
-Accept when moving captures show continuous coverage, stock lighting remains
-intact outside it, and the full-geometry build repeats the E5 performance gate.
+Keep eligible BSP and object geometry, including off-camera casters whose
+shadows reach the view. Reuse valid static depth, refresh moving casters and
+invalidate on relevant sky, BSP, geometry or map changes. Blend overlapping
+tiles once per sun contribution and fade the outer coverage back to the
+authored scene. Check Sidewinder drives, turns and strafes in both directions
+and repeat the Mercury Rising II approach and retreat. Accept extended reach
+when it adds visible distant shadows, preserves near detail and continuous
+transitions, and meets the fixed-quality E5 performance target.
 
 ### E7 — Optional map authoring
 
