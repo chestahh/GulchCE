@@ -427,6 +427,112 @@ after freezing produced identical saved camera poses in both builds.
 At tick 271 with seven local maps and 20 sun casters, 21 paired captures
 had a maximum per-channel mean absolute difference of 1.01 on a 0–255 scale.
 
+### Per-light index uploads in the snowy fight
+
+The shared [OpenGL renderer](../../port/linux/src/d3d8_gl.c) calls
+`index_upload` for each non-mirrored indexed draw. The diffuse and specular
+passes in the [BSP renderer](../../source/structures/structure_render.c)
+already have a complete triangle list for each pass. Materials draw slices of
+that list. The experiment uploaded the list on its first eligible draw and
+pointed subsequent draws at their original slices. It kept the original draw
+order, vertex ranges, material changes and ring-buffer wrap handling.
+
+In the heavier minute of Hard 1024, 1,077 sampled frames averaged 470 indexed
+draws for BSP lighting. Walking the material list outside the material draw
+callbacks took 0.050 ms per sampled frame. Draw submission inside the callbacks
+took 0.719 ms, including 0.273 ms in draw preparation and 0.111 ms in index
+uploads. The timer around submission to OpenGL includes the nested upload.
+These are instrumented CPU times. Separate GPU queries measured 0.139 ms for
+enhanced diffuse geometry lighting and 0.243 ms for specular lighting per
+sampled frame. CPU and GPU times can overlap.
+
+The whole-frame CPU timer measured 0.682 ms for world and cluster ray tracing
+in Hard and 0.646 ms in Soft. Sampling one in 127 rays put the world BSP
+section at 193 ns per sample and the subsequent object/cluster section at
+75 ns in Hard. A pair of consecutive timer calls measured 48 ns. These short
+timers identify which section is more expensive. Multiplying them by the ray
+count overstates the cost of the ordinary path.
+
+The comparisons used the same 1440p encounter, eight local slots (including the beam),
+the full sun fade and fixed quality. Both paths were in one executable. The
+candidate ran in the first and last two seconds of each eight-second block, and the
+original ran in the middle four.
+Each comparison used 14 complete blocks and omitted 15 ms at each switch
+boundary. Negative frame-time changes favour the candidate.
+
+| Mode | Uploads per frame, original → batched | Mean paired change | Faster blocks | Heavier minute FPS, original → batched¹ |
+| --- | ---: | ---: | ---: | ---: |
+| Lighting only | 489 → 65 | −0.121 ms | 11/14 | 242.1 → 253.2 |
+| Hard 1024 | 476 → 63 | −0.075 ms | 10/14 | 216.6 → 225.7 |
+| Soft 1024 | 475 → 62 | −0.087 ms | 11/14 | 216.5 → 221.5 |
+
+¹ The paired comparison ends at second 144. These averages use seconds
+85–144 and only the intervals assigned to each path. Live AI can change the
+work between intervals. In Hard the 95% block-bootstrap interval for the
+frame-time change was −0.159 to +0.017 ms. The Soft and lighting-only
+intervals favoured batching. Uploading whole lists transferred about 12%
+more bytes than the material slices actually used during candidate intervals.
+
+On the same day the pinned OpenCE Classic 1024 control averaged 370.0 FPS
+over two minutes and 352.4 FPS in the second minute. The pinned GulchCE
+Classic control measured 422.4 and 381.2 FPS. Both used the stock flashlight.
+The instrumented shadow profiles and the Classic controls have different
+workloads and instrumentation.
+
+At simulation tick 271, a fixed Xbox exterior view showed seven local maps,
+the shared flashlight and 22 sun casters in both upload paths. Across 11
+alternating image pairs per mode, the largest mean absolute difference in
+any colour channel was 0.97 in Hard and 0.99 in Soft on a 0–255 scale.
+Snow and shield animation continued at the fixed pose. A separate 32-bit
+test passed 123,911 draws through the experimental upload code, including
+38,701 storage wraps. The bytes at the returned offsets matched the input
+slices for every draw.
+
+The settled Soft 1024 views also exposed a cost that depends on which
+materials draw. On MCC Mercury Rising 2, 76 uploads became nine, and bytes
+per frame went from 3,870 to 4,296. Five settled image pairs differed by at
+most 0.002 in mean absolute error per channel. On CE Death Island, two
+uploads of 354 bytes in total became one upload of 1,134 bytes. Both settled
+pairs were pixel-identical. The first pair on each map included the camera
+transition and was excluded from the image comparison. These are two
+individual views. The extra 780 bytes on Death Island establish over-transfer
+in a sparse pass. Its impact on frame time was not measured there.
+
+Separate runs held the upload path fixed for the full two minutes, in the
+order batched Hard, batched Soft, original Soft, original Hard. A repeat of
+original Soft followed the map checks. Every run used 19 Covenant, sunlight
+and up to eight local slots including the flashlight.
+
+| Fixed upload path | Full run FPS | Heavier minute FPS | Seconds below 240 | Longest stretch below 240 |
+| --- | ---: | ---: | ---: | ---: |
+| Hard 1024, original | 225.4 | 211.8 | 89/120 | 66 s |
+| Hard 1024, batched | 240.7 | 229.0 | 57/120 | 27 s |
+| Soft 1024, original repeat | 225.3 | 216.6 | 104/120 | 88 s |
+| Soft 1024, batched | 230.3 | 216.7 | 83/120 | 67 s |
+
+All four spent every measured second below 360 FPS. The first original Soft
+run reached only 79.6 FPS, including 75.2 FPS in its heavier minute.
+Its executable manifest, settings, saved camera and checkpoint metadata
+matched the batched run. Mean occlusion time was 2.10 ms versus 0.91 ms on
+the original Soft repeat. GPU clocks and utilisation were recorded only on
+the repeat. The cause of the slow run remains unknown. It is retained as an
+outlier and excluded from estimates of the batching gain.
+
+The prototype remains a benchmark experiment. Hard benefited in the fixed
+run. Soft showed a gain under alternation and effectively tied in the fixed
+heavier minute. Before integrating it, test batching dense material ranges
+with the original exact-slice upload for sparse passes. For a larger CPU
+gain, profile world BSP node traversal separately from leaf and surface
+intersection on the same ray batches, checking depths against the stock
+reference. The sun fade and the eight-slot budget stay enabled in both
+comparisons.
+
+The local evidence is in `build/e5-bsp-cost/`. It includes the tested source
+patch against `bdb781a7d`, build manifests, per-phase results, image pairs
+and the range test. The `e5-bsp-cost-*` and `e5-index-*` runs under
+`build/lighting-performance/` retain the frame traces. This was a Windows
+NVIDIA investigation. AMD hardware and native Linux remain unverified.
+
 ### Upstream stock control
 
 Include the following runs in each performance comparison: upstream OpenCE Classic,
