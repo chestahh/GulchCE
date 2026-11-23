@@ -195,6 +195,65 @@ In a separate two-peer CE Death Island run the Classic host reported zero
 active local-shadow samples and the Hard client reported 46. Both respected
 the host's stock shield policy. The tests used NVIDIA hardware on Windows.
 
+### Visibility reconstruction and receiver stencil state
+
+Movement triggered 20,050 of 20,142 full ray batches in a 35-second lighting-only
+sample of the snowy fight. No stationary field retraced solely because its
+blockers changed. Hard recorded 19,934 moving origins, 136 new admissions and
+one stationary scene change in 20,071 batches. A moving light can also have
+changed blockers. Both tests kept all eight slots available.
+
+An experimental BSP shortcut identified octants entirely inside empty space.
+Both paths matched the stock depths for 49,368,576 rays and the shortcut
+reduced paired tracing time by 4.9%. The preceding commit and the experiment
+were also built into one executable and alternated every two seconds (new,
+old, old, new). Across 14 complete eight-second blocks, lighting alone averaged
+273.5 FPS on the preceding path and 272.9 with the shortcut. Soft averaged
+241.3 and 239.6 FPS. The separate lighting runs had differed by 14.1 FPS
+(286.9 to 272.8). That drop did not reproduce under alternation, and neither
+matched test established a whole-frame gain. The branch retains the preceding
+collision traversal.
+
+The retained [visibility reconstruction](../../port/linux/game/plasma_occlusion.c)
+packs the four neighbouring depths for each cubemap texel before projecting
+the 16³ receiver grid. For example, a cell on the edge of a face reads the
+same duplicated last texel as the scalar lookup. SSE2 builds use 24 KiB of
+scratch during reconstruction. Other CPU targets keep the scalar path.
+Across 143,768 live inputs the two layouts produced byte-identical fields.
+Including packing, reconstruction took 2,026.0 ms against 3,235.9 ms.
+
+The [renderer](../../port/linux/src/d3d8_gl.c) selects the effective stencil
+state once per draw in `apply_stencil_state`. Consecutive world draws can
+reuse the receiver bit. An ordinary draw or an external rendering pass
+restores or invalidates the cached state through the existing renderer
+interface. This belongs in the shared renderer because it owns both the
+emulated stencil state and the cache of values sent to the driver.
+On the same alternating Soft 1024 workload, stencil function,
+operation and write-mask submissions fell from 141.7 to 25.1 per frame.
+CPU occlusion fell from 0.925 to 0.844 ms per frame. All 14 blocks favoured
+the new occlusion path. Whole-frame throughput was 240.1 versus 241.0 FPS
+and eight of 14 blocks favoured the changes. The full-frame difference is
+small relative to block-to-block variation.
+With lighting alone, a separate comparison in the same fight measured
+272.5 FPS on the preceding code and 278.6 on the retained code. All 14
+blocks had shorter mean frames. CPU occlusion fell from 0.891 to 0.803 ms
+per frame.
+
+In separate uncapped 120-second release runs at 2560×1440, lighting alone
+averaged 282.5 FPS, Hard 1024 averaged 245.3 and Soft 1024 averaged 247.2.
+Both shadow modes reached eight local slots and used sunlight throughout.
+The slowest frames were 12.0, 10.8 and 11.8 ms respectively. The second
+minute averaged 270.0, 237.0 and 237.4 FPS. All three full-run averages
+clear 240 FPS. The 360 FPS goal in this encounter remains open.
+
+A matched NVIDIA image check froze the reference and retained build at tick
+271 with seven local maps and 20 sun casters. Across 25 paired captures the
+largest per-channel mean absolute difference was 1.021 on a 0–255 scale.
+Snow and effects continue to animate during a simulation freeze. A separate
+Soft run crossed Xbox Two Betrayals, MCC Digsite, CE Death Island and Xbox
+Blood Gulch. The two-player CE host-policy check recorded zero local shadow
+samples on the Classic host and 60 on the Hard client.
+
 ### Loading, compatibility and driver checks
 
 Four menu styles passed Save, Cancel, Defaults and restart checks. The live

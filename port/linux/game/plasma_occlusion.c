@@ -278,7 +278,7 @@ static __m128 visibility_choose(__m128 mask, __m128 a, __m128 b)
 {
 	return _mm_or_ps(_mm_and_ps(mask, a), _mm_andnot_ps(mask, b));
 }
-static void depth_visibility_row(real depths[6][OCC_SIZE * OCC_SIZE], const real xs[OCC_SIZE], real y, real z,
+static void depth_visibility_row(const __m128 *neighbours, const real xs[OCC_SIZE], real y, real z,
 								 real extent, int resolution, real *output)
 {
 	__m128 zero = _mm_setzero_ps(), one = _mm_set1_ps(1), half = _mm_set1_ps(.5f);
@@ -286,7 +286,7 @@ static void depth_visibility_row(real depths[6][OCC_SIZE * OCC_SIZE], const real
 	__m128 ex = _mm_set1_ps(extent), size = _mm_set1_ps((real)resolution), limit = _mm_set1_ps((real)(resolution - 1));
 	__m128 facey = _mm_set1_ps((real)(2 + (y > 0))), facez = _mm_set1_ps((real)(4 + (z > 0)));
 	__m128 abs_mask = _mm_castsi128_ps(_mm_set1_epi32(0x7fffffff));
-	int x, i, j, lane;
+	int x, i, j;
 	for (x = 0; x < OCC_SIZE; x += 4)
 	{
 		__m128 px = _mm_loadu_ps(xs + x), magnitude = _mm_and_ps(px, abs_mask);
@@ -295,8 +295,8 @@ static void depth_visibility_row(real depths[6][OCC_SIZE * OCC_SIZE], const real
 		__m128 face = visibility_choose(mask, facey, _mm_and_ps(_mm_cmpgt_ps(px, zero), one));
 		__m128 near_origin, tx, ty, fraction, hits[4], length;
 		__m128 clear = _mm_castsi128_ps(_mm_set1_epi32(-1)), result = zero;
-		int faces[4], columns[4], rows[4];
-		real gather[4];
+		int indices[4];
+		__m128i index;
 		magnitude = visibility_choose(mask, ey, magnitude);
 		mask = _mm_cmpgt_ps(ez, magnitude);
 		magnitude = visibility_choose(mask, ez, magnitude);
@@ -309,21 +309,19 @@ static void depth_visibility_row(real depths[6][OCC_SIZE * OCC_SIZE], const real
 		v = _mm_sub_ps(_mm_mul_ps(_mm_mul_ps(_mm_add_ps(_mm_div_ps(v, magnitude), one), half), size), half);
 		u = _mm_max_ps(zero, _mm_min_ps(limit, u));
 		v = _mm_max_ps(zero, _mm_min_ps(limit, v));
-		_mm_storeu_si128((__m128i *)faces, _mm_cvttps_epi32(face));
-		_mm_storeu_si128((__m128i *)columns, _mm_cvttps_epi32(u));
-		_mm_storeu_si128((__m128i *)rows, _mm_cvttps_epi32(v));
+		index = _mm_add_epi32(_mm_mullo_epi16(_mm_cvttps_epi32(face), _mm_set1_epi32(OCC_SIZE * OCC_SIZE)),
+			_mm_add_epi32(_mm_mullo_epi16(_mm_cvttps_epi32(v), _mm_set1_epi32(OCC_SIZE)), _mm_cvttps_epi32(u)));
+		_mm_storeu_si128((__m128i *)indices, index);
 		tx = _mm_sub_ps(u, _mm_cvtepi32_ps(_mm_cvttps_epi32(u)));
 		ty = _mm_sub_ps(v, _mm_cvtepi32_ps(_mm_cvttps_epi32(v)));
 		fraction = _mm_div_ps(magnitude, ex);
-		for (j = 0; j < 2; j++)
-			for (i = 0; i < 2; i++)
-			{
-				for (lane = 0; lane < 4; lane++)
-					gather[lane] = depths[faces[lane]][MIN(rows[lane] + j, resolution - 1) * OCC_SIZE +
-													   MIN(columns[lane] + i, resolution - 1)];
-				hits[j * 2 + i] = _mm_loadu_ps(gather);
-				clear = _mm_and_ps(clear, _mm_cmpge_ps(hits[j * 2 + i], fraction));
-			}
+		hits[0] = neighbours[indices[0]];
+		hits[1] = neighbours[indices[1]];
+		hits[2] = neighbours[indices[2]];
+		hits[3] = neighbours[indices[3]];
+		_MM_TRANSPOSE4_PS(hits[0], hits[1], hits[2], hits[3]);
+		for (i = 0; i < 4; i++)
+			clear = _mm_and_ps(clear, _mm_cmpge_ps(hits[i], fraction));
 		if (_mm_movemask_ps(clear) == 15)
 		{
 			result =
@@ -366,11 +364,39 @@ static void depth_visibility_row(real depths[6][OCC_SIZE * OCC_SIZE], const real
 }
 #endif
 
+#if defined(__SSE2__)
+/* The four filtered depths are neighbours on the same cube face. Pack
+   them once so each four-cell comparison needs four contiguous loads.
+   Duplicate the last texel at each edge, as in the scalar lookup. */
+static void pack_depth_neighbours(real depths[6][OCC_SIZE * OCC_SIZE], int resolution, __m128 *neighbours)
+{
+	int face, y, x;
+	for (face = 0; face < 6; face++)
+		for (y = 0; y < resolution; y++)
+		{
+			const real *a = depths[face] + y * OCC_SIZE;
+			const real *b = depths[face] + MIN(y + 1, resolution - 1) * OCC_SIZE;
+			__m128 *row = neighbours + (face * OCC_SIZE + y) * OCC_SIZE;
+			for (x = 0; x < resolution; x++)
+			{
+				int next = MIN(x + 1, resolution - 1);
+				row[x] = _mm_setr_ps(a[x], a[next], b[x], b[next]);
+			}
+		}
+}
+#endif
+
 static void reconstruct_visibility(real depths[6][OCC_SIZE * OCC_SIZE], real extent, int resolution, real dx, real dy,
 								   real dz, real *output)
 {
 	real offsets[OCC_SIZE], xs[OCC_SIZE];
 	int x, y, z;
+#if defined(__SSE2__)
+	__m128 samples[6 * OCC_SIZE * OCC_SIZE];
+	pack_depth_neighbours(depths, resolution, samples);
+#else
+	real (*samples)[OCC_SIZE * OCC_SIZE] = depths;
+#endif
 	for (x = 0; x < OCC_SIZE; x++)
 	{
 		offsets[x] = (2.0f * (x + 0.5f) / OCC_SIZE - 1) * extent;
@@ -378,7 +404,7 @@ static void reconstruct_visibility(real depths[6][OCC_SIZE * OCC_SIZE], real ext
 	}
 	for (z = 0; z < OCC_SIZE; z++)
 		for (y = 0; y < OCC_SIZE; y++)
-			depth_visibility_row(depths, xs, offsets[y] + dy, offsets[z] + dz, extent, resolution,
+			depth_visibility_row(samples, xs, offsets[y] + dy, offsets[z] + dz, extent, resolution,
 								 output + (z * OCC_SIZE + y) * OCC_SIZE);
 }
 

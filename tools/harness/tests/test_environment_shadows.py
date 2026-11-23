@@ -88,3 +88,12 @@ def test_scene_depth_copy_validates_new_images_and_retains_msaa_fallback():
     code = state + function(source, 'environment_snapshot') + function(source, 'environment_draw_receiver')
     status, output = run(build('environment_snapshot', (('under_test.inc', code),)), 'all')
     assert status == 0, output
+
+
+def test_world_stencil_state_and_stock_transitions():
+    source = read('port/linux/src/d3d8_gl.c')
+    code = '\n'.join(function(source, name) for name in
+                     ('state_enable', 'stencil_operation', 'apply_stencil_state'))
+    for platform in ('', '#define HALO_GLES 1\n'):
+        status, output = run(build('environment_stencil', (('under_test.inc', platform + code),)), 'all')
+        assert status == 0, output

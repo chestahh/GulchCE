@@ -5740,6 +5740,61 @@ static GLenum blend_equation(DWORD operation)
 	}
 }
 
+static void apply_stencil_state(BOOL has_depth)
+{
+	DWORD const *rs = D3D__RenderState;
+	GLenum function, operations[3];
+	GLint reference;
+	GLuint value_mask, write_mask;
+
+#ifndef HALO_GLES
+	/* Mark world receivers in bit 7. Apply the effective values directly so
+	   consecutive world draws can share the same cached GL stencil state. */
+	if (modern_environment_marking())
+	{
+		state_enable(&gl_state.stencil_test, GL_STENCIL_TEST, TRUE);
+		function = rs[D3DRS_STENCILENABLE] ? rs[D3DRS_STENCILFUNC] : GL_ALWAYS;
+		reference = (rs[D3DRS_STENCILREF] & 127) | 128;
+		value_mask = rs[D3DRS_STENCILENABLE] ? rs[D3DRS_STENCILMASK] & 127 : 0;
+		write_mask = 128;
+		operations[0] = operations[1] = GL_KEEP;
+		operations[2] = GL_REPLACE;
+	}
+	else
+#endif
+	{
+		BOOL enabled = has_depth && rs[D3DRS_STENCILENABLE];
+		state_enable(&gl_state.stencil_test, GL_STENCIL_TEST, enabled);
+		if (!enabled)
+			return;
+		function = rs[D3DRS_STENCILFUNC] ? (GLenum)rs[D3DRS_STENCILFUNC] : GL_NEVER;
+		reference = (GLint)rs[D3DRS_STENCILREF];
+		value_mask = rs[D3DRS_STENCILMASK];
+		write_mask = rs[D3DRS_STENCILWRITEMASK];
+		operations[0] = stencil_operation(rs[D3DRS_STENCILFAIL]);
+		operations[1] = stencil_operation(rs[D3DRS_STENCILZFAIL]);
+		operations[2] = stencil_operation(rs[D3DRS_STENCILPASS]);
+	}
+	if (gl_state.stencil_function != function || gl_state.stencil_reference != reference ||
+		gl_state.stencil_value_mask != value_mask)
+	{
+		gl_state.stencil_function = function;
+		gl_state.stencil_reference = reference;
+		gl_state.stencil_value_mask = value_mask;
+		glStencilFunc(function, reference, value_mask);
+	}
+	if (memcmp(gl_state.stencil_operations, operations, sizeof(operations)))
+	{
+		memcpy(gl_state.stencil_operations, operations, sizeof(operations));
+		glStencilOp(operations[0], operations[1], operations[2]);
+	}
+	if (gl_state.stencil_write_mask != write_mask)
+	{
+		gl_state.stencil_write_mask = write_mask;
+		glStencilMask(write_mask);
+	}
+}
+
 static void apply_raster_state(BOOL has_depth)
 {
 	DWORD *rs = D3D__RenderState;
@@ -5807,54 +5862,7 @@ static void apply_raster_state(BOOL has_depth)
 		}
 	}
 
-	state_enable(&gl_state.stencil_test, GL_STENCIL_TEST, has_depth && rs[D3DRS_STENCILENABLE]);
-	if (has_depth && rs[D3DRS_STENCILENABLE])
-	{
-		GLenum function = rs[D3DRS_STENCILFUNC] ? (GLenum)rs[D3DRS_STENCILFUNC] : GL_NEVER;
-		GLenum operations[3];
-
-		if (gl_state.stencil_function != function || gl_state.stencil_reference != (GLint)rs[D3DRS_STENCILREF] ||
-			gl_state.stencil_value_mask != rs[D3DRS_STENCILMASK])
-		{
-			gl_state.stencil_function = function;
-			gl_state.stencil_reference = (GLint)rs[D3DRS_STENCILREF];
-			gl_state.stencil_value_mask = rs[D3DRS_STENCILMASK];
-			glStencilFunc(function, (GLint)rs[D3DRS_STENCILREF], rs[D3DRS_STENCILMASK]);
-		}
-		operations[0] = stencil_operation(rs[D3DRS_STENCILFAIL]);
-		operations[1] = stencil_operation(rs[D3DRS_STENCILZFAIL]);
-		operations[2] = stencil_operation(rs[D3DRS_STENCILPASS]);
-		if (memcmp(gl_state.stencil_operations, operations, sizeof(operations)))
-		{
-			memcpy(gl_state.stencil_operations, operations, sizeof(operations));
-			glStencilOp(operations[0], operations[1], operations[2]);
-		}
-		if (gl_state.stencil_write_mask != rs[D3DRS_STENCILWRITEMASK])
-		{
-			gl_state.stencil_write_mask = rs[D3DRS_STENCILWRITEMASK];
-			glStencilMask(rs[D3DRS_STENCILWRITEMASK]);
-		}
-	}
-
-#ifndef HALO_GLES
-    /* Feature-owned world receiver coverage. The stock stencil uses bits 0/1;
-       retain its comparison and leave those bits untouched. Cached state is
-       updated so the next ordinary draw restores the unmodified D3D state. */
-    if (modern_environment_marking())
-    {
-        state_enable(&gl_state.stencil_test, GL_STENCIL_TEST, TRUE);
-        gl_state.stencil_function = rs[D3DRS_STENCILENABLE] ? rs[D3DRS_STENCILFUNC] : GL_ALWAYS;
-        gl_state.stencil_reference = (rs[D3DRS_STENCILREF] & 127) | 128;
-        gl_state.stencil_value_mask = rs[D3DRS_STENCILENABLE] ? rs[D3DRS_STENCILMASK] & 127 : 0;
-        gl_state.stencil_write_mask = 128;
-        gl_state.stencil_operations[0] = GL_KEEP;
-        gl_state.stencil_operations[1] = GL_KEEP;
-        gl_state.stencil_operations[2] = GL_REPLACE;
-        glStencilFunc(gl_state.stencil_function, gl_state.stencil_reference, gl_state.stencil_value_mask);
-        glStencilMask(128);
-        glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
-    }
-#endif
+	apply_stencil_state(has_depth);
 
 	state_enable(&gl_state.blend, GL_BLEND, rs[D3DRS_ALPHABLENDENABLE] != 0);
 	if (rs[D3DRS_ALPHABLENDENABLE])
