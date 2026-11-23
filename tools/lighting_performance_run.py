@@ -6,6 +6,7 @@ Only the dedicated performance executable contains passive measurement hooks.
 import argparse
 import csv
 import ctypes
+from concurrent.futures import ThreadPoolExecutor
 from ctypes import wintypes
 import hashlib
 import json
@@ -194,6 +195,7 @@ def main():
     parser.add_argument('--map', default='carousel', choices=['carousel','bloodgulch','c40','ratrace'])
     parser.add_argument('--checkpoint-root', type=Path, help='Copy an existing campaign profile/save root; never run against the original')
     parser.add_argument('--invulnerable-player', action='store_true', help='Explicit controlled campaign stress run: keep the copied player alive; report separately from normal gameplay')
+    parser.add_argument('--combat-core', type=Path, help='Restore the E5 snowy fight and fixed camera from a trusted local core save')
     parser.add_argument('--snowy-route', action='store_true', help='Walk the archived exterior-door checkpoint into the c40 snowy fight; test route only')
     parser.add_argument('--stationary-shield', action='store_true', help='Isolated stationary emitter, no bots or other enhanced lights')
     parser.add_argument('--advance-seconds', type=float, default=0, help='Walk forward in the copied campaign checkpoint with normal controller input')
@@ -209,6 +211,9 @@ def main():
     args=parser.parse_args()
     if (args.map == 'c40') != bool(args.checkpoint_root):
         parser.error('c40 requires --checkpoint-root; bot maps do not use a campaign save')
+    if args.combat_core and (not args.checkpoint_root or not args.combat_core.is_file() or args.warmup < 20 or
+                             args.snowy_route or args.advance_seconds or not args.invulnerable_player):
+        parser.error('--combat-core requires a local core, a copied c40 checkpoint, a protected player, 20s warmup and a fixed camera')
     if args.invulnerable_player and not args.checkpoint_root:
         parser.error('--invulnerable-player requires a copied campaign checkpoint')
     if args.snowy_route and (not args.checkpoint_root or args.advance_seconds):
@@ -367,13 +372,25 @@ def main():
             shutil.copy2(args.data_root/'maps'/name, out/'maps'/name)
         # Desktop configuration is next to the executable, not the data root.
         shutil.copy2(build/'halo-performance.exe', out/'halo-performance.exe')
-        shutil.copy2(ROOT/'build/windows/SDL3.dll', out/'SDL3.dll')
+        dll = build/'SDL3.dll'
+        shutil.copy2(dll if dll.exists() else ROOT/'build/windows/SDL3.dll', out/'SDL3.dll')
+        if args.combat_core:
+            import lighting_combat_core as combat
+            port, core_hash = combat.prepare(out, env, args.combat_core)
+            with (out/'maps'/f'{args.map}.map').open('rb') as map_file:
+                map_hash = hashlib.file_digest(map_file, 'sha256').hexdigest()
         with (out/'stdout.log').open('wb') as stdout, (out/'stderr.log').open('wb') as stderr:
             process=subprocess.Popen([str(out/'halo-performance.exe')], cwd=out, env=env,
                 stdout=stdout, stderr=stderr, creationflags=subprocess.CREATE_NO_WINDOW)
             (out/'process.json').write_text(json.dumps(dict(pid=process.pid, executable=str(out/'halo-performance.exe'))))
+            staging = None
             try:
+                if args.combat_core:
+                    staging = ThreadPoolExecutor(max_workers=1)
+                    staged = staging.submit(combat.play, out, process, port)
                 while process.poll() is None:
+                    if staging and staged.done():
+                        staged.result()
                     if time.monotonic()-start>args.warmup+args.seconds+120:
                         raise TimeoutError('Game did not exit')
                     memory.append(dict(seconds=time.monotonic()-start, **process_memory(process._handle)))
@@ -381,6 +398,9 @@ def main():
                     time.sleep(5)
             finally:
                 if process.poll() is None: process.terminate(); process.wait(10)
+                if staging:
+                    staging.shutdown()
+                    staged.result()
         rows=[]
         if (out/'frames.csv').exists():
             with (out/'frames.csv').open() as frames:
@@ -410,6 +430,18 @@ def main():
                       # the exit deadline; shutdown deallocation is not a plateau.
                       first_minute_private_mib=memory_window_mib(memory,args.warmup+15,min(args.warmup+75,args.warmup+args.seconds)),
                       last_minute_private_mib=memory_window_mib(memory,max(args.warmup+15,args.warmup+args.seconds-60),args.warmup+args.seconds))
+        if args.combat_core:
+            report['map_sha256'] = map_hash
+            report['combat_core_sha256'] = core_hash
+            ticks = [int(row['tick']) for row in rows if args.warmup <= row['seconds'] < args.warmup + args.seconds]
+            if not ticks:
+                raise ValueError('No combat simulation ticks in the measurement window')
+            report['combat_tick_range'] = [ticks[0], ticks[-1]]
+            report['combat_squad_counts'] = combat.verify(out, log, args.warmup, args.seconds, report['combat_tick_range'])
+            # Only the verified local duplicate is disposable.
+            copied = out/'core/canyon.bin'
+            if hashlib.sha256(copied.read_bytes()).hexdigest() == hashlib.sha256(args.combat_core.read_bytes()).hexdigest():
+                safe(copied, out).unlink()
         (out/'report.json').write_text(json.dumps(report,indent=2))
         print(json.dumps(dict(label=args.label, **report)),flush=True)
         assert report['exit']==0 and not report['errors'], 'Game failed; retained report and logs describe the failure'

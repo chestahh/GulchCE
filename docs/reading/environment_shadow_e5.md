@@ -309,6 +309,89 @@ after freezing produced identical saved camera poses in both builds.
 At tick 271 with seven local maps and 20 sun casters, 21 paired captures
 had a maximum per-channel mean absolute difference of 1.01 on a 0–255 scale.
 
+### Upstream stock control
+
+Include the following runs in each performance comparison: upstream OpenCE Classic,
+GulchCE Classic, GulchCE lighting alone and GulchCE with modern shadows
+(measure Hard and Soft separately). Use the same stock flashlight in both
+Classic controls. Run them sequentially on the same GPU. Record both the
+120-second average and the heavier second minute. Repeat a suspected
+regression in reverse engine order. An upstream result from a different map,
+camera or graphics setting is a separate workload.
+
+Pin the upstream commit and the GulchCE commit before building. With the
+Windows release toolchain available, the following commands build the
+[common frame clock](../../tools/lighting_stock_control.inl) into source-only
+snapshots. The [stock builder](../../tools/lighting_stock_control_build.py)
+uses the normal portable release configuration and records each revision,
+probe hash and executable hash in its manifest. The packaged game has no
+benchmark hooks.
+
+```powershell
+python tools/lighting_stock_control_build.py upstream/main build/upstream-stock
+python tools/lighting_stock_control_build.py HEAD build/gulch-stock
+```
+
+Pass the same trusted local exterior core, profile copy, map data and display
+settings to the [runner](../../tools/lighting_performance_run.py) for both
+executables. For example, with paths in PowerShell variables:
+
+```powershell
+$common = @('--map', 'c40', '--checkpoint-root', $profileCopy, '--combat-core', $combatCore,
+    '--data-root', $mapData, '--settings', $displaySettings, '--invulnerable-player',
+    '--fps', '360', '--uncapped', '--warmup', '25', '--seconds', '120',
+    '--resolution', '2560x1440', '--no-captures')
+python tools/lighting_performance_run.py @common --enabled 0 --modern-shadows off --stock-flashlight --build-dir build/upstream-stock --label upstream-stock-1024
+python tools/lighting_performance_run.py @common --enabled 0 --modern-shadows off --stock-flashlight --build-dir build/gulch-stock --label gulch-stock-1024
+```
+
+Set `anti_aliasing = "off"` and `shadow_resolution = 1024` in the settings
+file's display section for parity with the existing E5 tests. Also run both
+Classic controls at 128 to measure the default per-object shadow resolution.
+Use a new label for each run. For the lighting/Hard/Soft rows, use the regular
+GulchCE performance build that records actual shadow and lighting counters.
+The [combat fixture](../../tools/lighting_combat_core.py) checks the engine's
+checkpoint acknowledgement, starting squad count and fixed camera. A rejected
+save cannot supply a matched result. Keep the map and checkpoint local.
+
+#### First matched Windows controls
+
+OpenCE `307a42ee04ba` and GulchCE `9af0b61c237c` used the same timing
+probe, Windows PGO profile, full LTO, SDL binary and NVIDIA 621.24 driver.
+The logs confirmed the requested framebuffer size, AA off, the exterior
+camera and 19 living Covenant at every squad sample. Each run advanced
+about 3,600 simulation ticks during the measured two minutes. Each row is
+one run per engine. The 1440p Classic 1024 runs used OpenCE first, and
+the 1440p Classic 128 runs used GulchCE first.
+
+| Framebuffer and Classic shadow size | OpenCE average FPS | GulchCE average FPS | OpenCE second minute | GulchCE second minute |
+| --- | ---: | ---: | ---: | ---: |
+| 2560×1440, 128 | 415.8 | 428.3 | 376.3 | 380.4 |
+| 2560×1440, 1024 | 379.7 | 421.3 | 364.1 | 379.9 |
+| 1280×720, 1024 | 458.2 | 489.1 | 431.7 | 439.5 |
+
+In pinned OpenCE, `halo_shadow_map_scale` sets a common size for the
+Classic object targets. In the [GulchCE renderer](../../port/linux/src/d3d8_gl.c),
+`halo_shadow_map_size` selects a size according to the object's projected
+diameter, capped by the setting. At 1024 the player setting matches while
+the texel workload can differ. The native 128 pair controls for that
+difference. The timings alone cannot attribute the full gap to this path.
+
+At 1440p with Classic 1024, the stock GulchCE second minute took 2.63 ms
+per frame. Lighting alone took 3.68 ms and Hard took 4.21 ms on the same
+fixture. Soft took 4.22 ms. The 360 FPS target allows 2.78 ms. Reducing
+framebuffer pixels by 75% improved both stock controls, by 21% in OpenCE
+and 16% in GulchCE at 1024. These measurements show resolution sensitivity.
+They cannot apportion CPU submission, simulation, driver and GPU time or
+establish a historical regression against an older GulchCE release.
+
+The local stock reports are `e5-opence-stock-control` (OpenCE 1440p/1024)
+and `e5-common-{gulch1024,gulch128,opence128,gulch720,opence720}` under
+`build/lighting-performance/`. The saved map SHA-256 starts `b5fb3db5`,
+the encounter core `a9188c28`. Keep the current scene as the E5 control
+when profiling BSP surface selection, temporary lighting triangles and
+model drawing.
+
 ### Loading, compatibility and driver checks
 
 Four menu styles passed Save, Cancel, Defaults and restart checks. The live

@@ -157,3 +157,21 @@ int main(void) {
 def test_shadow_resource_fallback_fails_acceptance(message):
     assert runtime_errors('halo-linux: '+message+'\n')
     assert not runtime_errors('halo-linux: shadow maps: 1024x1024\n')
+
+
+@pytest.mark.parametrize('acknowledged,occupancy,camera,accepted', [
+    (True, 19, '327.8 -649.3 74.5', True),
+    (False, 19, '327.8 -649.3 74.5', False),
+    (True, 0, '327.8 -649.3 74.5', False),
+    (True, 19, '0.0 0.0 0.0', False),
+])
+def test_combat_core_requires_the_saved_fight(tmp_path, acknowledged, occupancy, camera, accepted):
+    from lighting_combat_core import verify
+    reply = "loaded 'canyon.bin'\n" if acknowledged else 'load failed\n'
+    (tmp_path/'stage.log').write_text(reply + f'(ai_living_count c3_base_tier_2)\n{occupancy}\n' * 4)
+    log = ''.join(f'network test: tick {tick} player 0: local 0 camera ({camera})\n' for tick in range(0, 900, 30))
+    if accepted:
+        assert verify(tmp_path, log, 25, 30, (0, 899)) == [19] * 4
+    else:
+        with pytest.raises(ValueError):
+            verify(tmp_path, log, 25, 30, (0, 899))
