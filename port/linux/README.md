@@ -2203,6 +2203,7 @@ Other changes:
 | `physics/collision_models.c` | A vector tested against a model (a body's parts, a vehicle's) passes over a part whose collision geometry's bounding sphere (`object_bounds_cache.c`, worked out once from its vertices) the vector misses, without turning the vector into the part's space. Weapons falling among many bodies tested each body's parts one by one. |
 | `memory/lruv_cache.c` | Making or deleting a block of a cache (the decals', of 2048) checks that block's links with its neighbours, not every block of the cache, before and after: in a big fight each new bullet hole or scorch mark deleted the oldest and walked the whole cache several times, about 6% of a joined co-op player's slow frames. The whole cache is still checked when it is made, flushed or resized. |
 | `main/main.c` | The talking timer (`game/talking_timer.c`) runs each frame. |
+| `math/real_math.h` | `square_root` takes the root in single precision, one instruction on every port (`__builtin_elementwise_sqrt`; the double root, as before, where the compiler lacks it), not of the float as a double rounded back: the same bits for every float (a double carries more than twice a float's precision), without two conversions and the slower double root. `sqrtf` would not do: on 32-bit Windows it can be a call into the C runtime. |
 
 The x86 inline assembly of the game is replaced by C. Thus the compiler
 can optimize that code for each processor:
