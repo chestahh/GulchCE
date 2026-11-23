@@ -254,6 +254,61 @@ Soft run crossed Xbox Two Betrayals, MCC Digsite, CE Death Island and Xbox
 Blood Gulch. The two-player CE host-policy check recorded zero local shadow
 samples on the Classic host and 60 on the Hard client.
 
+### Heavier combat minute
+
+At release commit `07cb0ba16`, the same checkpoint, camera and 2560×1440
+settings gave the following averages on the i7-14700K and RTX 5070 Ti.
+Each row is a separate two-minute Windows run. The stock control used the
+ordinary flashlight with the optional lights and shadows disabled.
+
+| Mode | Full run (FPS) | Second minute (FPS) | 99th percentile frame time (ms) |
+| --- | ---: | ---: | ---: |
+| Stock | 436.1 | 396.3 | 3.04 |
+| Dynamic lighting | 285.0 | 272.1 | 5.25 |
+| Hard 1024 | 251.6 | 237.6 | 5.97 |
+| Soft 1024 | 247.9 | 237.1 | 6.01 |
+
+Hard and Soft both used sunlight throughout and reached eight local slots
+including the shared flashlight. At 360 FPS the frame budget is 2.78 ms.
+The second-minute stock average used 2.52 ms, lighting used 3.68 ms, and Hard
+and Soft each used about 4.21 ms. The live fight can vary between runs.
+
+Two traversal candidates were tested in separate executables that alternated
+the original and candidate code over two-second intervals, reversing the order
+in each eight-second block. Each comparison covered fourteen complete blocks.
+Replacing tail recursion with an explicit BSP descent loop took Hard from
+247.9 to 247.4 FPS and Soft from 246.6 to 243.6. Preparing each ray octant
+from its first classified ray's split took lighting from 284.8 to 282.3,
+Hard from 245.2 to 245.8 and Soft from 244.5 to 242.2 FPS. This second
+candidate increased mean occlusion time in all three modes. Both experiments
+were removed.
+
+In a separate instrumented Hard run, the heavier minute spent 0.62 ms per
+frame tracing world and cluster rays, 0.05 ms tracing posed models and
+0.20 ms reconstructing visibility fields. The shared draw preparation
+timer included model field work and averaged 1.29 ms. GPU queries sampled
+every 32nd frame measured 0.38 ms for environmental model depth and about
+0.38 ms for local shadow setup, world and model depth together. CPU and GPU
+timers overlap. The local captures and frame series use the prefix
+`build/lighting-performance/e5-heavy-`.
+
+A separate pass timed the top-level renderer in the same heavy minute.
+Model rendering averaged 0.40 ms stock and 1.17 ms in Hard. The two BSP
+lighting passes together averaged 0.09 ms stock and 0.91 ms in Hard.
+These are inclusive times, including any on-demand field updates.
+[Diffuse and specular light submission](../../source/objects/object_lights.c)
+each builds a cluster list, then the [BSP renderer](../../source/structures/structure_render.c)
+selects surfaces and builds temporary triangles for each pass. Measure the
+cost of those operations separately from drawing. Diffuse and specular radii
+can differ, so sharing a surface list needs an exact match of its inputs.
+In sampled Hard world queries, 12% of rays stayed in the origin leaf and
+the mean ray encountered 2.67 tree forks.
+
+The first frozen capture pair had a camera offset. Reapplying the camera
+after freezing produced identical saved camera poses in both builds.
+At tick 271 with seven local maps and 20 sun casters, 21 paired captures
+had a maximum per-channel mean absolute difference of 1.01 on a 0–255 scale.
+
 ### Loading, compatibility and driver checks
 
 Four menu styles passed Save, Cancel, Defaults and restart checks. The live
