@@ -11,8 +11,11 @@ enum { GL_NO_ERROR, GL_TEXTURE10, GL_TEXTURE_2D, GL_DEPTH_STENCIL, GL_DEPTH32F_S
  GL_FRAMEBUFFER_COMPLETE, GL_SCISSOR_TEST, GL_READ_FRAMEBUFFER, GL_DEPTH_BUFFER_BIT };
 static GLuint source_image=1, next_name=20;
 enum { GL_TRIANGLES };
-static int width=512, copies, blits, queries, error, refuse_copy, draws, refuse_draw;
-static void glDrawArrays(GLenum mode,int first,int count) { draws++; if (refuse_draw) error=1; }
+static int width=512, copies, blits, queries, error, refuse_copy, submitted, refuse_draw;
+static int mesh_count=2, draw_count=1;
+static struct shadow_mesh { int handoff_nodes; GLuint handoff_alpha; } meshes[2];
+static struct { int mesh, nodes; GLuint alpha; } draws[2];
+static void glDrawArrays(GLenum mode,int first,int count) { submitted++; if (refuse_draw) error=1; }
 static int xgpu_gl_scene_target(GLuint *target,int size[2],GLenum *format,GLuint *source,int viewport[4],float offset[2])
 {
     *target=3; size[0]=width; size[1]=512; *format=GL_DEPTH32F_STENCIL8; *source=source_image; return 1;
@@ -55,15 +58,35 @@ int main(void)
     environment.copied=0; source_image=0;
     CHECK(environment_snapshot() && blits==2 && queries==6,"multisample depth still resolves");
     environment.verified_copy_source=1;
-    CHECK(environment_draw_receiver() && draws==1 && queries==8,"validate first sun receiver");
-    CHECK(environment_draw_receiver() && draws==2 && queries==8,"stable sun draw stays queued");
+    CHECK(environment_draw_receiver(0) && submitted==1 && queries==8,"validate first sun receiver");
+    CHECK(environment_draw_receiver(0) && submitted==2 && queries==8,"stable sun draw stays queued");
     environment.destination++; error=1;
-    CHECK(!environment_draw_receiver() && draws==2,"rejected setup does not draw");
+    CHECK(!environment_draw_receiver(0) && submitted==2,"rejected setup does not draw");
     refuse_draw=1;
-    CHECK(!environment_draw_receiver() && draws==3,"failed receiver uses fallback");
+    CHECK(!environment_draw_receiver(0) && submitted==3,"failed receiver uses fallback");
     refuse_draw=0;
-    CHECK(environment_draw_receiver() && draws==4,"retry target after receiver failure");
+    CHECK(environment_draw_receiver(0) && submitted==4,"retry target after receiver failure");
     sun.projecting=0; refuse_draw=1;
-    CHECK(!environment_draw_receiver() && draws==5,"per-object receiver retains per-draw checks");
+    CHECK(!environment_draw_receiver(0) && submitted==5,"per-object receiver retains per-draw checks");
+    refuse_draw=0;
+    draws[0].nodes=3; draws[0].alpha=22;
+    CHECK(environment_draw_receiver(1),"first handoff succeeds");
+    { int after=queries;
+      CHECK(environment_draw_receiver(1) && queries==after,"verified handoff stays queued");
+      draws[0].alpha++; refuse_draw=1;
+      CHECK(!environment_draw_receiver(1) && queries==after+2,"new cutout is checked and may fail");
+      refuse_draw=0;
+      CHECK(environment_draw_receiver(1) && queries==after+4,"retry rejected cutout");
+      draws[0].nodes++;
+      CHECK(environment_draw_receiver(1) && queries==after+6,"new bone count is checked");
+      draws[1]=draws[0]; draws[1].mesh=1; draw_count=2;
+      CHECK(environment_draw_receiver(1) && queries==after+8,"new mesh in a family is checked");
+      environment.destination++; draw_count=1;
+      CHECK(environment_draw_receiver(1) && queries==after+10,"changed destination is checked");
+      draws[0].mesh=1; error=1;
+      CHECK(!environment_draw_receiver(1) && queries==after+11,"other mesh rechecked on changed target");
+      environment.verified_copy_source=0; refuse_draw=1;
+      CHECK(!environment_draw_receiver(1),"multisample handoff retains ordinary fallback");
+    }
     return 0;
 }

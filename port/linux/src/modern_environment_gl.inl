@@ -14,7 +14,7 @@ static struct
     GLenum scene_format;
     GLint caster_frame, caster_radius, caster_alpha_map, caster_bones, caster_uv, caster_alpha;
     struct environment_receiver_uniforms uniforms;
-    GLuint destination, verified_copy_source;
+    GLuint destination, verified_copy_source, checked_handoff_target;
     int viewport[4];
     float frame[16], radius, pixel_center[2];
 } environment;
@@ -312,6 +312,7 @@ static int environment_resources_for(int projector)
     if (!environment.depth || environment.size != size)
     {
         if (!environment_resize_texture(&environment.depth, &environment.depth_fbo, size, size, 0)) return 0;
+        environment.checked_handoff_target = 0;
         environment.size = size;
     }
     return 1;
@@ -332,7 +333,7 @@ static int environment_snapshot(void)
     {
         if (environment.scene_depth) glDeleteTextures(1, &environment.scene_depth);
         environment.scene_depth = 0;
-        sun.checked_receiver_target = 0;
+        sun.checked_receiver_target = environment.checked_handoff_target = 0;
         environment.verified_copy_source = 0;
         environment.copied = 0;
         memcpy(environment.scene_size, size, sizeof(size));
@@ -356,7 +357,7 @@ static int environment_snapshot(void)
        always samples its private image, including on the multisample path. */
     if (sun.projecting && source && glCopyImageSubData)
     {
-        if (environment.verified_copy_source != source) sun.checked_receiver_target = 0;
+        if (environment.verified_copy_source != source) sun.checked_receiver_target = environment.checked_handoff_target = 0;
         glCopyImageSubData(source,GL_TEXTURE_2D,0,0,0,0,environment.scene_depth,
             GL_TEXTURE_2D,0,0,0,0,size[0],size[1],1);
         /* Source/target format, dimensions and sample count are fixed for
@@ -370,7 +371,7 @@ static int environment_snapshot(void)
         }
         environment.verified_copy_source = 0;
     }
-    sun.checked_receiver_target = 0;
+    sun.checked_receiver_target = environment.checked_handoff_target = 0;
     environment.verified_copy_source = 0;
     if (!environment.scene_fbo) return 0;
     glBindFramebuffer(GL_FRAMEBUFFER, environment.scene_fbo);
@@ -508,19 +509,45 @@ static int environment_draw_depth(GLuint target)
     return success;
 }
 
-/* The sun projects the same 36 vertices with the same program and images
-   until a target changes. Validate a new combination, then let the driver
-   queue its draws. The per-object and resolved-depth paths still check each
-   draw so a failed replacement can return to the stock object shadow. */
-static int environment_draw_receiver(void)
+/* A sun handoff reuses the same single-sample receiver and immutable caster
+   meshes. Check new draw inputs and targets before leaving their repeat draws
+   queued. The ordinary per-object and multisample paths retain both checks. */
+static int environment_draw_receiver(int handoff)
 {
-    GLuint target = sun.projecting && environment.verified_copy_source ? environment.destination : 0;
-    int validated = target && target == sun.checked_receiver_target;
-    if (!validated && glGetError() != GL_NO_ERROR) return 0;
+    GLuint target = environment.verified_copy_source ? environment.destination : 0;
+    int repeat = target && (sun.projecting ? target == sun.checked_receiver_target :
+        handoff && target == environment.checked_handoff_target);
+    int i;
+    if (handoff && target && target != environment.checked_handoff_target)
+        for (i = 0; i < mesh_count; i++) meshes[i].handoff_nodes = 0;
+    if (repeat && !sun.projecting)
+    {
+        for (i = 0; i < draw_count; i++)
+        {
+            const struct shadow_mesh *mesh = &meshes[draws[i].mesh];
+            if (mesh->handoff_nodes != draws[i].nodes || mesh->handoff_alpha != draws[i].alpha)
+            {
+                repeat = 0;
+                break;
+            }
+        }
+    }
+    if (!repeat && handoff) environment.checked_handoff_target = 0;
+    if (!repeat && glGetError() != GL_NO_ERROR) return 0;
     glDrawArrays(GL_TRIANGLES, 0, sun.projecting ? 36 : 3);
-    if (validated) return 1;
+    if (repeat) return 1;
     if (glGetError() != GL_NO_ERROR) return 0;
-    if (target) sun.checked_receiver_target = target;
+    if (sun.projecting) sun.checked_receiver_target = target;
+    else if (handoff && target)
+    {
+        environment.checked_handoff_target = target;
+        for (i = 0; i < draw_count; i++)
+        {
+            struct shadow_mesh *mesh = &meshes[draws[i].mesh];
+            mesh->handoff_nodes = draws[i].nodes;
+            mesh->handoff_alpha = draws[i].alpha;
+        }
+    }
     return 1;
 }
 
@@ -586,7 +613,7 @@ int modern_environment_end(int complete, const float camera[16], const float pro
         glUniformMatrix4fv(u->camera,1,GL_FALSE,camera);
         glUniformMatrix4fv(u->projection,1,GL_FALSE,projection);
         glUniform1f(u->radius,environment.radius);
-        success = environment_draw_receiver();
+        success = environment_draw_receiver(handoff);
     }
     if (sun.projecting) glDisable(GL_DEPTH_CLAMP);
     glClipControl(GL_UPPER_LEFT,GL_ZERO_TO_ONE);
@@ -601,7 +628,7 @@ static int sun_depth_resources(void)
     {
         if (!environment_resize_texture(&sun.static_depth, &environment.depth_fbo, environment.size, environment.size, 1)) return 0;
         sun.valid = sun.object_checked = 0;
-        sun.checked_receiver_target = 0;
+        sun.checked_receiver_target = environment.checked_handoff_target = 0;
         sun.detail_atlas = environment_resize_texture(&sun.object_depth,&sun.object_fbo,2*environment.size,environment.size,0);
         if (!sun.detail_atlas && !environment_resize_texture(&sun.object_depth,&sun.object_fbo,environment.size,environment.size,0)) return 0;
         sun.size = environment.size;

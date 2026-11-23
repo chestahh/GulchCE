@@ -34,6 +34,34 @@ def instrument_renderer_profile(text):
     return text
 
 
+def instrument_bsp_lights(source, cluster_lists=False):
+    # Light geometry can differ between passes. Measure them independently.
+    for index, kind in enumerate(('diffuse', 'specular')):
+        name = ('lights_render_' + kind if cluster_lists else 'structure_render_' + kind + '_light')
+        original = function(source, name)
+        body = original
+        phase = 28 + 4 * index
+        if cluster_lists:
+            spans = [(phase, 'cluster_count = light_build_cluster_array(', 'cluster_indices);')]
+        else:
+            spans = [
+                (phase + 1, 'environment_surface_count = structure_visibility_build_surfaces(', 'cluster_indices);'),
+                (phase + 2, 'environment_triangles_index = structure_render_build_dynamic_triangles(', 'NULL);'),
+                (phase + 3, f'profile_enter(render_structure_{kind}_lights_draw_section);',
+                 f'profile_exit(render_structure_{kind}_lights_draw_section);'),
+            ]
+        for timer, first, last in spans:
+            assert body.count(first) == 1, (name, first)
+            start = body.index(first)
+            end = body.index(last, start) + len(last)
+            indent = body[body.rindex('\n', 0, start) + 1:start]
+            timed = (f'lighting_profile_begin({timer});\n{indent}' + body[start:end] +
+                     f'\n{indent}lighting_profile_end({timer});')
+            body = body[:start] + timed + body[end:]
+        source = source.replace(original, body, 1)
+    return source
+
+
 def instrument_shader_stalls(text):
     # Desktop program_get links directly when its binary cache misses;
     # xgpu_link_program alone no longer covers gameplay shader links.
@@ -92,7 +120,7 @@ def main():
     if args.profile:
         paths += ['source/objects/object_lights.c', 'port/linux/src/plasma_occlusion_gl.c',
                   'port/linux/game/modern_shadows.c', 'port/linux/src/modern_shadows_gl.c',
-                  'port/linux/src/modern_environment_gl.inl']
+                  'port/linux/src/modern_environment_gl.inl', 'source/structures/structure_render.c']
     if args.environment_model_control and 'port/linux/game/modern_shadows.c' not in paths:
         paths.append('port/linux/game/modern_shadows.c')
     if args.depth_reuse_control and 'port/linux/src/modern_shadows_gl.c' not in paths:
@@ -304,6 +332,16 @@ def main():
             replace(environment, '        sun.object_checked = sun.ready = glGetError() == GL_NO_ERROR;',
                     '    { lighting_profile_begin(23); sun.object_checked = sun.ready = glGetError() == GL_NO_ERROR; lighting_profile_end(23); }')
             text = environment.read_text()
+            projection = function(text, 'modern_environment_end')
+            timed = projection.replace('modern_environment_end(', 'lighting_timed_environment_end_projection(', 1)
+            wrapper = ('\nint modern_environment_end(int complete, const float camera[16], const float projection[16], '
+                       'const float color[3], int handoff)\n{\n'
+                       '    int result, phase = handoff ? 36 : 37;\n'
+                       '    if (!sun.projecting) lighting_profile_begin(phase);\n'
+                       '    result = lighting_timed_environment_end_projection(complete, camera, projection, color, handoff);\n'
+                       '    if (!sun.projecting) lighting_profile_end(phase);\n'
+                       '    return result;\n}\n')
+            text = text.replace(projection, timed + wrapper, 1)
             for name, phase in [('environment_snapshot', 24), ('environment_draw_receiver', 25)]:
                 original = function(text, name)
                 assert 'glGetError()' in original
@@ -354,8 +392,10 @@ def main():
             backend=ROOT/paths[1]
             backend.write_text(declarations+'int lighting_profile_model, lighting_profile_world;\n'+backend.read_text())
             backend.write_text(instrument_renderer_profile(backend.read_text()))
+            bsp = ROOT/'source/structures/structure_render.c'
+            bsp.write_text(declarations + instrument_bsp_lights(bsp.read_text()))
             scene = ROOT/'source/objects/object_lights.c'
-            text = scene.read_text()
+            text = instrument_bsp_lights(scene.read_text(), cluster_lists=True)
             anchor = 'void lights_preprocess_scene(\n\tvoid)'
             assert text.count(anchor) == 1
             text = text.replace(anchor, 'static void lighting_timed_preprocess_scene(void)', 1)

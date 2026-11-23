@@ -1,7 +1,8 @@
 """Check that benchmark reports retain real stalls and separate capture overhead."""
+import re
 import pytest
 from lighting_performance_run import distribution, summarize, memory_window_mib, runtime_errors
-from lighting_performance_build import ROOT, instrument_shader_stalls, instrument_renderer_profile
+from lighting_performance_build import ROOT, instrument_shader_stalls, instrument_renderer_profile, instrument_bsp_lights
 from harness import function
 
 
@@ -13,6 +14,21 @@ def test_renderer_timers_preserve_the_production_body(name):
     wrapper = function(timed, name)
     assert wrapper.count('lighting_profile_begin(') == wrapper.count('lighting_profile_end(') == 1
     assert wrapper.index('lighting_profile_begin(') < wrapper.index('lighting_timed_'+name+'(') < wrapper.index('lighting_profile_end(')
+
+
+@pytest.mark.parametrize('cluster_lists,path', [
+    (True, 'source/objects/object_lights.c'),
+    (False, 'source/structures/structure_render.c'),
+])
+def test_bsp_timers_preserve_light_geometry_and_draw_order(cluster_lists, path):
+    source = (ROOT/path).read_text()
+    timed = instrument_bsp_lights(source, cluster_lists)
+    phases = (28, 32) if cluster_lists else (29, 30, 31, 33, 34, 35)
+    for phase in phases:
+        begin, end = (f'lighting_profile_{op}({phase});' for op in ('begin', 'end'))
+        assert timed.count(begin) == timed.count(end) == 1
+        assert timed.index(begin) < timed.index(end)
+    assert re.sub(r'^[\t ]*lighting_profile_(?:begin|end)\(\d+\);\n', '', timed, flags=re.M) == source
 
 
 @pytest.mark.parametrize('name,kind', [('xgpu_compile_shader', 0),
@@ -85,6 +101,28 @@ def test_disabled_capture_keeps_stalls_even_with_old_fixture_markers():
     assert result['pacing']['worst_ms']==200
     assert result['excluded_capture_frames']==0
     assert result['minutes'][0]['worst_ms']==200
+
+
+def test_sustained_report_distinguishes_repeated_and_continuous_dips():
+    def report(counts, captures=False, complete=True):
+        rows = []
+        for second, count in enumerate([1, *counts, 1]):
+            for i in range(count):
+                rows.append(dict(seconds=second+i/count, frame_ms=4, selected=0,
+                                 scene_lights=0, occlusion_updates=0, capture_excluded=0))
+        return summarize(rows if complete else rows[:-1], 1, len(counts), 240, captures)
+
+    # Identical totals and frame-time distributions can hide different pacing.
+    clustered = [240, 230, 230, 0, 250, 250]
+    dispersed = [230, 240, 230, 250, 0, 250]
+    a, b = report(clustered), report(dispersed)
+    assert a['raw'] == b['raw']
+    assert a['sustained']['fps_per_second'] == clustered
+    assert a['sustained']['targets']['240'] == dict(seconds_below=3, episodes=1, longest_below_seconds=3)
+    assert b['sustained']['targets']['240'] == dict(seconds_below=3, episodes=3, longest_below_seconds=1)
+    assert a['sustained']['targets']['360']['longest_below_seconds'] == len(clustered)
+    assert 'sustained' not in report(clustered, captures=True)
+    assert 'sustained' not in report(clustered, complete=False)
 
 
 def test_early_exit_keeps_missing_memory_windows_distinct_from_zero():

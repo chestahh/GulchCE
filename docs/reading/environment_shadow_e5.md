@@ -93,6 +93,121 @@ control uses the two Rat Race fixtures. GPU and collision instrumentation
 run separately from throughput measurements.
 
 
+### Measuring sustained FPS
+
+For capture-free runs the [benchmark runner](../../tools/lighting_performance_run.py)
+counts completed frames in each one-second wall-clock window. It reports time
+below 240 and 360 FPS, the number of separate dips and the longest consecutive
+stretch at each target. A second with zero frames counts. Only a trace spanning
+the full measurement interval qualifies. These windows describe sustained
+slowdowns to one-second precision. Use the underlying frame times for short
+hitches, and keep the two-minute and heavier-minute averages for historical
+comparison. Repeat close results on the same workload.
+
+#### Sun fade playtest comparison
+
+The earlier heavy-run traces at `07cb0ba16` had 42 of 120 seconds below 240
+in Hard and 43 in Soft. The longest stretches were 27 and 22 seconds. Lighting
+alone stayed at or above 240 in every one-second window. This is why the
+full-run average alone cannot qualify a build.
+
+The six runs below compare the preceding playtest (`9f114ec33`) with the
+accepted sun fade and first-person detail (`2864bc026`). Both used the same
+release build options, exterior save, fixed camera and capture-free settings.
+Hard ran previous then accepted, Soft ran accepted then previous, and lighting
+alone ran previous then accepted. Each run retained 19 living Covenant at
+every squad sample. Both shadow modes used sunlight throughout and reached
+eight local shadows including the shared beam.
+
+| Build | Mode | Full FPS | Heavier minute FPS | Seconds below 240 / 120 | Longest stretch (s) | Frames over 16.7 ms |
+| --- | --- | ---: | ---: | ---: | ---: | ---: |
+| Previous | Lighting alone | 259.5 | 243.7 | 22 | 6 | 0 |
+| Accepted | Lighting alone | 262.0 | 253.1 | 5 | 2 | 1 |
+| Previous | Hard 1024 | 235.3 | 219.7 | 71 | 49 | 1 |
+| Accepted | Hard 1024 | 209.3 | 202.2 | 120 | 120 | 2 |
+| Previous | Soft 1024 | 236.6 | 229.1 | 69 | 25 | 4 |
+| Accepted | Soft 1024 | 210.0 | 202.6 | 120 | 120 | 2 |
+
+The new shadow path cost about 0.53 ms/frame more in both full runs.
+The lighting-only control moved by 2.5 FPS in the other direction. These
+live-combat comparisons identify a sustained regression with shadows active.
+They do not attribute the entire difference to one function. All six traces
+are under `build/lighting-performance/sustain-<revision>-<mode>/`. The
+accepted fade and first-person detail are the visual reference for subsequent
+optimisations.
+
+In a separate Hard profile, the heavier minute averaged three complementary
+object projections per frame. Their depth and receiver submission took
+0.572 ms/frame, of which 0.566 ms elapsed in driver error queries. This
+is time waiting inside the call and can include earlier queued work. BSP
+diffuse and specular cluster selection together took 0.004 ms/frame, surface
+selection 0.086 ms, triangle preparation 0.047 ms, and draw submission
+0.881 ms. World and cluster rays took 0.745 ms, and visibility field
+reconstruction took 0.194 ms. These CPU scopes overlap. The local phase trace
+is `sustain-phase-hard/profile.csv`.
+
+The [environmental receiver](../../port/linux/src/modern_environment_gl.inl)
+checks a new single-sample handoff draw before recording its target, immutable
+mesh, alpha texture and bone count. A repeat submits the same depth and colour
+draws without waiting for the driver after each object. Changed inputs take
+the checked path. Failed setup or first use can still fall back. A resized
+target or changed scene-depth source invalidates validation. Ordinary object
+projections and multisample resolves keep their per-draw checks.
+
+A separate Hard run alternated the checked and queued paths in two-second
+intervals, reversing order halfway through each eight-second block. All 14
+complete blocks favoured queuing. Mean frame time fell from 4.555 to 4.189 ms.
+This comparison kept the original coverage decisions and every shadow draw.
+
+Separate uninterrupted runs with queuing gave the following results. These are
+the same two-minute exterior workload as the accepted fade runs above. Sunlight
+was active throughout. Both modes reached eight local shadows including the beam.
+
+| Mode | Full FPS | Heavier minute FPS | Seconds below 240 / 120 | Longest stretch (s) | Worst frame (ms) |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Hard 1024 | 240.1 | 227.7 | 58 | 39 | 9.3 |
+| Soft 1024 | 239.7 | 227.4 | 67 | 52 | 10.5 |
+
+Neither run sustained 240 in the heavier combat. The full frame traces are
+`sustain-handoff-{hard,soft}-all/frames.csv`. As a separate experiment, a
+tighter bound tested whether an object's entire projected shadow lay inside
+the full-strength area of the sun tile, where its complementary draw has zero weight.
+Across 14 paired Hard intervals this took 4.163 ms/frame against 4.165 ms
+with the existing bound, winning five intervals. The renderer retains the
+simpler coverage test.
+
+A second instrumented build timed the shared renderer with the retained
+optimisation. The heavier minute still submitted three complementary shadow
+projections per frame. Their combined CPU submission time was 0.003 ms.
+Diffuse and specular BSP light draws took 0.475 and 0.358 ms/frame, with
+0.235 ms in draw preparation and 0.153 ms in visibility tracing inside those
+two passes. Across the complete frame, world and cluster rays took 0.593 ms
+and visibility reconstruction took 0.198 ms. These nested CPU measurements
+cannot be summed or interpreted as isolated GPU costs. The trace is
+`sustain-final-profile-hard/profile.csv`. The remaining shared-renderer
+question is how much of BSP drawing outside preparation comes from walking
+materials, applying rasterizer state and issuing the actual draws.
+
+In Mercury Rising 2 the exterior Soft 1024 approach used the same 19 camera
+positions and the same 11-by-11-pixel ground patch beside the Covenant cache.
+Relative to the sun-off reference, the largest darkening between consecutive
+steps was 6.23 levels in the accepted fade and 5.88 after optimisation (8-bit
+RGB). At corresponding approach steps the two patch means differed by at most
+0.87. On retreat, separate sessions did not always settle at the same time.
+Switching the checked and queued paths at each of four fixed camera positions
+gave identical patch pixels. The map cinematic interrupted the first near
+comparison, so it was repeated after the cinematic ended. In CE Death Island,
+switching both ways with the player pose and camera frozen gave identical
+1600-by-1000 Soft 1024 frames.
+
+The Windows release build, Android guest and web build passed, along with
+160 targeted lighting, collision, shadow and pacing checks, including the
+Windows GPU receiver tests. Two local Windows peers with Hard and Soft on
+Xbox Blood Gulch completed a 74-second comparison with no mismatched
+seconds. The visual and performance runs used NVIDIA hardware. Local evidence
+under `build/e5-sustained/` includes `combat-results.json`,
+`visual-results.json` and the matched comparison images.
+
 ### Snowy exterior results
 
 Release Windows on an i7-14700K and RTX 5070 Ti. Each row covers 120 measured
@@ -124,8 +239,10 @@ each target and raised Hard from 205.5 to 218.7 FPS. Checking a newly used
 scene-depth image pair once raised Hard to 222.1 FPS. Profiling then located
 another 0.46 ms per frame waiting for the sunlight projection. The same
 single-sample sun receiver now validates its fixed draw on a new target and
-queues subsequent draws, giving the final figures above. Per-object draws and
-multisample resolves still check for fallback. In the preceding CPU capture,
+queues subsequent draws, giving the final figures above. In that build all per-object
+draws and multisample resolves still checked for fallback. The later
+[sun fade comparison](#sun-fade-playtest-comparison) narrows repeated checks
+for verified single-sample handoffs. In the preceding CPU capture,
 world and cluster rays used 0.64 ms per frame, posed-model rays 0.03 ms and
 visibility reconstruction 0.28 ms. The phase timings are inclusive and may
 include queued driver work. The
@@ -298,8 +415,9 @@ lighting passes together averaged 0.09 ms stock and 0.91 ms in Hard.
 These are inclusive times, including any on-demand field updates.
 [Diffuse and specular light submission](../../source/objects/object_lights.c)
 each builds a cluster list, then the [BSP renderer](../../source/structures/structure_render.c)
-selects surfaces and builds temporary triangles for each pass. Measure the
-cost of those operations separately from drawing. Diffuse and specular radii
+selects surfaces and builds temporary triangles for each pass. The
+[follow-up profile](#sun-fade-playtest-comparison) measures those operations
+separately from drawing. Diffuse and specular radii
 can differ, so sharing a surface list needs an exact match of its inputs.
 In sampled Hard world queries, 12% of rays stayed in the origin leaf and
 the mean ray encountered 2.67 tree forks.
@@ -388,8 +506,8 @@ establish a historical regression against an older GulchCE release.
 The local stock reports are `e5-opence-stock-control` (OpenCE 1440p/1024)
 and `e5-common-{gulch1024,gulch128,opence128,gulch720,opence720}` under
 `build/lighting-performance/`. The saved map SHA-256 starts `b5fb3db5`,
-the encounter core `a9188c28`. The next comparison measures the accepted sun
-fix against its preceding playtest on this workload. The [Phase 2 roadmap](modern_dynamic_shadows.md#e5--rendering-performance-and-hitch-removal)
+the encounter core `a9188c28`. The [sun fade comparison](#sun-fade-playtest-comparison)
+uses this workload for both playtests. The [Phase 2 roadmap](modern_dynamic_shadows.md#e5--rendering-performance-and-hitch-removal)
 gives the comparison order, profiling priorities and fixed-quality targets.
 
 ### Loading, compatibility and driver checks
@@ -416,7 +534,9 @@ cleared between trials, so that pair does not establish a cold-driver
 speedup. A later warm repeat measured 77/80 ms of preparation and 36/34 ms
 worst reveal in Hard/Soft. Five paired Ghost captures per mode differed by
 at most 0.46 of 255 in mean absolute error per RGB channel. Some first-use
-work and reveal hitches remain.
+work and reveal hitches remain. The Windows playtester reported few noticeable
+hitches with shadow precaching enabled. The hidden reveal still needs separate
+first-visit and warm-reload measurements when the renderer changes.
 
 The final sun receiver was also compared against its preceding implementation
 in a frozen exterior pose on NVIDIA. At tick 270 both runs reported 24 sun

@@ -28,15 +28,15 @@ criterion. The earlier runs establish the starting point.
 The Windows playtest at `2864bc026` is the accepted visual reference for
 the Mercury Rising II outdoor sun fade and the first-person player silhouette
 at Soft 1024. Keep the approach and retreat past the Covenant caches and the
-matched Death Island pose as regression checks. The combat cost of that build
-is still unmeasured. [Sun coverage and visual checks](environment_shadow_e4.md)
+matched Death Island pose as regression checks. The [matched combat comparison](environment_shadow_e5.md#sun-fade-playtest-comparison)
+measured a sustained slowdown with Hard and Soft active. [Sun coverage and visual checks](environment_shadow_e4.md)
 
 Map-load preparation and next-map shadow-mode changes are implemented. On
 Xbox, CE and MCC maps, selection takes effect behind the existing gameplay-map
 loading screen. A checkpoint revert or mid-level BSP change keeps the active
 mode. Some first-use stalls remain. [Loading and driver measurements](environment_shadow_e5.md#loading-compatibility-and-driver-checks)
 
-1. **Measure the accepted fix first.** Alternate the previous playtest
+1. **Keep the accepted comparison reproducible.** Alternate the previous playtest
    (`9f114ec33`) and accepted playtest (`2864bc026`) in the same snowy
    Two Betrayals encounter. Use the same exterior checkpoint, camera and
    combat workload on the i7-14700K and RTX 5070 Ti. Run release PGO/LTO at
@@ -61,11 +61,17 @@ mode. Some first-use stalls remain. [Loading and driver measurements](environmen
    50 and 100 ms. Check what still happens on the first real draw. Keep
    preparation behind map loading and check Classic, host policy, failed
    preparation, cleanup and map transitions after changes.
-4. **Qualify fixed quality.** Report the full two-minute average and the
-   busier second minute for each mode. The minimum is 240 FPS average and
-   the E5 goal is repeatable 360+ in both Hard and Soft (2.78 ms/frame).
-   Record recurring drops alongside the averages. Retain all eight local
-   slots, independent environmental budgets and the signed-off sun visuals.
+4. **Qualify sustained FPS at fixed quality.** Establish sustained 240+ FPS
+   (4.17 ms/frame) in busy combat for Hard and Soft independently, then work
+   toward sustained 360+ (2.78 ms/frame). Record how many seconds fall below
+   each target, how often it happens and the longest continuous stretch.
+   Report the full two-minute and heavier-minute averages for comparison.
+   Investigate recurring slow stretches and report isolated hitches separately.
+   Occasional 1% lows are acceptable. Retain all eight local
+   slots and independent environmental budgets. The continuous distance fade
+   to stock shadows and the nearby player silhouette are required at every
+   performance tier. Keep the Mercury Rising 2 outdoor camera move in the
+   visual comparison so a faster result cannot hide the return of pop-in.
    Check thin contacts, cutouts, self-shadowing and light spill against matched
    captures. E5 stays open while the 360+ result is outstanding.
 

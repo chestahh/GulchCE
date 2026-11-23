@@ -23,7 +23,7 @@ static long selected, lights, occlusion_updates, shadowed;
 static double occlusion_started, occlusion_seconds;
 static int screenshot_frames;
 static FILE *profile;
-enum { LIGHTING_PROFILE_PHASES = 28 };
+enum { LIGHTING_PROFILE_PHASES = 38 };
 static double phase_start[LIGHTING_PROFILE_PHASES], phase_time[LIGHTING_PROFILE_PHASES];
 static long phase_calls[LIGHTING_PROFILE_PHASES];
 
@@ -267,7 +267,7 @@ void lighting_performance_frame(void)
 			if (profile)
 			{
 				setvbuf(profile, NULL, _IOFBF, 65536);
-				fprintf(profile, "seconds,trace_ms,field_ms,texture_ms,bind_ms,prepare_ms,light_scene_ms,upload_ms,render_ms,traces,fields,textures,binds,prepares,light_scenes,uploads,renders,model_field_ms,model_resolve_ms,collision_scene_ms,mask_upload_ms,shadow_ms,shadow_world_ms,shadow_objects_ms,shadow_draw_ms,shadow_state_ms,shadow_resources_ms,shadow_selection_ms,environment_models_ms,sun_prepare_ms,spots_prepare_ms,sun_draw_ms,sun_error_check_ms,snapshot_error_ms,receiver_error_ms,world_and_cluster_rays_ms,posed_model_rays_ms\n");
+				fprintf(profile, "seconds,trace_ms,field_ms,texture_ms,bind_ms,prepare_ms,light_scene_ms,upload_ms,render_ms,traces,fields,textures,binds,prepares,light_scenes,uploads,renders,model_field_ms,model_resolve_ms,collision_scene_ms,mask_upload_ms,shadow_ms,shadow_world_ms,shadow_objects_ms,shadow_draw_ms,shadow_state_ms,shadow_resources_ms,shadow_selection_ms,environment_models_ms,sun_prepare_ms,spots_prepare_ms,sun_draw_ms,sun_error_check_ms,snapshot_error_ms,receiver_error_ms,world_and_cluster_rays_ms,posed_model_rays_ms,bsp_diffuse_clusters_ms,bsp_diffuse_surfaces_ms,bsp_diffuse_triangles_ms,bsp_diffuse_draw_ms,bsp_specular_clusters_ms,bsp_specular_surfaces_ms,bsp_specular_triangles_ms,bsp_specular_draw_ms,sun_handoff_projection_ms,other_object_projection_ms,sun_handoff_projections,other_object_projections\n");
 			}
 		}
 		if (profile)
@@ -276,6 +276,7 @@ void lighting_performance_frame(void)
 			for (i = 0; i < 8; i++) fprintf(profile, ",%.6f", phase_time[i]*1000);
 			for (i = 0; i < 8; i++) fprintf(profile, ",%ld", phase_calls[i]);
 			for (i = 8; i < LIGHTING_PROFILE_PHASES; i++) fprintf(profile, ",%.6f", phase_time[i]*1000);
+			fprintf(profile, ",%ld,%ld", phase_calls[36], phase_calls[37]);
 			fputc('\n', profile);
 		}
 	}

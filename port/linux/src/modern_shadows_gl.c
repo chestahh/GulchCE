@@ -12,6 +12,8 @@ static struct shadow_mesh
 {
 	GLuint vertices, indices, array;
 	int count, bounded;
+	int handoff_nodes;
+	GLuint handoff_alpha;
 	unsigned int nodes[2];
 	float minimum[3], maximum[3];
 } meshes[SHADOW_MESHES];
@@ -300,6 +302,7 @@ int modern_shadow_mesh_create(const struct modern_shadow_vertex *vertices, int v
 	size = vertex_count * sizeof(*vertices) + index_count * sizeof(*indices);
 	if (size > SHADOW_BYTES - mesh_bytes) return 0;
 	for (index = 0; index < index_count; index++) if (indices[index] >= vertex_count) return 0;
+	meshes[mesh_count].handoff_nodes = 0;
 	mesh_bounds(&meshes[mesh_count], vertices, vertex_count);
 	glGenVertexArrays(1, &meshes[mesh_count].array);
 	glBindVertexArray(meshes[mesh_count].array);

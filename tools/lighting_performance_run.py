@@ -46,6 +46,29 @@ def distribution(values, cap):
                 over_50ms=sum(v>50 for v in values), over_100ms=sum(v>100 for v in values))
 
 
+def sustained_pacing(measured, warmup, seconds, targets):
+    # Count frame completions in fixed wall-clock windows, including empty
+    # seconds during a stall. Frames on a boundary belong to the next second.
+    fps = [0] * seconds
+    for row in measured:
+        fps[int(row['seconds'] - warmup)] += 1
+    bands = {}
+    for target in sorted(set(targets)):
+        total = episodes = longest = streak = 0
+        for count in fps:
+            if count < target:
+                total += 1
+                if streak == 0:
+                    episodes += 1
+                streak += 1
+                longest = max(longest, streak)
+            else:
+                streak = 0
+        bands[str(target)] = dict(seconds_below=total, episodes=episodes,
+                                  longest_below_seconds=longest)
+    return dict(fps_per_second=fps, targets=bands)
+
+
 def summarize(rows, warmup, seconds, cap, captures=True):
     measured = [r for r in rows if warmup <= r['seconds'] < warmup+seconds and r['frame_ms']>0]
     # Older diagnostic binaries still mark capture slots when readback is off.
@@ -63,6 +86,10 @@ def summarize(rows, warmup, seconds, cap, captures=True):
                   occlusion_mean_ms=statistics.mean(r.get('occlusion_ms',0) for r in clean),
                   occlusion_max_ms=max(r.get('occlusion_ms',0) for r in clean),
                   minutes=[])
+    # A capture stalls the game. Dropping that frame would still leave its
+    # elapsed time in the window. Use complete, capture-free traces for this.
+    if not captures and rows[0]['seconds'] <= warmup and rows[-1]['seconds'] >= warmup + seconds:
+        result['sustained'] = sustained_pacing(measured, warmup, seconds, (cap, 240, 360))
     if all('shadowed' in r for r in measured):
         result['shadowed_frame_percent'] = 100*sum(r['shadowed']>0 for r in measured)/len(measured)
         result['shadowed_mean'] = statistics.mean(r['shadowed'] for r in measured)
@@ -459,7 +486,11 @@ def main():
             if not args.extra_flashlight_slot and json.loads((build/'manifest.json').read_text()).get('shared_flashlight_budget'):
                 assert report['peak_local_shadows_including_beam']<=8, 'Flashlight exceeded the eight-local-shadow budget'
         assert not report.get('route_error'), report.get('route_error')
-        assert not report.get('measurement_error') and report['measured_span']>=args.seconds-.2, 'Incomplete measurement'
+        assert not report.get('measurement_error'), report.get('measurement_error')
+        # A real stall at the beginning or end can shorten the span between
+        # in-window samples while the frame clock still covers the interval.
+        complete = report['measured_span'] >= args.seconds - .2 if report['captures'] else 'sustained' in report
+        assert complete, 'Incomplete measurement'
         assert not report['unexpected_players'], 'Unexpected player joined the isolated workload'
         assert bool(report['selected_max'])==bool(args.enabled), 'Light activation mismatch'
         if args.modern_shadows != 'off' and args.enabled:
