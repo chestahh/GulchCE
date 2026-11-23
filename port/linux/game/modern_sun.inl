@@ -85,11 +85,12 @@ static int sun_classify_surfaces(void)
 
 static void sun_prepare(void)
 {
-    const float radius = 12.f;
+    const float radius = 12.f, detail_radius = 3.f;
+    float detail[2];
     real_matrix4x3 basis;
     real_vector3d toward;
     real_rgb_color tint;
-    real_point3d focus;
+    real_point3d focus, near_focus;
     struct object_iterator it;
     struct object_datum *obj;
     float frame[16], color[3], depth_extent = 1.f;
@@ -109,6 +110,7 @@ static void sun_prepare(void)
     normalize3d(&basis.forward);
     cross_product3d(&basis.up,&basis.forward,&basis.left);
     point_from_line3d(&render.camera.position,&render.camera.forward,radius*.65f,&focus);
+    point_from_line3d(&render.camera.position,&render.camera.forward,4.f,&near_focus);
     basis.position = *global_origin3d;
     /* World-anchored tile steps are integral texels at all supported tiers.
        Quantize translation in the shadow plane only. Depth stays BSP-fixed. */
@@ -117,6 +119,10 @@ static void sun_prepare(void)
         real_vector3d const *axis = i ? &basis.left : &basis.forward;
         float along = dot_product3d(axis,(real_vector3d const *)&focus);
         float snapped = floorf(along / 1.5f + .5f) * 1.5f;
+        float near_along = dot_product3d(axis,(real_vector3d const *)&near_focus);
+        /* Express the finer tile in the wide tile's light plane. Both share
+           the same BSP-fixed depth, including blockers far above the camera. */
+        detail[i] = floorf(near_along / .375f + .5f) * .375f - snapped;
         point_from_line3d(&basis.position,axis,snapped,&basis.position);
     }
     const real_rectangle3d *bounds = &cached_bsp->world_bounds;
@@ -130,7 +136,7 @@ static void sun_prepare(void)
     matrix_to_gl(&basis,frame);
     for (i = 0; i < 3; i++) frame[8+i] *= radius/depth_extent;
     if (!sun_classify_surfaces()) return;
-    reuse = modern_environment_sun_begin(frame,radius,sun_static_unchanged(),sky,mode == 2);
+    reuse = modern_environment_sun_begin(frame,radius,detail,detail_radius,sun_static_unchanged(),sky,mode == 2);
     if (!reuse) return;
     if (reuse == 1)
     {
@@ -155,14 +161,17 @@ static void sun_prepare(void)
         if (obj->object.first_child_object_index != NONE &&
             !environmental_family_bounds(it.index,&center,&extent,&remaining,1)) continue;
         vector_from_points3d(&basis.position,&center,&delta);
-        float x = fabsf(dot_product3d(&basis.forward,&delta));
-        float y = fabsf(dot_product3d(&basis.left,&delta));
+        float x = dot_product3d(&basis.forward,&delta);
+        float y = dot_product3d(&basis.left,&delta);
         float z = fabsf(dot_product3d(&basis.up,&delta));
-        if (x > radius+extent || y > radius+extent || z > depth_extent+extent ||
+        if (fabsf(x) > radius+extent || fabsf(y) > radius+extent || z > depth_extent+extent ||
             !sun_reaches_view(&center,extent,&toward)) continue;
         remaining = 128;
+        modern_environment_sun_detail_caster(
+            fabsf(x-detail[0]) <= detail_radius+extent &&
+            fabsf(y-detail[1]) <= detail_radius+extent);
         ok = environmental_casters(it.index,&remaining);
-        if (x+extent < radius && y+extent < radius && z+extent < depth_extent &&
+        if (fabsf(x)+extent < radius && fabsf(y)+extent < radius && z+extent < depth_extent &&
             sun_cluster_sky(obj->object.location.cluster_index) == sky)
             sun_families[prepared_families++] = it.index;
     }

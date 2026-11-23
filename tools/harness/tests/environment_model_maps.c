@@ -8,6 +8,7 @@ enum { GL_TEXTURE9, GL_TEXTURE_2D, GL_DEPTH_COMPONENT32F, GL_DEPTH_COMPONENT,
  GL_TEXTURE_WRAP_S, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE, GL_FRAMEBUFFER,
  GL_COLOR_ATTACHMENT0, GL_DEPTH_ATTACHMENT, GL_NONE, GL_FRAMEBUFFER_COMPLETE, GL_NO_ERROR,
  GL_UPPER_LEFT, GL_ZERO_TO_ONE };
+static int sun_detail_caster, sun_detail_in_batch;
 static int drawing, environment_drawing, draw_count, failed, ready=1, scale=8;
 static int deletion_calls, error_queries, next_error = GL_NO_ERROR;
 static int allocations, deletions, checks, attachments, draws, handoffs, fail_fbo, fail_draw;
@@ -74,6 +75,9 @@ int main(int argc,char **argv)
  int queries=error_queries;
  sun.projecting=drawing=environment_drawing=1;
  CHECK(modern_environment_sun_finish(1,tint) && error_queries==queries,"validated posed target draws without a driver round trip");
+ sun.projecting=drawing=environment_drawing=sun.detail_atlas=sun_detail_in_batch=1;
+ int before=draws;
+ CHECK(modern_environment_sun_finish(1,tint) && draws==before+2 && sun.detail_drawn && !sun.drawing_detail,"overlapping families draw into both sun tiles");
  modern_environment_sun_model(1);CHECK(modern_environment_model_active(),"prepared sun reaches models independently");
  modern_environment_window();modern_environment_sun_model(1);
  CHECK(!modern_environment_model_active(),"next view cannot sample stale sun");

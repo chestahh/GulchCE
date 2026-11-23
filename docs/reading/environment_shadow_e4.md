@@ -9,7 +9,7 @@ desktop platform gates apply before preparing the sun pass.
 
 ## Outdoor coverage
 
-Use one stabilized directional map with a 12-world-unit half-width. The sun
+The wide sun tile has a 12-world-unit half-width. The sun
 uses the active sky and a separate budget. BSP triangles and placed models
 use the same material eligibility as local shadows, including alpha cutouts.
 Casters can lie outside the camera frustum or cross the edge of the tile.
@@ -44,8 +44,14 @@ share their comparison and interpolation code with local-light shadows.
 The sun uses an orthographic projection. A blocker in either map removes
 the added directional light. The filter adds no caster passes or local slots.
 
-The two dedicated 32-bit sun textures occupy 8 MiB at 1024² and 128 MiB at
-4096². BSP generation also uses the shared environmental scratch depth
+Nearby posed objects also render into a six-world-unit-wide region of the
+object depth atlas. Both regions use the same sun direction and depth range.
+BSP depth stays in the wide map. Hard samples the finer object depth and
+Soft filters it at its own texel spacing. Visibility blends into the wide
+object depth at the rim. An allocation failure falls back to wide coverage.
+
+The dedicated 32-bit sun textures occupy 12 MiB at 1024² and 192 MiB at
+4096² with the detail region. BSP generation also uses the shared environmental scratch depth
 (4 MiB at 1024² or 64 MiB at 4096²). These figures exclude the scene depth
 copy, other render targets, driver overhead and temporary storage while resizing.
 The renderer validates a replacement attachment before releasing the

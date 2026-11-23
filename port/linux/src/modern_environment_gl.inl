@@ -4,7 +4,7 @@
 struct environment_receiver_uniforms
 {
     GLint frame, camera, projection, radius, reversed_depth, viewport, soft, color;
-    GLint clip_offset, sun_frame, sun_color_radius, sun_soft;
+    GLint clip_offset, sun_frame, sun_color_radius, sun_soft, sun_detail;
 };
 
 static struct
@@ -37,6 +37,8 @@ static struct
     int writing, sky;
     int size, valid, projecting, object_checked;
     float frame[16], radius;
+    float detail_frame[16], detail_radius, detail[4];
+    int detail_atlas, drawing_detail, detail_drawn;
 } sun;
 
 enum { FIXTURE_LIMIT = 2, FLASH_SLOT = 2, SPOT_SOURCES = 3, SPOT_LAYERS = 5 };
@@ -105,7 +107,7 @@ void modern_environment_dispose(void)
 }
 
 /* Validate the replacement attachment before releasing the usable texture. */
-static int environment_resize_texture(GLuint *current, GLuint *target, int size, int static_visibility)
+static int environment_resize_texture(GLuint *current, GLuint *target, int width, int height, int static_visibility)
 {
     GLuint next = 0;
     GLenum attachment = static_visibility ? GL_COLOR_ATTACHMENT0 : GL_DEPTH_ATTACHMENT;
@@ -114,7 +116,7 @@ static int environment_resize_texture(GLuint *current, GLuint *target, int size,
     glActiveTexture(static_visibility ? GL_TEXTURE9 : GL_TEXTURE8);
     glBindTexture(GL_TEXTURE_2D, next);
     glTexImage2D(GL_TEXTURE_2D, 0, static_visibility ? GL_R32F : GL_DEPTH_COMPONENT32F,
-        size, size, 0, static_visibility ? GL_RED : GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+        width, height, 0, static_visibility ? GL_RED : GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -166,6 +168,7 @@ static void environment_receiver_locations(GLuint program, struct environment_re
         u->sun_frame = glGetUniformLocation(program, "sun_frame");
         u->sun_color_radius = glGetUniformLocation(program, "sun_color_radius");
         u->sun_soft = glGetUniformLocation(program, "sun_soft");
+        u->sun_detail = glGetUniformLocation(program, "sun_detail");
     }
     else
     {
@@ -300,7 +303,7 @@ static int environment_resources_for(int projector)
     if (!environment.caster || !environment.receiver) return 0;
     if (!environment.depth || environment.size != size)
     {
-        if (!environment_resize_texture(&environment.depth, &environment.depth_fbo, size, 0)) return 0;
+        if (!environment_resize_texture(&environment.depth, &environment.depth_fbo, size, size, 0)) return 0;
         environment.size = size;
     }
     return 1;
@@ -451,27 +454,28 @@ static int environment_draw_depth(GLuint target)
     {
         glBindFramebuffer(GL_FRAMEBUFFER, target);
         int depth_size = spots.rendering ? spots.size : environment.size;
-        glViewport(0,0,depth_size,depth_size);
+        glViewport(sun.drawing_detail ? depth_size : 0,0,depth_size,depth_size);
         glClipControl(GL_LOWER_LEFT,GL_ZERO_TO_ONE);
         glDisable(GL_SCISSOR_TEST); glDisable(GL_STENCIL_TEST); glDisable(GL_BLEND);
         glDisable(GL_CULL_FACE); glDisable(GL_POLYGON_OFFSET_FILL);
         glPolygonMode(GL_FRONT_AND_BACK,GL_FILL);
         glEnable(GL_DEPTH_TEST); glDepthFunc(GL_GREATER); glDepthMask(GL_TRUE);
         glDepthRange(0,1); glClearDepth(0); glColorMask(GL_FALSE,GL_FALSE,GL_FALSE,GL_FALSE);
-        if (!sun.partial) glClear(GL_DEPTH_BUFFER_BIT);
+        if (!sun.partial && !sun.drawing_detail) glClear(GL_DEPTH_BUFFER_BIT);
         if (sun.writing)
         {
             glColorMask(GL_TRUE,GL_FALSE,GL_FALSE,GL_FALSE);
             if (!sun.partial) { glClearColor(0,0,0,0); glClear(GL_COLOR_BUFFER_BIT); }
         }
         glUseProgram(p); glBindVertexArray(vao);
-        glUniformMatrix4fv(frame,1,GL_FALSE,environment.frame);
-        glUniform1f(radius,environment.radius);
+        glUniformMatrix4fv(frame,1,GL_FALSE,sun.drawing_detail ? sun.detail_frame : environment.frame);
+        glUniform1f(radius,sun.drawing_detail ? sun.detail_radius : environment.radius);
         glUniform1i(alpha_map,9);
         glActiveTexture(GL_TEXTURE9); glBindSampler(9,alpha_sampler);
         for (draw=0;draw<draw_count;draw++)
         {
             int mesh=draws[draw].mesh;
+            if (sun.drawing_detail && !draws[draw].sun_detail) continue;
             bind_caster_draw(draw, &previous, bones, uv, alpha);
             if (sun.writing)
             {
@@ -558,6 +562,7 @@ int modern_environment_end(int complete, const float camera[16], const float pro
             glUniformMatrix4fv(u->sun_frame,1,GL_FALSE,sun.frame);
             glUniform4fv(u->sun_color_radius,1,(const float[4]){color[0],color[1],color[2],sun.radius});
             glUniform1i(u->sun_soft,sun.soft);
+            glUniform4fv(u->sun_detail,1,sun.detail);
         }
         else
         {
@@ -585,17 +590,18 @@ static int sun_depth_resources(void)
 {
     if (sun.size != environment.size || !sun.static_depth || !sun.object_depth)
     {
-        if (!environment_resize_texture(&sun.static_depth, &environment.depth_fbo, environment.size, 1)) return 0;
+        if (!environment_resize_texture(&sun.static_depth, &environment.depth_fbo, environment.size, environment.size, 1)) return 0;
         sun.valid = sun.object_checked = 0;
         sun.checked_receiver_target = 0;
-        if (!environment_resize_texture(&sun.object_depth,&sun.object_fbo,environment.size,0)) return 0;
+        sun.detail_atlas = environment_resize_texture(&sun.object_depth,&sun.object_fbo,2*environment.size,environment.size,0);
+        if (!sun.detail_atlas && !environment_resize_texture(&sun.object_depth,&sun.object_fbo,environment.size,environment.size,0)) return 0;
         sun.size = environment.size;
     }
     return 1;
 }
 
 /* Returns 2 on a static cache hit, 1 when the caller must submit BSP depth. */
-int modern_environment_sun_begin(const float frame[16], float radius, int cache_static, int sky, int soft)
+int modern_environment_sun_begin(const float frame[16], float radius, const float detail[2], float detail_radius, int cache_static, int sky, int soft)
 {
     if (drawing || !xgpu_gl_ready()) return 0;
     sun.projecting = 1;
@@ -608,6 +614,17 @@ int modern_environment_sun_begin(const float frame[16], float radius, int cache_
     draw_count = failed = 0;
     sun.partial = 0;
     sun.soft = soft;
+    sun_detail_caster = sun_detail_in_batch = sun.detail_drawn = 0;
+    sun.detail_radius = detail_radius;
+    memcpy(sun.detail_frame,frame,sizeof(sun.detail_frame));
+    for (int i=0;i<3;i++) {
+        sun.detail_frame[12+i] += frame[i]*detail[0]+frame[4+i]*detail[1];
+        sun.detail_frame[8+i] *= detail_radius/radius;
+    }
+    sun.detail[0] = .5f+.5f*detail[0]/radius;
+    sun.detail[1] = .5f+.5f*detail[1]/radius;
+    sun.detail[2] = radius/detail_radius;
+    sun.detail[3] = sun.detail_atlas ? .5f : 1.f;
     if (cache_static && sun.valid && sky==sun.sky && radius==sun.radius && !memcmp(sun.frame,frame,sizeof(sun.frame))) return 2;
     sun.writing=1;
     sun.sky=sky;
@@ -639,6 +656,16 @@ static int sun_draw_batch(void)
         glDrawBuffers(1,&target);
     }
     int ok = environment_draw_depth(sun.writing ? environment.depth_fbo : sun.object_fbo);
+    /* The first wide clear covers both atlas tiles. Reuse the submitted
+       poses and alpha materials for families crossing the finer light rays. */
+    if (ok && !sun.writing && sun.detail_atlas && sun_detail_in_batch)
+    {
+        sun.drawing_detail = 1;
+        ok = environment_draw_depth(sun.object_fbo);
+        sun.drawing_detail = 0;
+        sun.detail_drawn = 1;
+    }
+    sun_detail_in_batch = 0;
     sun.partial = 1;
     draw_count = 0;
     return ok;
@@ -663,6 +690,8 @@ int modern_environment_sun_finish(int complete, const float color[3])
        error every frame serializes unrelated lighting work ahead of this pass. */
     if (sun.ready && !sun.object_checked)
         sun.object_checked = sun.ready = glGetError() == GL_NO_ERROR;
+    if (!sun.detail_drawn) sun.detail[2] = 0.f;
+    sun_detail_caster = 0;
     memcpy(sun.tint,color,sizeof(sun.tint));
     sun.partial = sun.projecting = drawing = environment_drawing = draw_count = 0;
     glClipControl(GL_UPPER_LEFT,GL_ZERO_TO_ONE);

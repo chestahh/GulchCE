@@ -46,7 +46,7 @@ def test_directional_receiver_depth_and_empty_rays(reverse,soft,depth_stencil,su
         for unit,tex in enumerate(textures):
             g('ActiveTexture',None,U)(0x84C0+unit);g('BindTexture',None,U,U)(0x0DE1,tex)
             for param in (0x2801,0x2800):g('TexParameteri',None,U,U,I)(0x0DE1,param,0x2600)
-        def draw(z,empty=False,roof=False):
+        def draw(z,empty=False,roof=False,detail=False):
             world_z=z;view_z=world_z-camera[2,3]
             clip=projection@np.array([0,0,view_z,1]);d=clip[2]/clip[3]
             data=np.full((64,64),1-d if reverse else d,np.float32)
@@ -54,15 +54,15 @@ def test_directional_receiver_depth_and_empty_rays(reverse,soft,depth_stencil,su
             if not empty:
                 shadow[16:48,16:48]=.5
                 shadow[20:30,24:28]=0  # Asymmetric opening catches swapped gather taps.
-            arrays=[data,shadow]
+            arrays=[data,np.concatenate((shadow,np.zeros_like(shadow)),axis=1) if detail else shadow]
             if sun: arrays.append(np.full_like(data, .9 if roof else .5+.5*z))
             for unit,array in enumerate(arrays):
                 g('ActiveTexture',None,U)(0x84C0+unit);g('BindTexture',None,U,U)(0x0DE1,textures[unit])
                 if depth_stencil:
-                    packed=np.zeros((64,64,2),np.float32);packed[:,:,0]=array
-                    g('TexImage2D',None,U,I,I,I,I,I,U,U,P)(0x0DE1,0,0x8CAD,64,64,0,0x84F9,0x8DAD,packed.ctypes.data)
+                    packed=np.zeros((*array.shape,2),np.float32);packed[:,:,0]=array
+                    g('TexImage2D',None,U,I,I,I,I,I,U,U,P)(0x0DE1,0,0x8CAD,array.shape[1],array.shape[0],0,0x84F9,0x8DAD,packed.ctypes.data)
                 else:
-                    g('TexImage2D',None,U,I,I,I,I,I,U,U,P)(0x0DE1,0,0x822E,64,64,0,0x1903,0x1406,array.ctypes.data)
+                    g('TexImage2D',None,U,I,I,I,I,I,U,U,P)(0x0DE1,0,0x822E,array.shape[1],array.shape[0],0,0x1903,0x1406,array.ctypes.data)
             r.begin();g('ClipControl',None,U,U)(0x8CA2,0x935F)
             g('Disable',None,U)(0x0B71);g('UseProgram',None,U)(p)
             for name,value in {'scene_depth':0,'shadow_depth':1,'camera':camera,'projection':projection,
@@ -74,6 +74,7 @@ def test_directional_receiver_depth_and_empty_rays(reverse,soft,depth_stencil,su
                 r.uniform(p,'sun_frame',frame)
                 r.uniform(p,'sun_color_radius',[.5,.5,.5,1])
                 r.uniform(p,'sun_soft',soft)
+                r.uniform(p,'sun_detail',[.5,.5,4,.5] if detail else [0,0,0,1])
                 g('ClearColor',None,F,F,F,F)(.4,.4,.4,1)
                 g('Clear',None,U)(0x4000)
                 g('Enable',None,U)(0x0BE2)
@@ -118,6 +119,10 @@ def test_directional_receiver_depth_and_empty_rays(reverse,soft,depth_stencil,su
             assert bool(fractional.any()) == bool(soft)
             frame[0,3] -= .013
         if sun:
+            # A clear fine ray overrides the coarse blocker only inside the detail tile.
+            with_detail=draw(-.5,detail=True)
+            assert np.allclose(with_detail[31:33,31:33,:3],.6,atol=.002)
+            assert np.allclose(with_detail[:25,:,:3],behind[:25,:,:3],atol=.002)
             assert np.allclose(draw(-.00008)[31:33,31:33,:3],.2,atol=.002), "Retain close object-to-ground contact"
             assert np.allclose(draw(-.5,roof=True)[:,:,:3],.4), "A roof must preserve the baked base"
             for surface in (draw(.25),draw(-.5,True)):

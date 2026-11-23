@@ -17,7 +17,7 @@ static struct shadow_mesh
 } meshes[SHADOW_MESHES];
 static struct
 {
-	int mesh, nodes, views, faces;
+	int mesh, nodes, views, faces, sun_detail;
 	float matrices[SHADOW_NODES * 16], uv_transform[8];
 	GLuint alpha;
 } draws[SHADOW_DRAWS];
@@ -330,6 +330,8 @@ int modern_shadow_mesh_create(const struct modern_shadow_vertex *vertices, int v
 	return ++mesh_count;
 }
 
+static int sun_detail_caster, sun_detail_in_batch;
+void modern_environment_sun_detail_caster(int eligible) { sun_detail_caster = eligible; }
 static int sun_draw_batch(void);
 
 int modern_shadow_draw(int mesh, const float *matrices, int node_count,
@@ -350,6 +352,8 @@ int modern_shadow_draw(int mesh, const float *matrices, int node_count,
 		alpha = xgpu_texture_get(alpha_texture, NULL, &target, &description);
 		if (!alpha || target != GL_TEXTURE_2D) { failed = 1; return 0; }
 	}
+	draws[draw_count].sun_detail = sun_detail_caster;
+	if (sun_detail_caster) sun_detail_in_batch = 1;
 	draws[draw_count].mesh = mesh - 1;
 	draws[draw_count].nodes = node_count;
 	draws[draw_count].views = views;
@@ -653,6 +657,7 @@ void modern_shadow_uniforms_initialize(unsigned long linked, struct modern_shado
     uniforms->sun_frame = glGetUniformLocation(linked,"sun_frame");
     uniforms->sun_color_radius = glGetUniformLocation(linked,"sun_color_radius");
     uniforms->sun_soft = glGetUniformLocation(linked,"sun_soft");
+    uniforms->sun_detail = glGetUniformLocation(linked,"sun_detail");
     glUniform1i(glGetUniformLocation(linked,"sun_bsp"),14);
     glUniform1i(glGetUniformLocation(linked,"sun_objects"),15);
     uniforms->environment_frames = glGetUniformLocation(linked, "modern_environment_frames");
@@ -684,6 +689,7 @@ void modern_shadow_bind(struct modern_shadow_uniforms *uniforms)
             uniforms->sun_window = spot_window;
             glUniformMatrix4fv(uniforms->sun_frame,1,GL_FALSE,sun.frame);
             glUniform1i(uniforms->sun_soft,sun.soft);
+            glUniform4fv(uniforms->sun_detail,1,sun.detail);
         }
         glUniform4fv(uniforms->sun_color_radius,1,(const float[4]){sun.tint[0],sun.tint[1],sun.tint[2],sun.model ? sun.radius : 0});
     }
