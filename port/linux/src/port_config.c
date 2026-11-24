@@ -130,6 +130,8 @@ static const struct config_setting config_settings[] =
 	{ "display.max_fps", _config_integer, "0", "HALO_MAX_FPS", _environment_value, _platform_all,
 		"With vsync off, the most frames a second: 0 for twice the display's\n"
 		"refresh rate, -1 for no limit (which can hang some Intel graphics)." },
+	{ "display.performance_cores_only", _config_boolean, "false", "HALO_PERFORMANCE_CORES_ONLY", _environment_value,
+		_platform_windows, "Use only available performance cores on a supported hybrid CPU. Takes effect at next launch." },
 	{ "display.frames_in_flight", _config_integer, "3", "HALO_FRAMES_IN_FLIGHT", _environment_value,
 		_platform_desktop,
 		"The most frames the GPU has queued (1 to 8): a frame waits for the GPU\n"

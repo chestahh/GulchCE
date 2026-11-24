@@ -94,6 +94,9 @@ SCREENS = {
              [("AUTO", "0"), ("30", "30"), ("60", "60"), ("120", "120"), ("NONE", "-1")],
              "With V-Sync off, the most frames a second. Auto:\ntwice the display's refresh rate.", "android",
              "max_fps_android"),
+            ("CPU SCHEDULING:", "display.performance_cores_only",
+             [("AUTO", "false"), ("P-CORES ONLY", "true")],
+             "Auto lets Windows choose the cores.\nRestart the game to apply your choice.", "hybrid"),
             ("SMOOTH MOTION:", "display.interpolation", ON_OFF,
              "Draw a frame for every display refresh, blending\nbetween the game's 30 ticks a second.", None),
             ("INSTANT AIM:", "display.direct_camera", ON_OFF,
@@ -387,6 +390,7 @@ SCREENS["video_settings/hdr_calibration"] = {
 }
 _video["rows"] = [row for row in _video["rows"] if row[1] not in _graphics | _extra_effects | _shield_lighting]
 _video["spacing"] = 23
+_video["platform_spacing"] = {"hybrid": 21}
 _video["categories"] = [
     ("GRAPHICS:", "video_settings/graphics", "The HUD, text, anti-aliasing, lighting\nand model detail."),
     ("FOV AND VIEWMODELS:", "video_settings/fov_viewmodels",
@@ -838,9 +842,12 @@ def _screen(folder: str, spec: dict, rows: list, list_inputs: list, list_handler
     for index, (row, platform, *place) in enumerate(rows):
         position = place[0] if place else index
         if spec.get("platform_spacing"):
-            # Extra Android controls must not move desktop/web settings.
             groups = {}
-            for name in platform.split() if platform else ("desktop", "android", "web"):
+            members = platform.split() if platform else ["desktop", "android", "web"]
+            if "hybrid" in spec["platform_spacing"] and "desktop" in members:
+                members = [name for member in members for name in
+                           (("ordinary", "hybrid") if member == "desktop" else (member,))]
+            for name in members:
                 spacing = spec["platform_spacing"].get(name, spec["spacing"])
                 groups.setdefault(spec.get("rows_top", 73) + position * spacing, []).append(name)
             for y, names in groups.items():
@@ -883,12 +890,22 @@ def _setting_screen(folder: str, spec: dict) -> list:
     # no gap where the others' are; a row in one place for all its
     # platforms, else a child for each place)
     places = {"desktop": -1, "android": -1, "web": -1}
+    if any(row[4] == "hybrid" for row in spec["rows"]):
+        places = {"ordinary": -1, "hybrid": -1, "android": -1, "web": -1}
+
+    def members_for(platform):
+        if not platform:
+            return list(places)
+        if "hybrid" in places:
+            platform = platform.replace("desktop", "ordinary hybrid")
+        return platform.split()
+
     for index, (label, setting, choices, _, platform, *named) in enumerate(spec["rows"]):
         key = named[0] if named else setting.split(".", 1)[1]
         row = f"{base}/op_{key}"
         shares = setting in spec.get("same_place", ()) or key in spec.get("same_place", ())
         if spec.get("platform_places"):
-            members = platform.split() if platform else list(places)
+            members = members_for(platform)
             for name in members:
                 if not shares:
                     places[name] += 1
@@ -952,7 +969,7 @@ def _setting_screen(folder: str, spec: dict) -> list:
         target = f"{PE}/{category_folder}/{(SCREENS.get(category_folder) or CUSTOM_SCREENS[category_folder])['screen']}"
         platform = category_platform[0] if category_platform else None
         if spec.get("platform_places"):
-            members = platform.split() if platform else list(places)
+            members = members_for(platform)
             for name in members:
                 places[name] += 1
             rows += _placed(row, platform, members, places)

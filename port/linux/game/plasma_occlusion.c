@@ -198,13 +198,16 @@ static real sample_history_rows(const real *rows, int x, int y, struct sample_ax
 static void trace_depths(real const extent, real_point3d const *from, long ignore, int vehicles, int resolution, long owner, real depths[6][OCC_SIZE * OCC_SIZE])
 {
 	real_vector3d vectors[PLASMA_COLLISION_RAYS];
-	real hits[PLASMA_COLLISION_RAYS];
+	real hits[PLASMA_COLLISION_RAYS], offsets[OCC_SIZE];
 	int face, x, y, axis, count = 0;
 	unsigned long flags =
 		FLAG(_collision_test_structure_bit) | FLAG(_collision_test_front_facing_surfaces_bit) |
 		FLAG(_collision_test_back_facing_surfaces_bit) | FLAG(_collision_test_objects_bit) |
 		FLAG(_collision_test_objects_scenery_bit) | FLAG(_collision_test_objects_machines_bit);
 	if (vehicles) flags |= FLAG(_collision_test_objects_vehicles_bit);
+	/* Each cube face uses the same texel-centre offsets on both axes. */
+	for (x = 0; x < resolution; x++)
+		offsets[x] = (2.0f * (x + 0.5f) / resolution - 1) * extent;
 	for (face = 0; face < 6; face++)
 		for (y = 0; y < resolution; y++)
 			for (x = 0; x < resolution; x++)
@@ -213,8 +216,8 @@ static void trace_depths(real const extent, real_point3d const *from, long ignor
 				real_vector3d ray;
 				axis = face / 2;
 				component[axis] = (face & 1) ? extent : -extent;
-				component[(axis + 1) % 3] = (2.0f * (x + 0.5f) / resolution - 1) * extent;
-				component[(axis + 2) % 3] = (2.0f * (y + 0.5f) / resolution - 1) * extent;
+				component[(axis + 1) % 3] = offsets[x];
+				component[(axis + 2) % 3] = offsets[y];
 				ray.i = component[0];
 				ray.j = component[1];
 				ray.k = component[2];
@@ -222,11 +225,13 @@ static void trace_depths(real const extent, real_point3d const *from, long ignor
 			}
 	if (owner != NONE) plasma_collision_object_depths(owner, from, vectors, count, hits);
 	else plasma_collision_depths(flags, from, vectors, count, ignore, hits);
-	count = 0;
-	for (face = 0; face < 6; face++)
-		for (y = 0; y < resolution; y++)
-			for (x = 0; x < resolution; x++)
-				depths[face][y * OCC_SIZE + x] = hits[count++];
+	if (resolution == OCC_SIZE)
+		memcpy(depths, hits, sizeof(hits));
+	else
+		for (face = 0; face < 6; face++)
+			for (y = 0; y < resolution; y++)
+				memcpy(depths[face] + y * OCC_SIZE, hits + (face * resolution + y) * resolution,
+					resolution * sizeof(*hits));
 }
 static real depth_visibility(real depths[6][OCC_SIZE * OCC_SIZE], real_vector3d const *ray, real extent, int resolution)
 {

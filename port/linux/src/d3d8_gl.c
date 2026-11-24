@@ -790,6 +790,7 @@ struct program_entry
 	GLint model_lights;
 #ifndef HALO_ANDROID
 	GLint plasma_model_slots;
+	unsigned int uploaded_plasma_mask;
 	struct plasma_occlusion_uniforms plasma_occlusion;
 #endif
 #ifndef HALO_GLES
@@ -4873,6 +4874,7 @@ static struct program_entry *program_get(GLuint vertex_shader, GLuint fragment_s
 #endif
 #ifndef HALO_ANDROID
 	entry->plasma_model_slots = -1;
+	entry->uploaded_plasma_mask = 0;
 	if (plasma_model)
 	{
 		entry->plasma_model_slots = glGetUniformLocation(entry->program, "plasma_model_slots");
@@ -6288,7 +6290,11 @@ static struct program_entry *prepare_draw(BOOL immediate)
 	if (plasma_mask && entry->plasma_model_slots >= 0)
 	{
 		plasma_occlusion_bind_model(&entry->plasma_occlusion, plasma_mask);
-		glUniform2f(entry->plasma_model_slots, (plasma_mask & 1) ? 1.0f : 0.0f, (plasma_mask & 2) ? 1.0f : 0.0f);
+		if (plasma_mask != entry->uploaded_plasma_mask)
+		{
+			glUniform2f(entry->plasma_model_slots, (plasma_mask & 1) ? 1.0f : 0.0f, (plasma_mask & 2) ? 1.0f : 0.0f);
+			entry->uploaded_plasma_mask = plasma_mask;
+		}
 	}
 #endif
 #ifndef HALO_GLES

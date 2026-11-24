@@ -226,6 +226,8 @@ def main():
     parser.add_argument('--data-root', type=Path, required=True)
     parser.add_argument('--settings', type=Path)
     parser.add_argument('--fps', type=int, choices=[30,60,120,240,360], required=True)
+    parser.add_argument('--performance-cores-only', action='store_true', help='Request the Windows client startup policy')
+    parser.add_argument('--foreground', action='store_true', help='Use a visible window and record actual foreground ownership')
     parser.add_argument('--uncapped', action='store_true', help='Measure headroom without the limiter; --fps remains the reporting budget')
     parser.add_argument('--without-environment-model', action='store_true', help='Diagnostic control build only: disable environmental model self-shadowing')
     parser.add_argument('--alternate-environment-model', action='store_true', help='Diagnostic control build only: alternate environmental model self-shadowing in two-second ABBA blocks')
@@ -299,6 +301,8 @@ def main():
         settings={k:display[k] for k in QUALITY if k in display}
     settings.update({k:bool(args.enabled) for k in LIGHTS})
     settings['modern_shadows'] = args.modern_shadows
+    if args.performance_cores_only:
+        settings['performance_cores_only'] = True
     if args.shoulder_view:
         settings['third_person'] = True
         env['HALO_SESSION_COMPATIBILITY'] = 'gulchce_third_person'
@@ -317,7 +321,7 @@ def main():
         settings.update({k:False for k in LIGHTS})
         settings.update(covenant_shield_lighting=bool(args.enabled), plasma_occlusion=bool(args.enabled), overshield_effect=False)
     (out/'config.toml').write_text('[display]\n'+''.join(f'{k} = {json.dumps(v)}\n' for k,v in settings.items()))
-    env.update(HALO_DATA_ROOT=str(out), HALO_SAVE_ROOT=str(out/'saves'), HALO_HIDDEN_WINDOW='1',
+    env.update(HALO_DATA_ROOT=str(out), HALO_SAVE_ROOT=str(out/'saves'), HALO_HIDDEN_WINDOW='0' if args.foreground else '1',
                HALO_WINDOW_SIZE=args.resolution, HALO_RESOLUTION_SCALING='native', HALO_NO_AUDIO='1',
                HALO_MAX_FPS='-1' if args.uncapped else str(args.fps), HALO_NO_VSYNC='1', HALO_EXIT_AFTER=str(args.warmup+args.seconds+25),
                HALO_NET_ONLINE='0', HALO_NET_PUBLIC_LOBBY='0', HALO_NET_ALLOW_UPNP='0',
@@ -326,6 +330,8 @@ def main():
                HALO_UPDATE_ANSWER='never', HALO_CRASH_REPORTS='no', HALO_NETWORK_TEST=f'local:{args.map}:slayer',
                HALO_NETWORK_TEST_START='5', HALO_NETWORK_TEST_SCORE='10000', HALO_BOTS=str(args.bots),
                HALO_BOT_SKILL='heroic', HALO_TEST_INPUT='bot:1', HALO_SCREENSHOT_DIR=str(out/'screenshots'))
+    if args.foreground:
+        env['HALO_DISPLAY_MODE'] = 'windowed'
     if args.checkpoint_root:
         for key in ['HALO_NETWORK_TEST', 'HALO_NETWORK_TEST_START', 'HALO_NETWORK_TEST_SCORE', 'HALO_BOTS', 'HALO_BOT_SKILL']:
             env.pop(key, None)
@@ -445,6 +451,27 @@ def main():
                     if time.monotonic()-start>args.warmup+args.seconds+120:
                         raise TimeoutError('Game did not exit')
                     memory.append(dict(seconds=time.monotonic()-start, **process_memory(process._handle)))
+                    if args.foreground:
+                        foreground_pid = wintypes.DWORD()
+                        user32 = ctypes.windll.user32
+                        user32.GetForegroundWindow.restype = wintypes.HWND
+                        user32.GetWindowThreadProcessId.argtypes = [wintypes.HWND, ctypes.POINTER(wintypes.DWORD)]
+                        user32.GetWindowThreadProcessId(user32.GetForegroundWindow(), ctypes.byref(foreground_pid))
+                        memory[-1]['foreground'] = foreground_pid.value == process.pid
+                        timer = out/'frames.csv'
+                        if timer.exists():
+                            with timer.open('rb') as stream:
+                                stream.seek(max(0, stream.seek(0, 2) - 512))
+                                lines = stream.read().split(b'\n')
+                            for line in reversed(lines[:-1]):
+                                field = line.split(b',', 1)[0]
+                                if field.replace(b'.', b'', 1).isdigit():
+                                    memory[-1]['game_seconds'] = float(field)
+                                    break
+                    if os.name == "nt":
+                        allowed, system = ctypes.c_size_t(), ctypes.c_size_t()
+                        if ctypes.windll.kernel32.GetProcessAffinityMask(wintypes.HANDLE(process._handle), ctypes.byref(allowed), ctypes.byref(system)):
+                            memory[-1]['affinity_mask'] = hex(allowed.value)
                     (out/'memory.json').write_text(json.dumps(memory,indent=2))
                     time.sleep(5)
             finally:
@@ -463,6 +490,17 @@ def main():
         except ValueError as error:
             report['measurement_error']=str(error)
         log=(out/'stderr.log').read_text(errors='replace')
+        report['performance_cores_only'] = args.performance_cores_only
+        if rows and 'processor' in rows[0]:
+            placement = {}
+            for row in rows:
+                if args.warmup <= row['seconds'] < args.warmup + args.seconds:
+                    cpu = int(row['processor'])
+                    placement[cpu] = placement.get(cpu, 0) + 1
+            report['frame_end_processors'] = placement
+
+        if args.foreground:
+            report['foreground_observations'] = [m['foreground'] for m in memory if args.warmup <= m.get('game_seconds', -1) < args.warmup + args.seconds]
         if args.route_file and f'BENCH custom route steps {len(route)}\n' not in log:
             report['route_error'] = 'Requested controller route was not loaded completely'
         report.update(exit=process.returncode, fps=args.fps, uncapped=args.uncapped, frame_limit=int(env['HALO_MAX_FPS']), enabled=args.enabled, shader_dump=args.dump_shaders,
@@ -516,6 +554,8 @@ def main():
         complete = report['measured_span'] >= args.seconds - .2 if report['captures'] else 'sustained' in report
         assert complete, 'Incomplete measurement'
         assert not report['unexpected_players'], 'Unexpected player joined the isolated workload'
+        if args.performance_cores_only:
+            assert 'CPU scheduling: performance cores only (mask ' in log, 'Requested process affinity did not take effect'
         assert bool(report['selected_max'])==bool(args.enabled), 'Light activation mismatch'
         if args.modern_shadows != 'off' and args.enabled:
             assert report.get('shadowed_frame_percent', 0) > 0, 'No active shadow maps measured'

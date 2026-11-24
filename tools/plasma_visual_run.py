@@ -11,6 +11,7 @@ import re
 import shutil
 import subprocess
 import statistics
+import time
 import hashlib
 
 parser = argparse.ArgumentParser()
@@ -19,6 +20,9 @@ parser.add_argument('--capture-dir', type=Path, help='Directory containing halo-
 parser.add_argument('--mcc-package', type=Path, help='Read-only Workshop package for --map mcc-digsite or mcc-c40')
 parser.add_argument('--fps', required=True, type=int, choices=[30, 60, 120, 240])
 parser.add_argument('--enabled', required=True, type=int, choices=[0, 1])
+parser.add_argument('--warm-reveal-from', type=Path, help='Copy shader binaries and map recipes from an earlier private Ghost reveal')
+parser.add_argument('--reveal-shader-prepare', action='store_true', help='Enable the stock desktop shader preparation setting for the Ghost comparison')
+parser.add_argument('--reveal-texture-mib', type=int, default=0, help='Xbox texture preparation budget during the Ghost comparison, 0 to 128 MiB')
 parser.add_argument('--ghost-reveal', choices=['load', 'control'], help='Turn from cover to the Ghost at tick 120, with or without load preparation')
 parser.add_argument('--shadow-switch', action='store_true', help='Cycle Off/Hard/Soft in the isolated capture config')
 parser.add_argument('--shadow-resource-failure', action='store_true', help='Fail the first shadow resource creation in the capture build; requires --shadow-switch')
@@ -191,10 +195,30 @@ env = {k:v for k,v in os.environ.items() if not k.startswith('HALO_')}
 if args.dump_shaders:
     (out/'shaders').mkdir()
     env['HALO_GPU_DUMP_SHADERS'] = str(out/'shaders')
+if not 0 <= args.reveal_texture_mib <= 128 or ((args.reveal_texture_mib or args.reveal_shader_prepare) and not args.ghost_reveal):
+    parser.error('Reveal preparation requires a Ghost reveal and a texture budget from 0 to 128 MiB')
+if args.warm_reveal_from:
+    previous = args.warm_reveal_from.resolve()
+    if not args.ghost_reveal or previous.parent != out.parent.resolve() or previous == out.resolve():
+        parser.error('--warm-reveal-from requires a previous Ghost capture in the same capture directory')
+    prior = json.loads((previous/'report.json').read_text())
+    assert prior['map'] == args.map and prior['modern_shadows'] == args.modern_shadows and prior['ghost_reveal'] == 'load'
+    cache = out/'saves/shader_cache'
+    cache.mkdir(parents=True, exist_ok=True)
+    copied = {}
+    for file in (previous/'saves/shader_cache').iterdir():
+        if file.is_symlink() or not file.is_file() or not re.fullmatch(r'(?:recipes-)?[a-fA-F0-9]+\.bin|[a-fA-F0-9]+-[a-fA-F0-9]+\.list', file.name):
+            continue
+        shutil.copyfile(file, cache/file.name)
+        copied[file.name] = hashlib.sha256((cache/file.name).read_bytes()).hexdigest()
+    assert copied, 'Previous reveal has no usable shader cache'
+    (out/'warm-cache.json').write_text(json.dumps(copied, indent=2))
 if args.ghost_reveal:
     if args.map != 'sidewinder' or args.shadow_scene != 'ghost' or args.modern_shadows == 'off' or args.shadow_switch:
         parser.error('--ghost-reveal requires the Sidewinder Ghost scene and a fixed active shadow mode')
     env['HALO_CAPTURE_GHOST_REVEAL'] = '1'
+    env['HALO_SHADER_PREPARE'] = str(int(args.reveal_shader_prepare))
+    env['HALO_TEXTURE_PREPARE_MB'] = str(args.reveal_texture_mib)
     if args.ghost_reveal == 'control':
         env['HALO_CAPTURE_SKIP_SHADOW_PREP'] = '1'
 if args.shadow_resource_failure:
@@ -349,7 +373,26 @@ with (out/'stdout.log').open('wb') as so, (out/'stderr.log').open('wb') as se:
     process = subprocess.Popen([str(capture_executable)], cwd=out,
                                env=env, stdout=so, stderr=se, creationflags=subprocess.CREATE_NO_WINDOW)
     try:
-        process.wait(timeout=(args.turret_timing+45 if args.turret_timing else 145 if args.map in ('b40', 'c40', 'mcc-ruby-c40', 'mcc-c40') else 45) + args.startup_grace)
+        timeout = (args.turret_timing + 45 if args.turret_timing else 145 if args.map in ('b40', 'c40', 'mcc-ruby-c40', 'mcc-c40') else 45) + args.startup_grace
+        if args.ghost_reveal:
+            from lighting_performance_run import process_memory
+            deadline = time.monotonic() + timeout
+            peak_private = 0
+            while process.poll() is None:
+                try:
+                    peak_private = max(peak_private, process_memory(process._handle)['private'])
+                except OSError:
+                    if process.poll() is None:
+                        raise
+                    break
+                if time.monotonic() >= deadline:
+                    raise subprocess.TimeoutExpired(process.args, timeout)
+                try:
+                    process.wait(timeout=0.5)
+                except subprocess.TimeoutExpired:
+                    pass
+        else:
+            process.wait(timeout=timeout)
     finally:
         if process.poll() is None:
             process.terminate()
@@ -380,9 +423,31 @@ if args.ghost_reveal:
     crossing = [b[0] - a[0] for a, b in zip(frames, frames[1:]) if a[1] < 120 <= b[1]]
     assert len(crossing) == 1, 'Ghost reveal transition was not observed exactly once'
     report['material_prepare_ms'] = [int(ms) for ms in re.findall(r'SHADOW LOAD materials (\d+) ms', logs)]
+    report['peak_sampled_private_mib'] = peak_private / 2**20
     report['ghost_reveal'] = args.ghost_reveal
+    report['shader_prepare'] = args.reveal_shader_prepare
+    report['texture_prepare_mib'] = args.reveal_texture_mib
+    activity = [tuple(map(int, row.split())) for row in re.findall(r'SHADOW REVEAL activity ([0-9 ]+)', logs)]
+    if activity:
+        # The sample follows main_game_render. Compare the frame that first
+        # sees the Ghost with the last covered frame. GPU driver internals
+        # are outside these application counters.
+        previous, current = next((a, b) for a, b in zip(activity, activity[1:]) if a[0] < 120 <= b[0])
+        counters = ('program_links', 'cached_programs', 'texture_uploads', 'texture_bytes', 'streamed_bytes', 'draws')
+        report['first_visible_work'] = dict(zip(counters, (b - a for a, b in zip(previous[1:], current[1:]))))
     report['reveal_ms'] = crossing[0]
     report['worst_reveal_ms'] = max(b[0] - a[0] for a, b in zip(frames, frames[1:]) if 120 <= b[1] <= 123)
+    # Exclude the loading screen and capture frames themselves from the idle pacing window.
+    # Reveal is timed separately at tick 120.
+    capture_ticks = {int(t) for t in re.findall(r'SHADOW SCENE sample (\d+)', logs)}
+    elapsed = [b[0] - a[0] for a, b in zip(frames, frames[1:])
+               if 90 <= a[1] <= b[1] <= 220 and a[1] not in capture_ticks and b[1] not in capture_ticks]
+    if elapsed:
+        ordered = sorted(elapsed)
+        report['reveal_window_p99_ms'] = ordered[(99 * len(ordered) - 1) // 100]
+        report['reveal_window_frames'] = len(ordered)
+        report['reveal_window_over_ms'] = {str(t): sum(ms > t for ms in ordered) for t in (16.7, 33, 50, 100)}
+
 report['no_images'] = args.no_images
 report['shadow_resource_failure'] = args.shadow_resource_failure
 active_frames = [(int(t), int(n)) for t, n in re.findall(r'PLASMA frame (\d+)[^\r\n]+ selected (\d+)', logs)]

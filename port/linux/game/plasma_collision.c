@@ -70,6 +70,7 @@ static struct
 	real_point3d const *point;
 	struct structure_bsp const *structure;
 	struct collision_bsp const *bsp;
+	byte const *breakable_flags;
 	real extent;
 	real vector_squared;
 	struct { int ready; long node; short depth; } prefixes[8];
@@ -431,9 +432,10 @@ float plasma_collision_depth(unsigned long flags, real_point3d const *point, rea
 	}
 	else
 	{
+		if (!batch.breakable_flags) batch.breakable_flags = breakable_surface_flags_get();
 		hit = collision_bsp_test_vector_from_node(FLAG(_collision_test_front_facing_surfaces_bit) |
 			FLAG(_collision_test_back_facing_surfaces_bit), batch.bsp,
-			MAXIMUM_BREAKABLE_SURFACES_PER_MAP, breakable_surface_flags_get(), point, vector, REAL_MAX, &result,
+			MAXIMUM_BREAKABLE_SURFACES_PER_MAP, batch.breakable_flags, point, vector, REAL_MAX, &result,
 			start.index, start.depth, &batch.cache[octant]);
 		if ((start.index & LONG_MIN) && !hit && result.leaf_count <= 1)
 		{
@@ -503,5 +505,6 @@ void plasma_collision_end(void)
 	batch.point = NULL;
 	batch.structure = NULL;
 	batch.bsp = NULL;
+	batch.breakable_flags = NULL;
 	memset(&batch.cache, 0, sizeof(batch.cache));
 }

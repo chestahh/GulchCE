@@ -224,6 +224,16 @@ try:
     marker = '\tplasma_capture_model_draw(plasma_mask);'
     text = 'void modern_capture_shader(unsigned long, int, int, int, int, unsigned int);\n' + text.replace(marker,
         marker + '\n\tmodern_capture_shader(program->id, program->plasma_model, program->lighting.lights, key.per_pixel_lighting, key.modern_shadow, plasma_mask);')
+    # Sample cumulative renderer counters after the real Ghost draws. The capture
+    # fixture requests them only around the turn from cover.
+    text += '''
+void plasma_capture_reveal_activity(long tick)
+{
+    platform_log("SHADOW REVEAL activity %ld %lu %lu %lu %lu %lu %lu",
+        tick, program_cache.linked, program_cache.loaded, stats.texture_uploads,
+        stats.texture_upload_bytes, stats.streamed_bytes, stats.draws + stats.immediate_draws);
+}
+'''
     backend.write_text(text)
     text = environment_original.decode().replace('\r\n', '\n')
     text = 'void plasma_capture_specular_begin(long index);\nvoid plasma_capture_specular_draw(void);\n' + text

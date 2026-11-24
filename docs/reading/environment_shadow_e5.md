@@ -890,8 +890,8 @@ itself move threads. The untouched launches above are the fresh Auto control.
 
 These are process-wide tests with a hidden window on one Windows machine.
 The game uses normal scheduling by default. The [E5 roadmap](modern_dynamic_shadows.md#e5--rendering-performance-and-hitch-removal)
-calls for fresh foreground comparisons of Auto and process-wide performance-core
-restriction. The benefit during a normal foreground launch is still unmeasured.
+also records the [subsequent fresh foreground launches](#fresh-windows-launches)
+that kept the selected policy throughout each run.
 
 A separate GPU diagnostic timed cube setup (including clears and copies),
 world geometry, posed models and viewmodels independently. GPU values are
@@ -918,10 +918,8 @@ favour the prototype.
 
 Defer the history-copy prototype. Frame time improved in six of fourteen blocks in
 each mode, and the CPU occlusion result changed direction between Hard and Soft.
-The next collision experiment should count identical world-only ray inputs across
-updates and check how often a moving object or door invalidates an otherwise
-reusable result. Check saved work against the stock ray result before using it in
-gameplay. Keep the eight local slots and the sun fade in these comparisons.
+The [subsequent exact-ray survey](#exact-ray-reuse-and-receiver-state)
+measured reuse across updates and compared batch results against stock.
 
 Local evidence and reproduction scripts are under `build/e5-launch-investigation/`.
 
@@ -947,6 +945,180 @@ between repeats. The prototype’s [paired frame-time comparison](#texture-setup
 is the comparison for the proposed code change. Local fixed reports are
 `build/lighting-performance/e5-material-fixed-*`. Timing breakdowns and the
 paired analysis are under `build/e5-material-submit/`.
+
+### Exact-ray reuse and receiver state
+
+A diagnostic build of [the lighting benchmark](../../tools/lighting_performance_build.py)
+with `--ray-reuse-survey` kept a bounded table of 65,536 world rays. It compared
+the origin and vector bit for bit across batches. On a match it checked the
+fresh world hit, depth, leaf count and a hash of leaf order. It compared the
+final depth again after intersecting moving objects. A BSP change or a change
+to the breakable-surface flags invalidated the entries. The table recorded
+432 repeats among 82,771,968 rays in the snowy fight (0.00052%). Evictions
+make this a lower bound for that table. A separate test exercises a moving
+object that changes the final depth under the same world ray. A cache of whole
+ray answers has little demonstrated reuse here.
+
+In the heavier measured minute of the original Hard and Soft profiles,
+world traversal and object-cluster selection took 0.496 and 0.490 ms per
+frame respectively. Rebuilding the visibility field took 0.191 and
+0.195 ms. The diffuse and specular BSP light draw calls together took
+0.778 and 0.720 ms on the CPU. These are inclusive CPU timings.
+On the GPU, setup plus local world and model depth took 0.361 and 0.360 ms.
+The environmental model depth pass took 0.271 and 0.249 ms. GPU queries
+sampled every 32nd frame. CPU and GPU figures can overlap.
+
+[Ray construction](../../port/linux/game/plasma_occlusion.c) now computes the
+texel offsets once for the six faces. The
+[collision batch](../../port/linux/game/plasma_collision.c) borrows the current
+breakable flags until the synchronous batch ends. A same-input check found
+zero bit differences in 83,165,184 final depths versus the preceding batch,
+including 2,598,912 also checked against individual stock collision queries.
+Alternating which batch ran first gave 13.654 s for the original and 13.603 s
+for the candidate across all 54,144 batches.
+
+The [model renderer](../../port/linux/src/d3d8_gl.c) and
+[shadow receiver](../../port/linux/src/modern_shadows_gl.c) remember the last
+slot mask or filter sent to each linked program. Each link starts with fresh
+state. Moving lights, per-receiver texture bindings, first-person cubes and
+the environmental fade still use the current draw's inputs. This is a
+renderer change because the feature modules do not own linked programs.
+Across the same diagnostic run, 137,190 of 12,829,386 instrumented uniform
+updates needed a driver call. The other requests repeated the value already
+stored by that program. This count applies to those four uniform updates.
+
+#### Fresh Windows launches
+
+These four visible runs used the same snowy exterior checkpoint and camera,
+19 live Covenant, 2560x1440, no AA, 25 seconds of warmup and 120 measured
+seconds. Both modes used 1024, the complete sun fade, independent fixture
+shadows and all eight local slots with the flashlight sharing one. Runs
+were uncapped. Each policy took effect before loading the map. Hard ran
+Auto first and Soft ran P-cores first.
+
+| Mode and scheduling | Average FPS | Heavier minute FPS | Below 240, total / longest (s) | Below 360, total / longest (s) |
+| --- | ---: | ---: | ---: | ---: |
+| Hard Auto | 297.6 | 294.9 | 0 / 0 | 120 / 120 |
+| Hard P-cores only | 294.6 | 293.6 | 0 / 0 | 120 / 120 |
+| Soft Auto | 298.8 | 297.8 | 0 / 0 | 120 / 120 |
+| Soft P-cores only | 299.5 | 298.9 | 0 / 0 | 120 / 120 |
+
+| Run | Foreground samples | E-core frame endpoints / all | Process mask |
+| --- | ---: | ---: | --- |
+| Hard auto | 24/24 | 0/35,710 | `0xfffffff` |
+| Hard performance | 24/24 | 0/35,348 | `0xffff` |
+| Soft auto | 24/24 | 0/35,855 | `0xfffffff` |
+| Soft performance | 24/24 | 0/35,941 | `0xffff` |
+
+Processor samples describe the render thread at frame boundaries. The
+process restriction also affects workers. The counters do not track the full
+execution history of every thread. One foreground launch per mode and policy
+establishes behaviour on this i7-14700K and RTX 5070 Ti. Auto remains the
+default.
+
+#### Repeatable and indoor controls
+
+The following hidden-window controls used the same fixed graphics settings.
+Two Betrayals used the same checkpoint as the foreground runs. Rat Race
+used its two authored lamps and fifteen bots. The CPU policy was Auto.
+
+| Mode and scheduling | Average FPS | Heavier minute FPS | Below 240, total / longest (s) | Below 360, total / longest (s) |
+| --- | ---: | ---: | ---: | ---: |
+| Upstream OpenCE Classic | 373.8 | 359.0 | 0 / 0 | 36 / 18 |
+| GulchCE Classic | 520.9 | 516.5 | 0 / 0 | 0 / 0 |
+| Lighting before | 308.1 | 304.6 | 0 / 0 | 120 / 120 |
+| Lighting after | 308.6 | 305.1 | 0 / 0 | 120 / 120 |
+| Hard before | 260.8 | 259.8 | 3 / 1 | 120 / 120 |
+| Hard after | 263.4 | 261.8 | 3 / 1 | 120 / 120 |
+| Soft before | 260.5 | 260.3 | 5 / 1 | 120 / 120 |
+| Soft after | 259.0 | 258.8 | 2 / 1 | 120 / 120 |
+| Rat Race Hard before | 357.7 | 350.2 | 0 / 0 | 62 / 26 |
+| Rat Race Hard after | 391.3 | 378.5 | 0 / 0 | 32 / 10 |
+| Rat Race Soft before | 372.1 | 368.7 | 0 / 0 | 46 / 7 |
+| Rat Race Soft after | 407.2 | 389.0 | 0 / 0 | 22 / 6 |
+
+The paired combat executable alternated the old and new ray setup and uniform
+uploads in balanced two-second intervals. The comparison uses seven complete
+16-second blocks, excluding the first 100 ms after each switch. Negative
+differences are faster. The interval resamples the seven blocks.
+
+| Mode | Difference (ms/frame) | 95% interval (ms) | Blocks faster |
+| --- | ---: | ---: | ---: |
+| Hard | -0.030 | -0.075 to +0.002 | 5/7 |
+| Soft | -0.004 | -0.032 to +0.024 | 3/7 |
+
+#### Sidewinder reveal
+
+These 60 FPS runs used a new private cache for first visits and copied the
+map history and shader cache for warm visits. The system driver cache was
+left in place. Preparation occurs during loading. Peak private memory was
+sampled externally every half second. The frame clock has 1 ms resolution,
+so a normally paced 17 ms frame counts in the >16.7 ms column.
+
+| Mode and visit | Preparation (ms) | Worst reveal (ms) | P99 (ms) | >16.7 / 33 / 50 / 100 ms | Peak private (MiB) |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Hard first | 84 | 35 | 18 | 162 / 1 / 0 / 0 | 678 |
+| Hard warm | 36 | 32 | 18 | 148 / 0 / 0 / 0 | 668 |
+| Soft first | 71 | 35 | 18 | 158 / 1 / 0 / 0 | 678 |
+| Soft warm | 43 | 30 | 17 | 165 / 0 / 0 / 0 | 668 |
+
+The [reveal diagnostic](../../tools/plasma_visual_run.py) compares consecutive
+rendered frames at the transition to the visible Ghost. Fresh and warm runs
+issued 119 draws on the first visible frame in both Hard and Soft. Each
+submitted 22 texture uploads totalling 2,043,905 bytes with default settings.
+Fresh runs linked 11 programs. Warm runs obtained all 11 from the program
+cache. That counter includes programs already loaded at map entry. It does
+not measure disk reads or driver execution time.
+
+Separate Hard 1024 controls enabled the existing desktop preloading options
+with `--reveal-texture-mib 64` and `--reveal-shader-prepare`. The loading
+time below covers the instrumented material pass only. Reveal time is the
+longest frame in the first four visible simulation ticks. Counts refer to
+the first visible frame.
+
+| Preparation and visit | Material pass (ms) | Worst reveal (ms) | Programs linked / obtained from cache | Texture uploads / bytes |
+| --- | ---: | ---: | ---: | ---: |
+| Default, first | 78 | 35 | 11 / 0 | 22 / 2,043,905 |
+| Default, warm | 44 | 31 | 0 / 11 | 22 / 2,043,905 |
+| Textures, 64 MiB, first | 71 | 32 | 11 / 0 | 19 / 1,650,697 |
+| Textures, 64 MiB, warm | 42 | 30 | 0 / 11 | 19 / 1,650,697 |
+| Shaders, first | 2984 | 33 | 7 / 0 | 22 / 2,043,905 |
+| Shaders, warm | 143 | 28 | 0 / 0 | 22 / 2,043,905 |
+| Both, first | 156 | 31 | 7 / 0 | 19 / 1,650,697 |
+| Both, warm | 135 | 28 | 0 / 0 | 19 / 1,650,697 |
+
+A warm shader-prepared visit eliminated first-frame program acquisition.
+Texture preparation avoided three of the 22 uploads. The remaining reveal
+cost warrants timing the specific streaming, preparation and draw work for
+the newly visible materials. These comparisons do not isolate the cost of
+each driver operation. The shipped defaults are unchanged.
+
+The Mercury Rising 2 comparison used the same Soft 1024 approach to the
+outdoor Covenant caches and the same retreat in the previous and candidate
+builds. The engine saved its actual camera position and basis before and
+after each capture. All 57 camera pairs passed the pose checks. On the
+960x600 comparisons, the median whole-image RGB mean absolute difference
+was 0.16 levels on a 0-255 scale. The largest individual channel mean was
+0.85. The distant, intermediate and close views retained the sun handoff
+and the nearby cast shadows. Across 20 matched Sidewinder Ghost captures,
+the largest channel mean difference was 0.26. These figures include moving
+effects and character animation.
+
+The [Windows startup policy](../../port/windows/src/win32_cpu_scheduling.c)
+reads the available processor classes and inherited process restrictions.
+It applies the optional mask once, before map loading. The Windows playtest
+switched from the inherited mask to the P-core mask and back on separate
+launches. The [menu runner](../../tools/modern_shadow_menu_run.py) exercises
+Save, Cancel and Defaults. A separate Windows compatibility run traversed
+Xbox Two Betrayals, MCC Digsite, CE Death Island and Xbox Blood Gulch.
+
+Foreground Hard Auto needs approximately 0.58 ms/frame less to reach 360 FPS,
+and Soft Auto needs 0.57 ms less. The repeated polls and fresh launches give
+little reason to expect that budget from CPU scheduling on this machine.
+Measure CPU BSP collision traversal and light draw submission alongside
+local and environmental GPU depth on the foreground critical path. The
+paired runs above could not reliably distinguish the smaller end-to-end
+difference from combat variation.
 
 ### Upstream stock control
 

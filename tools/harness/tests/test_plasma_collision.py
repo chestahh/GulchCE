@@ -58,3 +58,8 @@ def test_leaf_reference_preserves_surface_order():
     leaf = function(read('source/physics/collision_bsp.c'), 'collision_leaf_test_vector')
     status, output = run(build('collision_leaf_reference', (('cache.inc', cache), ('under_test.inc', leaf))), 'surface')
     assert status == 0, output
+
+def test_exact_ray_survey_separates_world_and_object_changes():
+    source = read('tools/fixtures/lighting_ray_reuse.inc')
+    status, output = run(build('lighting_ray_reuse', (('survey.inc', source),)), 'moving')
+    assert status == 0, output

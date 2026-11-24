@@ -9,7 +9,7 @@ struct nv2a_vertex_lighting;
 struct nv2a_pixel_shader_key;
 struct plasma_occlusion_uniforms { int enabled; };
 struct modern_shadow_uniforms { int light; };
-struct program_entry { GLuint program; int plasma_model_slots; struct plasma_occlusion_uniforms plasma_occlusion; struct modern_shadow_uniforms modern_shadow; };
+struct program_entry { GLuint program; int plasma_model_slots; struct plasma_occlusion_uniforms plasma_occlusion; struct modern_shadow_uniforms modern_shadow; unsigned int uploaded_plasma_mask; };
 static struct { const char *dump_shaders; } debug_settings;
 static int requests, pp = 1, fail_compile, fail_link, last_lit, last_optional;
 static int gpu_calls, bound, looked_up;
@@ -128,6 +128,9 @@ int main(int argc, char **argv)
 #ifndef HALO_ANDROID
   CHECK(looked_up==1 && gpu_calls==2, "enhanced initialization is lazy");
   bind_model(&entry, 2); CHECK(bound==1 && mask0==0 && mask1==1, "selected slots uploaded unchanged");
+  base=gpu_calls; bind_model(&entry, 2);
+  CHECK(bound==2 && gpu_calls==base+1, "same program keeps slots while rebinding current occlusion");
+  bind_model(&entry, 1); CHECK(mask0==1 && mask1==0,"changed slots upload to the program");
 #else
   bind_model(&entry, 2);
   CHECK(!gpu_calls && !looked_up && !bound && !mask0 && !mask1, "Android excludes all optional GPU setup even with a selected mask");

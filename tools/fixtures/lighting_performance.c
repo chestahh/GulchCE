@@ -230,6 +230,10 @@ int lighting_performance_capture(void)
 
 #include "game/players.h"
 #include "units/units.h"
+#ifdef HALO_WINDOWS
+__declspec(dllimport) DWORD WINAPI GetCurrentProcessorNumber(void);
+#endif
+
 void lighting_performance_frame(void)
 {
 	int i;
@@ -257,7 +261,7 @@ void lighting_performance_frame(void)
 		timings = fopen("frames.csv", "w");
 		if (!timings) return;
 		setvbuf(timings, NULL, _IOFBF, 65536);
-		fprintf(timings, "seconds,frame_ms,selected,scene_lights,occlusion_updates,capture_excluded,tick,occlusion_ms,shadowed,sun_casters,spot_mask\n");
+		fprintf(timings, "seconds,frame_ms,selected,scene_lights,occlusion_updates,capture_excluded,tick,occlusion_ms,shadowed,sun_casters,spot_mask,processor\n");
 	}
 	if (phase_calls[0] || phase_calls[1] || phase_calls[2] || phase_calls[3] || phase_calls[7])
 	{
@@ -283,9 +287,13 @@ void lighting_performance_frame(void)
 	for (i = 0; i < LIGHTING_PROFILE_PHASES; i++) { phase_time[i] = 0; phase_calls[i] = 0; }
 	if (timings)
 	{
-		fprintf(timings, "%.6f,%.6f,%ld,%ld,%ld,%d,%ld,%.6f,%ld,%d,%d\n", now - origin,
+		long processor = -1;
+#ifdef HALO_WINDOWS
+		processor = (long)GetCurrentProcessorNumber();
+#endif
+		fprintf(timings, "%.6f,%.6f,%ld,%ld,%ld,%d,%ld,%.6f,%ld,%d,%d,%ld\n", now - origin,
 			(now - previous) * 1000.0, selected, lights, occlusion_updates,
-			screenshot_frames > 0, game_time_get(), occlusion_seconds * 1000.0, shadowed, modern_shadows_sun_casters(), modern_spot_mask());
+			screenshot_frames > 0, game_time_get(), occlusion_seconds * 1000.0, shadowed, modern_shadows_sun_casters(), modern_spot_mask(), processor);
 		if (now - flushed >= 1.0)
 		{
 			fflush(timings);

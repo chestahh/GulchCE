@@ -110,6 +110,7 @@ def main():
     parser.add_argument('--diagnose', action='store_true', help='Collision phase timings and retained resource counts (not acceptance timings)')
     parser.add_argument('--resources', action='store_true', help='Retained resource counts without per-ray diagnostic clocks')
     parser.add_argument('--stalls', action='store_true', help='Windows processor, thread CPU, shader compile/link and present timings; diagnostic only')
+    parser.add_argument('--ray-reuse-survey', action='store_true', help='Count exact cross-update world rays and changes in the final object-clipped result')
     parser.add_argument('--verify-traces', action='store_true', help='Compare every lighting ray with the stock collision query; not a timing build')
     parser.add_argument('--verify-visibility', action='store_true', help='Compare packed and scalar CPU visibility reconstruction on identical fields')
     parser.add_argument('--verify-textures', action='store_true', help='Compare specialized visibility pixels against the generic loop; diagnostic only')
@@ -182,6 +183,9 @@ def main():
         diagnostic_sources += ['tools/lighting_visibility_check.py']
     if args.stalls:
         diagnostic_sources += ['tools/fixtures/lighting_stall_diagnostics.inc']
+    if args.ray_reuse_survey:
+        diagnostic_sources.append('tools/fixtures/lighting_ray_reuse.inc')
+    manifest['ray_reuse_survey'] = args.ray_reuse_survey
     manifest['diagnostic_hashes']={p:hashlib.sha256((ROOT/p).read_bytes()).hexdigest() for p in diagnostic_sources}
 
     def edit(path, before, after, declaration):
@@ -264,8 +268,9 @@ def main():
             if args.diagnose:
                 text=occlusion.read_text()
                 anchor='\tfor (face = 0; face < 6; face++)'
-                assert text.count(anchor)==2
-                text=text.replace(anchor,'\tlighting_trace_active = 1;\n'+anchor,1)
+                tracing = function(text, 'trace_depths')
+                assert anchor in tracing
+                text = text.replace(tracing, tracing.replace(anchor, '\tlighting_trace_active = 1;\n'+anchor, 1))
                 anchor='\n}\nstatic real depth_visibility'
                 assert text.count(anchor)==1
                 text=text.replace(anchor,'\n\tlighting_trace_active = 0;'+anchor)
@@ -441,6 +446,18 @@ def main():
             falloff.write_text('extern int lighting_profile_world;\n'+falloff.read_text())
             replace(falloff, '\tplasma_falloff_bound = TRUE;', '\tlighting_profile_world = stage == 1 ? 3 : 2;\n\tplasma_falloff_bound = TRUE;')
             replace(falloff, '\tplasma_specular_tint = 0x00FFFFFFUL;\n\tif (!plasma_falloff_bound)', '\tlighting_profile_world = 0;\n\tplasma_specular_tint = 0x00FFFFFFUL;\n\tif (!plasma_falloff_bound)')
+        if args.ray_reuse_survey:
+            path = ROOT / 'port/linux/game/plasma_collision.c'
+            text = path.read_text()
+            def insert(anchor, before):
+                nonlocal text
+                assert text.count(anchor) == 1, anchor
+                text = text.replace(anchor, before + anchor)
+            insert('static int trace_side(', (ROOT / 'tools/fixtures/lighting_ray_reuse.inc').read_text() + '\n')
+            insert('\t\ttrace_batch_starts(vectors,', '\t\treuse_survey_begin();\n')
+            insert('\tif (hit) depth = result.t;', '\tif (batch.defer_models) reuse_survey_world(point, vector, hit, &result);\n')
+            insert('\tplasma_collision_end();\n}', '\tif (!batch.failed && batch.defer_models) reuse_survey_end(depths, count);\n')
+            path.write_text(text)
         if args.verify_traces:
             occlusion.write_text(instrument(occlusion.read_text()))
             collision = ROOT/'port/linux/game/plasma_collision.c'

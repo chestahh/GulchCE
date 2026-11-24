@@ -47,7 +47,7 @@ static struct object_datum *object_get(long index) { reads++; return &objects[in
 static struct structure_bsp *global_structure_bsp_get(void) { return &structure; }
 static struct collision_bsp *global_collision_bsp_get(void) { return &bsp; }
 static void *breakable_surface_flags_get(void) { return NULL; }
-static int collision_bsp_test_vector_from_node(unsigned long flags,const struct collision_bsp *bsp,int breaks,void *bits,
+static int collision_bsp_test_vector_from_node(unsigned long flags,const struct collision_bsp *bsp,int breaks,const byte *bits,
  const real_point3d *p,const real_vector3d *v,float limit,struct collision_bsp_test_vector_result *r,long start,short depth,struct collision_bsp_vector_cache *cache)
 { queried_node=start;queried_depth=depth;
   if (start & LONG_MIN) { single_leaf_queries++; r->leaf_count=start!=NONE; r->leaf_indices[0]=0; return 0; }

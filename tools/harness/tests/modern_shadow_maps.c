@@ -53,7 +53,8 @@ static int face_clears;
 #define glVertexAttribPointer(...) ((void)0)
 #define glUniformMatrix4fv(...) ((void)0)
 #define glBindTexture(...) ((void)0)
-#define glUniform2f(...) ((void)0)
+static int slot_writes;
+#define glUniform2f(...) ((void)++slot_writes)
 #define glUniform1f(...) ((void)0)
 #define glDeleteBuffers(...) ((void)0)
 #define glDeleteFramebuffers(...) ((void)0)
@@ -164,6 +165,10 @@ int main(int argc,char **argv) {
  CHECK(draw_counts[0][0]==6 && draw_counts[0][1]==6 && !draw_counts[0][2],"world retains full body, excludes viewmodel");
  CHECK(draw_counts[1][0]==6 && !draw_counts[1][1] && draw_counts[1][2]==6,"view sees environment and own pose without hidden body");
  modern_shadow_bind(&uniforms);CHECK(bound[0]==91 && !bound[1],"only valid map binds");
+ CHECK(slot_writes==1,"first receiver gets slot values");
+ modern_shadow_bind(&uniforms);CHECK(slot_writes==1,"identical receiver retains slot uniforms");
+ { struct modern_shadow_uniforms other={0}; modern_shadow_bind(&other);
+   CHECK(slot_writes==2,"a second program receives its own slot values"); }
  CHECK(modern_shadow_begin(1,origin,2,1,1),"second independent light");
  modern_shadow_draw(1,matrix,1,NULL,uv,MODERN_SHADOW_BOTH);
  modern_shadow_draw(3,matrix,1,NULL,uv,MODERN_SHADOW_VIEW);

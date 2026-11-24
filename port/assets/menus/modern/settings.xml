@@ -36,11 +36,12 @@
 		<child widget="modern/row_display_vsync4" x="28" y="257" />
 		<child widget="modern/row_display_max_fps5" x="28" y="287" platform="desktop web" />
 		<child widget="modern/row_display_max_fps6" x="28" y="317" platform="android" />
-		<child widget="modern/row_display_interpolation7" x="28" y="347" />
-		<child widget="modern/row_display_direct_camera8" x="28" y="377" platform="desktop web" />
-		<child widget="modern/row_link_6" x="28" y="407" />
-		<child widget="modern/row_link_7" x="28" y="437" />
-		<child widget="modern/row_link_15" x="28" y="467" />
+		<child widget="modern/row_display_performance_cores_only7" x="28" y="347" platform="hybrid" />
+		<child widget="modern/row_display_interpolation8" x="28" y="377" />
+		<child widget="modern/row_display_direct_camera9" x="28" y="407" platform="desktop web" />
+		<child widget="modern/row_link_6" x="28" y="437" />
+		<child widget="modern/row_link_7" x="28" y="467" />
+		<child widget="modern/row_link_15" x="28" y="497" />
 		<child widget="modern/button_bar" x="26" y="414" />
 	</widget>
 	<widget name="modern/tabs" type="column_list" width="584" height="26" flags="pass_unhandled_to_focused_child left_right_tabs_items">
@@ -137,20 +138,28 @@
 	<widget name="modern/spinner_display_max_fps6" type="spinner" width="140" height="20" flags="pass_unhandled_to_focused_child left_right_tabs_items" strings="AUTO|30|60|120|NONE" values="0|30|60|120|-1" setting="display.max_fps" font="ui\large_ui" color="#FF2896FF" align="center" header_bitmap="bitmaps/arrow_sm_left" footer_bitmap="bitmaps/arrow_sm_right" header_bounds="4 -10 16 -4" footer_bounds="4 144 16 150">
 		<on event="created" run="port setting load" />
 	</widget>
-	<widget name="modern/row_display_interpolation7" width="336" height="26" bitmap="modern/row" flags="pass_unhandled_to_focused_child nifty_fx">
-		<child widget="modern/label_display_interpolation7" x="12" y="3" />
-		<child widget="modern/spinner_display_interpolation7" x="180" y="3" />
+	<widget name="modern/row_display_performance_cores_only7" width="336" height="26" bitmap="modern/row" platform="hybrid" flags="pass_unhandled_to_focused_child nifty_fx">
+		<child widget="modern/label_display_performance_cores_only7" x="12" y="3" />
+		<child widget="modern/spinner_display_performance_cores_only7" x="180" y="3" />
 	</widget>
-	<widget name="modern/label_display_interpolation7" type="text" controller="1" width="152" height="24" string_list="modern/labels" string_index="7" font="ui\large_ui" color="#FF2896FF" />
-	<widget name="modern/spinner_display_interpolation7" type="spinner" width="140" height="20" flags="pass_unhandled_to_focused_child left_right_tabs_items" strings="ON|OFF" values="true|false" setting="display.interpolation" font="ui\large_ui" color="#FF2896FF" align="center" header_bitmap="bitmaps/arrow_sm_left" footer_bitmap="bitmaps/arrow_sm_right" header_bounds="4 -10 16 -4" footer_bounds="4 144 16 150">
+	<widget name="modern/label_display_performance_cores_only7" type="text" controller="1" width="152" height="24" string_list="modern/labels" string_index="7" font="ui\large_ui" color="#FF2896FF" />
+	<widget name="modern/spinner_display_performance_cores_only7" type="spinner" width="140" height="20" flags="pass_unhandled_to_focused_child left_right_tabs_items" strings="AUTO|P-CORES ONLY" values="false|true" setting="display.performance_cores_only" font="ui\large_ui" color="#FF2896FF" align="center" header_bitmap="bitmaps/arrow_sm_left" footer_bitmap="bitmaps/arrow_sm_right" header_bounds="4 -10 16 -4" footer_bounds="4 144 16 150">
 		<on event="created" run="port setting load" />
 	</widget>
-	<widget name="modern/row_display_direct_camera8" width="336" height="26" bitmap="modern/row" platform="desktop web" flags="pass_unhandled_to_focused_child nifty_fx">
-		<child widget="modern/label_display_direct_camera8" x="12" y="3" />
-		<child widget="modern/spinner_display_direct_camera8" x="180" y="3" />
+	<widget name="modern/row_display_interpolation8" width="336" height="26" bitmap="modern/row" flags="pass_unhandled_to_focused_child nifty_fx">
+		<child widget="modern/label_display_interpolation8" x="12" y="3" />
+		<child widget="modern/spinner_display_interpolation8" x="180" y="3" />
 	</widget>
-	<widget name="modern/label_display_direct_camera8" type="text" controller="1" width="152" height="24" string_list="modern/labels" string_index="8" font="ui\large_ui" color="#FF2896FF" />
-	<widget name="modern/spinner_display_direct_camera8" type="spinner" width="140" height="20" flags="pass_unhandled_to_focused_child left_right_tabs_items" strings="ON|OFF" values="true|false" setting="display.direct_camera" font="ui\large_ui" color="#FF2896FF" align="center" header_bitmap="bitmaps/arrow_sm_left" footer_bitmap="bitmaps/arrow_sm_right" header_bounds="4 -10 16 -4" footer_bounds="4 144 16 150">
+	<widget name="modern/label_display_interpolation8" type="text" controller="1" width="152" height="24" string_list="modern/labels" string_index="8" font="ui\large_ui" color="#FF2896FF" />
+	<widget name="modern/spinner_display_interpolation8" type="spinner" width="140" height="20" flags="pass_unhandled_to_focused_child left_right_tabs_items" strings="ON|OFF" values="true|false" setting="display.interpolation" font="ui\large_ui" color="#FF2896FF" align="center" header_bitmap="bitmaps/arrow_sm_left" footer_bitmap="bitmaps/arrow_sm_right" header_bounds="4 -10 16 -4" footer_bounds="4 144 16 150">
+		<on event="created" run="port setting load" />
+	</widget>
+	<widget name="modern/row_display_direct_camera9" width="336" height="26" bitmap="modern/row" platform="desktop web" flags="pass_unhandled_to_focused_child nifty_fx">
+		<child widget="modern/label_display_direct_camera9" x="12" y="3" />
+		<child widget="modern/spinner_display_direct_camera9" x="180" y="3" />
+	</widget>
+	<widget name="modern/label_display_direct_camera9" type="text" controller="1" width="152" height="24" string_list="modern/labels" string_index="9" font="ui\large_ui" color="#FF2896FF" />
+	<widget name="modern/spinner_display_direct_camera9" type="spinner" width="140" height="20" flags="pass_unhandled_to_focused_child left_right_tabs_items" strings="ON|OFF" values="true|false" setting="display.direct_camera" font="ui\large_ui" color="#FF2896FF" align="center" header_bitmap="bitmaps/arrow_sm_left" footer_bitmap="bitmaps/arrow_sm_right" header_bounds="4 -10 16 -4" footer_bounds="4 144 16 150">
 		<on event="created" run="port setting load" />
 	</widget>
 	<widget name="modern/row_link_6" width="336" height="26" bitmap="modern/row" flags="nifty_fx">
@@ -159,21 +168,21 @@
 		<on event="left_mouse" run="mouse emit accept event" />
 		<child widget="modern/label_link_6" x="12" y="3" />
 	</widget>
-	<widget name="modern/label_link_6" type="text" controller="1" width="312" height="24" string_list="modern/labels" string_index="9" font="ui\large_ui" color="#FF2896FF" />
+	<widget name="modern/label_link_6" type="text" controller="1" width="312" height="24" string_list="modern/labels" string_index="10" font="ui\large_ui" color="#FF2896FF" />
 	<widget name="modern/row_link_7" width="336" height="26" bitmap="modern/row" flags="nifty_fx">
 		<on event="a" run="port frontend page" />
 		<on event="start" run="port frontend page" />
 		<on event="left_mouse" run="mouse emit accept event" />
 		<child widget="modern/label_link_7" x="12" y="3" />
 	</widget>
-	<widget name="modern/label_link_7" type="text" controller="1" width="312" height="24" string_list="modern/labels" string_index="10" font="ui\large_ui" color="#FF2896FF" />
+	<widget name="modern/label_link_7" type="text" controller="1" width="312" height="24" string_list="modern/labels" string_index="11" font="ui\large_ui" color="#FF2896FF" />
 	<widget name="modern/row_link_15" width="336" height="26" bitmap="modern/row" flags="nifty_fx">
 		<on event="a" run="port frontend page" />
 		<on event="start" run="port frontend page" />
 		<on event="left_mouse" run="mouse emit accept event" />
 		<child widget="modern/label_link_15" x="12" y="3" />
 	</widget>
-	<widget name="modern/label_link_15" type="text" controller="1" width="312" height="24" string_list="modern/labels" string_index="11" font="ui\large_ui" color="#FF2896FF" />
+	<widget name="modern/label_link_15" type="text" controller="1" width="312" height="24" string_list="modern/labels" string_index="12" font="ui\large_ui" color="#FF2896FF" />
 	<strings name="modern/labels">
 		<string text="DISPLAY MODE" />
 		<string text="RESOLUTION" />
@@ -182,6 +191,7 @@
 		<string text="V-SYNC" />
 		<string text="FRAME RATE LIMIT" />
 		<string text="FRAME RATE LIMIT" />
+		<string text="CPU SCHEDULING" />
 		<string text="SMOOTH MOTION" />
 		<string text="INSTANT AIM" />
 		<string text="ADVANCED GRAPHICS &gt;" />
@@ -197,6 +207,7 @@
 		<string text="Wait for the display between frames, so that the picture never tears." />
 		<string text="With V-Sync off, the most frames a second. Auto: twice the display's refresh rate." />
 		<string text="With V-Sync off, the most frames a second. Auto: twice the display's refresh rate." />
+		<string text="Auto lets Windows choose the cores. Restart the game to apply your choice." />
 		<string text="Draw a frame for every display refresh, blending between the game's 30 ticks a second." />
 		<string text="In first person, turn the view the moment the mouse moves, not up to two ticks later." />
 		<string text="Open advanced graphics settings. Pending changes stay until OK or Cancel." />

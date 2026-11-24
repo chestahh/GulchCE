@@ -98,6 +98,7 @@ struct xgpu_text;
 struct modern_shadow_uniforms
 {
 	int light, other_light, slots, filter, extent;
+	int last_slots, last_filter, last_environment_mask;
     unsigned long long spot_window, sun_window;
     int sun_enabled;
     int last_flash_slots;

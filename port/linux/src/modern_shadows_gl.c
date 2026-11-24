@@ -656,6 +656,7 @@ void modern_shadow_emit(struct xgpu_text *text)
 void modern_shadow_uniforms_initialize(unsigned long linked, struct modern_shadow_uniforms *uniforms)
 {
     spot_locations(linked,uniforms);
+    uniforms->last_slots = uniforms->last_filter = uniforms->last_environment_mask = -1;
     uniforms->sun_window = 0;
     uniforms->sun_enabled = 0;
     uniforms->sun_frame = glGetUniformLocation(linked,"sun_frame");
@@ -682,7 +683,7 @@ void modern_shadow_uniforms_initialize(unsigned long linked, struct modern_shado
 
 void modern_shadow_bind(struct modern_shadow_uniforms *uniforms)
 {
-	float enabled[2] = {0,0};
+	int enabled = 0;
 	int slot;
     spot_bind(uniforms);
     if (uniforms->sun_color_radius >= 0 &&
@@ -699,7 +700,11 @@ void modern_shadow_bind(struct modern_shadow_uniforms *uniforms)
         }
         glUniform4fv(uniforms->sun_color_radius,1,(const float[4]){sun.tint[0],sun.tint[1],sun.tint[2],sun.model ? sun.radius : 0});
     }
-    glUniform1i(uniforms->environment_mask, environment_model.enabled);
+    if (uniforms->last_environment_mask != environment_model.enabled)
+    {
+        glUniform1i(uniforms->environment_mask, environment_model.enabled);
+        uniforms->last_environment_mask = environment_model.enabled;
+    }
     if (environment_model.enabled)
     {
         glBindTextures(11, 2, environment_model.depth);
@@ -715,13 +720,23 @@ void modern_shadow_bind(struct modern_shadow_uniforms *uniforms)
 		struct shadow_map const *receiver;
 		if (index < 0 || index >= MODERN_SHADOW_LIGHTS || !maps[index].valid) continue;
 		receiver = &maps[index];
-		enabled[slot] = 1;
+		enabled |= 1 << slot;
 		glBindTextures(slot ? 10 : 8, 1, &receiver->depth_cube[receiver->view_map && modern_shadows_view_receiver() ? 1 : 0]);
 		glBindSampler(slot ? 10 : 8, 0);
 		glUniform4fv(slot ? uniforms->other_light : uniforms->light, 1, receiver->light);
 	}
-	glUniform2f(uniforms->slots, enabled[0], enabled[1]);
-	glUniform1i(uniforms->filter, soft_filter);
+	/* Uniform values belong to each linked program. Texture bindings above
+	   still follow the receiver, including first-person and external draws. */
+	if (uniforms->last_slots != enabled)
+	{
+		glUniform2f(uniforms->slots, (enabled & 1) != 0, (enabled & 2) != 0);
+		uniforms->last_slots = enabled;
+	}
+	if (uniforms->last_filter != soft_filter)
+	{
+		glUniform1i(uniforms->filter, soft_filter);
+		uniforms->last_filter = soft_filter;
+	}
 	glUniform1f(uniforms->extent, modern_shadows_world_extent());
 }
 
