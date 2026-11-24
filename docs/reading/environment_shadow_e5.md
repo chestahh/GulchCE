@@ -824,10 +824,8 @@ accounted for 0.097–0.103 ms of that increase.
 
 Keep the decal change. Every measured second of the independent Hard and
 Soft runs fell below 360 FPS. The slow Soft launch also keeps the sustained
-240 FPS target open. The next profile should capture GPU load, CPU core
-residency, local shadow depth submissions and collision time together
-through slow launches. Time issuing NVIDIA visibility result copies and
-waiting at present separately. AMD uses its own readback path.
+240 FPS target open. The [slow-launch investigation](#measuring-slow-launches-and-local-depth) records GPU load,
+render-thread processor samples and separate present timers. AMD uses its own readback path.
 
 Windows, Android and web builds passed with 168 focused regression checks
 on Windows. A two-player Windows loopback run compared the pre-change
@@ -836,6 +834,95 @@ seconds. They used Soft and Hard sunlight at 1024 with local weapon
 lighting off. AMD hardware and native Linux gameplay remain unverified.
 Local evidence is in `build/lighting-performance/e5-decal-*` and
 `build/e5-decal-batches/`.
+
+#### Measuring slow launches and local depth
+
+At renderer `086578a5b`, fresh launches replayed the 19-Covenant
+snowy Two Betrayals checkpoint on Windows at 2560×1440. Hard and Soft used
+1024, the full sun fade and eight available local slots, including the
+shared flashlight. The measured fight lasted 120 seconds after 25 seconds
+of warmup. Each second below a target is a complete one-second FPS window.
+
+| Run | Average FPS | Heavier minute FPS | Seconds below 240 | Longest streak below 240 (s) | Seconds below 360 |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Hard | 256.7 | 256.6 | 3 | 2 | 120 |
+| Soft | 257.4 | 255.6 | 2 | 1 | 120 |
+| Hard with timers | 258.5 | 258.2 | 3 | 1 | 120 |
+| Soft with timers A | 246.9 | 244.4 | 26 | 5 | 120 |
+| Soft with timers B | 258.9 | 258.1 | 1 | 1 | 120 |
+| Soft with timers C | 256.2 | 255.9 | 10 | 2 | 120 |
+
+The preceding 116.6 FPS Soft replay was already down to 118.6 FPS at
+15–20 seconds, before the measured window began. Its two normal repeats
+were at 259–263 FPS by that point. The four new runs with present timers
+did not reproduce that launch. Across them, the render thread finished
+122,474 of 122,474 measured frames on a performance core. No shader
+compiles or links were recorded during those measured frames. The CPU
+time spent issuing query copies, swapping, waiting on the pacing fence
+and reading visibility results together averaged 0.052–0.057 ms/frame.
+These calls can still take longer on individual frames. The frame-boundary
+CPU samples cannot establish the earlier process's scheduling history.
+[Windows stall instrumentation](../../tools/fixtures/lighting_stall_diagnostics.inc)
+
+In a separate Soft diagnostic the private game process alternated between
+the two CPU classes. Excluding transitions, performance cores delivered
+262.3 FPS and efficiency cores 135.7 FPS. Affinity applied
+to all threads in this test process. GPU clocks remained above 2.89 GHz
+in both groups. GPU use averaged 75% on performance
+cores and 40% on efficiency cores. CPU occlusion
+rose from 0.74 to 2.04 ms/frame in this control, while the historical
+slow replay spent about 1.2 ms there. Core placement can produce a large
+slowdown, but attributing that particular replay still requires a natural
+recurrence with telemetry.
+
+Two further Soft launches alternated the normal process affinity mask with
+a restriction to all available performance cores. The second reversed the
+order. Both used the CPU classes reported for this i7-14700K. Results
+below use the logged mask and exclude transitions, then give each of
+fourteen eight-second blocks equal weight. FPS is the reciprocal of each
+policy's paired mean frame time. Restoring a process mask mid-game can
+itself move threads. The untouched launches above are the fresh Auto control.
+
+| Order | Restored Auto FPS | P-core-only FPS | P minus Auto (ms/frame) | 95% block-resampling interval (ms) | Blocks favouring P | E-core frame endpoints with Auto |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| First | 211.2 | 232.1 | -0.427 | -0.641 to -0.227 | 13/14 | 340/4,395 |
+| Reversed | 222.2 | 255.6 | -0.588 | -0.814 to -0.384 | 14/14 | 389/4,778 |
+
+These are process-wide tests with a hidden window on one Windows machine.
+The released game uses normal scheduling. An opt-in render-thread preference
+would need its own comparison in the foreground, including a fresh Auto launch.
+
+A separate GPU diagnostic timed cube setup (including clears and copies),
+world geometry, posed models and viewmodels independently. GPU values are
+milliseconds per sampled frame in the second minute. Environmental depth
+in this table covers the instrumented environmental model pass. CPU timings
+come from the same window. CPU and GPU costs can overlap.
+
+| Mode | GPU frames | Cube setup | World depth | Model depth | Viewmodel depth | Env. model depth | CPU world/cluster rays | CPU model rays | CPU field rebuild/fade |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| Hard | 488 | 0.084 | 0.111 | 0.178 | 0.000 | 0.273 | 0.472 | 0.035 | 0.194 |
+| Soft | 488 | 0.083 | 0.110 | 0.178 | 0.000 | 0.243 | 0.484 | 0.023 | 0.197 |
+
+A separate prototype skipped the 16 KiB visibility history copy when the
+cached texture already needed refreshing. An asset-free comparison matched
+the original visibility, targets and texture-validity bits on all
+1,462 field updates. In fourteen eight-second blocks per shadow mode,
+each process alternated the original and prototype. Negative differences
+favour the prototype.
+
+| Mode | Mean difference in CPU occlusion (ms/frame) | Mean difference in frame time (ms) | Frame-time 95% block-resampling interval (ms) |
+| --- | ---: | ---: | ---: |
+| Hard | -0.0178 | -0.0385 | -0.0937 to +0.0174 |
+| Soft | +0.0117 | +0.0114 | -0.0730 to +0.0907 |
+
+Defer the history-copy prototype. Frame time improved in six of fourteen blocks in
+each mode, and the CPU occlusion result changed direction between Hard and Soft.
+The next collision experiment should count identical world-only ray inputs across
+updates and check how often a moving object or door invalidates an otherwise
+reusable result. Check saved work against the stock ray result before using it in
+gameplay. Keep the eight local slots and the sun fade in these comparisons.
+
+Local evidence and reproduction scripts are under `build/e5-launch-investigation/`.
 
 #### Fixed-build combat controls for the material investigation
 

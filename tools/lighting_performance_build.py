@@ -80,6 +80,23 @@ def instrument_shader_stalls(text):
     return text
 
 
+def instrument_present_stalls(text):
+    # Time the query copies together so the timer cost does not scale with
+    # visible objects. Preserve the order and frequency of all driver calls.
+    for phase, section in enumerate((
+        '\t\tfor (i = 0; i < batch->count; i++)\n'
+        '\t\t\tglGetQueryBufferObjectuiv(batch->queries[i], device.visibility_buffer, GL_QUERY_RESULT,\n'
+        '\t\t\t\t(GLintptr)((device.visibility_batch * VISIBILITY_TEST_SLOTS + i) * sizeof(GLuint)));',
+        '\t\tplatform_video_swap();',
+        '\t\tglClientWaitSync(*slot, GL_SYNC_FLUSH_COMMANDS_BIT, 1000000000ull);',
+        '\t\tvisibility_read_batch();',
+    )):
+        assert text.count(section) == 1, section
+        text = text.replace(section, f'\t\tlighting_stall_present_begin();\n{section}\n'
+                                     f'\t\tlighting_stall_present_end({phase});')
+    return 'void lighting_stall_present_begin(void);\nvoid lighting_stall_present_end(int);\n' + text
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--output-dir', type=Path, default=ROOT/'build/lighting-performance-build')
@@ -92,7 +109,7 @@ def main():
     parser.add_argument('--campaign-control', action='store_true', help='Test-only expiring controller commands for recording a fresh checkpoint; not a timing variant')
     parser.add_argument('--diagnose', action='store_true', help='Collision phase timings and retained resource counts (not acceptance timings)')
     parser.add_argument('--resources', action='store_true', help='Retained resource counts without per-ray diagnostic clocks')
-    parser.add_argument('--stalls', action='store_true', help='Windows thread CPU and shader compile/link timings; diagnostic only')
+    parser.add_argument('--stalls', action='store_true', help='Windows processor, thread CPU, shader compile/link and present timings; diagnostic only')
     parser.add_argument('--verify-traces', action='store_true', help='Compare every lighting ray with the stock collision query; not a timing build')
     parser.add_argument('--verify-visibility', action='store_true', help='Compare packed and scalar CPU visibility reconstruction on identical fields')
     parser.add_argument('--verify-textures', action='store_true', help='Compare specialized visibility pixels against the generic loop; diagnostic only')
@@ -271,7 +288,7 @@ def main():
             fixture.write_text(text)
         if args.stalls:
             backend = ROOT/paths[1]
-            text = instrument_shader_stalls(backend.read_text())
+            text = instrument_present_stalls(instrument_shader_stalls(backend.read_text()))
             backend.write_text('void lighting_stall_shader_begin(int);\nvoid lighting_stall_shader_end(int);\n'+text+'\n'+
                                (ROOT/'tools/fixtures/lighting_stall_diagnostics.inc').read_text())
             text = fixture.read_text()

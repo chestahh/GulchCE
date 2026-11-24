@@ -2,7 +2,7 @@
 import re
 import pytest
 from lighting_performance_run import distribution, summarize, sustained_pacing, memory_window_mib, runtime_errors
-from lighting_performance_build import ROOT, instrument_shader_stalls, instrument_renderer_profile, instrument_bsp_lights
+from lighting_performance_build import ROOT, instrument_present_stalls, instrument_shader_stalls, instrument_renderer_profile, instrument_bsp_lights
 from harness import function
 
 
@@ -43,6 +43,35 @@ def test_shader_stall_clocks_cover_real_compile_and_link_paths(name, kind):
     assert begin < operation < status < end
     assert body.count('lighting_stall_shader_begin(') == 1
     assert body.count('lighting_stall_shader_end(') == 1
+
+
+@pytest.mark.parametrize('name,operation,phase', [
+    ('visibility_send_batch', 'glGetQueryBufferObjectuiv', 0),
+    ('D3DDevice_Present', 'platform_video_swap', 1),
+    ('frame_pacing_wait', 'glClientWaitSync', 2),
+    ('D3DDevice_Present', 'visibility_read_batch', 3),
+])
+def test_present_stall_clocks_preserve_driver_operations(name, operation, phase):
+    source = (ROOT/'port/linux/src/d3d8_gl.c').read_text()
+    original = function(source, name)
+    measured = function(instrument_present_stalls(source), name)
+    assert measured.count(operation + '(') == original.count(operation + '(') == 1
+    end = measured.index(f'lighting_stall_present_end({phase});')
+    start = measured.rindex('lighting_stall_present_begin();', 0, end)
+    assert start < measured.index(operation + '(') < end
+    if phase == 0:
+        assert start < measured.index('for (', start) < measured.index(operation + '(')
+
+
+def test_present_stall_instrumentation_only_adds_clock_calls():
+    original = (ROOT/'port/linux/src/d3d8_gl.c').read_text()
+    timed = instrument_present_stalls(original)
+    driver, replacements = re.subn(
+        r'^(?:void lighting_stall_present_(?:begin\(void\)|end\(int\))|'
+        r'\t\tlighting_stall_present_(?:begin\(\)|end\([0-3]\)));\n',
+        '', timed, flags=re.M)
+    assert replacements == 10
+    assert driver == original
 
 
 def test_binary_cache_status_does_not_end_a_link_timer():

@@ -25,7 +25,7 @@ def install(root):
 
     path = root / 'port/linux/src/modern_shadows_gl.c'
     text = path.read_text()
-    text = replace_once(text, 'int mesh, nodes, views, faces;', 'int mesh, nodes, views, faces, profile_kind;')
+    text = replace_once(text, '} draws[SHADOW_DRAWS];', '\tint profile_kind;\n} draws[SHADOW_DRAWS];')
     text = replace_once(text, '\tdraws[draw_count].mesh = mesh - 1;',
                         '\tdraws[draw_count].profile_kind = lighting_shadow_world ? 7 : views == MODERN_SHADOW_VIEW ? 9 : 8;\n'
                         '\tdraws[draw_count].mesh = mesh - 1;')
