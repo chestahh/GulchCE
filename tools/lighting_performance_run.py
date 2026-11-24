@@ -9,6 +9,7 @@ import ctypes
 from concurrent.futures import ThreadPoolExecutor
 from ctypes import wintypes
 import hashlib
+from itertools import pairwise
 import json
 import math
 import os
@@ -52,8 +53,9 @@ def sustained_pacing(measured, warmup, seconds, targets):
     fps = [0] * seconds
     for row in measured:
         fps[int(row['seconds'] - warmup)] += 1
+    targets = sorted(set(targets))
     bands = {}
-    for target in sorted(set(targets)):
+    for target in targets:
         total = episodes = longest = streak = 0
         for count in fps:
             if count < target:
@@ -66,7 +68,29 @@ def sustained_pacing(measured, warmup, seconds, targets):
                 streak = 0
         bands[str(target)] = dict(seconds_below=total, episodes=episodes,
                                   longest_below_seconds=longest)
-    return dict(fps_per_second=fps, targets=bands)
+    result = dict(fps_per_second=fps, targets=bands)
+    # Separate the frames between simulation ticks from those that advanced the
+    # game clock. Both timings include rendering. A reset has no comparable tick.
+    tick_frames = []
+    for previous, row in pairwise(measured):
+        before, after = previous.get('tick'), row.get('tick')
+        if before is not None and after is not None and after >= before:
+            window = int(row['seconds'] - warmup)
+            tick_frames.append((fps[window], after > before, row['frame_ms']))
+    if tick_frames:
+        result['tick_frame_times'] = {}
+        for target in targets:
+            groups = {}
+            for count, advanced, duration in tick_frames:
+                band = 'below' if count < target else 'at_or_above'
+                kind = 'tick_advanced' if advanced else 'same_tick'
+                groups.setdefault(band, {}).setdefault(kind, []).append(duration)
+            result['tick_frame_times'][str(target)] = {
+                band: {kind: dict(frames=len(times), mean_ms=statistics.mean(times))
+                       for kind, times in kinds.items()}
+                for band, kinds in groups.items()
+            }
+    return result
 
 
 def summarize(rows, warmup, seconds, cap, captures=True):

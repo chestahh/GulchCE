@@ -104,6 +104,13 @@ slowdowns to one-second precision. Use the underlying frame times for short
 hitches, and keep the two-minute and heavier-minute averages for historical
 comparison. Repeat close results on the same workload.
 
+When the trace includes a simulation tick, `sustained.tick_frame_times` also
+reports the frame count and mean duration for frames that advanced the game
+clock and those between ticks, grouped by whether the second met its target.
+It skips the first measured frame and tick resets. Both groups include the
+cost of drawing the frame. Use them to check whether a slowdown persists
+between game updates.
+
 #### Sun fade playtest comparison
 
 The earlier heavy-run traces at `07cb0ba16` had 42 of 120 seconds below 240
@@ -659,11 +666,117 @@ The Windows release, Android and web builds passed. The focused collision,
 renderer and NVIDIA GPU suites passed all 292 cases. Native Linux gameplay
 and AMD hardware remain unverified for these changes.
 
-The next larger measurement is the rest of the shared BSP light submission
-path. Time repeated preparation of material state and submission of indexed
-draws separately. The earlier 0.719 ms callback measurement includes only
-0.111 ms in index uploads. Keep draw order, per-light material differences,
-world collision results and the accepted sun fade as controls.
+### Texture setup and sustained combat frame time
+
+On the integrated renderer at `07566a473`, the heavier Hard 1024 minute
+averaged 0.298 ms in the BSP’s lit material callbacks. Inside them, draw
+preparation took 0.190 ms, including 0.118 ms in texture setup. Issuing the
+indexed draw took about 0.010 ms of CPU time. These clocks rotate between
+scopes and subtract a back-to-back clock measurement. They measure CPU time
+spent submitting work. The GPU can continue executing after a draw returns.
+[Material draws](../../source/rasterizer/xbox/rasterizer_xbox_environment.c) ·
+[Texture binding](../../port/linux/src/d3d8_gl.c)
+
+In a separate stage trace, the late part of the Hard run averaged 345
+texture lookup misses per frame, 283 of them for palettized textures.
+Across 496 sampled combat frames, all 145,695 palette comparisons matched
+the previously seen bytes. The Windows experiment allowed the stage cache
+to reuse a palettized texture after checking the current palette. A
+separate run checked 1,341,046 reused results against the ordinary lookup
+with zero mismatches. The existing path still needs to handle palette edits
+and recycled texture variants on other workloads.
+[Native palette and texture cache](../../port/linux/src/xbox_textures.c)
+
+The same executable alternated the two paths during each fight. Each of
+14 eight-second blocks gave both paths four seconds. The comparison omits
+frames within 50 ms of each one-second boundary and weights seconds equally.
+Positive time means the experimental path took longer.
+
+| Mode | Paired frame-time change | Faster blocks | 95% block-bootstrap interval |
+| --- | ---: | ---: | ---: |
+| Lighting only | +0.002 ms | 6/14 | −0.043 to +0.046 ms |
+| Hard 1024 | +0.016 ms | 5/14 | −0.017 to +0.050 ms |
+| Soft 1024 | +0.011 ms | 7/14 | −0.068 to +0.096 ms |
+
+Timing the texture function itself in an independent Hard run gave
+301 ns per lit draw on the existing path and 291 ns with reuse. That
+amounts to about 0.005 ms across 480 draws. All three whole-frame
+intervals span zero. The prototype remains outside the renderer.
+
+A separate trace followed the frame from simulation through presentation.
+In the Hard run with detailed timers, frame time grew by 0.416 ms between
+the first and second minutes. The decal pass accounted for 0.196 ms of that
+increase. On seconds below 240 FPS, decals took 0.386 ms per frame,
+compared with 0.206 ms during seconds that met 240. Replaying the ordinary
+branch traces also shows the slowdown on frames between simulation ticks.
+
+| Render-thread elapsed time, Hard 1024 | First minute | Second minute |
+| --- | ---: | ---: |
+| Whole frame | 3.873 ms | 4.288 ms |
+| Five decal layers combined | 0.168 ms | 0.364 ms |
+| Sending visibility-query results to the GPU buffer | 0.335 ms | 0.385 ms |
+| Dynamic-light occlusion | 0.794 ms | 0.867 ms |
+| Modern shadow preparation | 0.191 ms | 0.193 ms |
+| Simulation clock update, including due ticks | 0.186 ms | 0.197 ms |
+
+The decal timer includes selecting the marks in each visible cluster and
+submitting them in blend order. The query-copy timer measures elapsed time
+on the NVIDIA rendering thread, including time it may wait for the driver.
+Swap and the frame-pacing fence were timed separately. See
+[decal ordering and batches](../../source/rasterizer/xbox/rasterizer_xbox_decals.c)
+and [visibility submission](../../port/linux/src/d3d8_gl.c).
+
+Two more replays used asynchronous GPU timers on every 32nd frame.
+The probe identified decals at the actual batch flush, including the last
+batch in each layer. Counts below include every measured frame and GPU
+times include the sampled draws. Each second has equal weight within a
+minute.
+
+| First → second minute | Hard 1024 | Soft 1024 |
+| --- | ---: | ---: |
+| Queued decal entries per frame | 450 → 1,011 | 449 → 1,007 |
+| Decal batches per frame | 251 → 591 | 251 → 585 |
+| Submitted decal vertices per frame | 3,985 → 8,947 | 3,972 → 8,989 |
+| GPU time in decal draws | 0.219 → 0.507 ms | 0.220 → 0.503 ms |
+| Visibility queries sent per frame | 23.27 → 23.33 | 23.27 → 23.33 |
+
+Decals contributed the largest measured increase in GPU time in both
+replays. Local shadow depth grew by 0.007 ms in Hard and 0.004 ms in Soft.
+Render-thread and GPU work can overlap, so adding the two decal increases
+would overstate the potential gain. The visibility workload had a nearly
+constant query count as its submission time rose. Timing alone does not
+identify a driver stall.
+
+The next comparison should count why decal batches flush (bitmap, blend
+state, capacity or end of layer), then test submitting the same vertices
+with fewer draws or uploads. The existing sorter already groups eligible
+decals within each cluster. Preserve each visible mark, ordering where
+blends are order-dependent, and the full sun fade. Use the same combat
+core and compare both images and sustained frame times. Keep the NVIDIA
+query-buffer path and AMD’s separate readback as a second investigation.
+
+#### Fixed-build combat controls for the material investigation
+
+The renderer stayed at `07566a473` for these measurements. The fixed builds
+used passive benchmark clocks with the palette prototype and pass timers
+absent. All five runs used the same snowy Two Betrayals core, 19 live
+Covenant, 25 seconds of warmup, 120 measured seconds, 2560×1440, and AA and
+VSync off on the RTX 5070 Ti. Hard and Soft used 1024, the full sun fade
+and all eight available local slots with the flashlight sharing one.
+
+| Mode | Full FPS | Second-minute FPS | Seconds below 240 | Longest below 240 | Seconds below 360 |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| OpenCE Classic `307a42ee04ba` | 378.2 | 360.4 | 0 | 0 | 28 |
+| GulchCE Classic | 437.0 | 402.1 | 0 | 0 | 0 |
+| GulchCE lighting only | 280.9 | 268.9 | 0 | 0 | 120 |
+| GulchCE Hard | 246.7 | 234.5 | 50 | 22 | 120 |
+| GulchCE Soft | 249.5 | 242.5 | 22 | 5 | 120 |
+
+Each configuration had one independent live fight. Their ordering varies
+between repeats. The prototype’s [paired frame-time comparison](#texture-setup-and-sustained-combat-frame-time)
+is the comparison for the proposed code change. Local fixed reports are
+`build/lighting-performance/e5-material-fixed-*`. Timing breakdowns and the
+paired analysis are under `build/e5-material-submit/`.
 
 ### Upstream stock control
 

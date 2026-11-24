@@ -1,7 +1,7 @@
 """Check that benchmark reports retain real stalls and separate capture overhead."""
 import re
 import pytest
-from lighting_performance_run import distribution, summarize, memory_window_mib, runtime_errors
+from lighting_performance_run import distribution, summarize, sustained_pacing, memory_window_mib, runtime_errors
 from lighting_performance_build import ROOT, instrument_shader_stalls, instrument_renderer_profile, instrument_bsp_lights
 from harness import function
 
@@ -123,6 +123,22 @@ def test_sustained_report_distinguishes_repeated_and_continuous_dips():
     assert a['sustained']['targets']['360']['longest_below_seconds'] == len(clustered)
     assert 'sustained' not in report(clustered, captures=True)
     assert 'sustained' not in report(clustered, complete=False)
+
+
+def test_tick_times_follow_completion_windows_and_skip_resets():
+    rows = [dict(seconds=t, tick=tick, frame_ms=ms) for t, tick, ms in [
+        (2.1, 8, 4), (2.5, 8, 3), (2.8, 9, 5), (3.1, 9, 7),
+        (4.1, 1, 9), (4.3, 1, 2), (4.6, 3, 11),
+    ]]
+    result = sustained_pacing(rows, 2, 3, [3])
+    assert result['tick_frame_times']['3'] == {
+        'at_or_above': {'same_tick': dict(frames=2, mean_ms=2.5),
+                        'tick_advanced': dict(frames=2, mean_ms=8)},
+        'below': {'same_tick': dict(frames=1, mean_ms=7)},
+    }
+    for row in rows:
+        del row['tick']
+    assert 'tick_frame_times' not in sustained_pacing(rows, 2, 3, [3])
 
 
 def test_early_exit_keeps_missing_memory_windows_distinct_from_zero():
