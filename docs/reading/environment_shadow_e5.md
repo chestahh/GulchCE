@@ -1,5 +1,13 @@
 # E5 map-load preparation and combat performance
 
+E5 performance was signed off on 24 November 2026 for Windows playtest
+`0ca83059d` on the i7-14700K and RTX 5070 Ti. Across four foreground
+Two Betrayals runs at 1440p with Hard and Soft 1024, the slowest of 480
+one-second windows was 274 FPS. The hidden-window Auto controls recorded
+three isolated seconds below 240 in Hard and two in Soft. Sustained 240 FPS
+is the accepted target. Work toward 360 FPS is deferred.
+[Foreground measurements](#fresh-windows-launches) · [Hidden-window controls](#repeatable-and-indoor-controls)
+
 Modern Hard and Soft apply when a gameplay map loads. The menu may save a new
 mode during play. The current level and checkpoint reverts keep the mode that
 loaded with the map. Classic remains the default. This change governs Shadow

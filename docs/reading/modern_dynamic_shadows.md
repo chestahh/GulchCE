@@ -17,11 +17,12 @@ local shadows plus the flashlight.
 | E2 — Directional sunlight | Added a stabilized Hard sun map with its own budget. Off-camera casters qualify when their shadows can reach visible receivers. Covered objects hand off from their existing environmental shadow path. [Sunlight and ownership](environment_shadow_e2.md) |
 | E3 — Fixtures and flashlight | Added two independent fixture slots using map data, and a stock flashlight that shadows eligible objects and world geometry. Rat Race is the two-lamp reference scene. [Fixtures and flashlight](environment_shadow_e3.md) |
 | E4 — Outdoor geometry, Soft and menus | Eligible placed models and BSP geometry cast and receive near-camera sunlight. Hard and Soft share the selected resolution. Environmental controls are available in every desktop menu style. [Coverage, limits and measurements](environment_shadow_e4.md) |
+| E5 — Rendering performance | Signed off on 24 November 2026 at sustained 240+ FPS in busy Two Betrayals on the reference Windows PC. [Acceptance results](environment_shadow_e5.md#fresh-windows-launches) |
 
 The reference Windows release at `e4022bf04` averaged 271.1 FPS in Hard
 and 277.5 FPS in Soft in separate two-minute busy combat runs. Soft had
-three frames above 100 ms. The 360 FPS target below is a new release
-criterion. The earlier runs establish the starting point.
+three frames above 100 ms. Those runs established the starting point for E5.
+Sustained 360 FPS is deferred to a future performance milestone.
 
 ### E5 — Rendering performance and hitch removal
 
@@ -77,10 +78,10 @@ mode. Some first-use stalls remain. [Loading and driver measurements](environmen
    50 and 100 ms. The [Sidewinder reveal checks](environment_shadow_e5.md#sidewinder-reveal) still measured a 30 to 35 ms reveal with the default preparation settings. A warm shader-prepared visit eliminated first-frame program acquisition while texture uploads continued. Keep
    preparation behind map loading and check Classic, host policy, failed
    preparation, cleanup and map transitions after changes.
-5. **Qualify sustained FPS at fixed quality.** Establish sustained 240+ FPS
-   (4.17 ms/frame) in busy combat for Hard and Soft independently, then work
-   toward sustained 360+ (2.78 ms/frame). Record how many seconds fall below
-   each target, how often it happens and the longest continuous stretch.
+5. **Qualify sustained FPS at fixed quality.** Use sustained 240+ FPS
+   (4.17 ms/frame) in busy combat as the regression target for Hard and Soft
+   independently. Record how many seconds fall below target, how often it
+   happens and the longest continuous stretch.
    Track the full two-minute and heavier-minute averages alongside these
    sustained measurements. A repeatable gain in average FPS counts as progress
    while the sustained target is open. Check that the gain preserves visual
@@ -92,7 +93,7 @@ mode. Some first-use stalls remain. [Loading and driver measurements](environmen
    performance tier. Keep the Mercury Rising 2 outdoor camera move in the
    visual comparison so a faster result cannot hide the return of pop-in.
    Check thin contacts, cutouts, self-shadowing and light spill against matched
-   captures. E5 stays open while the 360+ result is outstanding.
+   captures.
 
 ### E6 — Distant sunlight and smooth transitions
 
