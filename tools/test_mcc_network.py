@@ -128,6 +128,9 @@ typedef word message_header;
 #define _strnicmp strncasecmp
 #endif
 ''' + enum_with(header, "_distributed_message_player_prediction") + structure(header, "distributed_message_header")
+    mutator_share = (ROOT / "port/linux/game/mutator_share.c").read_text()
+    code += "\n#define TRUE 1\nstatic int mutators_active;\n#define mutator_session_active() mutators_active\n"
+    code += function(mutator_share, "mutator_share_handles_message")
     code += function(share, "map_share_handles_message") + function(ce, "custom_edition_level_name")
     code += r'''
 #define CHECK(x) do { if (!(x)) return __LINE__; } while (0)
@@ -143,6 +146,16 @@ int main(void) {
   h.type = i;
   CHECK(!!map_share_handles_message((word *)&h, sizeof(h)) == (i >= 83 && i <= 86));
  }
+ mutators_active = 1;
+ for (i = 0; i < NUMBER_OF_DISTRIBUTED_MESSAGES; ++i) {
+  h.type = i;
+  CHECK(!!map_share_handles_message((word *)&h, sizeof(h)) ==
+        ((i >= 83 && i <= 86) ||
+         (i >= _distributed_message_mutator_share_ask && i <= _distributed_message_mutator_share_done)));
+ }
+ h.type = _distributed_message_mutator_share_ask;
+ for (i = 0; i < sizeof(h); ++i) CHECK(!map_share_handles_message((word *)&h, i));
+ mutators_active = 0;
  h.type = _distributed_message_map_share_request;
  for (i = 0; i < sizeof(h); ++i) CHECK(!map_share_handles_message((word *)&h, i));
  CHECK(custom_edition_level_name("custom_maps\\test"));
