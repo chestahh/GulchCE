@@ -52,9 +52,10 @@ mode. Some first-use stalls remain. [Loading and driver measurements](environmen
    visibility reconstruction separately from BSP surface selection, temporary
    lighting triangles and model drawing. Then time local and environmental
    shadow depth generation and reuse, receiver shading, draw submission and
-   driver waits. CPU and GPU measurements can overlap. Optimise the largest
-   repeatable cost on the critical path and verify each gain with ordinary
-   release timings and matched images. [Stock controls and benchmark procedure](environment_shadow_e5.md#upstream-stock-control)
+   driver waits. CPU and GPU measurements can overlap. Investigate the largest
+   repeatable costs on the critical path. Pursue larger savings alongside
+   smaller, measurable wins. Verify each with release timings and matched
+   images, then measure the combined changes on the same workload. [Stock controls and benchmark procedure](environment_shadow_e5.md#upstream-stock-control)
 3. **Recheck hitches independently.** Use Sidewinder's hidden Ghost reveal
    on first visit and warm reload. Record map preparation time, peak memory,
    worst reveal frame, 99th-percentile frame time and counts over 16.7, 33,
@@ -65,7 +66,10 @@ mode. Some first-use stalls remain. [Loading and driver measurements](environmen
    (4.17 ms/frame) in busy combat for Hard and Soft independently, then work
    toward sustained 360+ (2.78 ms/frame). Record how many seconds fall below
    each target, how often it happens and the longest continuous stretch.
-   Report the full two-minute and heavier-minute averages for comparison.
+   Track the full two-minute and heavier-minute averages alongside these
+   sustained measurements. A repeatable gain in average FPS counts as progress
+   while the sustained target is open. Check that the gain preserves visual
+   quality and identify any increase in the frequency or length of slow stretches.
    Investigate recurring slow stretches and report isolated hitches separately.
    Occasional 1% lows are acceptable. Retain all eight local
    slots and independent environmental budgets. The continuous distance fade

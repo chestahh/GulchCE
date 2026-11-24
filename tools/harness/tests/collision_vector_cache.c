@@ -60,7 +60,7 @@ int main(int argc,char **argv)
   memset(&a,0,sizeof(a));a.t=1;c.result=&a;c.nodes_left=513;c.last_leaf_index=c.last_plane_index=NONE;c.last_contents=_contents_unknown;c.cache=NULL;
   distances=0;hit_a=collision_bsp_test_vector_recursive(&c,0,0,1,0);uncached+=distances;
   memset(&b,0,sizeof(b));b.t=1;c.result=&b;c.nodes_left=513;c.last_leaf_index=c.last_plane_index=NONE;c.last_contents=_contents_unknown;c.cache=&cache;
-  distances=0;hit_b=collision_bsp_test_vector_recursive(&c,0,0,1,0);cached+=distances;
+  distances=0;hit_b=collision_bsp_test_vector_batch(&c,0,0,1,0);cached+=distances;
   CHECK(hit_a==hit_b && !memcmp(&a,&b,sizeof(a)),"cache preserves hit, leaf order and all result fields despite slot collisions");
  }
  CHECK(cached<uncached,"batch reuses work across rays");
@@ -84,7 +84,7 @@ int main(int argc,char **argv)
   entries=0;hit_a=collision_bsp_test_vector_recursive(&c,0,0,1,0);
   left_a=c.nodes_left;entries_a=entries;plane_a=c.last_plane_index;leaf_a=c.last_leaf_index;contents_a=c.last_contents;
   memset(&b,0,sizeof(b));b.t=1;c.result=&b;c.nodes_left=budget;c.last_leaf_index=c.last_plane_index=NONE;c.last_contents=_contents_unknown;c.cache=&batch.cache[(v.i>=0)|((v.j>=0)<<1)|((v.k>=0)<<2)];
-  entries=0;hit_b=collision_bsp_test_vector_recursive(&c,0,0,1,0);
+  entries=0;hit_b=collision_bsp_test_vector_batch(&c,0,0,1,0);
   CHECK(hit_a==hit_b && !memcmp(&a,&b,sizeof(a)),"prepared chains preserve all surface and ordered leaf results");
   CHECK(left_a==c.nodes_left && plane_a==c.last_plane_index && leaf_a==c.last_leaf_index && contents_a==c.last_contents,"prepared chains preserve budget and crossing state");
   uncached+=entries_a;cached+=entries;
@@ -99,7 +99,7 @@ int main(int argc,char **argv)
   memset(&a,0,sizeof(a));a.t=1;c.result=&a;c.nodes_left=513;c.last_leaf_index=c.last_plane_index=NONE;c.last_contents=_contents_unknown;c.cache=NULL;
   hit_a=collision_bsp_test_vector_recursive(&c,512,0,1,0);
   memset(&b,0,sizeof(b));b.t=1;c.result=&b;c.nodes_left=513;c.last_leaf_index=c.last_plane_index=NONE;c.last_contents=_contents_unknown;c.cache=&cache;
-  hit_b=collision_bsp_test_vector_recursive(&c,512,0,1,0);
+  hit_b=collision_bsp_test_vector_batch(&c,512,0,1,0);
   CHECK(hit_a==hit_b && !memcmp(&a,&b,sizeof(a)),"slot eviction cannot reuse another node's chain");
  }
  /* A cycle must still exhaust the original guard, with or without a cache. */
@@ -110,7 +110,7 @@ int main(int argc,char **argv)
   memset(&a,0,sizeof(a));a.t=1;c.result=&a;c.nodes_left=513;c.last_leaf_index=c.last_plane_index=NONE;c.last_contents=_contents_unknown;c.cache=NULL;
   hit_a=collision_bsp_test_vector_recursive(&c,0,0,1,0);uncached=c.nodes_left;
   memset(&b,0,sizeof(b));b.t=1;c.result=&b;c.nodes_left=513;c.last_leaf_index=c.last_plane_index=NONE;c.last_contents=_contents_unknown;c.cache=&batch.cache[7];
-  hit_b=collision_bsp_test_vector_recursive(&c,0,0,1,0);
+  hit_b=collision_bsp_test_vector_batch(&c,0,0,1,0);
   CHECK(hit_a==hit_b && !memcmp(&a,&b,sizeof(a)) && uncached==c.nodes_left,"cyclic input keeps the original depth guard");
  }
  return 0;

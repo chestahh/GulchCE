@@ -518,20 +518,152 @@ the original Soft repeat. GPU clocks and utilisation were recorded only on
 the repeat. The cause of the slow run remains unknown. It is retained as an
 outlier and excluded from estimates of the batching gain.
 
-The prototype remains a benchmark experiment. Hard benefited in the fixed
+The whole-list prototype remained experimental. Hard benefited in the fixed
 run. Soft showed a gain under alternation and effectively tied in the fixed
-heavier minute. Before integrating it, test batching dense material ranges
-with the original exact-slice upload for sparse passes. For a larger CPU
-gain, profile world BSP node traversal separately from leaf and surface
-intersection on the same ray batches, checking depths against the stock
-reference. The sun fade and the eight-slot budget stay enabled in both
-comparisons.
+heavier minute. The [follow-up comparison](#world-collision-and-dense-material-draws)
+tests a bounded upload for adjacent material draws and profiles BSP nodes
+and leaf intersections on matched rays.
 
 The local evidence is in `build/e5-bsp-cost/`. It includes the tested source
 patch against `bdb781a7d`, build manifests, per-phase results, image pairs
 and the range test. The `e5-bsp-cost-*` and `e5-index-*` runs under
 `build/lighting-performance/` retain the frame traces. This was a Windows
 NVIDIA investigation. AMD hardware and native Linux remain unverified.
+
+### World collision and dense material draws
+
+The Windows follow-up used the same snowy encounter, camera, 19 Covenant
+and 1440p fixed-quality settings as the preceding comparison. The branch
+control was `ef94431a4`. With shadows active the full sun fade ran throughout
+and the shared flashlight and local shadow maps reached eight slots.
+
+**Collision.** Of 208,896 sampled world rays, 96,698 hit. All hit flags,
+distances, hit surfaces and ordered leaf lists matched the stock query.
+The rays visited 3,009,451 nodes. Cached lookups served 98.7% of those visits.
+The leaf section, including surface tests, accounted for 23% of inclusive
+instrumented time. The timers add overhead and the remainder includes query
+setup. The tested change stores pending far children on a bounded stack
+during a render batch. It preserves the near-first visit order, split-plane
+state and original node and depth limits. Gameplay queries keep their own
+entry and recursive split handling. Both paths use the same leaf tests.
+[Collision traversal](../../source/physics/collision_bsp.c)
+
+In a separate same-input comparison the experimental walk took 9.127 s
+over 36,748 complete batches. Two measurements of the preceding cached walk
+took 9.642 and 9.431 s. All 56,444,928 depths matched the stock reference.
+After integration, a fresh 31,100-batch check compared 47,769,600 depths
+with the stock query. All depths matched, including the cache and
+unprepared comparisons.
+
+**Geometry uploads.** The Windows BSP diffuse and specular passes expose
+their immutable triangle list only for the duration of one eligible light
+pass. The OpenGL backend uploads the first two adjacent material slices
+exactly. On a third adjacent draw it can read ahead by at most the bytes
+already used in that run, bounded by the list's end. Later materials reuse
+only a fully covered range. A ring-buffer wrap invalidates the uploaded
+range. The geometry owner supplies the list bounds because the backend
+receives only the current draw's indices. The renderer's streamed-byte
+counter accounts for saved writes and read-ahead.
+[Pass lifetime](../../source/structures/structure_render.c) ·
+[Triangle storage](../../source/rasterizer/xbox/rasterizer_xbox_draw_primitives.c) ·
+[OpenGL uploads](../../port/linux/src/d3d8_gl.c)
+
+| Settled Soft 1024 view | Exact slices, calls / bytes | Whole list, calls / bytes | Adjacent slices, calls / bytes |
+| --- | ---: | ---: | ---: |
+| CE Death Island | 2 / 354 | 1 / 1,134 | 2 / 354 |
+| MCC Mercury Rising 2 | 79 / 4,806 | 8 / 5,124 | 36 / 5,460 |
+
+Both settled views gave pixel-identical comparisons. The MCC view shows that
+bounded read-ahead can write more bytes than a whole list. In a Hard combat
+diagnostic the respective policies averaged 503, 64 and 194 uploads per
+frame and about 83,254, 89,596 and 85,695 bytes. A separate 32-bit storage
+test checked the returned data on 123,936 draws through 38,440 ring wraps.
+
+**Individual and combined frame times.** A single executable switched among
+the four combinations once per second. Each 16-second block gave each
+combination four intervals, with the order varied. The table uses seven
+complete blocks and omits 35 ms at interval boundaries. Negative values are
+milliseconds saved per frame relative to both changes off.
+
+| Mode | Collision only | Upload only | Combined | Faster blocks, combined |
+| --- | ---: | ---: | ---: | ---: |
+| Dynamic lighting only | −0.036 | −0.047 | −0.104 | 7/7 |
+| Hard 1024 | −0.030 | −0.039 | −0.059 | 6/7 |
+| Soft 1024 | +0.042 | −0.032 | −0.081 | 5/7 |
+
+The Hard combined comparison's 95% block-bootstrap interval spanned
+−0.098 to +0.004 ms. Live AI and light counts varied within the fight.
+As a sensitivity check, a within-block fit adjusted for selected and scene
+light counts, and for sun caster and local map counts in shadow modes.
+The combined frame-time differences were −0.071 ms for lighting alone,
+−0.060 for Hard and −0.041 for Soft. These estimates depend on the workload
+model. The fixed release-build runs below measure actual FPS and slow stretches.
+In fixed separate executables the first lighting-only pair gave 280.9 FPS
+for the control and 235.2 for both changes. Reversing the order gave 278.8
+for both changes and 271.0 for the control. The 46 FPS loss did not repeat.
+The first fixed Hard candidate also had a 181 ms stall. Its measured
+occlusion update took 2.55 ms in that frame. The remaining time has not
+been attributed.
+
+At the same frozen Xbox pose (tick 271), both modes had seven local maps,
+the shared beam and 22 sun casters. Across 18 Hard and 17 Soft image pairs,
+the largest per-channel mean absolute differences were 1.03 and 0.98 on a
+0–255 scale. Snow and shield effects continued to animate. The local logs,
+patches and matched capture sheet are in `build/e5-trace-density/`.
+The two-minute frame records use `build/lighting-performance/e5-density-*`.
+
+#### Fixed builds with both changes integrated
+
+Each mode ran uncapped for 120 seconds after 25 seconds of warmup, without
+screenshots or per-ray instrumentation. Both shadow modes used 1024, the
+full sun fade, environmental fixtures and all eight shared local slots.
+In this table the first value is the unmodified branch control and the
+second is the integrated build. Lighting-only controls repeated in reverse
+order are reported above.
+
+| Mode | Full average FPS | Second-minute FPS | Seconds below 240 | Longest below 240 | 99th-percentile frame, ms |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Dynamic lighting only | 280.9 → 293.3 | 268.3 → 284.8 | 3 → 0 | 1 → 0 | 5.48 → 5.09 |
+| Hard 1024 | 242.5 → 252.4 | 231.3 → 243.1 | 54 → 19 | 35 → 8 | 6.23 → 5.82 |
+| Soft 1024 | 241.7 → 248.7 | 233.4 → 239.8 | 58 → 35 | 30 → 8 | 6.37 → 5.75 |
+
+All runs used the same combat core. The integrated Hard run had six slow
+stretches and Soft had fourteen. Neither contained a frame longer than
+10 ms. Lighting alone recorded a single 20 ms frame despite clearing 240
+in every one-second window. All three configurations were below 360 in
+every measured second. The average and pacing improvements warrant keeping
+both changes. The size of the speedup varies between runs.
+
+At Classic 1024 with enhanced lighting and shadows disabled, GulchCE
+averaged 429.5 FPS before and 429.3 afterward. The second minute averaged
+383.1 and 386.9 FPS respectively. Pinned OpenCE `307a42ee04ba` averaged
+384.3 FPS and 371.2 FPS in the second minute. All three stayed above 240
+in every measured second. They spent seven, two and seven seconds below
+360 respectively. The [stock control](#upstream-stock-control) describes
+the difference in Classic shadow allocation between the engines.
+
+The previous Windows build hosted a Blood Gulch LAN game in Soft and the
+integrated Windows build joined in Hard. Across 68 compared seconds, the
+peers had zero simulation drift in 2,037 ticks. A separate frozen Xbox
+combat view at tick 271 had seven local shadow maps, the shared flashlight
+and 22 sun casters. Across 18 Hard and 17 Soft image pairs, the largest
+per-channel mean absolute differences were 1.025 and 0.973 on the 0–255
+scale. Snow and glow continued animating in the frozen view.
+
+On MCC Mercury Rising 2, the original and integrated Windows builds traced
+the same seven outdoor camera positions toward and away from the Covenant
+caches in Soft 1024. The largest per-channel mean absolute difference at
+960×600 was 0.179 on the 0–255 scale. These settled views check the result
+at each distance. Continuous motion between samples remains unmeasured.
+The Windows release, Android and web builds passed. The focused collision,
+renderer and NVIDIA GPU suites passed all 292 cases. Native Linux gameplay
+and AMD hardware remain unverified for these changes.
+
+The next larger measurement is the rest of the shared BSP light submission
+path. Time repeated preparation of material state and submission of indexed
+draws separately. The earlier 0.719 ms callback measurement includes only
+0.111 ms in index uploads. Keep draw order, per-light material differences,
+world collision results and the accepted sun fade as controls.
 
 ### Upstream stock control
 

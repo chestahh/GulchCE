@@ -26,6 +26,9 @@ Conventions carried over from the Xbox:
 #include "../game/material_prepare.h"
 #include "plasma_model_shader.h"
 #include "modern_shadows.h"
+#ifdef HALO_WINDOWS
+#include "bsp_light_index_batch.h"
+#endif
 #include "plasma_occlusion.h"
 #include "mcc_environment_shader.h"
 #include "sdl_platform.h"
@@ -7300,6 +7303,27 @@ static unsigned long stream_upload_swizzled(const struct vertex_shader_object *d
 }
 #endif
 
+#ifdef HALO_WINDOWS
+struct bsp_light_indices
+{
+	const void *base;
+	unsigned long size, offset, first, end, last_end, run_bytes, run_count;
+	BOOL uploaded;
+};
+
+static struct bsp_light_indices bsp_index_batch;
+
+void bsp_light_index_batch_set(const void *base, unsigned long size)
+{
+	bsp_index_batch.last_end = 0;
+	bsp_index_batch.run_bytes = 0;
+	bsp_index_batch.run_count = 0;
+	bsp_index_batch.base = base;
+	bsp_index_batch.size = size < INDEX_BUFFER_SIZE ? size : 0;
+	bsp_index_batch.uploaded = FALSE;
+}
+#endif
+
 static unsigned long index_upload(const void *data, unsigned long size)
 {
 	unsigned long offset;
@@ -7327,6 +7351,10 @@ static unsigned long index_upload(const void *data, unsigned long size)
 		state_element_array_buffer(device.index_buffer);
 		if (device.index_offset + size > INDEX_BUFFER_SIZE)
 		{
+#ifdef HALO_WINDOWS
+			/* Orphaning the ring also discards the current light's uploaded range. */
+			bsp_index_batch.uploaded = FALSE;
+#endif
 			glBufferData(GL_ELEMENT_ARRAY_BUFFER, INDEX_BUFFER_SIZE, NULL, GL_STREAM_DRAW);
 			device.index_offset = 0;
 		}
@@ -7349,6 +7377,46 @@ static unsigned long index_upload(const void *data, unsigned long size)
 	device.index_offset += size;
 	return offset;
 }
+
+#ifdef HALO_WINDOWS
+static unsigned long bsp_light_index_upload(const void *source, unsigned long size)
+{
+	unsigned long relative = (unsigned long)source - (unsigned long)bsp_index_batch.base;
+	unsigned long bytes = size;
+	if (!bsp_index_batch.base || relative > bsp_index_batch.size || size > bsp_index_batch.size - relative)
+		return index_upload(source, size);
+
+	if (relative != bsp_index_batch.last_end)
+	{
+		bsp_index_batch.run_count = 0;
+		bsp_index_batch.run_bytes = 0;
+	}
+	bsp_index_batch.last_end = relative + size;
+	bsp_index_batch.run_bytes += size;
+	bsp_index_batch.run_count++;
+	if (bsp_index_batch.uploaded && relative >= bsp_index_batch.first &&
+		relative + size <= bsp_index_batch.end)
+	{
+		/* DrawIndexedVertices counted this material before checking the ring. */
+		stats.streamed_bytes -= size;
+		state_element_array_buffer(device.index_buffer);
+		return bsp_index_batch.offset + (relative - bsp_index_batch.first);
+	}
+	/* Sparse or unrelated slices upload exactly their original bytes. After three
+	   adjacent draws, look ahead by at most the bytes already used in this run. */
+	if (bsp_index_batch.run_count >= 3)
+	{
+		unsigned long remaining = bsp_index_batch.size - (relative + size);
+		bytes += remaining < bsp_index_batch.run_bytes ? remaining : bsp_index_batch.run_bytes;
+	}
+	bsp_index_batch.first = relative;
+	bsp_index_batch.end = relative + bytes;
+	stats.streamed_bytes += bytes - size;
+	bsp_index_batch.offset = index_upload(source, bytes);
+	bsp_index_batch.uploaded = TRUE;
+	return bsp_index_batch.offset;
+}
+#endif
 
 static void attribute_format(const struct vertex_element *element, GLint *size, GLenum *type, GLboolean *normalized)
 {
@@ -8083,8 +8151,13 @@ void WINAPI D3DDevice_DrawIndexedVertices(D3DPRIMITIVETYPE primitive_type, UINT 
 	}
 #endif
 	(void)index;
+#ifdef HALO_WINDOWS
+	index_offset = bsp_light_index_upload(source, count * sizeof(WORD));
+#else
+	index_offset = index_upload(source, count * sizeof(WORD));
+#endif
 	glDrawElementsBaseVertex(primitive_mode(primitive_type), (GLsizei)count, GL_UNSIGNED_SHORT,
-		(const void *)index_upload(source, count * sizeof(WORD)), -(GLint)minimum);
+		(const void *)index_offset, -(GLint)minimum);
 	free(indices);
 }
 

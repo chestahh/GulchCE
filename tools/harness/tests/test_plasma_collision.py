@@ -34,7 +34,11 @@ def test_shared_vector_entry_preserves_stock_contract():
 @pytest.mark.parametrize('fault', [None, 'budget', 'bounds', 'eviction'])
 def test_vector_cache_preserves_traversal_results(fault):
     source=read('source/physics/collision_bsp.c')
-    traversal=function(source,'collision_bsp_test_vector_recursive')
+    recursive = function(source, 'collision_bsp_test_vector_recursive')
+    traversal = '\n'.join((structure(source, 'collision_vector_branch'),
+                           recursive[:recursive.index('{')] + ';',
+                           function(source, 'collision_bsp_test_vector_walk').replace('__forceinline', 'static inline'),
+                           recursive, function(source, 'collision_bsp_test_vector_batch')))
     prepare='\n'.join(function(read('port/linux/game/plasma_collision.c'),name) for name in ('trace_side','trace_prepare'))
     if fault == 'budget':
         traversal=traversal.replace('data->nodes_left -= data->cache->nodes[cache_slot].skip_count - 1;', '')
