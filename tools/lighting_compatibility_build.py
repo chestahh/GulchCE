@@ -31,6 +31,8 @@ def main():
     input_original = input_source.read_bytes()
     policy = ROOT/'port/linux/game/network_shield_effects.c'
     policy_original = policy.read_bytes()
+    network = ROOT/'port/linux/game/network_test.c'
+    network_original = network.read_bytes()
     args = shlex.split(re.search(r'^configure_args = (.*)$', (ROOT/'build.ninja').read_text(), re.M)[1])
     manifest = dict(revision=subprocess.check_output(['git','rev-parse','HEAD'],text=True,cwd=ROOT).strip(),
                     configure_args=args, source_sha256=hashlib.sha256(original).hexdigest(),
@@ -45,6 +47,19 @@ def main():
     manifest['input_sha256']=hashlib.sha256(input_original).hexdigest()
     manifest['policy_sha256']=hashlib.sha256(policy_original).hexdigest()
     try:
+        # Drive a new selection through the usual listen-server lobby. The
+        # joining peer learns the map through the game's normal messages.
+        text = network_original.decode().replace('\r\n', '\n')
+        anchor = '\t\t\t\t/* (a level of its own path, else a multiplayer map\'s name) */'
+        assert text.count(anchor) == 1
+        choose = '''                char key[64];
+                const char *choice;
+                snprintf(key, sizeof(key), "HALO_SHADOW_TEST_MAP_%d", network_test.variant_index + 1);
+                choice = getenv(key);
+                if (choice && *choice && strlen(choice) < sizeof(network_test.map_name))
+                    snprintf(network_test.map_name, sizeof(network_test.map_name), "%s", choice);
+'''
+        network.write_text(text.replace(anchor, choose + anchor))
         text = policy_original.decode().replace('\r\n', '\n')
         for anchor, extra in [('\tclient_effects = _shield_effects_stock;', '\n\tlighting_policy_received = 0;'),
                               ('\tclient_effects = (short)message.effects;', '\n\tlighting_policy_received = 1;')]:
@@ -78,6 +93,7 @@ def main():
         shadow.write_bytes(shadow_original)
         input_source.write_bytes(input_original)
         policy.write_bytes(policy_original)
+        network.write_bytes(network_original)
         fixture.unlink(missing_ok=True)
         subprocess.run([sys.executable,'configure.py',*args],cwd=ROOT,check=True)
         subprocess.run(['ninja','windows'],cwd=ROOT,check=True)

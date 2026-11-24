@@ -6,6 +6,10 @@
 #include "shield_glow.h"
 #include "game/players.h"
 #include "memory/data.h"
+#include "custom_edition_cache.h"
+#include "mcc_cache.h"
+#include "scenario/scenario.h"
+#include "tag_files/tag_files.h"
 #include <stdio.h>
 
 int config_boolean(char const *name);
@@ -61,10 +65,14 @@ void modern_shadow_compatibility_sample(int mode, int maps, int sun, int spots)
 	previous = tick;
 	if (!file) {
 		file = fopen("shadow-state.csv", "w");
-		if (file) fprintf(file, "tick,mode,maps,sun,spots\n");
+		if (file) fprintf(file, "tick,mode,maps,sun,spots,family,scenario,connection,players,policy,received,shield\n");
 	}
 	if (file) {
-		fprintf(file, "%ld,%d,%d,%d,%d\n", tick, mode, seen, seen_sun, seen_spots);
+		fprintf(file, "%ld,%d,%d,%d,%d,%s,%s,%d,%d,%d,%d,%d\n", tick, mode, seen, seen_sun, seen_spots,
+            mcc_cache_tags_loaded() ? "MCC" : custom_edition_cache_tags_loaded() ? "CE" : "Xbox",
+            global_scenario_index == NONE ? "" : tag_get_name(global_scenario_index), game_connection(),
+            lighting_compatibility_players(), network_shield_effects(), lighting_compatibility_policy_received(),
+            shield_glow_enabled());
 		fflush(file);
 	}
 	seen = seen_sun = seen_spots = 0;

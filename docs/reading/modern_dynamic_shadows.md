@@ -153,6 +153,55 @@ transition tests. Review combined changes and cache lifetimes, deliver matched
 captures, frame-time and loading results, and a Windows playtest for sign-off.
 Promote through testing and main with CI verification when approved.
 
+#### Two-player Windows compatibility
+
+E9 used two rendered Windows processes on loopback with separate data and
+save folders. The individual games exercised a normal lobby join, weapon
+pickup, damage and respawn. The 32-second late join entered an Xbox match
+already in progress. For reconnect, the client exited normally and started
+again with its saved preferences while the original host kept running.
+
+| Map and scenario | Host / client shadow modes | Observed result |
+| --- | --- | --- |
+| Xbox Blood Gulch, late join | Classic / Soft | 68 paired gameplay seconds. Only the Soft peer rendered local shadows. |
+| CE Death Island, host requires stock shields | Classic / Hard | 79 paired seconds. The client applied stock shields even with its local shield glow enabled and continued rendering eligible Hard shadows. |
+| MCC Albatross (Digsite Workshop package), player choice | Soft / Classic | 73 paired seconds. The peers retained their own lighting preferences and observed the same player's respawn. |
+| Xbox Blood Gulch, leave and rejoin | Soft / Classic | Host player counts went from two to one and back to two. The rejoined game had 62 paired seconds. The Classic client applied the host's forced shield effects. |
+
+In the continuous Hard-host / Soft-client rotation at 1024, the two peers
+played Xbox Rat Race, CE Death Island, MCC Albatross and Xbox Blood Gulch
+in that order with a single join. The comparator matched 33 seconds in each
+game, detected zero divergences and recorded zero ticks apart in 2,735
+on-foot drift samples. Both peers saw the same player die and respawn in
+every game. Both rendered fixture shadows indoors on Rat Race, sunlight
+on the three outdoor maps and local shadows on all four. The Soft client
+had local shield glow disabled and applied the host's forced glow in all
+180 two-player renderer samples. The recorded rotation is
+`e9-family-cycle-final`.
+
+The host setting tested here governs shield effects. A client waiting for
+its first policy message uses stock shields. Shadow mode is local to each
+peer. The probe records the mode the renderer used and the maps it actually
+prepared. It also checks networked gameplay state independently.
+
+To repeat the connected rotation, build the probe with
+[lighting_compatibility_build.py](../../tools/lighting_compatibility_build.py),
+then run [lighting_compatibility_run.py](../../tools/lighting_compatibility_run.py)
+with `--case cycle --host-shadows hard --client-shadows soft --fire`,
+`--data-root`, and the Digsite `--mcc-package` directory. Give repeat runs
+a fresh `--label`. The host picks each map through the ordinary postgame
+lobby. Each peer records the loaded scenario tag, map family, connection,
+player count, policy and active shadows. The test compares gameplay
+snapshots for each match and checks that both peers saw the same living
+player die and return. Evidence is written to
+`build/lighting-compatibility/<label>/report.json`.
+
+The two-process compatibility runs used a 60 FPS cap. The
+[E5 foreground combat measurements](environment_shadow_e5.md#fresh-windows-launches)
+remain the single-client performance baseline. These Windows loopback cases
+cover Slayer on the named maps. Internet transport, cross-platform pairs,
+campaign co-op and physical AMD rendering require separate evidence.
+
 CStencil remains a separate project after Phase 2.
 
 ## Current investigation

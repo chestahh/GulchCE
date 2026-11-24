@@ -8,11 +8,13 @@ import csv
 import hashlib
 import json
 import os
+from itertools import groupby
 from pathlib import Path
 import re
 import shutil
 import subprocess
 import time
+from tempfile import TemporaryDirectory
 from types import SimpleNamespace
 from lighting_performance_run import cleanup, LIGHTS
 from net_compare import parse_log, judge_run, TOLERANCES
@@ -22,8 +24,19 @@ CASES={
     'xbox': ('bloodgulch',1,'glow_overshield',1),
     'ce': ('custom_maps\\deathisland',0,'stock',1),
     'mcc': ('mcc_maps\\DigsiteMP\\1',1,'players',1),
+    'cycle': ('ratrace', 1, 'glow_overshield', 1),
     'late': ('bloodgulch',0,'players',32),
 }
+CYCLE = ('ratrace', CASES['ce'][0], CASES['mcc'][0], 'bloodgulch')
+# These are the tags each family actually loaded. CE resolves its public
+# custom_maps name to the authored scenario inside the cache.
+CYCLE_SCENARIOS = (
+    ('Xbox', r'levels\test\ratrace\ratrace'),
+    ('CE', r'levels\test\deathisland\deathisland'),
+    ('MCC', CASES['mcc'][0]),
+    ('Xbox', r'levels\test\bloodgulch\bloodgulch'),
+)
+
 # A combat/death cue can remove the unit before the scripted cue executes.
 # The health query safely returns -1 for NONE; unit_kill requires a live unit.
 DEATH_CUE = 'if (> (unit_get_health (unit (list_get (players) 1))) 0) (unit_kill (unit (list_get (players) 1)))'
@@ -66,6 +79,114 @@ def report_passed(result):
     return result['agreement']['figures']['seconds']>10
 
 
+def cycle_rounds(path, connection, mode, failures):
+    rounds = []
+    if not path.exists():
+        failures.append('Missing rendered shadow-state samples')
+        return rounds
+    with path.open() as stream:
+        for (family, scenario), group in groupby(csv.DictReader(stream),
+                key=lambda row: (row['family'], row['scenario'])):
+            rows = list(group)
+            both = [r for r in rows if int(r['connection']) == connection and int(r['players']) == 2]
+            applied = [r for r in both if int(r['received'])]
+            pending = [r for r in both if not int(r['received'])]
+            active = sum(bool(int(r['maps'])) for r in both)
+            sun = sum(bool(int(r['sun'])) for r in both)
+            fixtures = sum(bool(int(r['spots']) & 3) for r in both)
+            rounds.append(dict(family=family, scenario=scenario, two_player_samples=len(both),
+                               applied_policy_samples=len(applied), pending_policy_samples=len(pending),
+                               local_map_samples=active, sun_samples=sun, fixture_samples=fixtures))
+            if len(applied) < 8 or any(int(r['policy']) != 4 or int(r['shield']) != 1 for r in applied):
+                failures.append(f'{scenario}: missing or incorrect applied host policy')
+            if any(int(r['policy']) or int(r['shield']) for r in pending):
+                failures.append(f'{scenario}: effects enabled before policy receipt')
+            if any(int(r['mode']) != mode for r in rows) or bool(active) != bool(mode):
+                failures.append(f'{scenario}: shadow mode or local map activity mismatch')
+            if mode == 0 and any(int(r[k]) for r in rows for k in ('maps', 'sun', 'spots')):
+                failures.append(f'{scenario}: Classic rendered a modern shadow')
+    if tuple((r['family'], r['scenario']) for r in rounds) != CYCLE_SCENARIOS:
+        failures.append('Wrong loaded scenario or family order')
+    elif mode:
+        if not rounds[0]['fixture_samples'] or rounds[0]['sun_samples']:
+            failures.append('Rat Race must exercise indoor fixtures without a sun map')
+        if any(not r['sun_samples'] for r in rounds[1:]):
+            failures.append('Missing outdoor sun after changing maps')
+    return rounds
+
+
+def cycle_agreement(base):
+    # net_compare reads the last game in a log. Split when the simulation tick
+    # restarts so a good final round cannot hide a divergence in an earlier one.
+    agreements = []
+    with TemporaryDirectory(dir=base) as temp:
+        files = {}
+        for role in ('host', 'client'):
+            games = []
+            last_tick = -1
+            with (base/role/'stderr.log').open(errors='replace') as log:
+                for line in log:
+                    marker = re.search(r'network test: tick (\d+) player', line)
+                    if not marker:
+                        continue
+                    tick = int(marker[1])
+                    if not games or tick < last_tick:
+                        games.append([])
+                    games[-1].append(line)
+                    last_tick = tick
+            if len(games) != len(CYCLE):
+                return []
+            files[role] = []
+            for index, lines in enumerate(games):
+                path = Path(temp) / f'{role}-{index}.log'
+                path.write_text(''.join(lines))
+                files[role].append(path)
+        for host, client in zip(files['host'], files['client']):
+            agreement = judge_run(host, client, SimpleNamespace(seconds=30, skip=5), TOLERANCES)
+            respawns = []
+            for path in (host, client):
+                data, _, _ = parse_log(path)
+                observed = set()
+                for player in (0, 1):
+                    states = [s['players'][player]['alive'] for s in data.values() if player in s['players']]
+                    changes = [alive for alive, _ in groupby(states)]
+                    if any(changes[i:i+3] == [True, False, True] for i in range(len(changes)-2)):
+                        observed.add(player)
+                respawns.append(observed)
+            agreement['confirmed_respawns'] = sorted(respawns[0] & respawns[1])
+            agreements.append(agreement)
+    return agreements
+
+
+def cycle_report(base, children, forced, settings):
+    """Require both running peers to render all four rounds in order."""
+    result = {'case': 'cycle', 'levels': CYCLE, 'peers': {}}
+    for role, process in children.items():
+        folder = base / role
+        failures = []
+        mode = ('off', 'hard', 'soft').index(settings[role]['modern_shadows'])
+        connection = 2 if role == 'host' else 1
+        log = (folder/'stderr.log').read_text(errors='replace')
+        if process.returncode or forced[role]:
+            failures.append('Process did not exit normally')
+        if role == 'client' and log.count('network test: joining\n') != 1:
+            failures.append('Expected a single join across the rotation')
+        if role == 'host' and log.count('network test: the next game') != len(CYCLE) - 1:
+            failures.append('Expected three returns to the ordinary lobby')
+        failures.extend(re.findall(r'(?im)^.*(?:crash: exception|exception halt|assertion failed|shader.*(?:error|failed)|GL_INVALID).*$', log))
+        rounds = cycle_rounds(folder/'shadow-state.csv', connection, mode, failures)
+        result['peers'][role] = dict(rounds=rounds, failures=failures, exit=process.returncode)
+    result['agreement'] = cycle_agreement(base)
+    result['passed'] = (set(result['peers']) == {'host', 'client'} and
+                        all(not peer['failures'] for peer in result['peers'].values()) and
+                        len(result['agreement']) == len(CYCLE) and
+                        all(not r['problems'] and not r['divergences'] and r['confirmed_respawns'] and
+                            r['figures']['seconds'] > 10 for r in result['agreement']))
+    (base/'report.json').write_text(json.dumps(result, indent=2))
+    print(json.dumps(result, indent=2), flush=True)
+    return 0 if result['passed'] else 1
+
+
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--data-root',type=Path,required=True)
@@ -79,8 +200,8 @@ def main():
     parser.add_argument('--reconnect',action='store_true',help='Restart the client with its saved settings while the host keeps running')
     parser.add_argument('--pickup-at',type=int,default=12,help='Game seconds before the forced weapon-pickup setup')
     args=parser.parse_args()
-    if args.reconnect and args.case=='late':
-        parser.error('--reconnect and the late-join case are separate scenarios')
+    if args.reconnect and args.case in ('late', 'cycle'):
+        parser.error('Run reconnect as a separate scenario')
     level,host_enabled,policy,delay=CASES[args.case]
     label=args.label or args.case
     assert re.fullmatch(r'[A-Za-z0-9_-]+',label)
@@ -92,8 +213,9 @@ def main():
     assert hashlib.sha256((build/'halo-compatibility.exe').read_bytes()).hexdigest()==manifest['executable_sha256']
     assert hashlib.sha256((ROOT/'port/linux/game/plasma_lighting.c').read_bytes()).hexdigest()==manifest['source_sha256']
     copies=['maps/ui.map','maps/bloodgulch.map','maps/carousel.map']
-    if args.case=='ce':copies += ['custom_maps/'+n+'.map' for n in ('deathisland','bitmaps','sounds','loc')]
-    if args.case=='mcc':copies += ['mcc_maps/DigsiteMP/'+n+'.map' for n in ('1','bitmaps','sounds')]
+    if args.case=='cycle': copies.append('maps/ratrace.map')
+    if args.case in ('ce', 'cycle'):copies += ['custom_maps/'+n+'.map' for n in ('deathisland','bitmaps','sounds','loc')]
+    if args.case in ('mcc', 'cycle'):copies += ['mcc_maps/DigsiteMP/'+n+'.map' for n in ('1','bitmaps','sounds')]
     children={};handles=[];settings={};forced={};outputs=[];first_exit=None
     # Stage both peers before starting the host; copy time must not consume its join window.
     try:
@@ -113,6 +235,10 @@ def main():
             display={key:bool(enabled) for key in LIGHTS}
             display.update(overshield_effect=bool(enabled),per_pixel_lighting=True,shield_glow_intensity='default',dynamic_lighting_reset=True)
             display['modern_shadows']=args.host_shadows if role=='host' else args.client_shadows
+            if args.case == 'cycle':
+                display.update({key:True for key in LIGHTS})
+                display.update(shield_glow=(role=='host'), shadow_resolution=1024, environment_sun=True, environment_fixtures=True,
+                               flashlight_shadows=True, flashlight_extra_slot=False)
             settings[role]=display
             (out/'config.toml').write_text('[display]\n'+''.join(f'{k} = {json.dumps(v)}\n' for k,v in display.items()))
         started=time.monotonic()
@@ -135,6 +261,14 @@ def main():
                 HALO_NET_SHIELD_EFFECTS=policy if role=='host' else ('stock' if policy!='stock' else 'glow_overshield'),
                 HALO_UPDATE_ANSWER='never',HALO_CRASH_REPORTS='no',
                 HALO_SCREENSHOT_DIR=str(out/'screenshots'),HALO_SCREENSHOT_EVERY='1800')
+            if args.case == 'cycle':
+                env.update(HALO_EXIT_AFTER='305' if role=='host' else '301',
+                           HALO_NETWORK_TEST_KILL='', HALO_NETWORK_TEST_SHOOT='', HALO_NETWORK_TEST_PICKUP='')
+                if role == 'host':
+                    env.update(HALO_NETWORK_TEST='host:'+level+':'+','.join(['slayer']*len(CYCLE)),
+                               HALO_NETWORK_TEST_CUES=f'8 {DEATH_CUE}|37 sv_end_game')
+                    for index, selected in enumerate(CYCLE[1:], 2):
+                        env[f'HALO_SHADOW_TEST_MAP_{index}'] = selected
             if args.fire:env['HALO_SHADOW_COMPAT_FIRE']='1'
             if args.reconnect and role=='client':env['HALO_EXIT_AFTER']='40'
             if args.reconnect and role=='host':
@@ -164,13 +298,17 @@ def main():
             (out/'reconnect-settings.json').write_text(json.dumps({k:v for k,v in env.items() if k.startswith('HALO_')},indent=2))
             children['client']=subprocess.Popen([str(out/'halo-performance.exe')],cwd=out,env=env,
                 stdout=stdout,stderr=stderr,creationflags=subprocess.CREATE_NO_WINDOW)
-        while any(p.poll() is None for p in children.values()) and time.monotonic()-started<(190 if args.reconnect else 150):time.sleep(.25)
+        timeout = 340 if args.case=='cycle' else 190 if args.reconnect else 150
+        while any(p.poll() is None for p in children.values()) and time.monotonic()-started < timeout:
+            time.sleep(.25)
     finally:
         for role,p in children.items():
             forced[role]=p.poll() is None
             if forced[role]:p.terminate();p.wait(timeout=10)
         for handle in handles:handle.close()
         for out in outputs:cleanup(out)
+    if args.case == 'cycle':
+        return cycle_report(base, children, forced, settings)
     result=dict(case=args.case,level=level,policy=policy,join_delay=delay,peers={})
     if args.reconnect:result['reconnect']=dict(client_first_exit=first_exit,host_player_counts=[])
     for role,p in children.items():
