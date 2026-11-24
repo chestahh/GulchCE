@@ -9,6 +9,11 @@ exclusions. The sun and fixtures have their own shadow budgets. Shared gives
 an active flashlight one of the eight local slots. Extra Slot allows eight
 local shadows plus the flashlight.
 
+E7 map authoring and E8 adaptive shadow quality are required for Phase 2
+1.0. Implement E7 first, then E8, and qualify their combined build in E9.
+Map authors choose whether to supply lighting data. Players choose whether
+to enable adaptive quality.
+
 ### Established on modern-dynamic-shadows
 
 | Milestone | Result |
@@ -121,13 +126,15 @@ transitions, and meets the fixed-quality E5 performance target.
 
 ### E7 — Optional map authoring
 
-Design a versioned companion file keyed to the compiled map and BSP. Allow
+Implement a versioned companion file keyed to the compiled map and BSP. Allow
 authors to refine emitter position, extent and direction and optionally
 export a source's static direct-light contribution in existing lightmap UVs.
 Occlude only that contribution and preserve indirect light. Verify automatic
 lighting without the file, higher fidelity with a matching file, and safe
 fallback for stale or malformed data. Preserve Sapien, stock tags, original
-maps and multiplayer map identity.
+maps and multiplayer map identity. Use the Rat Race lamp room for the first
+matched comparison. Refine one lamp and check that the other lamp and the
+room's baked indirect light keep their original contributions.
 
 ### E8 — Optional adaptive quality
 
@@ -143,12 +150,18 @@ allocation hitches. The fixed-quality E5 gate applies with scaling disabled.
 
 ### E9 — Compatibility and Phase 2 1.0 sign-off
 
+Use the completed two-player pass as the baseline. On the E7/E8 candidate,
+check a join with companion data on only one peer and adaptive quality on
+only the other. Both should see the same gameplay and obey host policy.
+Repeat the fixed Hard and Soft 1024 combat benchmark with scaling disabled,
+all eight local slots available and the E5 sustained 240+ FPS target.
+
 Verify stock/off isolation, host allow/deny, mixed client settings, joining,
 respawns and map transitions across representative Xbox, CE and MCC maps.
 Check all desktop menu styles and the pending shadow-mode lifecycle. Exercise
 AMD and NVIDIA renderer paths and record any unavailable hardware. Refresh
 platform checks, including Android exclusion. Check visuals at 30/60/120 FPS
-and repeat the fixed Hard/Soft 1024 combat, Rat Race lamp and Sidewinder
+and repeat the Rat Race lamp and Sidewinder
 transition tests. Review combined changes and cache lifetimes, deliver matched
 captures, frame-time and loading results, and a Windows playtest for sign-off.
 Promote through testing and main with CI verification when approved.
