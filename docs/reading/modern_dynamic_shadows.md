@@ -9,10 +9,7 @@ exclusions. The sun and fixtures have their own shadow budgets. Shared gives
 an active flashlight one of the eight local slots. Extra Slot allows eight
 local shadows plus the flashlight.
 
-E7 map authoring and E8 adaptive shadow quality are required for Phase 2
-1.0. Implement E7 first, then E8, and qualify their combined build in E9.
-Map authors choose whether to supply lighting data. Players choose whether
-to enable adaptive quality.
+E8 adaptive shadow quality is the next milestone for Phase 2 1.0, followed by final E9 qualification. E7 map authoring is deferred.
 
 ### Established on modern-dynamic-shadows
 
@@ -126,15 +123,9 @@ transitions, and meets the fixed-quality E5 performance target.
 
 ### E7 — Optional map authoring
 
-Implement a versioned companion file keyed to the compiled map and BSP. Allow
-authors to refine emitter position, extent and direction and optionally
-export a source's static direct-light contribution in existing lightmap UVs.
-Occlude only that contribution and preserve indirect light. Verify automatic
-lighting without the file, higher fidelity with a matching file, and safe
-fallback for stale or malformed data. Preserve Sapien, stock tags, original
-maps and multiplayer map identity. Use the Rat Race lamp room for the first
-matched comparison. Refine one lamp and check that the other lamp and the
-room's baked indirect light keep their original contributions.
+**Deferred beyond Phase 2 1.0.** The current release uses automatic fixture
+detection from existing map data. Per-map emitter adjustments and authored
+direct-light contributions can be revisited in a future phase.
 
 ### E8 — Optional adaptive quality
 
@@ -150,9 +141,10 @@ allocation hitches. The fixed-quality E5 gate applies with scaling disabled.
 
 ### E9 — Compatibility and Phase 2 1.0 sign-off
 
-Use the completed two-player pass as the baseline. On the E7/E8 candidate,
-check a join with companion data on only one peer and adaptive quality on
-only the other. Both should see the same gameplay and obey host policy.
+Use the completed two-player pass as the baseline. On the E8 candidate,
+check a join with adaptive quality enabled on one peer and fixed quality on
+the other. Both should see the same gameplay and obey host policy.
+
 Repeat the fixed Hard and Soft 1024 combat benchmark with scaling disabled,
 all eight local slots available and the E5 sustained 240+ FPS target.
 
