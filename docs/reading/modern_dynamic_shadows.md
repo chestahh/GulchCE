@@ -97,11 +97,15 @@ mode. Some first-use stalls remain. [Loading and driver measurements](environmen
 
 ### E6 — Distant sunlight and smooth transitions
 
+**Deferred.** Phase 2 uses the signed-off near-camera sun fade. Revisit
+extended coverage when a gameplay capture shows a missing distant shadow
+that is noticeable during normal play. Use that scene to judge the benefit
+of the outer tile.
+
 The near sun map has a 12-world-unit half-width. Its visible strength already
 fades continuously between 7.2 and 11.1 units in the sun's projection plane,
 including the handoff to existing object shadows and baked BSP lighting.
-E6 extends the distance at which geometry can cast and receive sunlight.
-Compare a cached outer tile starting at 36 units half-width against the
+If E6 resumes, compare a cached outer tile starting at 36 units half-width against the
 accepted near-only build. The earlier prototype showed extra vehicle shadow
 on Sidewinder and added submission time. Use those captures and timings as
 the starting comparison. [Near coverage and outer-tile experiment](environment_shadow_e4.md#outdoor-coverage)
