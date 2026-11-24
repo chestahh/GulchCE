@@ -747,13 +747,95 @@ would overstate the potential gain. The visibility workload had a nearly
 constant query count as its submission time rose. Timing alone does not
 identify a driver stall.
 
-The next comparison should count why decal batches flush (bitmap, blend
-state, capacity or end of layer), then test submitting the same vertices
-with fewer draws or uploads. The existing sorter already groups eligible
-decals within each cluster. Preserve each visible mark, ordering where
-blends are order-dependent, and the full sun fade. Use the same combat
-core and compare both images and sustained frame times. Keep the NVIDIA
-query-buffer path and AMD’s separate readback as a second investigation.
+#### Skipping off-screen combat decals
+
+A visible BSP cluster can contain bullet marks and scorch marks behind the
+camera. In the last seven paired Hard windows, blend changes accounted for
+530 of 619 decal batches per frame, and texture-group changes accounted for
+87. No batch reached capacity.
+
+At [decal batch submission](../../source/rasterizer/xbox/rasterizer_xbox_decals.c),
+`decal_outside_window` can use the final clipped world vertices and the
+actual rasterizer camera together. A mark is skipped only if every vertex
+lies more than 0.01 world units beyond the same side plane. A crossing
+mark still draws. Mirrored views and invalid projections use the original
+path. Each mark stays in the cache and can reappear when the camera turns.
+Blend order, texture bindings and the trailing vertex attributes are
+preserved across Classic, lighting-only, Hard and Soft modes.
+
+With the final implementation toggled in the same fight, the later
+sample windows averaged 684 submitted batches with the check disabled and
+85 with it enabled. In a separate GPU validation pass, the NVIDIA driver
+drew each tested mark individually. All 111,198 proposed rejections produced
+zero passing samples. The 10,462 positive controls produced 6,234,640 samples.
+The same draw-level test on staged CE Death Island and MCC Mercury Rising 2
+marks recorded 947 and 2,628 proposed rejections, with 0 passing samples.
+All five CE and seven MCC image pairs were pixel-identical. Capture events
+were matched by camera position and direction, simulation tick, mark count
+and shadow state before comparing the frames.
+A frozen snowy combat view at tick 3151 with 900 decal entries also
+produced 35 before/after image pairs. The largest mean channel difference
+was 0.90 of 255. Snow and effects continue animating during a simulation freeze.
+
+The table uses separate passive Windows release benchmarks on the RTX 5070 Ti.
+Each replay used the same 19-Covenant checkpoint, 25 seconds of warmup
+and two measured minutes at 2560×1440 with AA and VSync off. Hard and
+Soft used 1024 with the full sunlight fade and all eight local shadow slots.
+Only the frame-time runs are used for FPS. The GPU query run is for
+visibility correctness. The OpenCE comparison uses commit `307a42ee04ba`.
+
+| Renderer | Full FPS | Second-minute FPS | Seconds below 240 | Longest run below 240 (s) | Seconds below 360 |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| OpenCE Classic | 378.2 | 360.4 | 0 | 0 | 29 |
+| GulchCE Classic before | 439.7 | 403.4 | 0 | 0 | 0 |
+| GulchCE Classic after | 527.9 | 527.6 | 0 | 0 | 0 |
+| Lighting before | 289.5 | 277.5 | 0 | 0 | 120 |
+| Lighting after | 302.1 | 297.5 | 0 | 0 | 120 |
+| Hard before | 252.5 | 242.7 | 28 | 11 | 120 |
+| Hard after, first run | 266.3 | 265.8 | 2 | 1 | 120 |
+| Hard after, repeat | 262.8 | 264.5 | 1 | 1 | 120 |
+| Soft before | 250.3 | 241.0 | 30 | 11 | 120 |
+| Soft after, first run | 265.7 | 266.9 | 1 | 1 | 120 |
+| Soft after, repeat | 116.6 | 115.8 | 120 | 120 | 120 |
+| Soft after, third run | 264.2 | 266.5 | 1 | 1 | 120 |
+
+The 116.6 FPS Soft launch was slow from its first measured second.
+Its executable, settings, GPU, shader-cache startup and peak shadow count
+matched the first launch. CPU residency and concurrent GPU load were first
+recorded on later runs. The cause of the slow launch is open.
+
+A separate Soft replay alternated the final decal check every few seconds
+within one process. Across fourteen eight-second blocks, frame time fell
+from 4.002 to 3.805 ms. Twelve blocks improved. The mean paired difference
+was −0.197 ms (95% block-resampling interval −0.272 to −0.126 ms).
+The rendering thread sampled a performance core on all 30,869 measured frames.
+
+With all 189 submitted marks in view on a stationary CE Death Island floor,
+frame time changed from 1.086 to 1.089 ms. The 95% paired interval across
+nine eight-second windows was −0.006 to +0.013 ms.
+
+On the sampled Hard GPU replay, decal draws in the heavier minute fell
+from 0.507 to 0.057 ms per frame. Local shadow depth cost 0.423 ms, and
+environmental depth cost 0.259 ms. A separate Hard run measured 0.776 ms
+per frame of dynamic-light occlusion on the CPU. GPU and CPU work overlap.
+In the two final Hard runs, the slowest twelve one-second windows cost
+0.286–0.325 ms more per frame than the middle twelve. CPU occlusion
+accounted for 0.097–0.103 ms of that increase.
+
+Keep the decal change. Every measured second of the independent Hard and
+Soft runs fell below 360 FPS. The slow Soft launch also keeps the sustained
+240 FPS target open. The next profile should capture GPU load, CPU core
+residency, local shadow depth submissions and collision time together
+through slow launches. Time issuing NVIDIA visibility result copies and
+waiting at present separately. AMD uses its own readback path.
+
+Windows, Android and web builds passed with 168 focused regression checks
+on Windows. A two-player Windows loopback run compared the pre-change
+host and updated client across 70 matched seconds with no mismatched
+seconds. They used Soft and Hard sunlight at 1024 with local weapon
+lighting off. AMD hardware and native Linux gameplay remain unverified.
+Local evidence is in `build/lighting-performance/e5-decal-*` and
+`build/e5-decal-batches/`.
 
 #### Fixed-build combat controls for the material investigation
 
