@@ -5143,13 +5143,14 @@
 		<child widget="modern/network/session/prompts" />
 		<child widget="modern/network/session/status" />
 	</widget>
-	<widget name="modern/network/session/2/options_menu" type="column_list" width="640" height="480" flags="pass_unhandled_to_focused_child up_down_tabs_children" description="modern/network/session/14/help">
+	<widget name="modern/network/session/2/options_menu" type="column_list" width="640" height="480" flags="pass_unhandled_to_focused_child up_down_tabs_children" description="modern/network/session/16/help">
 		<data input="server settings update" />
 		<on event="created" run="server settings init" />
 		<child widget="modern/network/session/3/op_session_compatibility" x="28" y="110" />
 		<child widget="modern/network/session/6/op_camera_policy" x="28" y="140" />
 		<child widget="modern/network/session/9/op_invite" x="28" y="170" />
-		<child widget="modern/network/session/12/button_bar" y="414" x="26" />
+		<child widget="modern/network/session/12/op_mutator_options" x="28" y="200" />
+		<child widget="modern/network/session/14/button_bar" y="414" x="26" />
 		<data input="port frontend multiplayer update" />
 	</widget>
 	<widget name="modern/network/session/3/op_session_compatibility" width="336" height="26" flags="pass_unhandled_to_focused_child nifty_fx" bitmap="modern/row" color="#FF2896FF" left="0" top="0">
@@ -5183,15 +5184,23 @@
 	</widget>
 	<widget name="modern/network/session/11/invite_value" type="text" controller="1" width="140" height="24" font="ui\large_ui" color="#FF2896FF" align="center" text_y="0" text_flags="no_focus_test" flags="" left="0" top="0" text_x="0">
 	</widget>
-	<widget name="modern/network/session/12/button_bar" type="column_list" width="588" height="26" flags="pass_unhandled_to_focused_child left_right_tabs_items" left="0" top="0">
-		<child widget="modern/network/session/13/common_button_cancel" x="458" y="0" />
+	<widget name="modern/network/session/12/op_mutator_options" width="336" height="26" flags="pass_unhandled_to_focused_child nifty_fx" bitmap="modern/row" color="#FF2896FF" left="0" top="0">
+		<on event="a" open="main_menu/multiplayer_type_select/server_settings/mutator_options/mutator_options_screen" />
+		<on event="start" open="main_menu/multiplayer_type_select/server_settings/mutator_options/mutator_options_screen" />
+		<on event="left_mouse" run="mouse emit accept event" />
+		<child widget="modern/network/session/13/mutator_options_label" x="12" y="3" />
 	</widget>
-	<widget name="modern/network/session/13/common_button_cancel" type="text" width="124" height="26" bitmap="modern/button" string_list="strings/common_button_captions" string_index="2" font="ui\small_ui" color="#FFFFFFFF" align="center" text_y="3" flags=" nifty_fx" left="0" top="0">
+	<widget name="modern/network/session/13/mutator_options_label" type="text" controller="1" width="152" height="24" text="MUTATOR OPTIONS:" font="ui\large_ui" color="#FF2896FF" text_x="0" text_y="0" flags="" left="0" top="0" align="left">
+	</widget>
+	<widget name="modern/network/session/14/button_bar" type="column_list" width="588" height="26" flags="pass_unhandled_to_focused_child left_right_tabs_items" left="0" top="0">
+		<child widget="modern/network/session/15/common_button_cancel" x="458" y="0" />
+	</widget>
+	<widget name="modern/network/session/15/common_button_cancel" type="text" width="124" height="26" bitmap="modern/button" string_list="strings/common_button_captions" string_index="2" font="ui\small_ui" color="#FFFFFFFF" align="center" text_y="3" flags=" nifty_fx" left="0" top="0">
 		<on event="a" run="mouse emit back event" />
 		<on event="start" run="mouse emit back event" />
 		<on event="left_mouse" run="mouse emit back event" />
 	</widget>
-	<widget name="modern/network/session/14/help" type="text" controller="1" left="396" top="174" width="200" height="212" string_list="main_menu/multiplayer_type_select/server_settings/session_options/help_strings" font="ui\large_ui" color="#FF2896FF" flags="">
+	<widget name="modern/network/session/16/help" type="text" controller="1" left="396" top="174" width="200" height="212" string_list="main_menu/multiplayer_type_select/server_settings/session_options/help_strings" font="ui\large_ui" color="#FF2896FF" flags="">
 	</widget>
 	<widget name="modern/network/session/help_value" type="text" controller="1" left="396" top="108" width="200" height="56" font="ui\large_ui" color="#FFFFFFFF" />
 	<widget name="modern/network/session/title" left="70" top="40" width="300" height="28" controller="1" bitmap="modern/title_session" flags="" />
