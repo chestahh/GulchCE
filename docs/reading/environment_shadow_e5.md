@@ -889,8 +889,9 @@ itself move threads. The untouched launches above are the fresh Auto control.
 | Reversed | 222.2 | 255.6 | -0.588 | -0.814 to -0.384 | 14/14 | 389/4,778 |
 
 These are process-wide tests with a hidden window on one Windows machine.
-The released game uses normal scheduling. An opt-in render-thread preference
-would need its own comparison in the foreground, including a fresh Auto launch.
+The game uses normal scheduling by default. The [E5 roadmap](modern_dynamic_shadows.md#e5--rendering-performance-and-hitch-removal)
+calls for fresh foreground comparisons of Auto and process-wide performance-core
+restriction. The benefit during a normal foreground launch is still unmeasured.
 
 A separate GPU diagnostic timed cube setup (including clears and copies),
 world geometry, posed models and viewmodels independently. GPU values are

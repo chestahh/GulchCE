@@ -45,24 +45,41 @@ mode. Some first-use stalls remain. [Loading and driver measurements](environmen
    and Soft 1024. For both shadow runs, enable the sun, fixtures and Shared
    flashlight with all eight local slots available and adaptive scaling off.
    Record actual light, beam and combat activity. Keep busy Rat Race with both lamps as the indoor control.
-2. **Find where the frame time goes.** Retain matched stock OpenCE and
+2. **Qualify the Windows CPU scheduling option.** Compare fresh foreground
+   launches with normal Windows scheduling and with the game process restricted
+   to its available performance cores. Alternate launch order on the same
+   encounter in Hard and Soft. Record core placement, full-run and heavier-minute
+   averages, and the duration and longest streak below 240 and 360 FPS. The
+   [hidden-window affinity trials](environment_shadow_e5.md#measuring-slow-launches-and-local-depth)
+   changed masks during play. Keep untouched Auto launches as the baseline.
+   Plan one **CPU scheduling** setting beside **Frame Rate Limit** in all four
+   menu styles on supported Windows hybrid CPUs. **Auto** is the default.
+   **Performance cores only** applies once at game startup to the client process
+   and its workers, independently of the shadow settings. Save/Apply takes
+   effect on the next game launch. Respect the process's existing CPU
+   restrictions and keep normal scheduling if a usable set cannot be identified.
+   Verify Save, Cancel, Defaults and a return to Auto after restart.
+3. **Find where the frame time goes.** Retain matched stock OpenCE and
    GulchCE controls. In the earlier heavier minute, stock GulchCE took
    2.63 ms/frame, lighting alone 3.68 ms, Hard 4.21 ms and Soft 4.22 ms.
    Start with the 1.05 ms stock-to-lighting gap. Time collision tracing and
    visibility reconstruction separately from BSP surface selection, temporary
-   lighting triangles and model drawing. Then time local and environmental
+   lighting triangles and model drawing. First count identical world-only
+   rays across lighting updates. Compare reusable hits and misses against
+   fresh traces, including moving doors and objects, before enabling reuse.
+   Then time local and environmental
    shadow depth generation and reuse, receiver shading, draw submission and
    driver waits. CPU and GPU measurements can overlap. Investigate the largest
    repeatable costs on the critical path. Pursue larger savings alongside
    smaller, measurable wins. Verify each with release timings and matched
    images, then measure the combined changes on the same workload. [Stock controls and benchmark procedure](environment_shadow_e5.md#upstream-stock-control)
-3. **Recheck hitches independently.** Use Sidewinder's hidden Ghost reveal
+4. **Recheck hitches independently.** Use Sidewinder's hidden Ghost reveal
    on first visit and warm reload. Record map preparation time, peak memory,
    worst reveal frame, 99th-percentile frame time and counts over 16.7, 33,
    50 and 100 ms. Check what still happens on the first real draw. Keep
    preparation behind map loading and check Classic, host policy, failed
    preparation, cleanup and map transitions after changes.
-4. **Qualify sustained FPS at fixed quality.** Establish sustained 240+ FPS
+5. **Qualify sustained FPS at fixed quality.** Establish sustained 240+ FPS
    (4.17 ms/frame) in busy combat for Hard and Soft independently, then work
    toward sustained 360+ (2.78 ms/frame). Record how many seconds fall below
    each target, how often it happens and the longest continuous stretch.
