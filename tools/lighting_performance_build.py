@@ -114,7 +114,6 @@ def main():
     parser.add_argument('--verify-traces', action='store_true', help='Compare every lighting ray with the stock collision query; not a timing build')
     parser.add_argument('--verify-visibility', action='store_true', help='Compare packed and scalar CPU visibility reconstruction on identical fields')
     parser.add_argument('--verify-textures', action='store_true', help='Compare specialized visibility pixels against the generic loop; diagnostic only')
-    parser.add_argument('--without-prongs', action='store_true', help='Diagnostic A/B: leave plasma prong flare attachments stock, retaining charge/projectile lighting')
     parser.add_argument('--environment-model-control', action='store_true', help='Diagnostic A/B: HALO_BENCH_NO_ENV_MODEL disables only environmental model self-shadowing')
     args = parser.parse_args()
     if args.depth_profile: args.profile = True
@@ -128,7 +127,7 @@ def main():
     paths = ['source/main/main.c', 'port/linux/src/d3d8_gl.c',
              'port/linux/game/plasma_lighting.c', 'port/linux/game/plasma_occlusion.c',
              'port/linux/game/plasma_falloff.c', 'port/linux/game/plasma_collision.c',
-             'port/linux/game/authored_emitter_lighting.c', 'port/linux/src/xinput_sdl.c']
+             'port/linux/src/xinput_sdl.c']
     paths += ['port/linux/game/plasma_collision_models.c']
     if args.fixture_room:
         paths += ['source/render/render.c', 'port/linux/src/modern_spots_gl.inl']
@@ -152,7 +151,7 @@ def main():
                     fixture_sha256=hashlib.sha256((ROOT/'tools/fixtures/lighting_performance.c').read_bytes()).hexdigest(),
                     profile=args.profile, depth_profile=args.depth_profile, depth_reuse_control=args.depth_reuse_control, diagnose=args.diagnose, resources=args.resources, stalls=args.stalls, verify_traces=args.verify_traces,
                     verify_textures=args.verify_textures, verify_visibility=args.verify_visibility,
-                    without_prongs=args.without_prongs, environment_model_control=args.environment_model_control)
+                    environment_model_control=args.environment_model_control)
     for path in ['port/linux/game/authored_emitter_lighting.c', 'port/linux/game/ambient_emitter_lighting.c',
                  'port/linux/game/covenant_emitter_lighting.c', 'port/linux/src/plasma_occlusion_gl.c', 'port/linux/include/plasma_occlusion.h',
                  'port/linux/include/plasma_collision.h', 'source/physics/collision_bsp.c',
@@ -196,12 +195,6 @@ def main():
     if args.depth_profile or args.depth_reuse_control:
         manifest['depth_profile_helper_sha256'] = hashlib.sha256((ROOT/'tools/shadow_depth_profile.py').read_bytes()).hexdigest()
     try:
-        if args.without_prongs:
-            authored = ROOT/'port/linux/game/authored_emitter_lighting.c'
-            rows = authored.read_text().splitlines(keepends=True)
-            kept = [row for row in rows if 'plasma pistol flare' not in row and 'plasma rifle flare' not in row]
-            assert len(rows)-len(kept) == 2
-            authored.write_text(''.join(kept))
         # A previous diagnostic variant may have a newer object file. Preserve
         # contents, not timestamps, so Ninja recompiles the selected fixture.
         shutil.copyfile(ROOT/'tools/fixtures/lighting_performance.c', fixture)

@@ -1,8 +1,41 @@
 /* Localized baked emitters and the submitted flashlight have separate
    ownership from both the directional sun and the eight dynamic lights. */
-#include "objects/object_lights.h"
 #include "devices/devices.h"
 #include "devices/device_light_fixtures.h"
+
+#include "interface/first_person_weapons.h"
+#include "physics/collisions.h"
+
+/* Stock pulls the first-person projector back half a unit along the sight
+   line. A shadow cast from behind the eye disappears behind its caster.
+   Use the weapon's rendered mount and keep the authored beam direction. */
+void modern_flashlight_mount(long wearer, struct rasterizer_light_submit_parameters *light)
+{
+    struct object_marker mount;
+    struct collision_result hit;
+    real_vector3d offset;
+    real_point3d origin;
+    long weapon;
+    if (!setting() || render.local_player_index == NONE ||
+        player_control_get_unit_index(render.local_player_index) != wearer ||
+        !config_boolean("display.flashlight_shadows") || !game_engine_allow_dynamic_lighting()) return;
+    point_from_line3d(&light->position,&light->forward,.5f,&origin);
+    if (distance_squared3d(&origin,&render.camera.position) < .0025f)
+    {
+        short slot = unit_get(wearer)->unit.current_weapon_index;
+        if (slot >= 0 && slot < MAXIMUM_WEAPONS_PER_UNIT)
+        {
+            weapon = unit_inventory_get_weapon(wearer,slot);
+            if (weapon != NONE && first_person_weapon_get_marker_by_name_render(weapon,"primary trigger",&mount,1)>0)
+                origin = mount.matrix.position;
+        }
+    }
+    vector_from_points3d(&render.camera.position,&origin,&offset);
+    if (collision_test_vector(FLAG(_collision_test_structure_bit)|FLAG(_collision_test_front_facing_surfaces_bit),
+        &render.camera.position,&offset,wearer,&hit))
+        point_from_line3d(&render.camera.position,&offset,MAX(0.f,hit.t-.01f),&origin);
+    light->position=origin;
+}
 
 struct spot_source
 {
@@ -18,8 +51,14 @@ struct spot_definition
     byte reserved[8];
     long interpolation;
     real_argb_color low, high;
+    byte reserved58[0x7c];
+    real baked_intensity;
+    real_rgb_color baked_color;
 };
 typedef char spot_color_offset[offsetof(struct spot_definition,low)==0x38 ? 1 : -1];
+typedef char spot_intensity_offset[offsetof(struct spot_definition,baked_intensity)==0xd4 ? 1 : -1];
+
+enum { spot_dynamic = 1 << 0, spot_first_person_flashlight = 1 << 4 };
 
 /* The camera beam is positioned after cluster visibility collects light markers.
    Include its live attachment even when its third-person marker was culled. */
@@ -39,7 +78,7 @@ short modern_flashlight_include(short view, long *lights, short count, short cap
         const struct object_attachment_definition *a = TAG_BLOCK_GET_ELEMENT(attachments,i,struct object_attachment_definition);
         if (a->type.index == NONE || a->type.group_tag != LIGHT_DEFINITION_TAG) continue;
         const struct spot_definition *d = tag_get(LIGHT_DEFINITION_TAG,a->type.index);
-        if (!(d->flags & FLAG(4))) continue;
+        if (!(d->flags & spot_first_person_flashlight)) continue;
         int pos = 0;
         while (pos < count && lights[pos] != handle) pos++;
         if (pos == count && count < capacity) count++;
@@ -108,29 +147,40 @@ static void find_fixtures(struct spot_source chosen[2])
 {
     struct object_iterator it;
     struct object_datum *object;
-    object_iterator_new(&it,_object_mask_light_fixture,0);
+    /* Fixed map geometry can contribute to the BSP bake. Held items and
+       transient projectiles also carry radiosity values in retail tags. */
+    object_iterator_new(&it,_object_mask_device | _object_mask_scenery |
+        _object_mask_sound_scenery | _object_mask_placeholder,0);
     while ((object=object_iterator_next(&it))!=NULL)
     {
         struct tag_block const *attachments=&object_definition_get(object->definition_index)->object.attachments;
-        for (int j=0;j<attachments->count;j++)
+        for (int j=0;j<MIN(attachments->count,MAXIMUM_NUMBER_OF_ATTACHMENTS_PER_OBJECT);j++)
         {
             struct object_attachment_definition const *a=TAG_BLOCK_GET_ELEMENT(attachments,j,struct object_attachment_definition);
             if (a->type.index==NONE || a->type.group_tag!=LIGHT_DEFINITION_TAG) continue;
             const struct spot_definition *d=tag_get(LIGHT_DEFINITION_TAG,a->type.index);
             struct object_marker marker;
-            if ((d->flags&1) || !a->marker_name[0] || object_get_marker_by_name(it.index,a->marker_name,&marker,1)<=0) continue;
+            const struct light_fixture_datum *fixture = object->object.type == _object_type_light_fixture ?
+                (const struct light_fixture_datum *)object : NULL;
+            if (d->flags & (spot_dynamic | spot_first_person_flashlight)) continue;
+            if (!fixture && !(d->baked_intensity > 0.f)) continue;
             struct spot_source s={0};
-            const struct light_fixture_datum *fixture=(const struct light_fixture_datum *)object;
             s.placed=object->object.location.cluster_index!=NONE && render_location_visible(&object->object.location);
+            if (a->marker_name[0])
+            {
+                if (object_definition_get(object->definition_index)->object.model.index==NONE ||
+                    object_get_marker_by_name(it.index,a->marker_name,&marker,1)<=0) continue;
+            }
+            else object_get_world_matrix(it.index,&marker.matrix);
             s.origin=marker.matrix.position; s.axis=marker.matrix.forward;
             if (normalize3d(&s.axis)<=0.f) continue;
             /* Legacy omni fixture tags describe a short runtime gel radius.
                Bound the baked footprint around the authored attachment axis. */
             s.range=PIN(d->radius*4.f,.25f,12.f);
             s.angle=d->cutoff>0 && d->cutoff<1.5f?d->cutoff:1.05f;
-            const float *rgb=&d->high.red;
-            float strength=1.f;
-            if (fixture->light_fixture.intensity>0.f)
+            const float *rgb=fixture ? &d->high.red : d->baked_color.n;
+            float strength=fixture ? 1.f : d->baked_intensity;
+            if (fixture && fixture->light_fixture.intensity>0.f)
             {
                 strength=fixture->light_fixture.intensity;
                 rgb=fixture->light_fixture.color.n;
@@ -138,6 +188,7 @@ static void find_fixtures(struct spot_source chosen[2])
                     s.angle=fixture->light_fixture.cutoff_angle;
             }
             for (int k=0;k<3;k++) s.color[k]=.45f*PIN(rgb[k]*strength,0.f,1.f);
+            if (!(MAX(s.color[0],MAX(s.color[1],s.color[2]))>0.f)) continue;
             s.color[3]=s.range;
             admit_fixture(chosen,s);
         }
@@ -150,13 +201,15 @@ static int fixture_casters(const struct spot_source *s,long families[MAXIMUM_OBJ
     struct object_datum *object;
     int count=0;
     float cone_cos=cosf(s->angle),cone_sin=sinf(s->angle);
-    object_iterator_new(&it,_object_mask_unit | _object_mask_item | FLAG(_object_type_machine),0);
+    object_iterator_new(&it,_object_mask_all,0);
     while ((object=object_iterator_next(&it))!=NULL)
     {
         int remaining=128;
         real_point3d center;
         real radius;
         if (object->object.parent_object_index!=NONE || TEST_FLAG(object->object.flags,_object_invisible_bit)) continue;
+        if (object->object.first_child_object_index==NONE &&
+            object_definition_get(object->definition_index)->object.model.index==NONE) continue;
         object_get_render_bounding_sphere(it.index,&center,&radius);
         render_interpolation_object_point(it.index,&center);
         if (object->object.first_child_object_index!=NONE &&
@@ -237,7 +290,7 @@ static void prepare_spots(int mode)
     {
         const struct rasterizer_light_submit_parameters *light=&rasterizer_lights.lights[i];
         const struct spot_definition *d=(const void *)light->definition;
-        if (!d || !(d->flags & FLAG(4)) || !(light->radius>.005f) ||
+        if (!d || !(d->flags & spot_first_person_flashlight) || !(light->radius>.005f) ||
             MAX(light->color.red,MAX(light->color.green,light->color.blue))<=0.f) continue;
         float dist=distance_squared3d(&render.camera.position,&light->position);
         if (dist<nearest) { best=i; nearest=dist; }
@@ -275,7 +328,8 @@ static void prepare_spots(int mode)
         modern_spot_camera(camera,(const float *)global_window_parameters.frustum.projection_matrix);
     }
 }
-int modern_spot_flash_slot(int slot) { return (modern_spot_mask()&4) && slots[slot]==flashlight_index; }
+int modern_spot_is_flashlight(long index) { return (modern_spot_mask() & 4) && index == flashlight_index; }
+int modern_spot_flash_slot(int slot) { return modern_spot_is_flashlight(slots[slot]); }
 int modern_spot_model_active(void) { return (modern_spot_mask()&3) || modern_spot_flash_slot(0) || modern_spot_flash_slot(1); }
-void modern_spot_world_light(long index) { flash_world=(modern_spot_mask()&4) && index==flashlight_index; }
+void modern_spot_world_light(long index) { flash_world=modern_spot_is_flashlight(index); }
 void modern_spots_project(void) { modern_spot_bsp(); }

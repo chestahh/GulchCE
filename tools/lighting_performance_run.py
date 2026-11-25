@@ -26,7 +26,7 @@ ROOT = Path(__file__).resolve().parents[1]
 LIGHTS = ['plasma_lighting', 'muzzle_lighting', 'jackal_shield_lighting',
           'covenant_shield_lighting', 'fuel_rod_lighting', 'ammo_counter_lighting',
           'needler_lighting', 'plasma_occlusion', 'shield_glow',
-          'weapon_glow', 'plasma_prong_lighting', 'vehicle_lighting', 'world_lighting']
+          'weapon_glow', 'vehicle_lighting', 'world_lighting']
 QUALITY = ['anti_aliasing', 'anisotropic_filtering', 'shadow_resolution',
            'per_pixel_lighting', 'model_detail', 'hdr', 'hdr_output',
            'viewmodel_shield', 'shield_look', 'fov', 'viewmodel_fov']
@@ -202,6 +202,14 @@ def verify_fixture_comparison(out, mode, log):
     assert 2 in positions, 'Missing stock flashlight'
     if mode == 'beam':
         assert re.search(r'E3 receiver vehicle (?!-1\b)-?\d+ rifle (?!-1\b)-?\d+', log)
+        # The matched wall patch above the helmet is a BSP receiver behind
+        # the caster. The stock beam stays lit in both frozen frames.
+        if 'effective 1 active 1' not in log:
+            with Image.open(frames[0]) as off, Image.open(frames[1]) as on:
+                w, h = off.size
+                wall = (round(w*600/1280), round(h*235/720), round(w*667/1280), round(h*267/720))
+                delta = ImageChops.subtract(off.convert('RGB').crop(wall), on.convert('RGB').crop(wall)).convert('L')
+                assert sum(delta.histogram()[20:]) > delta.width*delta.height*.15, 'Missing flashlight silhouette on the wall'
     if mode == 'comparison':
         floor = []
         for path in frames:

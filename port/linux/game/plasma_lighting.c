@@ -293,24 +293,6 @@ int plasma_lighting_selected(long rasterizer_index)
 	return FALSE;
 }
 
-int plasma_lighting_prong_cone(long rasterizer, float axis[3], float origin[3], float *radius)
-{
-	int i;
-	struct rasterizer_light_submit_parameters *light;
-	if (!lighting_config_boolean("display.plasma_prong_lighting") || rasterizer < 0 || rasterizer >= rasterizer_lights.light_count)
-		return FALSE;
-	for (i = 0; i < plasma_lighting_count; i++)
-		if (plasma_lighting_attachments[i].category == 4 && plasma_lighting_attachments[i].rasterizer_index == rasterizer)
-		{
-			light = &rasterizer_lights.lights[rasterizer];
-			axis[0] = light->forward.i; axis[1] = light->forward.j; axis[2] = light->forward.k;
-			origin[0] = light->position.x; origin[1] = light->position.y; origin[2] = light->position.z;
-			*radius = light->radius;
-			return 3;
-		}
-	return FALSE;
-}
-
 /* Headlights include their own vehicle in the collision field, even when
    the general emitter occlusion option is off. Keep the authored beam cone. */
 int plasma_lighting_vehicle_occlusion(long light_index, long *ignore)

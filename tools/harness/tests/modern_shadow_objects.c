@@ -1,4 +1,5 @@
 #include "harness.h"
+#define MAX(a,b) ((a) > (b) ? (a) : (b))
 #define _object_invisible_bit 0
 #define _object_mask_all 255
 #define _object_mask_vehicle 2

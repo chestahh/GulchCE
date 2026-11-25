@@ -40,7 +40,6 @@ parser.add_argument('--turret-radius', type=float, default=.06)
 parser.add_argument('--turret-ahead', type=float, default=.06)
 parser.add_argument('--turret-timing', type=int, help='Seconds of capture-only uncapped vehicle timing; excludes screenshots')
 parser.add_argument('--both-lighting', action='store_true')
-parser.add_argument('--prong-lighting', action='store_true', help='Isolate the standalone plasma prong spill in a rifle/pistol combat capture')
 parser.add_argument('--weapon-glow', action='store_true', help='Exercise authored sword and charge lights')
 parser.add_argument('--emitter', choices=['sword-elite','jackal','major','fuel','hunter','stationary','ammo-fp','ammo-marine','ammo-player','needler-fp','needler-marine','needler-player','needler-grunt'])
 parser.add_argument('--ambient', choices=['ghost','banshee','dropship','warthog','scorpion','overshield','camo','teleporter'])
@@ -122,9 +121,6 @@ if args.shadow_resource_failure and not args.shadow_switch:
     parser.error('--shadow-resource-failure requires --shadow-switch')
 if args.mcc_package and args.map not in ('mcc-digsite', 'mcc-c40'):
     parser.error('--mcc-package requires --map mcc-digsite or mcc-c40')
-if args.prong_lighting:
-    if not args.combat or args.kind not in ('rifle', 'pistol') or args.weapon_glow or args.muzzle:
-        parser.error('--prong-lighting requires rifle/pistol --combat, without other weapon-light options')
 if args.toggle and (args.emitter or args.ambient or args.shield or args.muzzle):
     parser.error('--toggle requires a projectile capture; emitter, shield and muzzle fixtures use separate tick handlers')
 if not re.fullmatch(r'[1-9][0-9]{2,3}x[1-9][0-9]{2,3}', args.resolution):
@@ -254,8 +250,6 @@ if args.map == 'mcc-digsite':
 if args.map in ('b40', 'c40', 'mcc-ruby-c40', 'mcc-c40'):
     env['HALO_COVENANT_CAPTURE_CAMPAIGN'] = '1'
     env['HALO_EXIT_AFTER'] = '70' if args.map in ('b40', 'mcc-ruby-c40', 'mcc-c40') else '35'
-if args.prong_lighting:
-    env.update(HALO_PLASMA_PRONG_LIGHTING=str(args.enabled), HALO_PLASMA_LIGHTING='0')
 if args.weapon_glow:
     env['HALO_WEAPON_GLOW'] = str(args.enabled)
 if args.turn:
@@ -592,7 +586,7 @@ expected_tags = {
     'mp-shade': 'vehicles\\c gun turret\\mp gun turret',
     'ce-fuel': 'weapons\\plasma_cannon\\plasma_cannon',
 }
-if args.enabled and not args.prong_lighting and not args.muzzle and not args.emitter and not args.shield and not args.ambient and not args.shadow_scene:
+if args.enabled and not args.muzzle and not args.emitter and not args.shield and not args.ambient and not args.shadow_scene:
     expected = {expected_tags[args.kind]}
     if args.mixed:
         expected = {expected_tags[kind] for kind in ('rifle', 'pistol', 'charged', 'rocket') if args.kind == 'rocket' or kind != 'rocket'}
@@ -615,10 +609,6 @@ if not args.turret_timing and args.muzzle == 'scorpion' and args.enabled:
     if r'MUZZLE profile vehicles\scorpion\scorpion cannon' not in logs or set(re.findall(r'MUZZLE sample[^\r\n]+ trigger ([01])', logs)) != {'0', '1'}:
         raise SystemExit('Capture did not fire both Scorpion guns')
 
-if args.prong_lighting and args.enabled:
-    expected = 'weapons\\plasma '+args.kind+'\\plasma '+args.kind
-    if expected not in report['selected_tags']:
-        raise SystemExit('Prong capture never selected the intended weapon attachment')
 
 if args.shadow_switch:
     intervals = re.split(r'SHADOW MODE tick (\d+) value (off|hard|soft)', logs)

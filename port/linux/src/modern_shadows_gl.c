@@ -356,7 +356,7 @@ int modern_shadow_mesh_create(const struct modern_shadow_vertex *vertices, int v
 static int sun_detail_caster, sun_detail_in_batch;
 void modern_environment_sun_detail_caster(int eligible) { sun_detail_caster = eligible; }
 static int sun_draw_batch(void);
-static int flush_beam_batch(void);
+static int flush_spot_batch(void);
 
 int modern_shadow_draw(int mesh, const float *matrices, int node_count,
 	const void *alpha_texture, const float uv_transform[8], int views)
@@ -365,7 +365,7 @@ int modern_shadow_draw(int mesh, const float *matrices, int node_count,
 	GLenum target;
 	struct xgpu_texture_description description;
 	int faces, opaque;
-	if (draw_count == SHADOW_DRAWS && environment_drawing && !flush_beam_batch()) sun_draw_batch();
+	if (draw_count == SHADOW_DRAWS && environment_drawing && !flush_spot_batch()) sun_draw_batch();
 	if (mesh < 1 || mesh > mesh_count || node_count < 1 || node_count > SHADOW_NODES ||
 		draw_count == SHADOW_DRAWS || !drawing || views < 1 || views > MODERN_SHADOW_BOTH) { failed = 1; return 0; }
 	faces = environment_drawing ? 63 : mesh_faces(&meshes[mesh - 1], matrices, node_count, map->light);

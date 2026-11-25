@@ -6,7 +6,7 @@ static const char spot_shader[] =
 "vec3 spot_world(float d){ vec2 xy=(gl_FragCoord.xy-spot_viewport.xy)/spot_viewport.zw*2.-1.;xy.y=-xy.y;\n"
 "float z=-spot_projection[3][2]/(spot_reversed!=0?1.+spot_projection[2][2]-d:d+spot_projection[2][2]);\n"
 "return (spot_camera*vec4((-xy-spot_projection[2].xy)*z/vec2(spot_projection[0][0],spot_projection[1][1]),z,1)).xyz;}\n"
-"float spot_blocked(int i,vec3 p,out float weight){vec4 clip=spot_frames[i]*vec4(p,1);\n"
+"float spot_blocked(int i,vec3 p,bool baked,out float weight){vec4 clip=spot_frames[i]*vec4(p,1);\n"
 "vec3 q=clip.xyz/max(clip.w,.00001);vec2 uv=q.xy*.5+.5;vec3 dx=dFdx(vec3(uv,q.z)),dy=dFdy(vec3(uv,q.z));\n"
 "float det=dx.x*dy.y-dy.x*dx.y; vec2 grad=abs(det)>1.e-14?vec2(dx.z*dy.y-dy.z*dx.y,dx.x*dy.z-dy.x*dx.z)/det:vec2(0);\n"
 "weight=0.;if(clip.w<=0.||q.z<=0.||q.z>=1.||dot(q.xy,q.xy)>=1.)return 0.;\n"
@@ -15,12 +15,12 @@ static const char spot_shader[] =
 "for(int t=0;t<=3*spot_soft;t++){ivec2 off=ivec2(t&1,t>>1),cell=clamp(base+off,ivec2(0),size.xy-1);\n"
 "float z=q.z+dot((vec2(cell)+.5)/vec2(size.xy)-uv,grad)+max(.000001,.0005*q.z);\n"
 "int layer=i==2?size.z-1:i;float blocker=texelFetch(spot_maps,ivec3(cell,layer),0).r;\n"
-"float v=blocker>z?1.:0.;if(i<2 && texelFetch(spot_maps,ivec3(cell,i+2),0).r>z)v=0.;\n"
+"float v=blocker>z?1.:0.;if(i<2 && texelFetch(spot_maps,ivec3(cell,i+2),0).r>z)v=baked?0.:1.;\n"
 "vec2 a=mix(1.-f,f,vec2(off));result+=v*(spot_soft!=0?a.x*a.y:1.); }return result;}\n"
-"vec3 fixture_visibility(vec3 p,vec3 n){vec3 removed=vec3(0);for(int i=0;i<2;i++){if((spot_mask&(1<<i))==0)continue;\n"
-"float weight;float blocked=spot_blocked(i,p,weight);vec3 l=spot_origins[i].xyz-p;float facing=max(0.,dot(n,l)*inversesqrt(max(dot(l,l),1.e-12)));removed+=spot_colors[i].rgb*(weight*blocked*facing);}\n"
+"vec3 fixture_visibility(vec3 p,vec3 n,bool baked){vec3 removed=vec3(0);for(int i=0;i<2;i++){if((spot_mask&(1<<i))==0)continue;\n"
+"float weight;float blocked=spot_blocked(i,p,baked,weight);vec3 l=spot_origins[i].xyz-p;float facing=max(0.,dot(n,l)*inversesqrt(max(dot(l,l),1.e-12)));removed+=spot_colors[i].rgb*(weight*blocked*facing);}\n"
 "return sqrt(max(vec3(.30),1.-removed));}\n"
-"float beam_visibility(vec3 p){float w;return 1.-spot_blocked(2,p,w);}\n";
+"float beam_visibility(vec3 p){float w;return 1.-spot_blocked(2,p,false,w);}\n";
 
 void modern_spot_emit(struct xgpu_text *text) { xgpu_text_append(text,"%s",spot_shader); }
 int modern_spot_mask(void) { return spots.mask; }
@@ -71,13 +71,13 @@ failed_begin:
     return 0;
 }
 
-/* A crowded beam can span more posed parts than a single draw batch.
+/* A fixture or beam can span more parts than a single draw batch.
    Continue writing the same layer until the entire cone has been submitted. */
-static int flush_beam_batch(void)
+static int flush_spot_batch(void)
 {
-    if (!spots.rendering || spots.layer != 4) return 0;
+    if (!spots.rendering) return 0;
     if (!environment_draw_depth(spots.fbo)) failed=1;
-    spots.beam_partial=1;
+    spots.spot_partial=1;
     draw_count=0;
     return 1;
 }
@@ -87,7 +87,7 @@ int modern_spot_end(int complete)
     int ok=complete && environment_draw_depth(spots.fbo);
     if (spots.layer==2 || spots.layer==3)
     {
-        int slot=spots.layer-2, opaque=ok;
+        int slot=spots.layer-2, opaque=ok && !spots.spot_partial;
         for (int i=0;opaque && i<draw_count;i++) if (draws[i].alpha) opaque=0;
         spots.valid_static &= ~(1<<slot);
         if (opaque)
@@ -96,7 +96,7 @@ int modern_spot_end(int complete)
             memcpy(spots.static_frames[slot],environment.frame,sizeof(environment.frame));
         }
     }
-    spots.beam_partial=0;
+    spots.spot_partial=0;
     drawing=environment_drawing=spots.rendering=0;
     draw_count=0;
     glClipControl(GL_UPPER_LEFT,GL_ZERO_TO_ONE);
@@ -176,7 +176,7 @@ static int spot_receiver_prepare(void)
         char frag[sizeof(spot_shader)+512];
         strcpy(frag,"#version 330 core\n"); strcat(frag,spot_shader);
         strcat(frag,"uniform sampler2D scene;out vec4 color;void main(){float d=texelFetch(scene,ivec2(gl_FragCoord.xy),0).r;"
-            "vec3 p=spot_world(d),n=cross(dFdx(p),dFdy(p));n*=inversesqrt(max(dot(n,n),1.e-24));if(dot(n,spot_camera[3].xyz-p)<0.)n=-n;color=vec4(fixture_visibility(p,n),1);}");
+            "vec3 p=spot_world(d),n=cross(dFdx(p),dFdy(p));n*=inversesqrt(max(dot(n,n),1.e-24));if(dot(n,spot_camera[3].xyz-p)<0.)n=-n;color=vec4(fixture_visibility(p,n,true),1);}");
         spots.receiver=environment_program("#version 330 core\nvoid main(){vec2 p=vec2((gl_VertexID<<1)&2,gl_VertexID&2);gl_Position=vec4(p*2.-1.,0,1);}",frag);
         if (!spots.receiver) return 0;
         glUseProgram(spots.receiver); spot_locations(spots.receiver,&spot_receiver_uniforms);

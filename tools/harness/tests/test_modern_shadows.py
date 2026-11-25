@@ -2,6 +2,12 @@
 from tools.harness import CHECK_FAILED, build, constant, function, read, run, structure
 
 
+def test_native_map_light_selection():
+    source = function(read('source/objects/object_lights.c'), 'light_port_authored_dynamic')
+    status, output = run(build('authored_shadow_light', (('under_test.inc', source),)), 'sources')
+    assert status == 0, output
+
+
 def test_shared_resolution_bounds():
     source = read('port/linux/src/d3d8_gl.c')
     code = ''.join(f'#define {name} {constant(source, name)}\n' for name in

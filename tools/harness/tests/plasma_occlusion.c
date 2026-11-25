@@ -49,15 +49,12 @@ static int muzzle_on, emitter_on, emitter_occlusion, shield_on, shield_occlusion
 static long last_ignore;
 static unsigned long last_flags;
 static int directional_on, vehicle_only;
-static int prong_on;
 static long modern_selected = NONE, chassis_owner = NONE;
 long modern_shadows_collision_owner(long index) { return index==modern_selected ? chassis_owner : NONE; }
 static int chassis_queries;
 void plasma_collision_object_depths(long owner,const real_point3d *p,const real_vector3d *v,int count,float *depths) { int i;CHECK(owner==42,"exact chassis datum");chassis_queries+=count;for(i=0;i<count;i++)depths[i]=.2f; }
 int modern_shadows_selected(long index) { return index != NONE && index == modern_selected; }
 struct plasma_collision_scene { int unused; };
-int plasma_lighting_prong_cone(long r,float axis[3],float origin[3],float *radius)
-{ axis[0]=1;axis[1]=axis[2]=0;origin[0]=origin[1]=origin[2]=0;*radius=.3f;return prong_on?3:0; }
 unsigned long plasma_collision_scene_revision(struct plasma_collision_scene *scene,const real_point3d *point,float extent,int vehicles)
 {
  static int last=-1; static unsigned long revision;
@@ -540,23 +537,9 @@ int main(int argc, char **argv)
 	CHECK(!field_for(0) && queries == n, "shield occlusion obeys its independent toggle");
 	plasma_occlusion_reset();
 	on=1;shield_on=shield_occlusion=emitter_on=directional_on=vehicle_only=0;
-	prong_on=1;blocked=0;rasterizer_lights.lights[0].radius=.3f;specular_scale=2;
-	queries=0;plasma_occlusion_submit(800,0);f=field_for(0);
-	CHECK(f&&queries==96,"short prongs use the smaller ray grid only");
-	{
-		float axis[3]={1,0,0};
-		IDirect3DVolumeTexture8 *t=field_texture(f,0,0);
-		CHECK(plasma_prong_falloff_factor(axis,1,0,0)==1,"outward prong spill remains full");
-		CHECK(plasma_prong_falloff_factor(axis,-1,0,0)==0,"prongs do not illuminate their rear hemisphere");
-		CHECK(plasma_prong_falloff_factor(axis,0,1,0)>0&&plasma_prong_falloff_factor(axis,0,1,0)<.3f,"side spill fades broadly and softly");
-		CHECK(t&&(t->pixels[(8*16+8)*16]&255)==0&&(t->pixels[(8*16+8)*16+15]&255)>240,"actual model texture carries the outward mask");
-	}
-	blocked=1;time_ms+=16;plasma_occlusion_window();plasma_occlusion_submit(800,0);f=field_for(0);
-	CHECK(f&&queries==192&&f->visibility[4095]<.3f,"small prong grid still blocks a nearby wall");
-	plasma_occlusion_reset();CHECK(!allocations,"prong reset releases GPU resources");
 	/* A permanently blocked cell must settle to black, not retain subnormal
 	   fade history forever at high frame rates. Reopening still fades normally. */
-	prong_on=directional_on=emitter_on=muzzle_on=vehicle_on=shield_on=0;
+	directional_on=emitter_on=muzzle_on=vehicle_on=shield_on=0;
 	on=blocked=1;specular_scale=1;rasterizer_lights.lights[0].radius=1;
 	for(cap=0;cap<4;cap++)
 	{

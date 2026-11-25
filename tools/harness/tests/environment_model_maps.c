@@ -87,10 +87,13 @@ int main(int argc,char **argv)
  CHECK(!modern_environment_model_active(),"next view cannot sample stale sun");
  spots.rendering=drawing=environment_drawing=1;spots.layer=4;spots.fbo=19;
  draw_count=256;checked=depth_calls;
- CHECK(flush_beam_batch() && !draw_count && spots.beam_partial && depth_calls==checked+1,
+ CHECK(flush_spot_batch() && !draw_count && spots.spot_partial && depth_calls==checked+1,
        "full flashlight batch is written before collecting further casters");
  draw_count=1;
- CHECK(modern_spot_end(1) && depth_calls==checked+2 && !spots.beam_partial && !spots.rendering,
+ CHECK(modern_spot_end(1) && depth_calls==checked+2 && !spots.spot_partial && !spots.rendering,
        "final flashlight batch shares the layer and the next frame starts clean");
+ spots.rendering=drawing=environment_drawing=1;spots.layer=2;draw_count=256;
+ CHECK(flush_spot_batch() && spots.spot_partial,"crowded static BSP continues in the same fixture layer");
+ CHECK(modern_spot_end(1) && !(spots.valid_static & 1),"a partial static batch cannot certify the entire layer as opaque");
  return 0;
 }

@@ -186,9 +186,9 @@ def test_spot_sources_are_independent(soft):
         replay=Replay(context,32,32)
         gl=context.gl
         fragment=('#version 330 core\n'+shader('spot_shader','modern_spots_gl.inl')+
-            'uniform vec4 plane; out vec4 result; void main(){vec2 xy=(gl_FragCoord.xy-16.)/32.+plane.zw;'
+            'uniform vec4 plane; uniform int baked; out vec4 result; void main(){vec2 xy=(gl_FragCoord.xy-16.)/32.+plane.zw;'
             'vec3 p=vec3(xy,.5+dot(plane.xy,xy));'
-            'result=vec4(fixture_visibility(p,vec3(0,0,1)),beam_visibility(p));}')
+            'result=vec4(fixture_visibility(p,vec3(0,0,1),baked!=0),beam_visibility(p));}')
         program=replay.program(shader('receiver_vertex'),fragment)
         texture=replay.new('Textures')
         gl('ActiveTexture',None,U)(0x84c0)
@@ -199,13 +199,13 @@ def test_spot_sources_are_independent(soft):
         layers[0,:,:16]=.75
         layers[1,:,16:]=.75
         layers[4,16:,:]=.75
-        def draw(mask, plane=(0,0,0,0)):
+        def draw(mask, plane=(0,0,0,0), baked=1):
             gl('TexImage3D',None,U,I,I,I,I,I,I,U,U,P)(0x8c1a,0,0x822e,32,32,5,0,0x1903,0x1406,layers.ctypes.data)
             replay.begin()
             gl('Disable',None,U)(0x0b71)
             gl('UseProgram',None,U)(program)
             replay.uniform(program,'plane',list(plane))
-            for name,value in [('spot_mask',mask),('spot_soft',soft),('spot_maps',0)]:
+            for name,value in [('spot_mask',mask),('spot_soft',soft),('spot_maps',0),('baked',baked)]:
                 replay.uniform(program,name,value)
             for i in range(3):
                 replay.uniform(program,f'spot_frames[{i}]',np.eye(4))
@@ -222,6 +222,10 @@ def test_spot_sources_are_independent(soft):
         assert set(np.unique(both[[6,25],16,3]))=={0,1}
         layers[2:4]=.8
         assert np.allclose(draw(3)[:,:,:3],1)
+        layers[:2]=0
+        model=draw(3,baked=0)
+        assert model[16,16,0]<.85 and model[16,16,1]<.85, 'BSP alone must cast onto models under either fixture'
+        assert np.allclose(draw(3)[:,:,:3],1), 'Static BSP shadow already exists in the bake'
         layers[:]=0
         assert np.allclose(draw(3),1)
         # The receiver is itself in the depth map. Sweep across texel centres

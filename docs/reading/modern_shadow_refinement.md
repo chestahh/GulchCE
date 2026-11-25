@@ -518,9 +518,9 @@ their brightness or replace authored effects:
 - Muzzle pulses use the rendered weapon marker, or the vehicle marker for
   model-less turret weapons. Scorpion cannon/coaxial sources retain their
   existing distinct flash positions and pulses.
-- Plasma prongs, charge/vent effects, sword and vehicle headlights reuse
-  authored attachment poses. The Ghost-specific offset is zero for these
-  profiles. Prong reach and its separate toggle remain unchanged.
+- Charge and vent effects, sword and vehicle headlights use authored
+  attachment poses. The Ghost-specific offset is zero for these profiles.
+  Plasma prongs use their stock visual flares.
 - AR displays keep their screen-relative, rear/up-facing source; Needlers
   retain the needle-cluster smoke marker and broad spill. First-person and
   world poses remain separately evaluated.

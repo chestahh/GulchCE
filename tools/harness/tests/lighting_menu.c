@@ -4,7 +4,7 @@ static int values[7], writes;
 static char shadow_mode[16]="off";
 static const char *keys[] = {"display.weapon_glow", "display.fuel_rod_lighting",
 	"display.ammo_counter_lighting", "display.needler_lighting",
-	"display.jackal_shield_lighting", "display.covenant_shield_lighting", "display.plasma_prong_lighting"};
+	"display.jackal_shield_lighting", "display.covenant_shield_lighting", "display.vehicle_lighting"};
 int config_boolean(const char *name)
 {
 	int i;
@@ -48,9 +48,9 @@ static int player_link_needed_master(void) { return -1; }
 static int player_link_begin(int master) { return 0; }
 static void player_link_unlink(void) {}
 static struct pc_menu_setting group_setting={7,"lighting.weapon_glow",2,{"false","true"},NONE};
-static struct pc_menu_setting prong_setting={8,"display.plasma_prong_lighting",2,{"false","true"},NONE};
+static struct pc_menu_setting vehicle_setting={8,"display.vehicle_lighting",2,{"false","true"},NONE};
 static struct pc_menu_setting shadow_setting={9,"display.modern_shadows",3,{"off","hard","soft"},NONE};
-static struct pc_menu_setting *pc_menu_setting_get(long i) { return i==7?&group_setting:i==8?&prong_setting:i==9?&shadow_setting:NULL; }
+static struct pc_menu_setting *pc_menu_setting_get(long i) { return i==7?&group_setting:i==8?&vehicle_setting:i==9?&shadow_setting:NULL; }
 static boolean main_menu_is_active(void) { return FALSE; }
 static boolean network_game_is_active(void) { return FALSE; }
 static void main_goto_main_menu(void) { CHECK(0,"lighting must not reload the frontend"); }
@@ -96,16 +96,16 @@ int main(int argc, char **argv)
 	for(i=0;i<4;i++)CHECK(!values[i],"all weapon members default OFF");
 	CHECK(values[4]&&values[5],"weapon defaults do not alter another group");
 	spinner.definition_tag_index=8;spinner.parameters.list.number_of_items=2;
-	CHECK(setting_load(&spinner)&&spinner.parameters.list.selected_index==0,"prong toggle defaults off independently");
+	CHECK(setting_load(&spinner)&&spinner.parameters.list.selected_index==0,"vehicle toggle defaults off independently");
 	spinner.parameters.list.selected_index=1;
-	CHECK(!values[6]&&setting_load(&spinner)&&spinner.parameters.list.selected_index==0,"Cancel discards staged prongs");
+	CHECK(!values[6]&&setting_load(&spinner)&&spinner.parameters.list.selected_index==0,"Cancel discards staged vehicle lighting");
 	spinner.parameters.list.selected_index=1;
-	CHECK(setting_changed_save(&spinner,&prong_setting)&&values[6],"Save enables standalone prongs");
+	CHECK(setting_changed_save(&spinner,&vehicle_setting)&&values[6],"Save enables standalone vehicle lighting");
 	CHECK(setting_load(&spinner)&&spinner.parameters.list.selected_index==1,"reopen retains standalone selection");
-	CHECK(lighting_menu_write("lighting.weapon_glow","false")&&values[6],"Weapon Glow leaves prongs untouched");
-	CHECK(setting_default_show(&spinner,&prong_setting)&&values[6],"Defaults stages prongs without writing");
-	CHECK(setting_load(&spinner)&&spinner.parameters.list.selected_index==1,"Cancel defaults preserves prongs");
-	CHECK(setting_default_show(&spinner,&prong_setting)&&setting_save(&spinner)&&!values[6],"Save defaults disables prongs");
+	CHECK(lighting_menu_write("lighting.weapon_glow","false")&&values[6],"Weapon Glow leaves vehicle lighting untouched");
+	CHECK(setting_default_show(&spinner,&vehicle_setting)&&values[6],"Defaults stages vehicle lighting without writing");
+	CHECK(setting_load(&spinner)&&spinner.parameters.list.selected_index==1,"Cancel defaults preserves vehicle lighting");
+	CHECK(setting_default_show(&spinner,&vehicle_setting)&&setting_save(&spinner)&&!values[6],"Save defaults disables vehicle lighting");
 	spinner.definition_tag_index=9;spinner.parameters.list.number_of_items=3;
 	CHECK(setting_load(&spinner)&&spinner.parameters.list.selected_index==0,"modern shadows default off");
 	for(i=1;i<=2;i++) {

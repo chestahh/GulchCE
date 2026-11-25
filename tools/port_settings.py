@@ -431,8 +431,6 @@ SCREENS["video_settings/dynamic_lighting"] = {
          "Weapon flashes light nearby surfaces, including\nWarthog and Scorpion guns. Stock effects remain.", None),
         ("WEAPON GLOW:", "lighting.weapon_glow", ON_OFF,
          "Swords, plasma charge, fuel rods, Needler and AR\nscreens cast light on nearby surfaces.", None),
-        ("PLASMA PRONG LIGHTING:", "display.plasma_prong_lighting", ON_OFF,
-         "Short, soft spill from plasma-weapon prongs.\nUses the shared eight-light occlusion budget.", None),
         ("SHIELD EMITTERS:", "lighting.shield_emitters", ON_OFF,
          "Jackal and stationary shields cast light\non nearby surfaces.", None),
         ("VEHICLE LIGHTS:", "display.vehicle_lighting", ON_OFF,

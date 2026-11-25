@@ -11,6 +11,7 @@
 #include <string.h>
 #include "models/model_definitions.h"
 #include "objects/objects.h"
+#include "objects/object_lights.h"
 #include "objects/object_definitions.h"
 #include "objects/object_types.h"
 #include "units/units.h"
@@ -680,16 +681,13 @@ static int object_casters(real_point3d const *origin, real radius, long const ow
 		int views;
 		if ((object->object.flags & FLAG(_object_invisible_bit)) || iterator.index == excluded_caster || iterator.index == emitter ||
 			unshadowed_object(unshadowed_owner, iterator.index)) continue;
-		range = radius + object->object.bounding_sphere_radius;
-		if (distance_squared3d(origin, &object->object.bounding_sphere_center) > range * range) continue;
-		if (clipping_spot)
-		{
-			real_point3d center;
-			real extent;
-			object_get_render_bounding_sphere(iterator.index,&center,&extent);
-			render_interpolation_object_point(iterator.index,&center);
-			if (!spot_sphere_visible(&center,extent)) continue;
-		}
+        real_point3d center;
+        real extent;
+        object_get_render_bounding_sphere(iterator.index,&center,&extent);
+        render_interpolation_object_point(iterator.index,&center);
+        range = radius + MAX(extent,object->object.bounding_sphere_radius);
+        if (distance_squared3d(origin,&center) > range*range) continue;
+        if (clipping_spot && !spot_sphere_visible(&center,extent)) continue;
 		definition = object_definition_get(object->definition_index);
 		if (definition->object.model.index == NONE) continue;
 		model = model_definition_get(definition->object.model.index);
@@ -737,12 +735,14 @@ static void select_lights(void)
 	float scores[SHADOW_LIGHTS] = {0}, retained[MODERN_SHADOW_LIGHTS] = {0};
 	long index;
 	int i, order, ordered[MODERN_SHADOW_LIGHTS];
+	int authored = config_boolean("display.environment_fixtures") && game_engine_allow_dynamic_lighting();
 	for (i = 0; i < MODERN_SHADOW_LIGHTS; i++) selections[i].rasterizer = selections[i].unshadowed_owner = NONE;
 	for (index = 0; index < MIN(rasterizer_lights.light_count, SHADOW_LIGHTS); index++)
 	{
 		struct rasterizer_light_submit_parameters const *light = &rasterizer_lights.lights[index];
 		float brightness, score;
-		if (identities[index] == NONE || !plasma_lighting_selected(index)) continue;
+		if (identities[index] == NONE || (!plasma_lighting_selected(index) &&
+			!(authored && light_port_authored_dynamic(identities[index])))) continue;
 		if (!(light->radius > 0.01f && light->radius < 1000.f)) continue;
 		brightness = MAX(light->color.red, MAX(light->color.green, light->color.blue));
 		score = brightness * light->radius * light->radius / (1.f + distance_squared3d(&render.camera.position, &light->position));
@@ -1023,7 +1023,9 @@ int modern_shadows_enabled(void) { return 0; }
 int modern_shadows_hard_enabled(void) { return 0; }
 void modern_shadows_sun_project(void) {}
 void modern_spots_project(void) {}
+void modern_flashlight_mount(long wearer, struct rasterizer_light_submit_parameters *light) {}
 short modern_flashlight_include(short view, long *lights, short count, short capacity) { return count; }
+int modern_spot_is_flashlight(long index) { return 0; }
 void modern_spot_world_light(long index) {}
 int modern_shadows_sun_casters(void) { return 0; }
 void modern_shadows_environment_model(const struct rasterizer_model_begin_parameters *p, int f) {}

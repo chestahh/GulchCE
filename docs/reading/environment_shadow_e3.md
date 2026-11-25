@@ -11,16 +11,30 @@ The fixture pass can select two lights per view. It first considers nearby
 placed light fixtures and their attachment markers. A bounded search of
 planar, connected BSP triangles with positive authored radiosity also finds
 emitting surfaces such as the three-lobed wall panel. The search runs once
-per BSP. Visible receiver coverage and the presence of a potential moving
-caster determine whether a lamp draws a shadow map.
+per BSP. Visible receiver coverage and the presence of a potential model
+caster determine whether a lamp draws a shadow map. A static light attachment
+on scenery or another fixed map object can also qualify through its authored bake intensity
+and colour. A blank marker uses the object's transform.
 
-Each lamp has an independent moving-caster depth map and a static BSP
+Each lamp has an independent model-caster depth map and a static BSP
 visibility layer. The renderer reuses static depth for unchanged opaque
 geometry and redraws it for cutouts or breakable surfaces. A moving blocker
 can remove a bounded estimate of that lamp's direct share from a lightmap
 only where the lamp has a clear path through the static BSP. A retail bake
 combines direct and indirect light, so that share is approximate. The other
 lamp and later additive lights can still illuminate the receiver.
+The model depth includes scenery, devices and eligible children of all object
+classes. On a model receiver, either a BSP surface or another model can block
+the lamp. On a lightmapped BSP receiver, the static depth protects shadows
+already present in the bake. The model depth supplies additional silhouettes.
+
+A live map-authored dynamic attachment or effect light can use one of the
+eight local shadow maps when fixtures are enabled. The light datum identifies
+native sources independently of the owner class. Its live
+colour, position and radius control selection. For example, the normal and
+overload attachments on a Two Betrayals pulse generator follow the device's
+animation. Opaque and supported cutout BSP surfaces, scenery and posed models
+can block each attachment. Stock attenuation textures supply the direct light.
 
 The flashlight has its own perspective depth map. It follows the nearest
 submitted stock flashlight in each view, including the beam's live position,
@@ -28,7 +42,8 @@ direction and range. The renderer rejects BSP batches and object bounds
 outside the beam. It uses the existing world triangles, posed meshes and
 alpha-cutout materials inside it. Crowded beams flush full caster batches into
 the same depth layer. The active player beam is included before light submission
-even if cluster culling misses its third-person marker. The projector follows the submitted light’s up vector as
+even if cluster culling misses its third-person marker. The first-person projector starts at the rendered mount, clipped against walls.
+The projector follows the submitted light’s up vector as
 the player turns. BSP receivers pass their world position directly to the beam
 shader. The visibility result masks the stock beam
 on world geometry and the corresponding stock light on eligible models.
@@ -57,6 +72,27 @@ in the stock beam. The flashlight toggle changed lighting on the models and
 the geometry behind them. The shoulder-camera check also recorded the active stock
 beam on the world weapon. These captures use the Xbox map. They do not
 individually exercise every eligible object tag or a live MCC map.
+
+## Two Betrayals generator checks
+
+The Xbox generator room has a native device light. A matched floor capture
+with the light selected shows shadows from the generator supports, the player
+and a separately placed biped. Moving the player away exposes the floor again.
+A separate Hard and Soft GPU check places a solid BSP blocker between a baked
+fixture and a model receiver. The model loses that lamp's direct contribution
+while the lightmapped receiver keeps the static shading already in its bake.
+
+A first-person Xbox test used the release executable with a Grunt staged
+on the snowy exterior platform. With the simulation frozen and the stock
+beam still lit, disabling and restoring shadow drawing twice removed and
+restored the silhouette behind the corpse. This was checked from two
+viewpoints, one in Hard 1024 and one in Soft 1024.
+
+An attachment survey covered 23 Xbox, 19 Custom Edition and one MCC map.
+It found both static scenery with authored bake intensity and weapon flares
+with bake intensity. Only fixed environmental objects use that metadata for
+fixture discovery. The survey establishes which source types occur in those
+maps. Individual shadows were inspected in the Xbox generator room and Rat Race.
 
 ## Measurements
 

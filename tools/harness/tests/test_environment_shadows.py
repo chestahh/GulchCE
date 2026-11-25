@@ -75,7 +75,7 @@ def test_environmental_model_gpu_resource_lifecycle():
         'modern_environment_model_end', 'sun_draw_batch', 'modern_environment_sun_static',
         'modern_environment_sun_finish', 'modern_environment_sun_model'))
     spots = read('port/linux/src/modern_spots_gl.inl')
-    code += function(spots, 'flush_beam_batch') + function(spots, 'modern_spot_end')
+    code += function(spots, 'flush_spot_batch') + function(spots, 'modern_spot_end')
     status, output = run(build('environment_model_maps', (('under_test.inc', code),)), 'all')
     assert status == 0, output
 

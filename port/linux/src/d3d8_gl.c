@@ -4961,8 +4961,8 @@ static struct program_entry *draw_program_get(struct vertex_shader_object *progr
 	key->modern_shadow = 0;
 #ifndef HALO_GLES
 	key->modern_shadow = (unsigned char)modern_shadows_world_stage();
-	if (plasma_model && modern_shadows_model_mask()) key->modern_shadow = 3;
-	if (modern_environment_model_active() && (program->plasma_model || program->lighting.lights == 2)) key->modern_shadow = 3;
+	if ((program->plasma_model || program->lighting.lights == 2) &&
+		(modern_shadows_model_mask() || modern_environment_model_active())) key->modern_shadow = 3;
 	/* A driver can reject one combined material. Retry its established
 	   shadow variant without disabling the local lights or the sun. */
 	unsigned char fallback_shadow = key->modern_shadow == 4 ? 0 : key->modern_shadow;

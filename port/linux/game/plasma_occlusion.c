@@ -450,7 +450,6 @@ static __attribute__((noinline)) struct occlusion_field *update_field(struct occ
 	real projected[OCC_COUNT];
 	struct sample_axis history_axes[3][OCC_SIZE];
 	real trace_dx, trace_dy, trace_dz;
-	real axis[3], origin[3], radius;
 	fields_dirty = 1;
 	field->used = now;
 	light = &rasterizer_lights.lights[rasterizer_index];
@@ -470,10 +469,7 @@ static __attribute__((noinline)) struct occlusion_field *update_field(struct occ
 	vehicles = muzzle_lighting_vehicle_occlusion(field->identity) || plasma_lighting_vehicle_occlusion(field->identity, &ignore) ||
 		covenant_emitter_lighting_vehicle_occlusion(field->identity);
 	scene_revision = plasma_collision_scene_revision(&field->scene, &light->position, extent, vehicles);
-	/* Only the deliberately short, soft prong glow uses a smaller ray grid.
-	   Keep the established shield/projectile/vehicle grids and 16^3 filtered
-	   output unchanged. A prong's 0.6-unit extent needs 96 rays, not 1536. */
-	resolution = plasma_lighting_prong_cone(rasterizer_index, axis, origin, &radius) ? 4 : OCC_SIZE;
+	resolution = OCC_SIZE;
 	/* Cache collision depths briefly, but project and fade at every rendered pose.
 	   Exact stationary poses can retain depths while all collision inputs are
 	   unchanged. Geometry changes follow the existing 12 ms trace cadence;
@@ -643,8 +639,7 @@ static void texture_row(unsigned long *pixels, real const *a, real const *b, rea
 			length = _mm_sqrt_ps(_mm_add_ps(_mm_add_ps(xx, yy), zz));
 			dot = _mm_add_ps(_mm_add_ps(_mm_mul_ps(_mm_set1_ps(axis[0]), dx),
 				_mm_set1_ps(axis[1] * dy)), _mm_set1_ps(axis[2] * dz));
-			t = directional == 3 ? _mm_div_ps(_mm_add_ps(_mm_div_ps(dot, length), _mm_set1_ps(0.2f)), _mm_set1_ps(0.7f)) :
-				_mm_div_ps(dot, _mm_mul_ps(length, _mm_set1_ps(0.6f)));
+			t = _mm_div_ps(dot, _mm_mul_ps(length, _mm_set1_ps(0.6f)));
 			t = _mm_min_ps(_mm_max_ps(t, zero), one);
 			value = _mm_mul_ps(value, _mm_mul_ps(_mm_mul_ps(t, t), _mm_sub_ps(three, _mm_mul_ps(two, t))));
 		}
@@ -667,7 +662,7 @@ static void texture_row(unsigned long *pixels, real const *a, real const *b, rea
 		real remaining = MAX(0.0f, 1 - dx * dx - dy * dy - dz * dz);
 		value = 1 - admission + admission * value;
 		if (directional)
-			value *= directional == 3 ? plasma_prong_falloff_factor(axis, dx, dy, dz) : directional == 2 ?
+			value *= directional == 2 ?
 				needler_falloff_factor(dz * height_scale) : ammo_counter_falloff_factor(axis, dx, dy, dz);
 		if (radial) value *= remaining * remaining;
 		pixels[x] = (unsigned long)(255 * value + 0.5f) * 0x01010101UL;
@@ -738,7 +733,7 @@ static __attribute__((noinline)) void *prepare_field_texture(struct occlusion_fi
 								0.5f + dy * scale * 0.5f, 0.5f + dz * scale * 0.5f);
 					value = 1 - field->admission + field->admission * value;
 					if (directional)
-						value *= directional == 3 ? plasma_prong_falloff_factor(axis, dx, dy, dz) : directional == 2 ? needler_falloff_factor(dz *
+						value *= directional == 2 ? needler_falloff_factor(dz *
 							(pass == 0 ? field->extent / field->radius : pass == 2 ? field->specular : 1.0f)) :
 							ammo_counter_falloff_factor(axis, dx, dy, dz);
 					if (pass)
@@ -765,7 +760,6 @@ static void *field_texture(struct occlusion_field *field, int pass, long rasteri
 {
 	real axis[3], origin[3], radius;
 	int directional = covenant_emitter_lighting_cone(rasterizer, axis, origin, &radius);
-	if (!directional) directional = plasma_lighting_prong_cone(rasterizer, axis, origin, &radius);
 	if (!field)
 		return NULL;
 	/* Directional profiles can rotate without changing collision visibility.

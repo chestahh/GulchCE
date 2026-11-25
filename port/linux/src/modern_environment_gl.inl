@@ -46,7 +46,7 @@ enum { FIXTURE_LIMIT = 2, FLASH_SLOT = 2, SPOT_SOURCES = 3, SPOT_LAYERS = 5 };
 static struct
 {
     GLuint depth, fbo, receiver;
-    int size, layers, layer, rendering, beam_partial, valid_static, checked_layers, mask, soft;
+    int size, layers, layer, rendering, spot_partial, valid_static, checked_layers, mask, soft;
     float origins[SPOT_SOURCES][4], frames[SPOT_SOURCES][16], colors[SPOT_SOURCES][4], static_frames[FIXTURE_LIMIT][16];
     float camera[16], projection[16];
 } spots;
@@ -473,7 +473,7 @@ static int environment_draw_depth(GLuint target)
         glPolygonMode(GL_FRONT_AND_BACK,GL_FILL);
         glEnable(GL_DEPTH_TEST); glDepthFunc(GL_GREATER); glDepthMask(GL_TRUE);
         glDepthRange(0,1); glClearDepth(0); glColorMask(GL_FALSE,GL_FALSE,GL_FALSE,GL_FALSE);
-        if (!sun.partial && !sun.drawing_detail && !spots.beam_partial) glClear(GL_DEPTH_BUFFER_BIT);
+        if (!sun.partial && !sun.drawing_detail && !spots.spot_partial) glClear(GL_DEPTH_BUFFER_BIT);
         if (sun.writing)
         {
             glColorMask(GL_TRUE,GL_FALSE,GL_FALSE,GL_FALSE);

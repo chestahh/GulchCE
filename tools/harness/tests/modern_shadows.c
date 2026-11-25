@@ -72,7 +72,11 @@ static long exempt_light=NONE, exempt_owner=NONE;
 static long stuck_light=NONE, impact_parent=0x10007;
 static long plasma_lighting_shadow_owner(long light, struct plasma_shadow_source *grenade) { grenade->stuck_host=light==stuck_light ? impact_parent : NONE; grenade->casing=light==stuck_light ? 27 : NONE; grenade->emitter_object=NONE; grenade->grounded=0; return light==exempt_light ? exempt_owner : NONE; }
 static int spot_mask, extra_flashlight;
-static int config_boolean(const char *s) { CHECK(!strcmp(s,"display.flashlight_extra_slot"),"flashlight budget option"); return extra_flashlight; }
+static int fixtures, device_policy = TRUE;
+static long device_index = NONE;
+static int light_port_authored_dynamic(long handle) { return handle == device_index; }
+static int game_engine_allow_dynamic_lighting(void) { return device_policy; }
+static int config_boolean(const char *s) { if (!strcmp(s,"display.environment_fixtures")) return fixtures; CHECK(!strcmp(s,"display.flashlight_extra_slot"),"flashlight budget option"); return extra_flashlight; }
 static int modern_spot_mask(void) { return spot_mask; }
 static unsigned short mesh_index[1];
 #include "under_test.inc"
@@ -192,6 +196,14 @@ int main(int argc,char **argv)
   allowed=0; modern_shadows_prepare(1);
   CHECK(!active, "disabled or policy-rejected categories cannot keep a map");
  }
+ device_index=100; fixtures=1; modern_shadows_prepare(1);
+ CHECK(modern_shadows_selected(0),"a device attachment can shadow with no weapon lighting category");
+ CHECK(skipped_world[map_for(0)]==NONE,"a device light includes ordinary world casters");
+ modern_shadows_model_slot(0,0);modern_shadows_receiver(0,0x10003);
+ CHECK(modern_shadows_model_mask()==1,"a native device light shadows ordinary model receivers");
+ device_policy=0;modern_shadows_prepare(1);CHECK(!active,"host policy excludes device shadows");
+ device_policy=1;fixtures=0;modern_shadows_prepare(1);CHECK(!active,"disabled fixtures release device shadows");
+ device_index=NONE;
  allowed=3;stuck_light=100;
  for(i=0;i<2;i++) {
   mode=i ? "soft" : "hard"; modern_shadows_map_loaded(1); modern_shadows_prepare(1);

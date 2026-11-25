@@ -15,6 +15,8 @@ typedef struct { real red, green, blue; } real_rgb_color;
 static struct { long light_count; struct { real_rgb_color color; } lights[2]; } rasterizer_lights;
 static unsigned long real_rgb_color_to_pixel32(real_rgb_color const *c)
 { return ((unsigned long)(c->red*255) << 16) | ((unsigned long)(c->green*255) << 8) | (unsigned long)(c->blue*255); }
+static int native_shadow;
+static int modern_shadows_selected(long index) { return native_shadow; }
 static int plasma_lighting_selected(long index) { return selected; }
 static int D3DDevice_CreateVolumeTexture(int w,int h,int d,int levels,int usage,int format,int pool,IDirect3DVolumeTexture8 **out)
 { creates++; if (fail_create) return -1; *out = &texture; return 0; }
@@ -77,6 +79,15 @@ int main(int argc, char **argv)
 		plasma_falloff_dispose();
 		CHECK(restored_stage==2 && filter==D3DTEXF_POINT && releases==1,"cleanup restores latest stage");
 	}
+	else if (!strcmp(argv[1], "native"))
+    {
+        native_shadow=1; plasma_falloff_begin(0);
+        CHECK(shadow_stage==2 && !binds && !creates,"native diffuse retains its stock texture");
+        plasma_falloff_end(); CHECK(!shadow_stage && !restores,"native diffuse ends cleanly");
+        plasma_falloff_specular_begin(0);
+        CHECK(shadow_stage==1 && !binds && !creates,"native specular retains its stock texture");
+        plasma_falloff_end(); CHECK(!shadow_stage && !restores,"native specular ends cleanly");
+    }
 	else if (!strcmp(argv[1], "tint"))
 	{
 		rasterizer_lights.light_count=1;

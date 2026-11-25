@@ -7,14 +7,14 @@ int config_boolean(const char *name)
 #include "under_test.inc"
 int main(int argc,char **argv)
 {
- unsigned int i;int before;
+ unsigned int i, count = sizeof(preferences) / sizeof(preferences[0]);int before;
  CHECK(!lighting_config_boolean("display.plasma_lighting"),"initial zero generation loads off defaults");
  before=reads;
- for(i=0;i<10000;i++) CHECK(!lighting_config_boolean(preferences[i%12].name),"cached value remains off");
+ for(i=0;i<10000;i++) CHECK(!lighting_config_boolean(preferences[i%count].name),"cached value remains off");
  CHECK(reads==before,"ordinary reads do not reenter general configuration");
  enabled=1;generation++;
- for(i=0;i<12;i++) CHECK(lighting_config_boolean(preferences[i].name),"apply refreshes every related preference");
- CHECK(reads==before+12,"one refresh for a settings generation");
+ for(i=0;i<count;i++) CHECK(lighting_config_boolean(preferences[i].name),"apply refreshes every related preference");
+ CHECK(reads==before+(int)count,"one refresh for a settings generation");
  enabled=0;generation++;
  CHECK(!lighting_config_boolean("display.vehicle_lighting"),"defaults/disable is visible immediately");
  before=reads;CHECK(!lighting_config_boolean("unrelated.setting")&&reads==before+1,"unknown names retain ordinary lookup behavior");
