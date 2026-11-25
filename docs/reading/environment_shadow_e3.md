@@ -47,6 +47,11 @@ The projector follows the submitted light’s up vector as
 the player turns. BSP receivers pass their world position directly to the beam
 shader. The visibility result masks the stock beam
 on world geometry and the corresponding stock light on eligible models.
+The flashlight uses the visible object's mesh detail and region permutations
+when drawing depth. A different detail mesh can sit above the visible armour
+and cast a false patch onto it. Follow `render_object_model_detail` in
+[render_objects.c](../../source/render/render_objects.c) and `model_caster` in
+[modern_shadows.c](../../port/linux/game/modern_shadows.c).
 The beam omits its wearer and their equipped weapon from its caster map,
 whether the light is attached to the biped or the weapon. Other bipeds can cross and interrupt the beam,
 and other lights can still cast the wearer's silhouette.

@@ -601,12 +601,14 @@ static int world_casters(struct structure_bsp const *bsp, real_point3d const *or
 
 /* Both model sources share conversion, skinning and material evaluation. */
 static int model_caster(struct model const *model, real_matrix4x3 const *nodes,
-	byte const *permutations, short forced_permutation, real const *values, int views)
+	byte const *permutations, short forced_permutation, real const *values, int views, long flashlight_object)
 {
+	short level = 4, rules = _model_detail_rules_outside;
 	float matrices[64 * 16];
 	int node, region;
 	if (model->nodes.count < 1) return 1;
 	if (model->nodes.count > 64 || !nodes) return 0;
+	if (flashlight_object != NONE) render_object_model_detail(flashlight_object, model, &level, &rules);
 	for (node = 0; node < model->nodes.count; node++)
 	{
 		struct model_node const *n = TAG_BLOCK_GET_ELEMENT(&model->nodes, node, struct model_node);
@@ -623,7 +625,7 @@ static int model_caster(struct model const *model, real_matrix4x3 const *nodes,
 		if (index == NONE) continue;
 		if (!VALID_INDEX(index, r->permutations.count)) return 0;
 		permutation = TAG_BLOCK_GET_ELEMENT(&r->permutations, index, struct model_region_permutation);
-		geometry_index = model_detail_geometry_index(model, permutation, 4, _model_detail_rules_outside);
+		geometry_index = model_detail_geometry_index(model, permutation, level, rules);
 		if (geometry_index == NONE) continue;
 		if (!VALID_INDEX(geometry_index, model->geometries.count)) return 0;
 		geometry = TAG_BLOCK_GET_ELEMENT(&model->geometries, geometry_index, struct shadow_geometry);
@@ -662,7 +664,7 @@ static int viewmodel_casters(long owners[2], long excluded_caster, long unshadow
 		owners[hands] = owner;
 		if (!result || owner == excluded_caster || unshadowed_object(unshadowed_owner, owner)) continue;
 		object_function_values_for_render(owner, values);
-		if (!model_caster(model_definition_get(model_index), nodes, NULL, 0, values, MODERN_SHADOW_VIEW)) return 0;
+		if (!model_caster(model_definition_get(model_index), nodes, NULL, 0, values, MODERN_SHADOW_VIEW, NONE)) return 0;
 	}
 	return 1;
 }
@@ -697,7 +699,7 @@ static int object_casters(real_point3d const *origin, real radius, long const ow
 		views = iterator.index == owners[0] || iterator.index == owners[1] ? MODERN_SHADOW_WORLD : MODERN_SHADOW_BOTH;
 		object_function_values_for_render(iterator.index, values);
 		if (!model_caster(model, object_get_node_matrices(iterator.index), object->object.region_permutations,
-			object->object.forced_shader_permutation_index, values, views)) return 0;
+			object->object.forced_shader_permutation_index, values, views, clipping_spot ? iterator.index : NONE)) return 0;
 	}
 	return 1;
 }
@@ -813,7 +815,7 @@ static int environmental_casters(long object_index, int *remaining)
         if (model->nodes.count < 0 || model->nodes.count > (int)(object->object.node_matrices.size / sizeof(real_matrix4x3))) return 0;
         object_function_values_for_render(object_index, values);
         if (!model_caster(model, object_get_node_matrices(object_index),
-            object->object.region_permutations, object->object.forced_shader_permutation_index, values, MODERN_SHADOW_WORLD)) return 0;
+            object->object.region_permutations, object->object.forced_shader_permutation_index, values, MODERN_SHADOW_WORLD, NONE)) return 0;
     }
     child = object->object.first_child_object_index;
     while (child != NONE)

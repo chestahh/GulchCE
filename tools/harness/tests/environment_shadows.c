@@ -26,7 +26,7 @@ static struct model *model_definition_get(int i) { return &models[i]; }
 static real_matrix4x3 *object_get_node_matrices(long i) { return &poses[i]; }
 static void object_function_values_for_render(long i,float *v) { v[0]=(float)i; }
 static void matrix_to_gl(const real_matrix4x3 *m,float *out) { memcpy(out,m->v,64); }
-static int model_caster(const struct model *model,const real_matrix4x3 *pose,const unsigned char *regions,short permutation,const float *values,int views) {
+static int model_caster(const struct model *model,const real_matrix4x3 *pose,const unsigned char *regions,short permutation,const float *values,int views, long flashlight_object) {
  int i=(int)(model-models);
  CHECK(pose==poses+i && regions==objects[i].object.region_permutations && values[0]==i,"correct rendered owner pose and material");
  CHECK(views==MODERN_SHADOW_WORLD,"environmental caster uses world pose");

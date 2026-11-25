@@ -1026,8 +1026,6 @@ void render_model(
 			MAXIMUM_REGIONS_PER_MODEL;
 		/* port: no more nodes than relative_node_matrices holds (a map's count) */
 		short node_count = (short)MIN(model->nodes.count, MAXIMUM_NODES_PER_MODEL);
-		/* port: the size the level of detail is chosen by (display.model_detail) */
-		real detail_level_pixels = level_of_detail_pixels*halo_model_detail_scale(TRUE);
 		/* port: how the permutations take that level (display.model_detail) */
 		short detail_rules;
 
@@ -1072,16 +1070,8 @@ void render_model(
 			}
 		}
 
-		geometry_detail_level_index = NUMBER_OF_DETAIL_LEVELS_PER_MODEL-1;
-		while (geometry_detail_level_index>0 &&
-			detail_level_pixels<model->detail_cutoff_pixels[geometry_detail_level_index])
-		{
-			geometry_detail_level_index--;
-		}
-		if (rasterizer_debug_options.debug_model_lod!=NONE)
-		{
-			geometry_detail_level_index = PIN(rasterizer_debug_options.debug_model_lod, 0, NUMBER_OF_DETAIL_LEVELS_PER_MODEL-1);
-		}
+		/* port: share the mesh selection with the projected flashlight. */
+		geometry_detail_level_index = model_detail_level(model, level_of_detail_pixels);
 		match_assert(
 			"c:\\halo\\SOURCE\\models\\models.c",
 			169,

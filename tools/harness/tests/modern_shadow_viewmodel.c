@@ -37,7 +37,7 @@ enum { NUMBER_OF_OUTGOING_OBJECT_FUNCTIONS = 1, MODERN_SHADOW_VIEW = 2 };
 static int hand_draws, weapon_draws;
 static void object_function_values_for_render(long owner, real *values) { values[0] = (real)owner; }
 static int model_caster(struct model const *m, real_matrix4x3 const *nodes, const void *regions,
- int permutation, real const *values, int views) {
+ int permutation, real const *values, int views, long flashlight_object) {
  if (values[0] == first.unit_index) hand_draws++; else if (values[0] == first.weapon_index) weapon_draws++;
  return 1;
 }
