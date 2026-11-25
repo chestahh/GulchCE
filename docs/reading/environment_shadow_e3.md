@@ -26,7 +26,11 @@ The flashlight has its own perspective depth map. It follows the nearest
 submitted stock flashlight in each view, including the beam's live position,
 direction and range. The renderer rejects BSP batches and object bounds
 outside the beam. It uses the existing world triangles, posed meshes and
-alpha-cutout materials inside it. The visibility result masks the stock beam
+alpha-cutout materials inside it. Crowded beams flush full caster batches into
+the same depth layer. The active player beam is included before light submission
+even if cluster culling misses its third-person marker. The projector follows the submitted light’s up vector as
+the player turns. BSP receivers pass their world position directly to the beam
+shader. The visibility result masks the stock beam
 on world geometry and the corresponding stock light on eligible models.
 The beam omits its wearer and their equipped weapon from its caster map,
 whether the light is attached to the biped or the weapon. Other bipeds can cross and interrupt the beam,

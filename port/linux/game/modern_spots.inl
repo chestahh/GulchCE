@@ -7,7 +7,7 @@
 struct spot_source
 {
     real_point3d origin;
-    real_vector3d axis;
+    real_vector3d axis, up;
     float range, angle, color[4], distance;
     int placed, priority;
 };
@@ -21,12 +21,47 @@ struct spot_definition
 };
 typedef char spot_color_offset[offsetof(struct spot_definition,low)==0x38 ? 1 : -1];
 
+/* The camera beam is positioned after cluster visibility collects light markers.
+   Include its live attachment even when its third-person marker was culled. */
+short modern_flashlight_include(short view, long *lights, short count, short capacity)
+{
+    if (!setting() || view == NONE || !config_boolean("display.flashlight_shadows") || capacity <= 0)
+        return count;
+    long wearer = player_control_get_unit_index(view);
+    struct unit_datum *unit = wearer == NONE ? NULL : unit_get(wearer);
+    if (!unit || unit->unit.integrated_light_power <= 0.f) return count;
+    const struct tag_block *attachments = &object_definition_get(unit->definition_index)->object.attachments;
+    for (int i = 0; i < MIN(attachments->count, MAXIMUM_NUMBER_OF_ATTACHMENTS_PER_OBJECT); i++)
+    {
+        if (unit->object.attachment_types[i] != _object_attachment_type_light) continue;
+        long handle = unit->object.attachment_indices[i];
+        if (handle == NONE || light_port_emitter_object(handle) != wearer) continue;
+        const struct object_attachment_definition *a = TAG_BLOCK_GET_ELEMENT(attachments,i,struct object_attachment_definition);
+        if (a->type.index == NONE || a->type.group_tag != LIGHT_DEFINITION_TAG) continue;
+        const struct spot_definition *d = tag_get(LIGHT_DEFINITION_TAG,a->type.index);
+        if (!(d->flags & FLAG(4))) continue;
+        int pos = 0;
+        while (pos < count && lights[pos] != handle) pos++;
+        if (pos == count && count < capacity) count++;
+        if (pos == capacity) pos--;
+        memmove(lights+1, lights, pos*sizeof(*lights));
+        lights[0] = handle;
+        break;
+    }
+    return count;
+}
+
 static void spot_frame(const struct spot_source *s,float frame[16])
 {
     real_vector3d x,y;
     float near=.005f, far=s->range, scale=1.f/tanf(s->angle);
-    perpendicular3d(&s->axis,&x);
-    normalize3d(&x);
+    /* The submitted flashlight supplies a continuous roll reference. */
+    cross_product3d(&s->axis,&s->up,&x);
+    if (normalize3d(&x)==0.f)
+    {
+        perpendicular3d(&s->axis,&x);
+        normalize3d(&x);
+    }
     cross_product3d(&s->axis,&x,&y);
     memset(frame+12,0,4*sizeof(float));
     frame[14]=near*far/(far-near);
@@ -212,7 +247,7 @@ static void prepare_spots(int mode)
         const struct rasterizer_light_submit_parameters *light=&rasterizer_lights.lights[best];
         const struct spot_definition *d=(const void *)light->definition;
         struct spot_source s={0};
-        s.origin=light->position; s.axis=light->forward; s.range=light->radius*MAX(1.f,d->specular_scale);
+        s.origin=light->position; s.axis=light->forward; s.up=light->up; s.range=light->radius*MAX(1.f,d->specular_scale);
         s.angle=PIN(d->cutoff,.02f,1.55f); s.color[3]=s.range;
         if (normalize3d(&s.axis)>0.f)
         {
@@ -233,7 +268,7 @@ static void prepare_spots(int mode)
             }
         }
     }
-    if (modern_spot_mask())
+    if (modern_spot_mask() & 3)
     {
         float camera[16];
         matrix_to_gl(&global_window_parameters.frustum.view_to_world,camera);

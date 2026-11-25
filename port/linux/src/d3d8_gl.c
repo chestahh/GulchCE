@@ -9324,9 +9324,6 @@ void WINAPI D3DDevice_Present(CONST RECT *source_rectangle, CONST RECT *destinat
 		}
 		glBindVertexArray(device.vertex_array);
 		glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
-#ifndef HALO_GLES
-		modern_adaptive_present();
-#endif
 		platform_video_swap();
 #ifndef HALO_GLES
 		frame_pacing_wait();

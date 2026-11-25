@@ -9,7 +9,7 @@ void plasma_lighting_attachment_position(long light_index, long object_index,
 	union real_point3d *position, union real_vector3d const *forward, float scale);
 float plasma_lighting_radius(long light_index, long object_index, float radius);
 int light_port_attachment_radius(long light_index, long object_index, float *radius, int restore);
-int plasma_lighting_vehicle_occlusion(long light_index);
+int plasma_lighting_vehicle_occlusion(long light_index, long *ignore);
 struct plasma_shadow_source
 {
 	long casing;

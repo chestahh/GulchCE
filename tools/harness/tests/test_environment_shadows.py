@@ -37,6 +37,8 @@ def test_gles_environmental_hooks_cannot_activate(tmp_path):
 int main(void) {
     float v[16] = {0};
     modern_shadows_prepare(1);
+    long lights[2] = {13, 21};
+    if (modern_flashlight_include(0, lights, 2, 2) != 2 || lights[0] != 13 || lights[1] != 21) return 8;
     modern_spots_project(); modern_spot_world_light(0);
     if (modern_shadows_world_stage() || modern_spot_mask()) return 4;
     modern_shadows_environment_receivers(1);
@@ -72,6 +74,8 @@ def test_environmental_model_gpu_resource_lifecycle():
         'modern_environment_model_reuse', 'environment_model_resources', 'modern_environment_model_begin',
         'modern_environment_model_end', 'sun_draw_batch', 'modern_environment_sun_static',
         'modern_environment_sun_finish', 'modern_environment_sun_model'))
+    spots = read('port/linux/src/modern_spots_gl.inl')
+    code += function(spots, 'flush_beam_batch') + function(spots, 'modern_spot_end')
     status, output = run(build('environment_model_maps', (('under_test.inc', code),)), 'all')
     assert status == 0, output
 

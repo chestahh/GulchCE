@@ -157,7 +157,7 @@ static void rasterizer_xbox_bitmap_swizzle3d_long(void *d, void *s, int w, int h
 	memcpy(d, s, 4096 * sizeof(long));
 }
 void plasma_occlusion_window(void);
-int plasma_lighting_vehicle_occlusion(long i) { return vehicle_on && i == 500; }
+int plasma_lighting_vehicle_occlusion(long i, long *ignore) { return vehicle_on && i == 500; }
 int authored_emitter_lighting_enabled(void) { return vehicle_on; }
 int covenant_emitter_lighting_vehicle_occlusion(long light) { return vehicle_on && light == 502; }
 #include "under_test.inc"

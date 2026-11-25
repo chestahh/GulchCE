@@ -441,6 +441,7 @@ static int upload(IDirect3DVolumeTexture8 **texture, unsigned long const *pixels
 static __attribute__((noinline)) struct occlusion_field *update_field(struct occlusion_field *field, long rasterizer_index, unsigned long now)
 {
 	struct rasterizer_light_submit_parameters *light;
+	long ignore = NONE;
 	int i, x, y, z, stationary, vehicles, resolution, retraced = FALSE;
 	unsigned long scene_revision;
 	long owner = modern_shadows_collision_owner(rasterizer_index);
@@ -466,7 +467,7 @@ static __attribute__((noinline)) struct occlusion_field *update_field(struct occ
 	trace_dx = light->position.x - field->trace_center[0];
 	trace_dy = light->position.y - field->trace_center[1];
 	trace_dz = light->position.z - field->trace_center[2];
-	vehicles = muzzle_lighting_vehicle_occlusion(field->identity) || plasma_lighting_vehicle_occlusion(field->identity) ||
+	vehicles = muzzle_lighting_vehicle_occlusion(field->identity) || plasma_lighting_vehicle_occlusion(field->identity, &ignore) ||
 		covenant_emitter_lighting_vehicle_occlusion(field->identity);
 	scene_revision = plasma_collision_scene_revision(&field->scene, &light->position, extent, vehicles);
 	/* Only the deliberately short, soft prong glow uses a smaller ray grid.
@@ -482,7 +483,8 @@ static __attribute__((noinline)) struct occlusion_field *update_field(struct occ
 		 trace_dx != 0 || trace_dy != 0 || trace_dz != 0)) || field->trace_extent != extent ||
 		trace_dx * trace_dx + trace_dy * trace_dy + trace_dz * trace_dz > extent * extent * 0.015625f)
 	{
-		trace_depths(extent, &light->position, covenant_emitter_lighting_occlusion_ignore(field->identity),
+		if (ignore == NONE) ignore = covenant_emitter_lighting_occlusion_ignore(field->identity);
+		trace_depths(extent, &light->position, ignore,
 			vehicles, resolution, owner, field->depths);
 		retraced = TRUE;
 		field->scene_revision = scene_revision;
@@ -821,7 +823,7 @@ unsigned long plasma_occlusion_view_serial(void)
 void plasma_occlusion_submit(long light, long rasterizer_index)
 {
 	if ((((lighting_config_boolean("display.plasma_lighting") || authored_emitter_lighting_enabled()) && lighting_config_boolean("display.plasma_occlusion")) ||
-		plasma_lighting_vehicle_occlusion(light) || covenant_emitter_lighting_vehicle_occlusion(light) ||
+		plasma_lighting_vehicle_occlusion(light, NULL) || covenant_emitter_lighting_vehicle_occlusion(light) ||
 		muzzle_lighting_selected(rasterizer_index) ||
 		((covenant_emitter_lighting_selected(rasterizer_index) || shield_glow_selected(rasterizer_index)) && lighting_config_boolean("display.plasma_occlusion"))) &&
 		submitted_count < OCC_SUBMITTED)

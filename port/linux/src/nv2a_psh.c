@@ -749,6 +749,7 @@ char *nv2a_pixel_shader_to_glsl(const struct nv2a_pixel_shader_key *key)
 #ifndef HALO_GLES
 	if (key->modern_shadow && key->modern_shadow != 4) modern_shadow_emit(&text);
 	if (key->modern_shadow == 4 || key->modern_shadow == 5) modern_spot_emit(&text);
+	if (key->modern_shadow == 4) xgpu_text_append(&text,"in vec3 beamWorldPosition;\n");
 #endif
 	if (key->per_pixel_lighting)
 		model_lighting(&text, key->per_pixel_lighting == 2, key->plasma_model, (key->modern_shadow == 3 || key->modern_shadow == 5) ? key->modern_shadow : 0);
@@ -844,7 +845,7 @@ char *nv2a_pixel_shader_to_glsl(const struct nv2a_pixel_shader_key *key)
 		xgpu_text_append(&text, ";\n\tvec4 result = vec4(fA * fB + (1.0 - fA) * fC + fD, fG);\n");
 	}
 
-	if (key->modern_shadow == 4) xgpu_text_append(&text,"\tresult.rgb *= beam_visibility(spot_world(gl_FragCoord.z));\n");
+	if (key->modern_shadow == 4) xgpu_text_append(&text,"\tresult.rgb *= beam_visibility(beamWorldPosition);\n");
 	if (key->shield_honeycomb)
 		xgpu_text_append(&text, "\tresult = shield_honeycomb_surface(result);\n");
 	if (key->coverage_alpha)

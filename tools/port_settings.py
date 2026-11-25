@@ -402,7 +402,7 @@ _video["categories"] = [
      "Visual modifiers the stock game does not\nhave, such as HDR and overshields."),
 ]
 SCREENS["video_settings/shadows"] = {
-    "screen": "shadow_settings_screen", "header": _video["header"], "title": "SHADOWS", "spacing": 24,
+    "screen": "shadow_settings_screen", "header": _video["header"], "title": "SHADOWS", "spacing": 30,
     "rows": [
         ("SHADOW MODE:", "display.modern_shadows",
          [("CLASSIC", "off"), ("MODERN HARD", "hard"), ("MODERN SOFT", "soft")],
@@ -419,13 +419,6 @@ SCREENS["video_settings/shadows"] = {
         ("FLASHLIGHT BUDGET:", "display.flashlight_extra_slot",
          [("SHARED", "false"), ("EXTRA SLOT", "true")],
          "Shared uses one of eight slots while lit.\nExtra allows eight other shadowed lights.", "desktop"),
-        ("ADAPTIVE RESOLUTION:", "display.adaptive_shadow_resolution", ON_OFF,
-         "Adjust Modern shadow size up to your selected\nresolution to meet the frame budget.", "desktop"),
-        ("FRAME BUDGET:", "display.shadow_frame_budget",
-         [(f"{fps} FPS", str(fps)) for fps in (30, 60, 120, 144, 165, 180, 240)],
-         "Target for both adaptive shadow options.\nYour frame rate limit is set separately.", "desktop"),
-        ("ADAPTIVE SHADOW BUDGET:", "display.adaptive_shadow_budget", ON_OFF,
-         "Reduce local shadow slots under pressure.\nRestore slots first when time is available.", "desktop"),
     ],
 }
 SCREENS["video_settings/dynamic_lighting"] = {

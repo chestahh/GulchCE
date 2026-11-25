@@ -3,10 +3,6 @@
 #ifndef MODERN_SHADOWS_H
 #define MODERN_SHADOWS_H
 
-#ifndef HALO_GLES
-int modern_adaptive_begin(void);
-void modern_adaptive_present(void);
-#endif
 void modern_shadows_map_loaded(int gameplay);
 int modern_shadows_prepare_loaded_map(void);
 void modern_shadows_prepare(int primary);
@@ -15,6 +11,7 @@ int modern_shadows_hard_enabled(void);
 void modern_shadows_environment_receivers(int primary);
 void modern_shadows_sun_project(void);
 void modern_spots_project(void);
+short modern_flashlight_include(short view, long *lights, short count, short capacity);
 void modern_spot_world_light(long index);
 int modern_spot_model_active(void);
 int modern_spot_flash_slot(int slot);

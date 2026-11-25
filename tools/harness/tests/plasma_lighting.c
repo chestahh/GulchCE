@@ -117,6 +117,7 @@ void shield_glow_frame_end(void) {}
 void shield_glow_window_begin(void) {}
 void shield_glow_submitted(long l,long r) {}
 float shield_glow_radius(long l,float r) { return r; }
+void authored_emitter_wing_position(long light, long object, real_point3d *position) {}
 int authored_emitter_lighting_enabled(void) { return authored_on && enabled; }
 int authored_emitter_lighting_profile(long o,long d,float *s,float *offset,int *owner_unshadowed) { *owner_unshadowed=0; if(!authored_on) return 0; if(authored_on==3) return AUTHORED_EMITTER_PLASMA_GRENADE; *s=2.2f; *offset=.02f; *owner_unshadowed=1; return 2; }
 long covenant_emitter_lighting_shadow_owner(long light, long *emitter_object) { *emitter_object = NONE; return NONE; }

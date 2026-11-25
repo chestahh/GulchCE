@@ -20,8 +20,6 @@ def main():
     parser.add_argument('--inspect-modern', action='store_true', help='Capture the modern frontend scrolled to the shadow row')
     parser.add_argument('--resolution-setting', action='store_true', help='Verify the shared resolution control instead of Off/Hard/Soft')
     settings = parser.add_mutually_exclusive_group()
-    settings.add_argument('--frame-budget', action='store_true')
-    settings.add_argument('--adaptive-setting', choices=['resolution', 'budget'])
     settings.add_argument('--cpu-scheduling', action='store_true', help='Exercise the hybrid Windows startup setting from Video Setup')
     settings.add_argument('--flashlight-setting', choices=['shadows', 'extra_slot'])
     settings.add_argument('--environment-setting', choices=['sun', 'fixtures'])
@@ -54,10 +52,6 @@ def main():
     if args.resolution_setting:
         env['HALO_SHADOW_MENU_RESOLUTION'] = '1'
     boolean_key = "performance_cores_only" if args.cpu_scheduling else None
-    if args.frame_budget:
-        env['HALO_SHADOW_MENU_FRAME_BUDGET'] = '1'
-    if args.adaptive_setting:
-        boolean_key = 'adaptive_shadow_' + args.adaptive_setting
     if args.flashlight_setting:
         boolean_key = 'flashlight_' + args.flashlight_setting
     if args.environment_setting:
@@ -95,11 +89,6 @@ def main():
         assert config[boolean_key] and config['modern_shadows'] == 'off'
         (out/'report.json').write_text(json.dumps(dict(passed=True, setting=boolean_key, frontend=args.frontend)))
         print(boolean_key, 'Save/Cancel/Defaults and restart persistence passed')
-        return
-    if args.frame_budget:
-        assert list(map(int, re.findall(r'SHADOW MENU frame budget (\d+)', log))) == [30,60,120,144,165,180,240]
-        assert 'SHADOW MENU frame budget restart 165' in (out/'restart.log').read_text(errors='replace')
-        (out/'report.json').write_text(json.dumps(dict(passed=True, setting='display.shadow_frame_budget', frontend=args.frontend)))
         return
     if args.resolution_setting:
         observed = re.findall(r'SHADOW MENU resolution step (\d+) saved (\d+) selected (\d+) modern (\w+)', log)

@@ -166,8 +166,8 @@ def main():
                  'port/linux/include/modern_shadows.h', 'port/linux/game/modern_sun.inl', 'source/render/render.c',
                  'source/render/render_sky.c', 'port/linux/src/port_config.c',
         'port/linux/src/modern_environment_gl.inl', 'port/linux/src/modern_sun_shader.inl',
-        'port/linux/game/modern_spots.inl', 'port/linux/game/modern_fixture_patches.inl', 'port/linux/src/modern_spots_gl.inl', 'port/linux/src/modern_shadow_adaptive.inl',
-        'port/linux/src/nv2a_psh.c', 'source/render/render_objects.c',
+        'port/linux/game/modern_spots.inl', 'port/linux/game/modern_fixture_patches.inl', 'port/linux/src/modern_spots_gl.inl',
+        'port/linux/src/nv2a_psh.c', 'port/linux/src/nv2a_vsh.c', 'source/render/render_objects.c',
                  'port/linux/game/modern_shadows_first_person.inl', 'source/interface/first_person_weapons.c',
                  'source/rasterizer/xbox/rasterizer_xbox_models.c']:
         manifest['production_hashes'][path]=hashlib.sha256((ROOT/path).read_bytes()).hexdigest()

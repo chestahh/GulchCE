@@ -42,7 +42,7 @@ static void spot_depth_resources(int size, int layers)
 
 int modern_spot_begin(int layer, const float frame[16], int cacheable)
 {
-    int size = modern_shadow_pixels();
+    int size = 128 * (int)halo_shadow_resolution_scale();
     int fixture = layer - 2;
     /* A flashlight-only scene needs one layer. Grow on first fixture use. */
     int layers = layer == 4 && spots.layers <= 1 ? 1 : 5;
@@ -57,11 +57,7 @@ int modern_spot_begin(int layer, const float frame[16], int cacheable)
     {
         GLenum none=GL_NONE;
         glDrawBuffers(1,&none); glReadBuffer(GL_NONE);
-        if (glCheckFramebufferStatus(GL_FRAMEBUFFER)!=GL_FRAMEBUFFER_COMPLETE || glGetError()!=GL_NO_ERROR)
-        {
-            adaptive_reject_size();
-            goto failed_begin;
-        }
+        if (glCheckFramebufferStatus(GL_FRAMEBUFFER)!=GL_FRAMEBUFFER_COMPLETE || glGetError()!=GL_NO_ERROR) goto failed_begin;
         spots.checked_layers |= 1<<layer;
     }
     memcpy(environment.frame,frame,sizeof(environment.frame));
@@ -73,6 +69,17 @@ int modern_spot_begin(int layer, const float frame[16], int cacheable)
 failed_begin:
     xgpu_gl_end_external_pass();
     return 0;
+}
+
+/* A crowded beam can span more posed parts than a single draw batch.
+   Continue writing the same layer until the entire cone has been submitted. */
+static int flush_beam_batch(void)
+{
+    if (!spots.rendering || spots.layer != 4) return 0;
+    if (!environment_draw_depth(spots.fbo)) failed=1;
+    spots.beam_partial=1;
+    draw_count=0;
+    return 1;
 }
 
 int modern_spot_end(int complete)
@@ -89,6 +96,7 @@ int modern_spot_end(int complete)
             memcpy(spots.static_frames[slot],environment.frame,sizeof(environment.frame));
         }
     }
+    spots.beam_partial=0;
     drawing=environment_drawing=spots.rendering=0;
     draw_count=0;
     glClipControl(GL_UPPER_LEFT,GL_ZERO_TO_ONE);
@@ -109,7 +117,7 @@ void modern_spot_camera(const float camera[16],const float projection[16])
 {
     int size[2]; GLuint fbo,depth; GLenum format;
     if (!xgpu_gl_scene_target(&fbo,size,&format,&depth,environment.viewport,environment.pixel_center))
-        spots.mask=0;
+        spots.mask &= 4; /* Only the baked fixtures need scene depth. */
     memcpy(spots.camera,camera,sizeof(spots.camera));
     memcpy(spots.projection,projection,sizeof(spots.projection));
     xgpu_gl_end_external_pass();

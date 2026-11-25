@@ -28,7 +28,6 @@ LIGHTS = ['plasma_lighting', 'muzzle_lighting', 'jackal_shield_lighting',
           'needler_lighting', 'plasma_occlusion', 'shield_glow',
           'weapon_glow', 'plasma_prong_lighting', 'vehicle_lighting', 'world_lighting']
 QUALITY = ['anti_aliasing', 'anisotropic_filtering', 'shadow_resolution',
-           'adaptive_shadow_resolution', 'adaptive_shadow_budget', 'shadow_frame_budget',
            'per_pixel_lighting', 'model_detail', 'hdr', 'hdr_output',
            'viewmodel_shield', 'shield_look', 'fov', 'viewmodel_fov']
 

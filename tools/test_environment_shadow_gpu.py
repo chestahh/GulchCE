@@ -186,7 +186,8 @@ def test_spot_sources_are_independent(soft):
         replay=Replay(context,32,32)
         gl=context.gl
         fragment=('#version 330 core\n'+shader('spot_shader','modern_spots_gl.inl')+
-            'out vec4 result; void main(){vec3 p=vec3((gl_FragCoord.xy-16.)/32.,.5);'
+            'uniform vec4 plane; out vec4 result; void main(){vec2 xy=(gl_FragCoord.xy-16.)/32.+plane.zw;'
+            'vec3 p=vec3(xy,.5+dot(plane.xy,xy));'
             'result=vec4(fixture_visibility(p,vec3(0,0,1)),beam_visibility(p));}')
         program=replay.program(shader('receiver_vertex'),fragment)
         texture=replay.new('Textures')
@@ -198,11 +199,12 @@ def test_spot_sources_are_independent(soft):
         layers[0,:,:16]=.75
         layers[1,:,16:]=.75
         layers[4,16:,:]=.75
-        def draw(mask):
+        def draw(mask, plane=(0,0,0,0)):
             gl('TexImage3D',None,U,I,I,I,I,I,I,U,U,P)(0x8c1a,0,0x822e,32,32,5,0,0x1903,0x1406,layers.ctypes.data)
             replay.begin()
             gl('Disable',None,U)(0x0b71)
             gl('UseProgram',None,U)(program)
+            replay.uniform(program,'plane',list(plane))
             for name,value in [('spot_mask',mask),('spot_soft',soft),('spot_maps',0)]:
                 replay.uniform(program,name,value)
             for i in range(3):
@@ -222,6 +224,19 @@ def test_spot_sources_are_independent(soft):
         assert np.allclose(draw(3)[:,:,:3],1)
         layers[:]=0
         assert np.allclose(draw(3),1)
+        # The receiver is itself in the depth map. Sweep across texel centres
+        # at grazing incidence with a nearer moving blocker covering one strip.
+        v,u=np.indices((32,32),dtype=np.float32)
+        for slope in [-.37,.37]:
+            ground=.5+slope*((u+.5)/16.-1.)+.08*((v+.5)/16.-1.)
+            for step in range(8):
+                layers[4]=ground
+                layers[4,:,8+step:12+step]+=.12
+                shift=step/128.
+                visibility=draw(4,(slope,.08,shift,0))[:,:,3]
+                assert np.allclose(visibility[2:-2,-8:],1)
+                centre=int((10+step-8-shift*16)*2)
+                assert visibility[16,centre]<.01
     finally:
         if replay: replay.close()
         context.close()

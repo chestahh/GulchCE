@@ -110,6 +110,15 @@ try:
                 d->color_upper_bound.rgb.red,d->color_upper_bound.rgb.green,d->color_upper_bound.rgb.blue);
         }
 ''')
+        submit = 'plasma_lighting_submitted(scene_light_handle, light->rasterizer_light_index);'
+        assert text.count(submit) == 1
+        text = text.replace(submit, submit + r'''
+                    if (object && object->object.type == _object_type_vehicle &&
+                        light->rasterizer_light_index != NONE && !(game_time_get() % 30))
+                        platform_log("SHADOW VEHICLE tick %ld owner %ld handle %ld position %.5f %.5f %.5f tag %s",
+                            game_time_get(), light->object_index, scene_light_handle, light_parameters.position.x,
+                            light_parameters.position.y, light_parameters.position.z, tag_get_name(light->definition_index));
+''')
         light_source.write_text(text)
         text = network_original.decode().replace('\r\n', '\n')
         marker = 'network_test.player_added = network_game_client_add_player(global_network_game_client_get(), 0);'

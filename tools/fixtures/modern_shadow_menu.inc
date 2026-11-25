@@ -5,7 +5,6 @@ static struct widget_instance *shadow_menu_spinner(struct widget_instance *widge
 	struct widget_instance *child, *found;
 	struct pc_menu_setting *setting;
 	char const *key = getenv("HALO_SHADOW_MENU_BOOLEAN");
-	if (getenv("HALO_SHADOW_MENU_FRAME_BUDGET")) key = "display.shadow_frame_budget";
 	if (!key) key = getenv("HALO_SHADOW_MENU_RESOLUTION") ? "display.shadow_resolution" : "display.modern_shadows";
 	if (!widget) return NULL;
 	setting = pc_menu_setting_get(widget->definition_tag_index);
@@ -71,29 +70,6 @@ void modern_shadow_menu_accept(struct widget_instance *root)
 	now = system_milliseconds();
 	if (now < next) return;
 	next = now + 750;
-	if (getenv("HALO_SHADOW_MENU_FRAME_BUDGET"))
-	{
-		if (getenv("HALO_SHADOW_MENU_VERIFY"))
-		{
-			platform_log("SHADOW MENU frame budget restart %ld", config_integer("display.shadow_frame_budget"));
-			platform_request_quit();
-			return;
-		}
-		if (step < 7)
-		{
-			spinner->parameters.list.selected_index = step;
-			shadow_menu_action(spinner, "port settings save");
-			platform_log("SHADOW MENU frame budget %ld", config_integer("display.shadow_frame_budget"));
-		}
-		else
-		{
-			spinner->parameters.list.selected_index = 4;
-			shadow_menu_action(spinner, "port settings save");
-			platform_request_quit();
-		}
-		step++;
-		return;
-	}
 	if (getenv("HALO_SHADOW_MENU_BOOLEAN"))
 	{
 		char const *key = getenv("HALO_SHADOW_MENU_BOOLEAN");

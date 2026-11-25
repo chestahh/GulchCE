@@ -46,7 +46,7 @@ enum { FIXTURE_LIMIT = 2, FLASH_SLOT = 2, SPOT_SOURCES = 3, SPOT_LAYERS = 5 };
 static struct
 {
     GLuint depth, fbo, receiver;
-    int size, layers, layer, rendering, valid_static, checked_layers, mask, soft;
+    int size, layers, layer, rendering, beam_partial, valid_static, checked_layers, mask, soft;
     float origins[SPOT_SOURCES][4], frames[SPOT_SOURCES][16], colors[SPOT_SOURCES][4], static_frames[FIXTURE_LIMIT][16];
     float camera[16], projection[16];
 } spots;
@@ -255,7 +255,7 @@ static int environment_resources_for(int projector)
         "if(color.w==0.) shadow*=sun_fallback(world);\n"
         "result=vec4(mix(vec3(1),color.xyz,shadow*fade*facing),1);\n"
         "#endif\n}\n";
-    int size = modern_shadow_pixels();
+    int size = 128 * (int)halo_shadow_resolution_scale();
     if (environment.failed_size != size) environment.failed_size = 0;
     if ((!projector && environment.failed_size) || !create_resources()) return 0;
     if (!environment.caster)
@@ -314,7 +314,7 @@ static int environment_resources_for(int projector)
     if (!environment.caster || !environment.receiver) return 0;
     if (!environment.depth || environment.size != size)
     {
-        if (!environment_resize_texture(&environment.depth, &environment.depth_fbo, size, size, 0)) { adaptive_reject_size(); return 0; }
+        if (!environment_resize_texture(&environment.depth, &environment.depth_fbo, size, size, 0)) return 0;
         environment.checked_handoff_target = 0;
         environment.size = size;
     }
@@ -397,7 +397,7 @@ int modern_environment_begin(const float frame[16], float radius, int soft)
     environment.count++;
     if (!environment_snapshot() || !environment_resources())
     {
-        environment.failed_size = modern_shadow_pixels();
+        environment.failed_size = 128 * (int)halo_shadow_resolution_scale();
         xgpu_gl_end_external_pass();
         return 0;
     }
@@ -473,7 +473,7 @@ static int environment_draw_depth(GLuint target)
         glPolygonMode(GL_FRONT_AND_BACK,GL_FILL);
         glEnable(GL_DEPTH_TEST); glDepthFunc(GL_GREATER); glDepthMask(GL_TRUE);
         glDepthRange(0,1); glClearDepth(0); glColorMask(GL_FALSE,GL_FALSE,GL_FALSE,GL_FALSE);
-        if (!sun.partial && !sun.drawing_detail) glClear(GL_DEPTH_BUFFER_BIT);
+        if (!sun.partial && !sun.drawing_detail && !spots.beam_partial) glClear(GL_DEPTH_BUFFER_BIT);
         if (sun.writing)
         {
             glColorMask(GL_TRUE,GL_FALSE,GL_FALSE,GL_FALSE);
@@ -631,13 +631,13 @@ static int sun_depth_resources(void)
 {
     if (sun.size != environment.size || !sun.static_depth || !sun.object_depth)
     {
-        if (!environment_resize_texture(&sun.static_depth, &environment.depth_fbo, environment.size, environment.size, 1)) { adaptive_reject_size(); return 0; }
+        if (!environment_resize_texture(&sun.static_depth, &environment.depth_fbo, environment.size, environment.size, 1)) return 0;
         sun.valid = sun.object_checked = 0;
         sun.checked_receiver_target = environment.checked_handoff_target = 0;
         /* Allocate at map preparation so looking down never resizes the atlas. */
         for (sun.atlas_tiles=3; sun.atlas_tiles>0; sun.atlas_tiles--)
             if (environment_resize_texture(&sun.object_depth,&sun.object_fbo,sun.atlas_tiles*environment.size,environment.size,0)) break;
-        if (!sun.atlas_tiles) { adaptive_reject_size(); return 0; }
+        if (!sun.atlas_tiles) return 0;
         sun.size = environment.size;
     }
     return 1;
@@ -832,7 +832,6 @@ static int environment_model_resources(void)
             glDeleteFramebuffers(2, environment_model.framebuffer);
             memset(environment_model.depth, 0, sizeof(environment_model.depth));
             memset(environment_model.framebuffer, 0, sizeof(environment_model.framebuffer));
-            adaptive_reject_size();
             environment_model.unavailable = 1;
             xgpu_gl_end_external_pass();
             return 0;
@@ -846,7 +845,7 @@ int modern_environment_model_begin(const float frames[32], float radius, int sof
     environment_model.enabled = environment_model.valid = 0;
     if (drawing || !xgpu_gl_ready() || environment_model.count >= 32) return 0;
     environment_model.count++;
-    if ((!environment.caster || !program || environment.size != modern_shadow_pixels()) &&
+    if ((!environment.caster || !program || environment.size != 128 * (int)halo_shadow_resolution_scale()) &&
         !environment_resources()) { xgpu_gl_end_external_pass(); return 0; }
     if (!environment_model_resources()) return 0;
     memcpy(environment_model.frames, frames, sizeof(environment_model.frames));

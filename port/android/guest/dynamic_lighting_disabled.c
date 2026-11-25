@@ -19,7 +19,7 @@ void plasma_lighting_prepare(long light, long object, long definition) {}
 void plasma_lighting_attachment_position(long light, long object,
 	real_point3d *position, real_vector3d const *forward, float scale) {}
 float plasma_lighting_radius(long light, long object, float radius) { return radius; }
-int plasma_lighting_vehicle_occlusion(long light) { return FALSE; }
+int plasma_lighting_vehicle_occlusion(long light, long *ignore) { return FALSE; }
 long plasma_lighting_shadow_owner(long light, struct plasma_shadow_source *grenade)
 {
 	grenade->grounded = FALSE;

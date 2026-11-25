@@ -1,6 +1,7 @@
 #include "harness.h"
 static struct { int model,soft; unsigned static_depth,object_depth; float tint[3],frame[16],radius,detail[4],region[8],eye[4],close[4]; } sun;
 static int sun_detail_caster, sun_detail_in_batch;
+static int flush_beam_batch(void) {return 0;}
 static int sun_draw_batch(void) {return 0;}
 static unsigned long long spot_window;
 struct modern_shadow_uniforms;
@@ -24,13 +25,10 @@ static unsigned int bound[2];
 static int copy_count, copied_faces, submitted[4];
 static int map_slots[2]={0,1};
 static long resolution_scale=8;
+long halo_shadow_resolution_scale(void) { return resolution_scale; }
 static int viewport_size;
-static struct { int resolution, promoted; } adaptive;
-static void adaptive_reject_size(void) {}
-static int modern_shadow_pixels(void) { return 128 * resolution_scale; }
-static void adaptive_reset(void) {}
 static void glViewport(int x,int y,int width,int height) {
- CHECK(width==height && (adaptive.resolution || width==128*resolution_scale),"viewport follows selected shadow resolution");viewport_size=width;
+ CHECK(width==height && width==128*resolution_scale,"viewport follows selected shadow resolution");viewport_size=width;
 }
 static void glClipControl(int origin,int depth) {
  CHECK(depth==GL_ZERO_TO_ONE,"reversed float depth retains precision through zero-to-one clipping");
@@ -71,7 +69,7 @@ static void glDeleteTextures(int n,const GLuint *textures) {
  CHECK(n==1 || n==2,"release failed cube or owned pair");deleted_textures+=!!textures[0]+(n==2 && !!textures[1]);
 }
 static void glBindFramebuffer(int target,int value) { fbo=value; }
-static void create_depth_cube(GLuint *value,int size) { CHECK(size>=128 && size<=4096,"cube dimensions");allocated++;*value=90+allocated; }
+static void create_depth_cube(GLuint *value) {allocated++;*value=90+allocated; }
 static void glFramebufferTexture2D(int t,int a,int face,int value,int l) {
  CHECK(fbo==9,"depth attachment uses owned framebuffer, including lazy allocation");texture=value;
 }
@@ -326,30 +324,5 @@ int main(int argc,char **argv) {
   }
   modern_shadow_dispose();
  }
- /* Keep all eight light maps valid while exactly one slot changes per frame. */
- modern_shadow_dispose();
- adaptive.resolution=1; resolution_scale=16; framebuffer=9; allocated=0;
- {
-  int frame, slot, expected;
-  for(frame=0;frame<=MODERN_SHADOW_LIGHTS+1;frame++) {
-   if(frame==1) resolution_scale=32;
-   adaptive.promoted=0;
-   for(slot=0;slot<MODERN_SHADOW_LIGHTS;slot++) {
-    CHECK(modern_shadow_begin(slot,origin,2,0,0) && modern_shadow_end(),"all slots render during a promotion");
-    expected=frame>1 && slot<frame-1 ? 4096 : 2048;
-    CHECK(viewport_size==expected && maps[slot].size==expected,"staggered maps render at their own allocated size");
-   }
-  }
-  CHECK(allocated==2*MODERN_SHADOW_LIGHTS,"each slot allocated once per tier");
-  resolution_scale=8;
-  CHECK(modern_shadow_begin(0,origin,2,0,0) && modern_shadow_end() && viewport_size==1024,
-        "budget pressure frees large cubes immediately");
-  for(slot=1;slot<MODERN_SHADOW_LIGHTS;slot++) CHECK(!maps[slot].depth_cube[0],"unused larger maps were released");
-  resolution_scale=16;
-  CHECK(modern_shadow_begin(0,origin,2,0,0) && modern_shadow_end() && viewport_size==1024,"keep old tier on upgrade frame");
-  adaptive.resolution=0;
-  CHECK(modern_shadow_begin(0,origin,2,0,0) && modern_shadow_end() && viewport_size==2048,"switch to fixed during promotion");
- }
- modern_shadow_dispose();
  return 0;
 }

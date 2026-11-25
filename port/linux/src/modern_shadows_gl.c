@@ -6,8 +6,6 @@
 #include <string.h>
 
 #ifndef HALO_GLES
-extern long halo_shadow_resolution_scale(void);
-#include "modern_shadow_adaptive.inl"
 enum { SHADOW_MESHES = 2048, SHADOW_DRAWS = 256,
 	SHADOW_BYTES = 32 * 1024 * 1024, SHADOW_NODES = 64 };
 static struct shadow_mesh
@@ -31,7 +29,7 @@ static struct shadow_map
 {
 	GLuint depth_cube[2];
 	float light[4];
-	int valid, view_map, size;
+	int valid, view_map;
 	/* Only confirmed clear faces survive between uses of this cube. */
 	unsigned int clear_faces, view_clear_faces;
 } maps[MODERN_SHADOW_LIGHTS];
@@ -42,10 +40,10 @@ static GLuint opaque_program;
 static GLint opaque_light, opaque_face, opaque_bones;
 static int drawing;
 static int environment_drawing;
-static int shadow_size, promotion_floor;
+static int shadow_size;
 static float ground_slope;
 static int correct_ground_depth;
-
+extern long halo_shadow_resolution_scale(void);
 
 /* A blend of two transformed vertices stays in the union's bounding box.
    Retaining all used bones makes this conservative for animated models too. */
@@ -138,14 +136,13 @@ static void release_maps(void)
 	memset(maps, 0, sizeof(maps));
 }
 
-/* Keep rendering from each slot at its previous size while adaptive quality
-   rises. Downscaling releases the larger storage immediately. */
+/* The shared setting is committed between frames. Keep immutable meshes
+   and programs, but release every old-resolution cube before allocating
+   any new one. A setting change can retry a failed allocation. */
 static void resize_maps(int size)
 {
-	if (shadow_size == size && (!promotion_floor || adaptive.resolution)) return;
-	promotion_floor = adaptive.resolution && shadow_size && size > shadow_size ? shadow_size : 0;
-	if (promotion_floor) adaptive.promoted = 1; /* Fixtures and environment resize this frame. */
-	else release_maps();
+	if (shadow_size == size) return;
+	release_maps();
 	shadow_size = size;
 	resource_failed = 0;
 }
@@ -173,7 +170,7 @@ static void bind_caster_draw(int draw, int *previous, GLint bones, GLint uv, GLi
 	*previous = draw;
 }
 
-static void create_depth_cube(GLuint *texture, int size)
+static void create_depth_cube(GLuint *texture)
 {
 	int face;
 	glGenTextures(1, texture);
@@ -181,7 +178,7 @@ static void create_depth_cube(GLuint *texture, int size)
 	glBindTexture(GL_TEXTURE_CUBE_MAP, *texture);
 	for (face = 0; face < 6; face++)
 		glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + face, 0, GL_DEPTH_COMPONENT32F,
-			size, size, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+			shadow_size, shadow_size, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
 	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -273,18 +270,17 @@ static int create_resources(void)
 }
 
 /* Keep the same lazy and load-time validation for a complete depth cube. */
-static int prepare_depth_cube(GLuint *cube, int size)
+static int prepare_depth_cube(GLuint *cube)
 {
 	GLenum status, error;
 	if (*cube) return 1;
-	create_depth_cube(cube, size);
+	create_depth_cube(cube);
 	glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_CUBE_MAP_POSITIVE_X, *cube, 0);
 	status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
 	error = glGetError();
 	if (status == GL_FRAMEBUFFER_COMPLETE && error == GL_NO_ERROR)
 		return 1;
-	adaptive_reject_size();
 	glDeleteTextures(1, cube);
 	*cube = 0;
 	return 0;
@@ -294,26 +290,17 @@ int modern_shadow_begin(int slot, const float position[3], float radius, int sof
 {
 	if (slot < 0 || slot >= MODERN_SHADOW_LIGHTS || drawing) return 0;
 	if (!xgpu_gl_ready() || radius <= 0.01f) return 0;
-	resize_maps(modern_shadow_pixels());
+	resize_maps(128 * (int)halo_shadow_resolution_scale());
 	map = &maps[slot];
-	if (!map->size) map->size = promotion_floor ? promotion_floor : shadow_size;
-	if (map->size < shadow_size && !adaptive.promoted)
-	{
-		/* World and first-person maps share face copies and must change together. */
-		if (map->depth_cube[0] || map->depth_cube[1]) glDeleteTextures(2, map->depth_cube);
-		memset(map, 0, sizeof(*map));
-		map->size = shadow_size;
-		adaptive.promoted = 1;
-	}
 	map->valid = 0;
 	draw_count = 0;
 	if (resource_failed) return 0;
 	drawing = 1;
-	failed = !create_resources() || !prepare_depth_cube(&map->depth_cube[0], map->size);
+	failed = !create_resources() || !prepare_depth_cube(&map->depth_cube[0]);
 	memcpy(map->light, position, 3 * sizeof(float));
 	map->light[3] = radius;
 	soft_filter = soft;
-	correct_ground_depth = ground_grenade && !soft && map->size == 1024 && ground_slope != 0.f;
+	correct_ground_depth = ground_grenade && !soft && shadow_size == 1024 && ground_slope != 0.f;
 	/* A failed allocation still hands state back through end(). */
 	if (failed)
 	{
@@ -369,6 +356,7 @@ int modern_shadow_mesh_create(const struct modern_shadow_vertex *vertices, int v
 static int sun_detail_caster, sun_detail_in_batch;
 void modern_environment_sun_detail_caster(int eligible) { sun_detail_caster = eligible; }
 static int sun_draw_batch(void);
+static int flush_beam_batch(void);
 
 int modern_shadow_draw(int mesh, const float *matrices, int node_count,
 	const void *alpha_texture, const float uv_transform[8], int views)
@@ -377,7 +365,7 @@ int modern_shadow_draw(int mesh, const float *matrices, int node_count,
 	GLenum target;
 	struct xgpu_texture_description description;
 	int faces, opaque;
-	if (draw_count == SHADOW_DRAWS && environment_drawing) sun_draw_batch();
+	if (draw_count == SHADOW_DRAWS && environment_drawing && !flush_beam_batch()) sun_draw_batch();
 	if (mesh < 1 || mesh > mesh_count || node_count < 1 || node_count > SHADOW_NODES ||
 		draw_count == SHADOW_DRAWS || !drawing || views < 1 || views > MODERN_SHADOW_BOTH) { failed = 1; return 0; }
 	faces = environment_drawing ? 63 : mesh_faces(&meshes[mesh - 1], matrices, node_count, map->light);
@@ -420,7 +408,7 @@ int modern_shadow_end(void)
 		else common_faces |= draws[draw].faces;
 	}
 	shared = map->view_map;
-	if (!failed && map->view_map && !prepare_depth_cube(&map->depth_cube[1], map->size))
+	if (!failed && map->view_map && !prepare_depth_cube(&map->depth_cube[1]))
 	{
 		failed = resource_failed = 1;
 		platform_log("GPU: viewmodel shadow map unavailable; retaining existing lighting until reset");
@@ -428,7 +416,7 @@ int modern_shadow_end(void)
 	if (!failed)
 	{
 		glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
-		glViewport(0, 0, map->size, map->size);
+		glViewport(0, 0, shadow_size, shadow_size);
 		/* Reversed floating-point depth keeps distant precision and permits
 		   early depth rejection without a fragment-depth override. */
 		glClipControl(GL_LOWER_LEFT, GL_ZERO_TO_ONE);
@@ -470,7 +458,7 @@ int modern_shadow_end(void)
 					while (!(copy & (1U << first))) first++;
 					while (!(copy & (1U << last))) last--;
 					glCopyImageSubData(map->depth_cube[0], GL_TEXTURE_CUBE_MAP, 0, 0, 0, first,
-						map->depth_cube[1], GL_TEXTURE_CUBE_MAP, 0, 0, 0, first, map->size, map->size, last-first+1);
+						map->depth_cube[1], GL_TEXTURE_CUBE_MAP, 0, 0, 0, first, shadow_size, shadow_size, last-first+1);
 				}
 			}
 			for (face = 0; face < 6; face++)
@@ -542,18 +530,14 @@ void modern_shadow_preload(int sunlight, int fixtures, int beam)
 	if (!xgpu_gl_ready()) return;
 	glGetIntegerv(GL_READ_FRAMEBUFFER_BINDING, &read_fbo);
 	glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &draw_fbo);
-	adaptive_configure();
-	resize_maps(modern_shadow_pixels());
+	resize_maps(128 * (int)halo_shadow_resolution_scale());
 	/* A full set at 1024 consumes 192 MiB. Keep larger cubes and
 	   first-person copies demand-allocated so sparse maps can still run. */
 	if (shadow_size <= 1024 && create_resources())
 	{
 		int slot;
 		for (slot = 0; slot < MODERN_SHADOW_LIGHTS; slot++)
-		{
-			if (!maps[slot].size) maps[slot].size = shadow_size;
-			if (!prepare_depth_cube(&maps[slot].depth_cube[0], maps[slot].size)) break;
-		}
+			if (!prepare_depth_cube(&maps[slot].depth_cube[0])) break;
 	}
 	sun.projecting = sunlight;
 	if (environment_resources_for(0))
@@ -600,12 +584,10 @@ void modern_shadow_change_bsp(void)
 
 void modern_shadow_dispose(void)
 {
-	adaptive_reset();
 	modern_environment_dispose();
 	if (drawing) { failed = 1; modern_shadow_end(); }
 	dispose_shadow_meshes();
 	release_maps();
-	shadow_size = promotion_floor = 0;
 	map = &maps[0];
 	if (framebuffer) glDeleteFramebuffers(1, &framebuffer);
 	if (opaque_program) glDeleteProgram(opaque_program);

@@ -1145,6 +1145,9 @@ void lights_preprocess_scene(
 		light_unmarked,
 		light_mark);
 	light_marker_end();
+	/* port: the first-person beam uses a viewmodel pose outside the cluster marker test. */
+	lights_globals.scene_point_light_count = modern_flashlight_include(render.local_player_index,
+		lights_globals.scene_point_lights, lights_globals.scene_point_light_count, MAXIMUM_RENDERED_LIGHTS);
 	rasterizer_lights_begin();
 	plasma_lighting_window_begin(); /* port: submitted light indices belong to this view */
 	for (rendered_cluster_index = 0;

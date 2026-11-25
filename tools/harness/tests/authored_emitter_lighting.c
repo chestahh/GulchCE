@@ -8,7 +8,9 @@
 
 
 
-struct object_datum { long definition_index; struct {real_point3d bounding_sphere_center;} object; } object;
+enum { MAXIMUM_NUMBER_OF_ATTACHMENTS_PER_OBJECT=2, _object_attachment_type_light=0 };
+struct object_marker { struct {real_point3d position;} matrix; };
+struct object_datum { long definition_index; struct {real_point3d bounding_sphere_center; int attachment_types[2]; long attachment_indices[2];} object; } object;
 struct observer_result {real_point3d position;} cameras[4];
 static int local_count=1;
 int local_player_count(void) {return local_count;}
@@ -33,11 +35,27 @@ long tag_loaded(long group, const char *name)
 	groups[name_count] = group;
 	return generation + name_count++;
 }
+static struct object_datum *object_get(long index) { return &object; }
+static const char *object_get_attachment_marker_name(long index, int slot) { return slot ? "winglight back" : "winglight front"; }
+static int object_get_marker_by_name(long index,const char *name,struct object_marker *markers,int count)
+{
+	markers[0].matrix.position.y=-1;
+	if(count==2) markers[1].matrix.position.y=1;
+	return count;
+}
+static float distance_squared3d(const real_point3d *a,const real_point3d *b) { return (a->y-b->y)*(a->y-b->y); }
 #include "under_test.inc"
 int main(int argc, char **argv)
 {
 	int i, calls, owner_unshadowed=7;
 	float scale = 42, offset = 7;
+	real_point3d position={0,-1,0};
+	object.object.attachment_indices[0]=7;
+	object.object.attachment_indices[1]=8;
+	authored_emitter_wing_position(7,1,&position);
+	CHECK(position.y==-1,"front light follows its original marker");
+	authored_emitter_wing_position(8,1,&position);
+	CHECK(position.y==1,"rear light follows the other wing");
 	(void)argc; (void)argv;
 	CHECK(!authored_emitter_lighting_profile(1, 10, &scale, &offset, &owner_unshadowed) && !lookups && scale == 42 && offset == 7 && !owner_unshadowed,
 		"off performs no tag discovery or writes");
@@ -46,7 +64,7 @@ int main(int argc, char **argv)
 		long light;
 		weapon_on = profiles[i].category == 1;
 		prong_on = profiles[i].category == 4;
-		vehicle_on = profiles[i].category == 2;
+		vehicle_on = profiles[i].category == 2 || profiles[i].category == AUTHORED_EMITTER_BANSHEE_WING;
 		projectile_on = profiles[i].category == 3;
 		object.definition_index = tag_loaded(profiles[i].group, profiles[i].object);
 		light = tag_loaded('ligh', profiles[i].light);
@@ -54,8 +72,8 @@ int main(int argc, char **argv)
 			scale == profiles[i].scale, "selected source uses its category and scale");
 		CHECK(offset == (!strcmp(profiles[i].object, "vehicles\\ghost\\ghost") ? .02f : 0.f),
             "only the Ghost emitting surface changes position");
-        CHECK(owner_unshadowed == !strcmp(profiles[i].object, "vehicles\\ghost\\ghost"),
-            "only Ghost running lights exclude their owner, not other vehicles or weapons");
+        CHECK(owner_unshadowed == (!strcmp(profiles[i].object, "vehicles\\ghost\\ghost") || profiles[i].category == AUTHORED_EMITTER_BANSHEE_WING),
+            "Ghost and Banshee engine lights exclude their owner");
         calls = lookups;
 		CHECK(authored_emitter_lighting_profile(1, light, &scale, &offset, &owner_unshadowed) && lookups == calls,
 			"steady frames reuse cached identities");

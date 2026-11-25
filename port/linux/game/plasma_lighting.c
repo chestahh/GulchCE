@@ -133,6 +133,8 @@ void plasma_lighting_attachment_position(long light_index, long object_index,
 			plasma_lighting_attachments[index].object_index == object_index)
 		{
 			float offset = plasma_lighting_attachments[index].forward_offset * scale;
+			if (plasma_lighting_attachments[index].category == AUTHORED_EMITTER_BANSHEE_WING)
+				authored_emitter_wing_position(light_index, object_index, position);
 			if (plasma_lighting_attachments[index].exposed_grenade)
 			{
 				/* Model-space point just beyond the luminous inset and casing.
@@ -210,6 +212,7 @@ void plasma_lighting_frame_end(void)
 	   Restore positions AND cluster membership before the next simulation tick. */
 	for (index = 0; index < plasma_lighting_count; index++)
 	{
+		plasma_lighting_attachments[index].category = 0;
 		plasma_lighting_attachments[index].radius_scale = 1.0f;
 		plasma_lighting_attachments[index].forward_offset = 0.f;
 		plasma_lighting_attachments[index].exposed_grenade = FALSE;
@@ -310,14 +313,19 @@ int plasma_lighting_prong_cone(long rasterizer, float axis[3], float origin[3], 
 
 /* Headlights include their own vehicle in the collision field, even when
    the general emitter occlusion option is off. Keep the authored beam cone. */
-int plasma_lighting_vehicle_occlusion(long light_index)
+int plasma_lighting_vehicle_occlusion(long light_index, long *ignore)
 {
 	int index;
 	if (light_index == NONE || !lighting_config_boolean("display.vehicle_lighting"))
 		return FALSE;
 	for (index = 0; index < plasma_lighting_count; index++)
 		if (plasma_lighting_attachments[index].light_index == light_index &&
-			plasma_lighting_attachments[index].category == 2)
+			(plasma_lighting_attachments[index].category == 2 ||
+			 plasma_lighting_attachments[index].category == AUTHORED_EMITTER_BANSHEE_WING))
+		{
+			if (ignore && plasma_lighting_attachments[index].category == AUTHORED_EMITTER_BANSHEE_WING)
+				*ignore = plasma_lighting_attachments[index].object_index;
 			return TRUE;
+		}
 	return FALSE;
 }

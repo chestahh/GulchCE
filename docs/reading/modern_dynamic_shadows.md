@@ -10,8 +10,7 @@ an active flashlight one of the eight local slots. Extra Slot allows eight
 local shadows plus the flashlight.
 
 E5 closed on 25 November 2026 with fixed Hard and Soft 1024 as the sustained
-240 FPS baseline. E8 adaptive quality closed on 25 November 2026 after the
-Rat Race 4096 transition retest. E9 is the remaining 1.0 milestone. E6 distant sunlight and E7 map authoring remain deferred.
+240 FPS baseline. E9 qualifies fixed shadow resolution and all eight local slots. E6 distant sunlight, E7 map authoring and E8 adaptive quality are deferred.
 
 ### Established on modern-dynamic-shadows
 
@@ -52,7 +51,7 @@ The following procedure records the E5 reference setup for future regressions.
    at fixed 1024 and 2048. Optimise the shared path across resolutions and
    measure gains at both tiers. Keep 4096 on that path without requiring a
    separate performance baseline for the experimental tier. For both shadow runs, enable the sun, fixtures and Shared
-   flashlight with all eight local slots available and adaptive scaling off.
+   flashlight with all eight local slots available.
    Record actual light, beam and combat activity. Keep busy Rat Race with both lamps as the indoor control.
 2. **Windows CPU scheduling.** Four [fresh foreground launches](environment_shadow_e5.md#fresh-windows-launches)
    completed on the i7-14700K. Each of the 480 measured seconds in Hard
@@ -134,80 +133,19 @@ transitions, and meets the fixed-quality E5 performance target.
 detection from existing map data. Per-map emitter adjustments and authored
 direct-light contributions can be revisited in a future phase.
 
-### E8 — Optional adaptive quality
+### Banshee wing lights
 
-Adaptive resolution and adaptive shadow budget are independent desktop options
-under Shadows in every menu style. Both default to off. Frame Budget defaults
-to 240 FPS and also offers 30, 60, 120, 144, 165 and 180 FPS. It applies to
-either option. The ordinary frame limiter and host lighting policy still apply.
+With vehicle lighting enabled, the campaign and multiplayer Banshee wing lights
+keep their authored colour, intensity and radius multiplier. The rear light uses
+the marker farthest from the front light when both rear markers exist. Each light
+excludes its Banshee from mesh shadows and collision blocking. Other sources can
+still cast the hull's silhouette.
 
-The [adaptive controller](../../port/linux/src/modern_shadow_adaptive.inl)
-uses the first primary view and the final display blit to sample the time spent
-rendering on the GPU. Presentation waits sit outside that interval. Completed
-timestamps and the delivered frame rate are evaluated over half-second windows.
-Two slow windows with expensive rendering lower one resolution tier, down to
-128. When enabled, count scaling can then remove one local slot at a time,
-down to one. With resolution scaling off it can adjust slots at the selected
-fixed size. Six windows of GPU headroom restore one slot or, once all slots
-are available, raise the resolution one tier. Adaptive resolution starts at
-up to 1024 and can recover as far as the selected Shadow Resolution (maximum
-4096). Classic shadow buffers keep the player's fixed setting.
+### E8 — Deferred
 
-The local cubes, sun, fixtures and flashlight use the effective Modern size.
-The sun and fixtures keep their own counts. Shared reserves one of the current
-local slots for an active beam. Extra Slot keeps the beam separate. A map
-disposal clears timing queries and adaptation history. If a depth allocation
-fails, adaptive resolution lowers its ceiling for the current configuration.
-
-In the snowy Two Betrayals fight on Windows, resolution-only Soft dropped from
-2048 to 512 with all eight local slots available. A separate count-only test at
-fixed 4096 dropped to two slots. A Hard run capped at 60 FPS recovered from
-1024 to 2048 with eight slots. These runs exercised the controller under
-different loads. The target is a rendering budget, not a guaranteed frame rate.
-The [controller tests](../../tools/test_adaptive_shadows.py) exercise all seven
-targets, recovery up to 4096, and an allocation failure. Two Windows players
-also completed the Xbox, CE, MCC and Xbox map cycle on loopback with a fixed
-host and an adaptive client. The seven targets and saved settings were
-checked across the four Windows menu styles.
-
-Rat Race and the Xbox Pillar of Autumn opening both reached 4096 with eight
-local slots available and a 30 FPS target. The Rat Race trace contained a
-56 ms frame during the 2048 transition window and a 189 ms frame during
-the 4096 transition window. Those are whole-frame measurements. They include
-other rendering work as well as depth allocation.
-
-The original upgrade discarded every local cube at once. A 4096 six-face
-32-bit depth cube uses 384 MiB. In a Hard Rat Race reproduction, the first
-six cube preparations after the upgrade took 89 ms on the render thread.
-Allocating all six faces in one GL call still gave a 72 ms transition frame
-in a separate run.
-
-On an adaptive increase, the [local shadow renderer](../../port/linux/src/modern_shadows_gl.c)
-lets the environmental passes switch first. Each subsequent primary frame
-upgrades at most one active local slot. A light continues rendering fresh
-geometry at its previous size until its turn. Its world and first-person
-cubes change together so face copies, viewports and depth comparisons agree.
-Lowering the target size releases larger cubes immediately. Selecting a fixed
-resolution also ends a partial upgrade. The [map lifecycle test](../../tools/harness/tests/modern_shadow_maps.c)
-checks every slot through a 2048 to 4096 upgrade.
-
-On the RTX 5070 Ti at 1920×1080 and a 30 FPS target, with slot scaling off,
-the slowest frame in the one-second 4096 transition window went from 100.5
-to 36.9 ms in one-bot Hard. In 15-bot Soft it went from 86.7 to 33.4 ms,
-with a 33.5 ms repeat. All three 15-bot runs used eight local shadow slots
-during gameplay. Bot and light positions varied between launches.
-
-A separate 15-bot Soft comparison held the requested upgrade until the
-preceding frame rendered eight local cube maps. Using the same diagnostic
-executable, the slowest frame from the trigger through the following second
-was 150.345 ms with bulk replacement and 33.343 ms with staggered replacement.
-The staggered run also rendered eight cube
-maps on the trigger frame. An earlier candidate run peaked at seven and
-never triggered, so it did not contribute a transition time.
-
-With both adaptive settings off, the two-minute Hard 1024 combat control
-averaged 278.66 FPS with one second at 235 FPS. Soft 1024 averaged 274.18 FPS
-and its slowest second was 245 FPS. Both reached eight local shadows.
+The release candidate uses the selected resolution and a fixed eight-slot local budget.
+Adaptive resolution, adaptive slot counts and their frame-time target remain an experiment
+in the earlier RC1 revision.
 
 ### E9 — Compatibility and Phase 2 1.0 sign-off
 
@@ -224,7 +162,7 @@ Remaining release-candidate checks, in order:
    identify the exact revision for qualification. Check shadow resource
    ownership through map load, failed load, unload and the next map.
 2. Replay the fixed snowy Two Betrayals encounter at Hard and Soft 1024
-   with both adaptive switches off and eight local slots available. Record
+   at fixed resolution with eight local slots available. Record
    average FPS, seconds below 240 and the longest dip. The latest Hard run
    had one second at 235 FPS, so reproduce that case first. Use fixed 2048
    as a regression comparison. Sustained 240 at fixed 2048 and sustained
