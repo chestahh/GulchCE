@@ -1,17 +1,832 @@
 # E5 map-load preparation and combat performance
 
-E5 performance was signed off on 24 November 2026 for Windows playtest
+The original 1024 E5 target was signed off on 24 November 2026 for Windows playtest
 `0ca83059d` on the i7-14700K and RTX 5070 Ti. Across four foreground
 Two Betrayals runs at 1440p with Hard and Soft 1024, the slowest of 480
 one-second windows was 274 FPS. The hidden-window Auto controls recorded
 three isolated seconds below 240 in Hard and two in Soft. Sustained 240 FPS
-is the accepted target. Work toward 360 FPS is deferred.
-[Foreground measurements](#fresh-windows-launches) · [Hidden-window controls](#repeatable-and-indoor-controls)
+was the accepted 1024 target.
+
+E5 closed on 25 November 2026. In the final snowy Two Betrayals comparison,
+fixed Hard 1024 averaged 267.22 FPS and Soft 1024 averaged 271.15 FPS. Each
+used all eight local slots and cleared 240 in every measured second of its
+two-minute Windows run. Fixed 2048 averaged 249.37 FPS in Hard and 242.74 FPS
+in Soft, with dips lasting up to 7 and 32 seconds respectively. Sustained 240
+at fixed 2048 and the sustained 360 FPS stretch goal are deferred.
+[Matched combat measurements](#matched-1024-and-2048-combat-dips)
+[Foreground measurements](#fresh-windows-launches) Ã‚Â· [Hidden-window controls](#repeatable-and-indoor-controls)
 
 Modern Hard and Soft apply when a gameplay map loads. The menu may save a new
 mode during play. The current level and checkpoint reverts keep the mode that
 loaded with the map. Classic remains the default. This change governs Shadow
 Mode in each menu style. The existing host lighting policy still applies.
+
+## Fixed 2048 combat
+
+The fixed 2048 investigation tested Hard and Soft independently in the snowy
+Two Betrayals fight on the reference Windows PC. Its targets were sustained
+240+ FPS (4.17 ms/frame) and a stretch goal of 360+ FPS (2.78 ms/frame). Keep all eight local
+slots available, Shared flashlight, independent sun and fixture budgets, full
+dynamic lighting, the sun fade and close-player shadow detail. Use fixed
+2048 throughout each run with adaptive quality off. Retain fixed 1024
+as the performance and visual regression control. Pursue a gain there too.
+Each optimisation must remove work from a path shared by the supported
+resolutions. Use 2048 to expose scaling costs and run matched before/after
+at both 1024 and 2048. Report a flat or inconclusive result when a gain at
+1024 cannot be measured. The experimental 4096 tier uses the same code.
+Its frame rate is outside this qualification.
+
+Alternate reference and candidate in repeated fresh launches. Report full-run
+and heavier-minute FPS, the number of seconds below each target, the longest
+continuous stretch and individual frame hitches. Check the same scoped
+passes at both resolutions with asynchronous GPU timers and CPU phase
+timings. Confirm any saving with the ordinary passive benchmark. Retain the
+Death Island player silhouette, M1 peripheral foliage and Mercury Rising II
+fade checks, plus thin contacts, cutouts and moving casters in matched views.
+
+### Reopening baseline, 24 November 2026
+
+The corrected radial playtest on the working tree based on `f2e1a5294`
+used the same 19-enemy Xbox encounter, fixed camera, 1440p, AA off, P-cores
+and hidden window for these capture-free runs. Each reached eight local
+slots including the Shared flashlight. Both new 2048 modes used the same
+passive timing executable. The earlier Soft 2048 run used the same
+instrumented source inputs. Live combat still varies between launches.
+
+| Fixed shadow mode | Two-minute average FPS | Heavier minute FPS | Slowest second FPS | Seconds below 240 / longest streak | Seconds below 360 |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Hard 1024 control | 265.6 | 262.7 | 227 | 1 / 1 | 120 |
+| Soft 1024 control | 266.6 | 265.1 | 246 | 0 / 0 | 120 |
+| Hard 2048 | 211.5 | 211.2 | 187 | 120 / 120 | 120 |
+| Soft 2048 | 213.2 | 210.1 | 183 | 120 / 120 | 120 |
+| Earlier Soft 2048 | 216.7 | 214.8 | 199 | 117 / 64 | 120 |
+
+The fresh runs require 0.52 to 0.56 ms less per frame on average to reach
+240 FPS. In each mode's slowest second the gap is 1.18 to 1.30 ms per
+frame. At 360 FPS the corresponding gaps are 1.91 to 1.95 ms on average
+and 2.57 to 2.69 ms in the slowest second. These are elapsed frame-time
+budgets. CPU submission and GPU execution can overlap. Local evidence is
+in `build/e5-2048-baseline/baseline.json` and the individual
+`build/lighting-performance/e5-reopen-*-2048/report.json` files.
+
+Separate 60-second Soft profiles used the same checkpoint and camera. GPU
+queries sampled 485 frames at 1024 and 393 at 2048. Values below are GPU
+milliseconds per sampled frame. The environmental row covers the timed model
+depth pass only.
+
+| GPU pass | Soft 1024 | Soft 2048 | Increase |
+| --- | ---: | ---: | ---: |
+| Local cube setup, clears and copies | 0.082 | 0.131 | 0.049 |
+| Local world geometry depth | 0.110 | 0.302 | 0.192 |
+| Local world-space model depth | 0.170 | 0.612 | 0.442 |
+| Environmental model depth | 0.268 | 0.421 | 0.153 |
+
+Local model depth draws averaged 134 and 133 per sampled frame respectively.
+Start by identifying which models, material passes and cube faces account
+for that GPU time. Look for redundant depth draws or coverage that can be
+excluded exactly. Preserve animated cutouts, changing poses and off-camera
+blockers. Apply the same rule at every tier, compare full-resolution shadow
+depth and matched final frames, then time Hard and Soft at both resolutions.
+The 0.442 ms increase measures scaling cost. A candidate's recoverable
+frame time needs its own A/B measurement.
+
+Alongside depth work, profile the shared BSP lighting and renderer paths.
+CPU submission of diffuse and specular BSP draws totalled about 0.83 ms
+per frame at both tiers. World and cluster ray queries averaged 0.48 and
+0.56 ms. These CPU measurements can include driver waits and overlap GPU
+work. The existing OpenCE Classic, GulchCE Classic and lighting-only
+controls help identify which changes also benefit lower resolutions.
+Local profile evidence is in `build/e5-2048-baseline/depth-comparison.json`.
+
+### Local model draws and shared BSP lighting submission, 24 November 2026
+
+An isolated Windows experiment tested two changes on the same 19-enemy snowy
+checkpoint. The first tightened the existing cube-face test with bounds for
+the vertices influenced by each bone in a model part. The second uploaded a
+complete BSP lighting index list on its first eligible slice when the list
+was at most 1,024 bytes. This byte limit was identical at every shadow
+resolution. Diffuse and specular draws kept their material order.
+
+The NVIDIA correctness runs at Hard 1024 and Soft 2048 marked 29,652 of
+1,468,453 candidate model-face draws for omission. The GPU
+replayed 29,198 of them with depth comparison forced to pass and depth writes
+disabled. None produced a sample. GPU readback also matched the original
+indices in all 44,620 checked material slices. These checks cover this
+encounter. They do not establish final-image equivalence across all maps.
+
+Each mode and resolution ran for two minutes twice. Four variants rotated
+in five-second blocks inside the same fight. The second launch reversed the
+assignments so the reference and combined variant each saw the same encounter
+intervals, as did the two individual variants. The first second of each
+block was excluded for transitions, leaving 48 measured seconds per variant.
+All runs reached eight local slots and used sunlight, full dynamic lighting,
+the Shared flashlight, and a fixed 1440p view.
+
+| Mode | Reference FPS | Tighter bounds FPS | Earlier index upload FPS | Both FPS | Seconds below 240, reference / both |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Hard 1024 | 265.6 | 265.3 | 262.6 | 262.9 | 0 / 1 |
+| Soft 1024 | 266.6 | 265.6 | 265.5 | 263.3 | 0 / 1 |
+| Hard 2048 | 214.2 | 210.9 | 211.4 | 211.6 | 48 / 48 |
+| Soft 2048 | 208.8 | 210.0 | 208.5 | 212.3 | 48 / 48 |
+
+The following frame-time differences average six matched 20-second rounds
+across the two orderings. Each individual effect averages over the other
+change being enabled and disabled. Negative values mean faster frames.
+
+| Mode | Tighter bounds | Earlier index upload | Both against reference |
+| --- | ---: | ---: | ---: |
+| Hard 1024 | +0.000 ms | +0.038 ms | +0.039 ms |
+| Soft 1024 | +0.023 ms | +0.024 ms | +0.047 ms |
+| Hard 2048 | +0.032 ms | +0.023 ms | +0.055 ms |
+| Soft 2048 | -0.057 ms | -0.022 ms | -0.079 ms |
+
+Defer both changes. Together they removed roughly 69Ã¢â‚¬â€œ72 BSP index uploads
+per frame and about three local model-face draws. The Soft 2048 gain was
+0.079 ms in the paired rounds, with a descriptive interval ranging from a
+0.177 ms gain to a 0.010 ms loss. Both 1024 modes slowed, and every sampled
+2048 second fell below 240 FPS with every variant. Keep the current renderer.
+The next candidate is a separate depth-only path for opaque model parts.
+Measure them against alpha-tested parts first, then check exact depth and
+thin silhouettes before keeping any shader change.
+
+Counts, one-second results and paired round estimates are recorded locally in
+`build/e5-face-batch/comparison.json`. The per-frame inputs are in
+`build/lighting-performance/e5-face-batch-*/`.
+
+### Opaque and alpha-tested local model draws
+
+In the same snowy Xbox checkpoint, asynchronous GPU timers sampled one in 32
+frames during a 60-second combat window after 25 seconds of warm-up. Each
+transition between draw categories started a timer in the existing draw order.
+The categories use the alpha texture actually bound by the
+[local shadow renderer](../../port/linux/src/modern_shadows_gl.c).
+Only local model depth draws are counted here. All four runs reached eight
+local slots, including the Shared flashlight, with environmental sunlight active.
+
+| Setting | Sampled frames | Opaque draws | Alpha-tested draws | Opaque GPU ms/frame | Alpha-tested GPU ms/frame |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Hard 1024 | 481 | 0 | 63,125 | <0.001 | 0.174 |
+| Hard 2048 | 388 | 10 | 50,686 | <0.001 | 0.601 |
+| Soft 1024 | 478 | 10 | 62,294 | <0.001 | 0.167 |
+| Soft 2048 | 383 | 20 | 50,152 | <0.001 | 0.607 |
+
+The draw columns are totals across sampled frames. GPU times are averages
+over all sampled frames, including those with zero opaque draws. Defer the
+opaque shader A/B. Even eliminating every measured opaque draw would save
+less than 0.001 GPU ms per frame on average in this encounter. The experiment
+changed profiling only and supplies no new sustained-FPS or visual qualification.
+
+For model shaders, `material` in the [caster selection code](../../port/linux/game/modern_shadows.c)
+uses the material flags and the active bitmap permutation. The depth shader
+tests the base texture against 127/255 alpha. The timers measure that draw
+path, including vertex and raster work. They do not measure how many texels
+fail the test or how much time the texture lookup alone takes. The next useful
+measurement is to group the expensive draws by their bound texture and check
+whether any can be proved fully opaque at upload time. Keep the existing
+cutout path for unresolved textures and those with genuine holes.
+
+Local evidence is in `build/e5-opaque-depth/profile-comparison.json` and the
+per-run `gpu.csv.zip` files in `build/lighting-performance/e5-opaque-profile-*/`.
+
+### Ranking local model depth draws by base texture
+
+The 1440p Windows Two Betrayals profile grouped asynchronous GPU timers by
+model part and bound base-texture upload, in submission order. Soft 1024
+and 2048 used the same 19-enemy checkpoint. Readback inspected every texel
+of the base level and the channel mapped to alpha. The shadow sampler uses
+linear filtering at that level with repeating edges. If every source texel
+clears the cutoff, interpolation also clears it. The experiment required
+a small margin above 127/255 and renewed the proof after a texture upload.
+The tested passing textures had minimum alpha 1.0.
+
+| Base texture | GPU ms/frame at 1024 | GPU ms/frame at 2048 | Cutoff result |
+| --- | ---: | ---: | --- |
+| cyborg | 0.1801 | 0.6202 | Always passes |
+| plasma pistol | 0.0290 | 0.0291 | Always passes |
+| jackal head | 0.0048 | 0.0049 | 5,773 texels at or below cutoff |
+| jackal legs | 0.0024 | 0.0025 | Always passes |
+| jackal torso | 0.0024 | 0.0024 | Always passes |
+| jackal arms | 0.0017 | 0.0017 | Always passes |
+
+Eighteen base textures passed at each resolution. Besides the Jackal head,
+Elite teeth (1,447 texels) and the shotgun ammunition bitmap (3,793 texels,
+sampled at 1024) need the alpha test. The single most expensive cyborg mesh
+part accounted for 0.609 GPU ms/frame at 2048. Timing includes its
+geometry and raster work and the overhead of splitting timers at part boundaries.
+
+The candidate used a depth-only program with the same vertex shader for
+proven model draws. All other draws used their original path. Replaying
+the same posed draw lists through both variants produced identical 32-bit
+depth for 256 world-receiver cube faces across Hard and Soft at both resolutions
+(671,088,640 texels). 22 faces included certified geometry and genuine
+cutouts together. These captures cover the tested Xbox encounter on NVIDIA.
+
+For each setting, two hidden two-minute launches used opposite A/B assignments
+in four 30-second blocks (ABBA, BAAB). Excluding the first second of every
+block left the same 116 encounter seconds for each variant. Sunlight stayed
+active and all runs reached eight local slots with the Shared flashlight.
+
+| Setting | Reference FPS | Candidate FPS | FPS gain, forward / reversed | Seconds below 240, reference / candidate | Slowest second, reference / candidate |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Hard 1024 | 253.4 | 258.8 | +6.3 / +4.6 | 18 / 11 | 82 / 231 |
+| Soft 1024 | 260.1 | 262.5 | +3.0 / +1.8 | 2 / 1 | 230 / 225 |
+| Hard 2048 | 213.5 | 239.7 | +26.2 / +26.3 | 115 / 53 | 196 / 227 |
+| Soft 2048 | 209.4 | 238.2 | +30.4 / +27.1 | 116 / 64 | 186 / 218 |
+
+Carry this candidate forward. All four settings gained average FPS in both
+launch orders. At 2048, Hard gained 26.2 and 26.3 FPS and Soft gained 30.4
+and 27.1. Every matched 29-second interval improved at 2048. The longest
+observed below-240 stretch fell from 29 to 5 seconds in Hard and from 29
+to 12 in Soft. Sustained 240 remains open. The Hard 1024 reference had an
+82-FPS second with 11 frames above 16.7 ms. Its measured gain was 5.5 FPS,
+or 4.0 FPS after excluding that second from both variants.
+
+The isolated prototype inspected uploaded GPU textures on first use. The
+production implementation computes its opacity proof during upload.
+
+Local evidence includes `build/e5-alpha-ranked/ranked-draws.csv`,
+`ranked-textures.csv`, `ranking.json` and `ab.json` in the same directory.
+The per-run depth comparisons and timing inputs are under
+`build/lighting-performance/e5-ranked-*/`.
+
+### Upload-time opacity for local model shadows
+
+The shadow sampler filters the base texture level. When every texel has full
+alpha, every filtered sample passes the cutoff. An opaque model part can then
+use the same skinned vertices and write depth without sampling the texture.
+For example, the player armour takes this path while a Jackal head with
+transparent texels keeps the sampled shader.
+
+[Texture upload](../../port/linux/src/xbox_textures.c) owns the pixels and
+knows the uploaded format and channel order. Its `base_level_opaque` checks
+the actual DXT blocks or converted pixels once while uploading. The proof
+belongs to that texture entry. A dirty upload clears it before any early exit.
+Palette variants, replacements and remapped alpha channels retain sampling.
+An [MCC entry](../../port/linux/src/mcc_texture_bridge.c) records the same
+proof when its checked upload succeeds and releases it with the map.
+
+[Local depth submission](../../port/linux/src/modern_shadows_gl.c) reads this
+flag only for a textured model draw. If texture lookup changes before the
+draw list is rendered, that draw uses the sampled shader. Both paths share
+the same pose, cube faces, depth projection and eight-slot selection.
+
+On the Windows RTX 5070 Ti, a separate GPU comparison replayed the same
+caster poses through both shaders. All 671,088,640 depth texels across 256 world
+cube faces matched bit for bit in the snowy Xbox Two Betrayals encounter.
+A Hard host and Soft client also matched on 71 sampled faces across Xbox,
+CE and MCC in the Rat Race, Death Island, Digsite and Blood Gulch rotation.
+These checks covered world and first-person receivers.
+
+Separate capture-free runs measured 120 seconds after a 25-second warmup at
+2560 x 1440 on performance cores. Each run replayed the same 19-enemy combat
+save, kept environmental shadows active and reached eight local shadow slots
+with the flashlight sharing the budget. The heavier minute is the slower
+of the two consecutive 60-second intervals.
+
+| Mode | Average FPS | Heavier minute FPS | Slowest second FPS | Seconds below 240 / 120 | Longest stretch below 240 |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Hard 1024 | 272.7 | 271.2 | 254 | 0 | 0 s |
+| Soft 1024 | 261.0 | 258.6 | 239 | 1 | 1 s |
+| Hard 2048 | 238.0 | 237.2 | 209 | 72 | 19 s |
+| Soft 2048 | 238.0 | 235.7 | 207 | 64 | 6 s |
+
+A second Soft 1024 run averaged 271.8 FPS. The slower minute averaged
+269.0 FPS and the slowest second recorded 230 FPS. It spent
+2 of 120 seconds below 240, with a longest stretch of 2 seconds.
+
+Neither mode sustained 240 FPS at fixed 2048 in those runs. The raw timing
+reports and depth comparisons are under `build/lighting-performance/e5-ranked-upload-*/`.
+The consolidated results are in `build/e5-upload-opacity/results.json`. AMD
+hardware and native Linux gameplay were outside this Windows run.
+
+### Where fixed 2048 drops below 240 FPS
+
+In the passive runs above, Hard's longest stretch below 240 ran from second
+78 up to second 97. Soft had two six-second stretches, starting at seconds
+22 and 42. Only 32 one-second windows fell below 240 in both replays.
+Track each run's own slow windows because live combat differs between launches.
+
+Four fresh Windows profiles used those same settings, checkpoint and fixed
+camera. The CPU timers measure elapsed time on the render thread. The GPU
+timers sampled every 32nd frame and associated each result with its submission
+frame. Each replay kept the sun active and reached eight local shadows with
+the Shared flashlight. Times below are GPU milliseconds per sampled frame.
+
+| Setting | Sampled frames | Local world depth | Local model depth | Environmental model depth |
+| --- | ---: | ---: | ---: | ---: |
+| Hard 1024 | 909 | 0.178 | 0.090 | 0.339 |
+| Hard 2048 | 850 | 0.363 | 0.199 | 0.392 |
+| Soft 1024 | 915 | 0.175 | 0.089 | 0.340 |
+| Soft 2048 | 825 | 0.361 | 0.205 | 0.400 |
+
+World geometry in the local lights' depth maps had the largest measured
+increase among these depth passes. A second pair of 2048 profiles split
+world draws by whether they actually used an alpha texture. Draws without
+one took 0.367 GPU ms/frame in Hard and
+0.364 in Soft. Alpha-tested world geometry took
+less than 0.001 in each. A focused A/B can route the already-opaque world
+draws through the local depth-only program while preserving projection,
+polygon offset, cube faces and draw order. Compare the resulting depths
+before timing it. The measured pass time sets an upper bound on the
+work available there.
+
+The strongest repeatable GPU increase within each 2048 replay was in the
+regular draws submitted by the [late transparent pass](../../source/rasterizer/rasterizer_transparent_geometry.c).
+Comparing the 30 slowest seconds with the 30 fastest, these draws went from
+0.243 to 0.333 ms/frame in Hard
+and 0.265 to 0.359 in Soft.
+The cost also rose by 0.034 and
+0.046 ms when the windows were
+chosen from the independent passive runs. Average draw counts in the fast
+and slow quarters were 100 and 103 in Hard and
+104 and 111 in Soft.
+Rank the queued materials and measure screen coverage before changing
+submission. Those timers cover a mix of draws and do not identify a
+particular effect. The GPU time for decals fell in the slow quarter of
+both replays. The GPU cost of local world depth was comparatively steady.
+
+A final pair of replays timed the CPU stages in
+[render_window](../../source/render/render.c) with one record per second and
+no per-draw timers or GPU queries. Each stage record matched the actual
+number of completed frames in the same second. The slower of the two
+60-second intervals supplies the heavier-minute result.
+
+| Setting | Average FPS | Heavier minute FPS | Slowest second FPS | Seconds below 240 / longest stretch in seconds |
+| --- | ---: | ---: | ---: | ---: |
+| Hard 2048 | 239.3 | 238.4 | 222 | 56 / 6 |
+| Soft 2048 | 234.5 | 232.3 | 217 | 90 / 17 |
+
+In the same runs, both object rendering and lighting the map geometry
+cost more render-thread time in the below-target seconds.
+
+| CPU stage (ms/frame) | Hard at or above 240 | Hard below 240 | Soft at or above 240 | Soft below 240 |
+| --- | ---: | ---: | ---: | ---: |
+| Draw objects | 1.184 | 1.236 | 1.136 | 1.185 |
+| Diffuse and specular world lights | 0.855 | 0.894 | 0.901 | 0.939 |
+
+Lighting visibility updates can run inside these stages. The four detailed
+profiles recorded zero shader compiles or links during the measured fight.
+
+Use the passive and low-overhead runs for frame pacing. The detailed
+profilers change it appreciably. CPU stage times include driver calls and
+can overlap GPU execution. The captured pass costs do not establish an
+achievable FPS gain. The experiment changed instrumentation only.
+The reproducible one-second data and scripts are in
+`build/e5-low-windows/`, with the original traces under
+`build/lighting-performance/e5-low-*/`.
+
+### Transparent materials and opaque world depth
+
+The Windows RTX 5070 Ti survey timed every 32nd frame of the late transparent
+pass. It attributed draws to the shader tag, or to the bound base bitmap for
+widgets. An independent replay counted distinct passing screen pixels per
+material. It copied the live depth and stencil, replayed the original draws
+into a private mask, and counted each marked pixel once per material per
+sampled frame. This measures raster coverage after depth, stencil and
+shader discard tests. Blending can still give a passing pixel zero visible
+colour. Each material received 142 or 143 sampled frames per mode. One
+sampled draw in each coverage replay fell outside the 32 ranked materials.
+
+| Material | GPU ms/frame, Hard / Soft | Distinct screen area, Hard / Soft | Passing samples including overlap, Hard / Soft |
+| --- | ---: | ---: | ---: |
+| glow | 0.077 / 0.092 | 1.51 / 1.45% | 12.45 / 18.36% |
+| snow flakes_alpha | 0.051 / 0.051 | 94.57 / 95.25% | 339.88 / 335.72% |
+| smoke warthog gun | 0.049 / 0.046 | 38.65 / 36.99% | 76.86 / 72.77% |
+| needler contrail | 0.014 / 0.017 | 0.12 / 0.12% | 0.11 / 0.36% |
+
+`rasterizer\glow` is a shared bitmap. Its 22Ã¢â‚¬â€œ26 draws per frame together cost
+the most GPU time. Snow took one draw and had the largest screen footprint.
+The smoke bitmap had the largest increase from the fastest to the slowest
+quarter of each replay, 0.019 ms in Hard and 0.007 ms in Soft. A bitmap name
+identifies the resource used and can represent several effects.
+
+The isolated candidate selected the existing [opaque depth program](../../port/linux/src/modern_shadows_gl.c)
+for untextured BSP draws into local light cubes at submission. The same-pose
+comparison covered all six faces and all eight primary cubes in every setting.
+All 1,006,632,960 depth values matched bit for bit, including 691,548,388
+populated texels. The sampled faces included 36 with alpha-tested casters.
+Separate first-person cubes were absent from the captured comparisons.
+
+The passive comparison used fixed 1440p output, Shared flashlight, sun,
+fixtures and all eight local slots. Every 120-second run covered 3,600
+simulation ticks from the same snowy combat core with 19 enemies. Combat
+timing varied across launches. The second 2048 pair ran in the opposite order.
+
+| Mode and resolution | Pair | Average FPS, control Ã¢â€ â€™ candidate | Heavier minute FPS, control Ã¢â€ â€™ candidate | Seconds below 240, control Ã¢â€ â€™ candidate | Longest stretch in seconds, control Ã¢â€ â€™ candidate |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Hard 1024 | 1 | 269.6 Ã¢â€ â€™ 277.1 | 268.2 Ã¢â€ â€™ 276.1 | 0 Ã¢â€ â€™ 0 | 0 Ã¢â€ â€™ 0 |
+| Soft 1024 | 1 | 272.2 Ã¢â€ â€™ 275.0 | 271.5 Ã¢â€ â€™ 274.1 | 0 Ã¢â€ â€™ 1 | 0 Ã¢â€ â€™ 1 |
+| Hard 2048 | 1 | 240.1 Ã¢â€ â€™ 248.4 | 237.5 Ã¢â€ â€™ 246.9 | 46 Ã¢â€ â€™ 4 | 6 Ã¢â€ â€™ 2 |
+| Hard 2048 | 2 | 244.1 Ã¢â€ â€™ 246.5 | 242.6 Ã¢â€ â€™ 244.1 | 16 Ã¢â€ â€™ 11 | 3 Ã¢â€ â€™ 2 |
+| Soft 2048 | 1 | 242.2 Ã¢â€ â€™ 245.2 | 240.8 Ã¢â€ â€™ 241.5 | 38 Ã¢â€ â€™ 21 | 5 Ã¢â€ â€™ 4 |
+| Soft 2048 | 2 | 238.9 Ã¢â€ â€™ 246.8 | 238.0 Ã¢â€ â€™ 244.9 | 57 Ã¢â€ â€™ 11 | 7 Ã¢â€ â€™ 2 |
+
+Four separate 60-second GPU profiles alternated shader selection in 32-frame
+blocks, using control, candidate, candidate, control. Timers sampled one
+frame per block. These timings include instrumentation. The passive table
+above supplies the frame-rate comparison.
+
+| Setting | Opaque world GPU ms/frame, control Ã¢â€ â€™ candidate | Opaque world draws/frame, control Ã¢â€ â€™ candidate | Local depth submission CPU ms/frame, control Ã¢â€ â€™ candidate |
+| --- | ---: | ---: | ---: |
+| Hard 1024 | 0.174 Ã¢â€ â€™ 0.044 | 502.3 Ã¢â€ â€™ 502.8 | 0.030 Ã¢â€ â€™ 0.029 |
+| Soft 1024 | 0.174 Ã¢â€ â€™ 0.045 | 502.2 Ã¢â€ â€™ 502.9 | 0.030 Ã¢â€ â€™ 0.028 |
+| Hard 2048 | 0.375 Ã¢â€ â€™ 0.080 | 502.8 Ã¢â€ â€™ 502.4 | 0.030 Ã¢â€ â€™ 0.031 |
+| Soft 2048 | 0.364 Ã¢â€ â€™ 0.079 | 502.7 Ã¢â€ â€™ 503.1 | 0.031 Ã¢â€ â€™ 0.030 |
+
+Both 2048 pairs improved in each mode. Hard spent 15 of 240 candidate
+seconds below target, and Soft spent 32. Both modes still had dips at fixed 2048. The 1024 results have one passive pair per mode.
+
+The branch now uses the opaque program for untextured world geometry in local
+shadow maps. Alpha-tested world materials retain their discard test. The sun
+uses its existing program. A Windows NVIDIA two-player run with a Hard host
+and Soft client cycled through Xbox Rat Race, CE Death Island, MCC Digsite and
+Xbox Blood Gulch. Both peers rendered all four rounds and agreed on a player
+respawn in each. Paired GPU readbacks of 247 faces, including 116 first-person
+faces and 83 with cutout casters, matched across all
+258,998,272 depth values. This sampled comparison used 1024. AMD hardware
+remains unverified.
+
+The local evidence is in `build/e5-transparent-world/` under
+`material-ranking.csv`, `depth-results.json`, `performance.csv`, `scoped.json`
+and `opaque-world.patch`. The per-peer comparisons are in
+`build/e5-world-glow/family-depth.json`.
+
+### Glow and smoke submission
+
+The late transparent pass was sampled every 32nd frame in the snowy Xbox
+Two Betrayals fight at 1440p. At 2048, all 24,332 sampled Hard glow draws
+and 20,271 Soft glow draws came from `light_volume_render`. Each draw
+already grouped about 18 sprites. Around a quarter immediately followed a
+glow draw with matching sampled render state and vertex constants. The
+ordering, per-volume projection, blending and stencil still matter. Separate
+timing of the full light-volume render callback gave 0.071 ms per frame in Hard and 0.070 ms in Soft. Immediate
+draw submission accounted for 0.026 ms of that in each mode. The final
+index and draw calls accounted for about 0.007 ms.
+
+The Warthog gun smoke bitmap averaged 1.02 draws per frame in each mode.
+Its mean GPU cost rose from 0.020 to 0.129 ms between the smallest and
+largest screen-coverage quarters in Hard, and from 0.012 to 0.116 ms in
+Soft. Coverage counts passing samples, including overlapping sprites.
+CPU draw submission averaged 0.0026 ms per frame in both modes.
+
+An isolated [renderer](../../port/linux/src/d3d8_gl.c) experiment uploaded
+the sequential quad indices once and reused a prefix when issuing otherwise
+identical triangle draws. A GPU buffer readback matched all 253,260
+reference indices across the 290 distinct quad counts sampled. Each setting
+ran twice from the same combat checkpoint. Five-second control and candidate
+blocks followed an ABBA pattern, inverted on the second launch. Each column
+covers 120 one-second windows per path across the two launches.
+
+| Setting | Average FPS, original Ã¢â€ â€™ reusable indices | Seconds below 240, original Ã¢â€ â€™ reusable indices |
+| --- | ---: | ---: |
+| Hard 1024 | 274.2 Ã¢â€ â€™ 277.1 | 0 Ã¢â€ â€™ 0 |
+| Soft 1024 | 276.6 Ã¢â€ â€™ 279.8 | 0 Ã¢â€ â€™ 0 |
+| Hard 2048 | 241.3 Ã¢â€ â€™ 242.8 | 36 Ã¢â€ â€™ 33 |
+| Soft 2048 | 250.1 Ã¢â€ â€™ 250.0 | 7 Ã¢â€ â€™ 8 |
+
+The gain repeated at 1024 and in Hard 2048. Soft 2048 gained 1.55 FPS in
+one launch and lost 1.68 in the other. An initial Hard 2048 launch started
+128 simulation ticks earlier than the comparison route and was excluded.
+Its replacement started at tick 927 and ran for 3,600 ticks.
+Four additional full Soft 2048 runs compared fixed submission paths in both
+orders. Reuse increased average FPS from 247.8 to 253.6 and from 246.1 to
+248.0 in the reversed pair. Seconds below 240 fell from ten to three in the
+first pair and stayed at fifteen in the second. All four reached eight local
+shadow slots.
+
+The desktop renderer now creates one 192 KiB element buffer during
+`gl_initialize`. `draw_sequential_quads` uses the prefix for the requested
+number of quads. Draws with supplied indices keep their original ordering.
+A failed buffer allocation or an oversized list uses the original streamed
+indices. GLES keeps its streamed and rebased paths.
+
+The following uninterrupted 120-second replays measured the opaque world
+shader with the original quad submission, before integrating reusable indices. Each replay used the
+same 19-enemy combat core, advanced 3,600 simulation ticks, and reached eight
+local shadows with the flashlight sharing the budget.
+
+| Setting | Average FPS | Heavier minute FPS | Seconds below 240 | Longest below 240 |
+| --- | ---: | ---: | ---: | ---: |
+| Hard 1024 | 275.9 | 274.6 | 0 | 0 s |
+| Soft 1024 | 271.5 | 270.7 | 0 | 0 s |
+| Hard 2048 | 243.2 | 243.0 | 32 | 4 s |
+| Soft 2048 | 244.5 | 243.1 | 19 | 3 s |
+
+Both 1024 runs sustained 240 FPS in every one-second window. The two
+2048 runs averaged above target, but both had consecutive seconds below it.
+The local evidence is in `build/e5-world-glow/`. `submission.json` and
+`particle-cpu.json` contain the GPU and CPU profiles. `quad-performance.json`
+and `soft-qualification.json` contain the controlled comparisons.
+`branch-pacing.json` records the original-submission baseline.
+
+The production implementation was replayed against the streamed indices on the
+same GPU draw in Hard and Soft. The probe copied the current colour, depth
+and stencil attachments before drawing, then compared the two outputs across
+the entire target. All 47 pairs matched, including nine visibly contributing
+draws per material per mode. The two-peer Hard/Soft cycle and the separate CE
+Off/Hard run also passed with the final renderer.
+
+| Final renderer | Average FPS | Heavier minute FPS | Seconds below 240 | Longest below 240 |
+| --- | ---: | ---: | ---: | ---: |
+| Hard 1024 | 280.8 | 279.9 | 0 | 0 s |
+| Soft 1024 | 273.8 | 273.3 | 0 | 0 s |
+| Hard 2048 | 249.4 | 247.8 | 6 | 1 s |
+| Soft 2048 | 248.8 | 246.7 | 6 | 1 s |
+
+The Windows NVIDIA measurements use the same fixed 1440p fight and 120
+one-second windows per setting. `accepted-pacing.json` records the final
+frame pacing and `framebuffer-parity.json` records the GPU comparisons.
+AMD hardware and native Linux runtime performance remain unverified.
+
+### Shared rendering time in slow combat windows
+
+Two fresh uninterrupted 1440p replays of the existing renderer used the same
+snowy Two Betrayals combat core, 19 enemies, sun fade and Shared flashlight.
+Each reached eight local shadow slots. Hard 2048 averaged 244.3 FPS and spent
+18 of 120 seconds below 240, with a longest stretch of two seconds. Soft
+2048 averaged 246.7 FPS and also spent 18 seconds below, with a longest
+stretch of five seconds. The earlier six-second counts and these repeats use
+the same tracked production input hashes in their benchmark manifests.
+
+Separate Hard and Soft launches sampled CPU submission and asynchronous GPU
+timestamps every sixteenth frame. Around combat ticks 2066Ã¢â‚¬â€œ2096 (the
+38-second dip in the earlier runs), object submission took an additional
+0.108 ms per frame in Hard and 0.122 ms in Soft compared with adjacent
+above-target windows. Diffuse and specular world-light submission together
+rose by 0.173 and 0.204 ms respectively. Late transparent GPU time changed by
++0.045 ms in Hard and Ã¢Ë†â€™0.007 ms in Soft. The earlier ten-second dip varied
+between launches. Each pass interval includes its nested work, and CPU and
+GPU intervals can overlap.
+
+Across all below-target seconds of the instrumented runs, object submission
+increased by 0.081 ms in Hard and 0.053 ms in Soft. World-light submission
+increased by 0.058 and 0.106 ms. Local shadow depth GPU time changed by
++0.014 ms in Hard and less than 0.001 ms in Soft. These measurements place
+the recurring extra cost in visible-object and world-light work. They do
+not identify a single cause for every dip.
+
+The desktop [texture binding](../../port/linux/src/d3d8_gl.c) experiment kept
+an existing binding when the generated shader had no sampler on that stage.
+A sampled stage requesting texture zero still issued the required unbind.
+The paired GPU check replayed the same draw against identical framebuffer
+contents and compared RGBA, depth and stencil across the 2560Ãƒâ€”1440 target.
+All 336 sampled pairs matched across Hard 2048, Soft 2048 and a stock-effects
+control with the lighting enhancements off. Each setting included eight
+visibly contributing glow draws and eight smoke draws. All 24 visible glow
+draws exercised a retained binding. The sampled smoke draws used the same
+bindings on both paths. The linked-program audit found no active sampler
+on any stage classified as unread during these runs.
+
+Both paths used the same executable. Five-second blocks alternated in ABBA
+order, inverted on the second launch, for 120 measured seconds per path at
+each setting. The last column counts five-second combat intervals in which
+the candidate beat the control at the same point in the other launch.
+
+| Setting | Average FPS, control Ã¢â€ â€™ candidate | Seconds below 240, control Ã¢â€ â€™ candidate | Faster intervals |
+| --- | ---: | ---: | ---: |
+| Hard 1024 | 278.2 Ã¢â€ â€™ 277.9 | 0 Ã¢â€ â€™ 0 | 11/24 |
+| Soft 1024 | 279.3 Ã¢â€ â€™ 279.5 | 0 Ã¢â€ â€™ 0 | 12/24 |
+| Hard 2048 | 248.4 Ã¢â€ â€™ 248.2 | 14 Ã¢â€ â€™ 9 | 13/24 |
+| Soft 2048 | 249.5 Ã¢â€ â€™ 248.6 | 15 Ã¢â€ â€™ 11 | 11/24 |
+
+A separate CPU-only sampling pass timed the work inside the object and
+world-light functions. On sub-240 seconds, visible model draws rose from
+1.153 to 1.201 ms per Hard frame but fell from 1.075 to 1.025 ms in Soft.
+Collision ray batches rose from 0.592 to 0.664 ms in Hard and fell from
+0.631 to 0.565 ms in Soft. The two runs had 14 and six below-target seconds
+respectively. Both modes submitted more BSP light passes during the slow
+seconds. Hard went from 64.0 to 70.8 diffuse and specular calls per frame,
+and Soft from 63.9 to 68.3. CPU time inside those BSP material draws rose
+from 0.330 to 0.357 ms and from 0.331 to 0.351 ms respectively. Surface
+selection and triangle-list building were timed separately.
+
+We then held one binding path fixed for the entire 120-second replay. Each
+mode had two control and two candidate runs, in control/candidate
+order for the first pair and candidate/control order for the second. The
+last column gives total seconds below 240 and the longest consecutive stretch.
+
+| Setting | Pair | Average FPS, control Ã¢â€ â€™ candidate | Heavier minute FPS, control Ã¢â€ â€™ candidate | Below 240, total / longest (s), control Ã¢â€ â€™ candidate |
+| --- | ---: | ---: | ---: | ---: |
+| Hard 2048 | 1 | 248.39 Ã¢â€ â€™ 249.97 | 246.82 Ã¢â€ â€™ 247.91 | 6 / 2 Ã¢â€ â€™ 5 / 1 |
+| Hard 2048 | 2 | 253.14 Ã¢â€ â€™ 248.30 | 251.43 Ã¢â€ â€™ 246.71 | 1 / 1 Ã¢â€ â€™ 4 / 2 |
+| Soft 2048 | 1 | 245.25 Ã¢â€ â€™ 244.90 | 243.64 Ã¢â€ â€™ 244.37 | 16 / 3 Ã¢â€ â€™ 19 / 2 |
+| Soft 2048 | 2 | 255.09 Ã¢â€ â€™ 250.36 | 253.82 Ã¢â€ â€™ 249.22 | 0 / 0 Ã¢â€ â€™ 5 / 2 |
+
+The desktop texture-binding change remains an experiment. Its full-frame
+gain did not repeat across the two orders and settings. The existing renderer
+still clears the 240 FPS floor at 1024 in these comparisons. At 2048 the
+average clears 240, with dips in both Hard and Soft. The 360 FPS target
+remains open. We subsequently measured repeated material setup
+inside the [diffuse and specular BSP light draws](../../source/rasterizer/xbox/rasterizer_xbox_environment.c)
+at the same combat ticks. The comparison below covers exact matches in
+shader inputs, texture state and constants with all light contributions and
+the original pass and draw order.
+
+The local evidence is in `build/e5-tick-pacing/`. `windows.json` aligns
+the earlier and repeated slow seconds to simulation ticks. `same-run.json`
+and `components.json` contain the sampled stage and component timings.
+`comparison.json` records both alternating orders and the GPU pixel checks.
+`fixed-comparison.json` records the uninterrupted replays. The GPU
+comparisons cover sampled draws on the Windows RTX 5070 Ti.
+
+### Material setup inside BSP light draws
+
+In the snowy Two Betrayals fight, the renderer revisited the same shader,
+bitmap index and vertex-buffer type on 91% of diffuse and 95% of specular BSP
+light draws within a frame. Including the sampled texture state, vertex and
+pixel shader inputs, UV transform and five light constants reduced those
+figures to 25â€“26% and 31â€“32%. These are input matches. Each light still
+contributes separately to the image. The profilers sampled material setup time
+and state equality on different frames.
+
+Before triangle submission, the material calls averaged about 0.017 ms per
+frame for diffuse lighting and 0.025 ms for specular lighting at 2048. Together
+they cost about 0.002 ms more in the below-240 seconds than in faster seconds
+in both modes. At simulation ticks 2066â€“2096, combined setup took 0.053 ms in
+Hard and 0.044 ms in Soft, compared with 0.045 and 0.043 ms in the adjacent
+above-target seconds. Both timing runs stayed above 240 FPS in the seconds
+overlapping those ticks. These CPU timings include the sampling overhead.
+
+The [shared renderer](../../port/linux/src/d3d8_gl.c) normally expands eighteen
+packed pixel-shader colours into float vectors when draw-uniform inputs change.
+The comparison reused those exact values per linked program, converting an
+active bank only when its input changed. Vertex transforms, textures, passes
+and draw order followed the same route. Stock particles and glow used their
+original assets, blend state and sampling.
+
+| Mode | Pair | Average FPS, control â†’ candidate | Heavier minute FPS, control â†’ candidate | Seconds below 240, control â†’ candidate | Longest stretch in seconds, control â†’ candidate |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Hard 1024 | 1 | 282.37 â†’ 277.55 | 281.63 â†’ 277.50 | 0 â†’ 0 | 0 â†’ 0 |
+| Hard 1024 | 2 | 263.83 â†’ 267.32 | 263.32 â†’ 263.90 | 5 â†’ 0 | 2 â†’ 0 |
+| Hard 2048 | 1 | 248.48 â†’ 247.38 | 245.58 â†’ 244.07 | 14 â†’ 21 | 4 â†’ 6 |
+| Hard 2048 | 2 | 251.12 â†’ 249.52 | 249.17 â†’ 248.41 | 3 â†’ 6 | 1 â†’ 2 |
+| Soft 1024 | 1 | 274.42 â†’ 280.40 | 273.05 â†’ 279.89 | 0 â†’ 0 | 0 â†’ 0 |
+| Soft 1024 | 2 | 276.94 â†’ 277.87 | 276.90 â†’ 276.71 | 0 â†’ 0 | 0 â†’ 0 |
+| Soft 2048 | 1 | 247.41 â†’ 246.50 | 246.61 â†’ 243.96 | 10 â†’ 14 | 1 â†’ 2 |
+| Soft 2048 | 2 | 228.85 â†’ 236.39 | 227.43 â†’ 234.32 | 92 â†’ 67 | 25 â†’ 21 |
+
+Each cell comes from a fresh two-minute replay at 2560Ã—1440 on the Windows RTX
+5070 Ti. Each pair used the same checkpoint, nineteen enemies, shared
+flashlight and sun fade, reached eight local shadow slots, and reversed launch
+order on the repeat. A below-target second contains fewer than 240 rendered
+game frames in the harness interval.
+
+The same-draw GPU check found matching colour, depth and stencil across all 579
+sampled pairs at Hard and Soft 1024/2048 and with the lighting enhancements
+off. These included 40 visibly contributing smoke draws and 40 glow draws. In
+these five diagnostic runs the candidate converted 33.4â€“46.4% fewer colours.
+GPU readbacks and diagnostic counters were confined to the visual-check build.
+
+The packed-colour cache stays experimental. Soft 1024 gained average FPS in
+both orders. Hard 2048 lost average FPS and spent more seconds below 240 in
+both orders. Soft 2048 reversed its result between pairs, with both paths
+slower in the second pair. During its control run, a three-second sample
+recorded about 1.4 logical CPU cores of browser activity. That observation
+alone cannot establish the reason for the difference between pairs. Neither
+2048 mode met the sustained target across these replays. All 16 matched runs
+spent every measured second below 360 FPS. The indexed-draw follow-up appears below.
+
+The local evidence is under `build/e5-bsp-material/`. `survey.json` and
+`tick-windows.json` hold the profile counts and timings. `fixed.json` gives
+each launch and `pixels-summary.json` records the per-material comparisons.
+
+One additional Soft 1024 candidate replay advanced 3,566 simulation ticks. It
+had frame intervals of 739.2 and 519.1 ms. Its trace is in `unmatched.json`.
+The table uses its repeat, which met the established 3,600-tick route with a
+two-tick tolerance. The cause of the two stalls is unknown.
+
+### Indexed map-light draws in the snowy encounter
+
+The Windows renderer submits separate diffuse and specular draws for illuminated
+map surfaces. At Soft 2048 the game requested the same index buffer on almost
+every draw. The existing state cache already reduced those requests to about
+13 OpenGL element-buffer binds per frame. Most vertex bindings genuinely changed.
+
+In the Soft 2048 upload audit, 92.3% of repeated writes were at most 512
+bytes. A 64-entry candidate reused the GPU offset after an exact length and
+byte comparison. Reallocating the ring invalidated its offsets. Eight isolated
+tests covered adjacent and sparse draws, changed contents, collisions, buffer
+rebinding, wrapping and a new context.
+
+The visual probes recorded 3,939,527 successful reuses during their sampled
+intervals. All 635 paired draws matched in colour, depth and stencil at
+2560x1440, including 40 visible smoke and 40 visible glow draws.
+The checker also compared the bytes at each sampled GPU index offset with the
+list requested by the game. None of the 42 sampled Hard 1024 diffuse draws
+changed a visible pixel. Contributing diffuse draws were verified in the other
+four conditions. The stock control recorded zero cache hits.
+
+Timed builds ran the same 19-enemy Two Betrayals checkpoint on the RTX 5070 Ti.
+Both builds reached eight local slots with the shared flashlight, fixtures and
+sunlight enabled. Each column combines two 120-second runs per implementation,
+with the launch order reversed. A below-target second averaged under 240 FPS.
+The streak is the longest continuous run of those seconds within one replay.
+
+| Mode | Reference / candidate average FPS | Lowest minute FPS | Seconds below 240 out of 240 | Longest streak (s) |
+| --- | ---: | ---: | ---: | ---: |
+| Hard 1024 | 272.6 / 268.3 | 270.3 / 265.2 | 0 / 0 | 0 / 0 |
+| Soft 1024 | 270.7 / 269.9 | 266.1 / 267.8 | 1 / 0 | 1 / 0 |
+| Hard 2048 | 246.0 / 243.2 | 244.0 / 239.4 | 32 / 71 | 4 / 6 |
+| Soft 2048 | 247.8 / 245.9 | 241.9 / 240.2 | 39 / 60 | 5 / 5 |
+
+In a separate same-executable check, the implementation alternated in five-second
+blocks, then reversed for matching blocks of the replay. The first second of
+each block was excluded to keep switches out of the samples.
+Soft 2048 gained in 9/24 blocks, with a mean difference of -2.30 FPS.
+Hard 2048 gained in 14/24 blocks, with a mean difference of +1.26 FPS.
+
+Separate timer replays measured the two map-light GPU passes per frame.
+CPU and GPU intervals overlap. GPU elapsed time can include gaps in submission.
+GPU coverage counts samples that passed the depth and stencil tests.
+
+| Mode | GPU ms in below / at-target seconds | Index-upload CPU ms, below / at-target | Vertex / element bind CPU ms per frame |
+| --- | ---: | ---: | ---: |
+| Hard 2048 | 0.892 / 0.783 | 0.038 / 0.036 | 0.030 / 0.0008 |
+| Soft 2048 | 0.839 / 0.771 | 0.036 / 0.034 | 0.032 / 0.0008 |
+
+At combat ticks 2066 through 2096, the two GPU passes took 0.785 ms in
+Hard and 0.890 ms in Soft. The nearest above-target seconds on either
+side measured 0.778 and 0.812 ms respectively. This fixed interval
+showed a larger difference in Soft than in Hard.
+
+The reported bind times include the measuring clocks. After subtracting
+back-to-back timer overhead, the vertex estimates were 0.003 to 0.006 ms
+and the element estimates were close to the timer floor. The GPU draw
+ranking and covered samples are joined by frame, pass and submission time.
+Full per-material results, per-launch pacing and visual comparisons are in
+the local evidence directory `build/e5-index-submit/`.
+
+The specular pass on the exterior metal floor ranked first in both GPU
+profiles. In Hard it accounted for 25.0% of sampled map-light draw time
+and 40.2% of passing samples. In Soft the figures were 25.5% and 40.4%.
+Those percentages describe sampled map-light draws. The complete GPU frame
+also includes models, shadow generation and other passes.
+
+The index-content cache stays experimental. Hard lost average FPS in
+both orders at both resolutions. Both 2048 modes spent more time below
+240 across the two fixed candidate replays. Every measured second of
+the 16 fixed replays was below 360 FPS. These tests used Windows and
+the RTX 5070 Ti. Other GPUs and map families were outside this comparison.
+
+A deferred experiment would measure how many expensive map-light
+fragments leave the destination colour untouched. If finite light bounds
+explain those pixels, test a conservative per-light screen rectangle.
+Use the full viewport for lights without a proven bound and verify
+identical colour, depth and stencil at the edge before timing it.
+
+### Matched 1024 and 2048 combat dips
+
+Four archived control runs per setting shared the same tracked renderer inputs.
+Grouping frames by 30 simulation ticks identified two intervals, 1680 to 1709
+and 2340 to 2369, where at least two of four replays fell below 240 FPS in
+each 2048 mode. All corresponding 1024 replays stayed above target.
+In the archived profile using the adopted opaque world-depth path, local model
+depth had the largest repeatable GPU increase among measured stages. The
+1024-to-2048 difference averaged 0.117 ms in Hard and 0.115 ms in Soft across
+the two intervals. Each estimate had three or four sampled frames per setting
+per interval. An earlier independent profile also showed this model cost rising
+in all four comparisons. These observations do not identify every combat dip.
+
+One candidate used the distance to the existing posed model bounds to order
+local shadow draws from near to far. World casters, unknown bounds and ties
+retained their original ordering. The depth test could reject hidden fragments
+earlier while every part still used its original mesh, pose and material.
+Across 192 reordered cube faces in the snowy Xbox checkpoint, including 83 with cutouts,
+all 503,316,480 sampled 32-bit depth values matched the original order.
+
+Fresh Windows RTX 5070 Ti runs used 2560x1440 and the same 19-enemy combat
+checkpoint with sunlight, fixtures and the Shared flashlight. Every replay
+reached eight local slots. Values below show original / near-first order.
+Each 1024 setting has one 120-second run per build. Each 2048 setting has two,
+with the launch order reversed. The lowest minute and longest dip are taken
+within a single run. A dip is a run of seconds averaging below 240 FPS.
+
+| Mode | Average FPS | Lowest minute FPS | Seconds below 240 | Longest dip (s) |
+| --- | ---: | ---: | ---: | ---: |
+| Hard 1024 | 267.2 / 264.8 | 265.2 / 261.4 | 0 / 4 | 0 / 1 |
+| Soft 1024 | 271.1 / 267.3 | 269.9 / 267.2 | 0 / 1 | 0 / 1 |
+| Hard 2048 | 249.4 / 240.8 | 246.5 / 233.2 | 41 / 112 | 7 / 21 |
+| Soft 2048 | 242.7 / 248.8 | 234.2 / 241.7 | 107 / 31 | 32 / 7 |
+
+Keep the current draw order. Soft 2048 improved in both launch orders, but
+neither of the two preselected slow intervals improved in both Soft pairs.
+Hard 2048 lost average FPS in both orders. The current renderer stayed above
+240 in every measured second at 1024 in both modes. The candidate introduced
+brief dips there. Fixed 1024 is the signed-off baseline for Phase 2.
+
+A separate instrumented run alternated original and near-first order in the
+same launch. Local model-depth GPU time (original / near-first) was
+0.196 / 0.195 ms in Hard over 115 sample quartets and
+0.192 / 0.190 ms in Soft over 114 sample quartets.
+These timer runs are separate from the frame-rate measurements.
+
+A concurrent desktop workload started during the first reversed Hard 2048
+candidate run (200.5 FPS, 96 seconds below target) and overlapped the next
+Hard 1024 control. The table uses fresh comparisons for both. The original
+logs were retained, including the 242.3 FPS control from the interrupted pair.
+
+Local evidence is in `build/e5-matched-dips/matched.json`, `depth.json`
+and `results.json`. The timing result is specific to this Windows GPU and encounter.
 
 ## From a saved setting to a gameplay frame
 
@@ -34,7 +849,7 @@ Mode in each menu style. The existing host lighting policy still applies.
    prepared when their respective settings are enabled. Sun and spot resources use
    their own paths. Allocation failure retains the established fallback.
 4. [prepare_shadow_models](../../port/linux/src/d3d8_gl.c) draws a triangle
-   to a private 1×1 target for each distinct discovered shadow model program.
+   to a private 1Ãƒâ€”1 target for each distinct discovered shadow model program.
    This lets the driver perform first-draw work while the loading frame is on
    screen. Vertex formats, material limits and unusual later combinations can
    still leave some work for gameplay. The general shader and texture
@@ -85,7 +900,7 @@ the BSP node cache. Stock simulation queries pass a null cache.
 
 The earlier recorded route and checkpoint were unavailable. The replacement
 uses a core save in the first snowy exterior of Xbox Two Betrayals, with a
-fixed exterior camera and a deathless player. The setup placed the map’s
+fixed exterior camera and a deathless player. The setup placed the mapÃ¢â‚¬â„¢s
 `e3_a` and `c3_base_tier_2` AI squads before saving the encounter. Each run
 restored that same state, with active enemy fire and 19 living Covenant in
 the measured group. The enemies continue to simulate. This
@@ -93,11 +908,11 @@ provides a repeatable camera and starting state while combat timing can vary.
 The older 271.1/277.5 FPS results used another route and cannot establish a
 gain or loss here.
 
-Use 2560×1440, AA and VSync off, release PGO and LTO, uncapped presentation,
+Use 2560Ãƒâ€”1440, AA and VSync off, release PGO and LTO, uncapped presentation,
 25 seconds of warmup and 120 measured seconds. Enable all lighting categories,
 sun, fixtures and the flashlight, use Shared, and fix the shadow resolution at
-1024. The beam occupies one local slot while active. The separate indoor
-control uses the two Rat Race fixtures. GPU and collision instrumentation
+1024 for the signed-off baseline or 2048 for the higher-quality comparison. The beam
+occupies one local slot while active. The indoor control uses both Rat Race fixtures. GPU and collision instrumentation
 run separately from throughput measurements.
 
 
@@ -276,7 +1091,7 @@ restricted to fully opaque submissions would save no draws in that sample.
 Reusing depth across frames for these models would also need to establish
 that the cutout texture, its coordinates and the posed geometry still match.
 
-At 960×540 with Hard shadows still fixed at 1024, a 30-second diagnostic
+At 960Ãƒâ€”540 with Hard shadows still fixed at 1024, a 30-second diagnostic
 averaged 286.0 FPS. The same 30-second window of the native-resolution Hard
 run averaged 263.6. Pixel workload accounts for part of the gap. Substantial
 work remains at the lower display resolution too. Fixed-quality 360 FPS in
@@ -317,7 +1132,7 @@ remains open.
 
 The before/after NVIDIA image check used 25 pairs from the same frozen
 exterior pose at tick 270, with four local shadows and 24 sun casters.
-The largest mean absolute error in any RGB channel was 0.295 on a 0–255
+The largest mean absolute error in any RGB channel was 0.295 on a 0Ã¢â‚¬â€œ255
 scale, with particles and shields still animating.
 
 On the final source, 140 collision and GPU regression checks passed, and
@@ -348,7 +1163,7 @@ collision traversal.
 
 The retained [visibility reconstruction](../../port/linux/game/plasma_occlusion.c)
 packs the four neighbouring depths for each cubemap texel before projecting
-the 16³ receiver grid. For example, a cell on the edge of a face reads the
+the 16Ã‚Â³ receiver grid. For example, a cell on the edge of a face reads the
 same duplicated last texel as the scalar lookup. SSE2 builds use 24 KiB of
 scratch during reconstruction. Other CPU targets keep the scalar path.
 Across 143,768 live inputs the two layouts produced byte-identical fields.
@@ -371,7 +1186,7 @@ With lighting alone, a separate comparison in the same fight measured
 blocks had shorter mean frames. CPU occlusion fell from 0.891 to 0.803 ms
 per frame.
 
-In separate uncapped 120-second release runs at 2560×1440, lighting alone
+In separate uncapped 120-second release runs at 2560Ãƒâ€”1440, lighting alone
 averaged 282.5 FPS, Hard 1024 averaged 245.3 and Soft 1024 averaged 247.2.
 Both shadow modes reached eight local slots and used sunlight throughout.
 The slowest frames were 12.0, 10.8 and 11.8 ms respectively. The second
@@ -380,7 +1195,7 @@ clear 240 FPS. The 360 FPS goal in this encounter remains open.
 
 A matched NVIDIA image check froze the reference and retained build at tick
 271 with seven local maps and 20 sun casters. Across 25 paired captures the
-largest per-channel mean absolute difference was 1.021 on a 0–255 scale.
+largest per-channel mean absolute difference was 1.021 on a 0Ã¢â‚¬â€œ255 scale.
 Snow and effects continue to animate during a simulation freeze. A separate
 Soft run crossed Xbox Two Betrayals, MCC Digsite, CE Death Island and Xbox
 Blood Gulch. The two-player CE host-policy check recorded zero local shadow
@@ -388,7 +1203,7 @@ samples on the Classic host and 60 on the Hard client.
 
 ### Heavier combat minute
 
-At release commit `07cb0ba16`, the same checkpoint, camera and 2560×1440
+At release commit `07cb0ba16`, the same checkpoint, camera and 2560Ãƒâ€”1440
 settings gave the following averages on the i7-14700K and RTX 5070 Ti.
 Each row is a separate two-minute Windows run. The stock control used the
 ordinary flashlight with the optional lights and shadows disabled.
@@ -440,7 +1255,7 @@ the mean ray encountered 2.67 tree forks.
 The first frozen capture pair had a camera offset. Reapplying the camera
 after freezing produced identical saved camera poses in both builds.
 At tick 271 with seven local maps and 20 sun casters, 21 paired captures
-had a maximum per-channel mean absolute difference of 1.01 on a 0–255 scale.
+had a maximum per-channel mean absolute difference of 1.01 on a 0Ã¢â‚¬â€œ255 scale.
 
 ### Per-light index uploads in the snowy fight
 
@@ -475,16 +1290,16 @@ original ran in the middle four.
 Each comparison used 14 complete blocks and omitted 15 ms at each switch
 boundary. Negative frame-time changes favour the candidate.
 
-| Mode | Uploads per frame, original → batched | Mean paired change | Faster blocks | Heavier minute FPS, original → batched¹ |
+| Mode | Uploads per frame, original Ã¢â€ â€™ batched | Mean paired change | Faster blocks | Heavier minute FPS, original Ã¢â€ â€™ batchedÃ‚Â¹ |
 | --- | ---: | ---: | ---: | ---: |
-| Lighting only | 489 → 65 | −0.121 ms | 11/14 | 242.1 → 253.2 |
-| Hard 1024 | 476 → 63 | −0.075 ms | 10/14 | 216.6 → 225.7 |
-| Soft 1024 | 475 → 62 | −0.087 ms | 11/14 | 216.5 → 221.5 |
+| Lighting only | 489 Ã¢â€ â€™ 65 | Ã¢Ë†â€™0.121 ms | 11/14 | 242.1 Ã¢â€ â€™ 253.2 |
+| Hard 1024 | 476 Ã¢â€ â€™ 63 | Ã¢Ë†â€™0.075 ms | 10/14 | 216.6 Ã¢â€ â€™ 225.7 |
+| Soft 1024 | 475 Ã¢â€ â€™ 62 | Ã¢Ë†â€™0.087 ms | 11/14 | 216.5 Ã¢â€ â€™ 221.5 |
 
-¹ The paired comparison ends at second 144. These averages use seconds
-85–144 and only the intervals assigned to each path. Live AI can change the
+Ã‚Â¹ The paired comparison ends at second 144. These averages use seconds
+85Ã¢â‚¬â€œ144 and only the intervals assigned to each path. Live AI can change the
 work between intervals. In Hard the 95% block-bootstrap interval for the
-frame-time change was −0.159 to +0.017 ms. The Soft and lighting-only
+frame-time change was Ã¢Ë†â€™0.159 to +0.017 ms. The Soft and lighting-only
 intervals favoured batching. Uploading whole lists transferred about 12%
 more bytes than the material slices actually used during candidate intervals.
 
@@ -497,7 +1312,7 @@ workloads and instrumentation.
 At simulation tick 271, a fixed Xbox exterior view showed seven local maps,
 the shared flashlight and 22 sun casters in both upload paths. Across 11
 alternating image pairs per mode, the largest mean absolute difference in
-any colour channel was 0.97 in Hard and 0.99 in Soft on a 0–255 scale.
+any colour channel was 0.97 in Hard and 0.99 in Soft on a 0Ã¢â‚¬â€œ255 scale.
 Snow and shield animation continued at the fixed pose. A separate 32-bit
 test passed 123,911 draws through the experimental upload code, including
 38,701 storage wraps. The bytes at the returned offsets matched the input
@@ -579,8 +1394,8 @@ only a fully covered range. A ring-buffer wrap invalidates the uploaded
 range. The geometry owner supplies the list bounds because the backend
 receives only the current draw's indices. The renderer's streamed-byte
 counter accounts for saved writes and read-ahead.
-[Pass lifetime](../../source/structures/structure_render.c) ·
-[Triangle storage](../../source/rasterizer/xbox/rasterizer_xbox_draw_primitives.c) ·
+[Pass lifetime](../../source/structures/structure_render.c) Ã‚Â·
+[Triangle storage](../../source/rasterizer/xbox/rasterizer_xbox_draw_primitives.c) Ã‚Â·
 [OpenGL uploads](../../port/linux/src/d3d8_gl.c)
 
 | Settled Soft 1024 view | Exact slices, calls / bytes | Whole list, calls / bytes | Adjacent slices, calls / bytes |
@@ -602,16 +1417,16 @@ milliseconds saved per frame relative to both changes off.
 
 | Mode | Collision only | Upload only | Combined | Faster blocks, combined |
 | --- | ---: | ---: | ---: | ---: |
-| Dynamic lighting only | −0.036 | −0.047 | −0.104 | 7/7 |
-| Hard 1024 | −0.030 | −0.039 | −0.059 | 6/7 |
-| Soft 1024 | +0.042 | −0.032 | −0.081 | 5/7 |
+| Dynamic lighting only | Ã¢Ë†â€™0.036 | Ã¢Ë†â€™0.047 | Ã¢Ë†â€™0.104 | 7/7 |
+| Hard 1024 | Ã¢Ë†â€™0.030 | Ã¢Ë†â€™0.039 | Ã¢Ë†â€™0.059 | 6/7 |
+| Soft 1024 | +0.042 | Ã¢Ë†â€™0.032 | Ã¢Ë†â€™0.081 | 5/7 |
 
 The Hard combined comparison's 95% block-bootstrap interval spanned
-−0.098 to +0.004 ms. Live AI and light counts varied within the fight.
+Ã¢Ë†â€™0.098 to +0.004 ms. Live AI and light counts varied within the fight.
 As a sensitivity check, a within-block fit adjusted for selected and scene
 light counts, and for sun caster and local map counts in shadow modes.
-The combined frame-time differences were −0.071 ms for lighting alone,
-−0.060 for Hard and −0.041 for Soft. These estimates depend on the workload
+The combined frame-time differences were Ã¢Ë†â€™0.071 ms for lighting alone,
+Ã¢Ë†â€™0.060 for Hard and Ã¢Ë†â€™0.041 for Soft. These estimates depend on the workload
 model. The fixed release-build runs below measure actual FPS and slow stretches.
 In fixed separate executables the first lighting-only pair gave 280.9 FPS
 for the control and 235.2 for both changes. Reversing the order gave 278.8
@@ -623,7 +1438,7 @@ been attributed.
 At the same frozen Xbox pose (tick 271), both modes had seven local maps,
 the shared beam and 22 sun casters. Across 18 Hard and 17 Soft image pairs,
 the largest per-channel mean absolute differences were 1.03 and 0.98 on a
-0–255 scale. Snow and shield effects continued to animate. The local logs,
+0Ã¢â‚¬â€œ255 scale. Snow and shield effects continued to animate. The local logs,
 patches and matched capture sheet are in `build/e5-trace-density/`.
 The two-minute frame records use `build/lighting-performance/e5-density-*`.
 
@@ -638,9 +1453,9 @@ order are reported above.
 
 | Mode | Full average FPS | Second-minute FPS | Seconds below 240 | Longest below 240 | 99th-percentile frame, ms |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| Dynamic lighting only | 280.9 → 293.3 | 268.3 → 284.8 | 3 → 0 | 1 → 0 | 5.48 → 5.09 |
-| Hard 1024 | 242.5 → 252.4 | 231.3 → 243.1 | 54 → 19 | 35 → 8 | 6.23 → 5.82 |
-| Soft 1024 | 241.7 → 248.7 | 233.4 → 239.8 | 58 → 35 | 30 → 8 | 6.37 → 5.75 |
+| Dynamic lighting only | 280.9 Ã¢â€ â€™ 293.3 | 268.3 Ã¢â€ â€™ 284.8 | 3 Ã¢â€ â€™ 0 | 1 Ã¢â€ â€™ 0 | 5.48 Ã¢â€ â€™ 5.09 |
+| Hard 1024 | 242.5 Ã¢â€ â€™ 252.4 | 231.3 Ã¢â€ â€™ 243.1 | 54 Ã¢â€ â€™ 19 | 35 Ã¢â€ â€™ 8 | 6.23 Ã¢â€ â€™ 5.82 |
+| Soft 1024 | 241.7 Ã¢â€ â€™ 248.7 | 233.4 Ã¢â€ â€™ 239.8 | 58 Ã¢â€ â€™ 35 | 30 Ã¢â€ â€™ 8 | 6.37 Ã¢â€ â€™ 5.75 |
 
 All runs used the same combat core. The integrated Hard run had six slow
 stretches and Soft had fourteen. Neither contained a frame longer than
@@ -662,13 +1477,13 @@ integrated Windows build joined in Hard. Across 68 compared seconds, the
 peers had zero simulation drift in 2,037 ticks. A separate frozen Xbox
 combat view at tick 271 had seven local shadow maps, the shared flashlight
 and 22 sun casters. Across 18 Hard and 17 Soft image pairs, the largest
-per-channel mean absolute differences were 1.025 and 0.973 on the 0–255
+per-channel mean absolute differences were 1.025 and 0.973 on the 0Ã¢â‚¬â€œ255
 scale. Snow and glow continued animating in the frozen view.
 
 On MCC Mercury Rising 2, the original and integrated Windows builds traced
 the same seven outdoor camera positions toward and away from the Covenant
 caches in Soft 1024. The largest per-channel mean absolute difference at
-960×600 was 0.179 on the 0–255 scale. These settled views check the result
+960Ãƒâ€”600 was 0.179 on the 0Ã¢â‚¬â€œ255 scale. These settled views check the result
 at each distance. Continuous motion between samples remains unmeasured.
 The Windows release, Android and web builds passed. The focused collision,
 renderer and NVIDIA GPU suites passed all 292 cases. Native Linux gameplay
@@ -677,12 +1492,12 @@ and AMD hardware remain unverified for these changes.
 ### Texture setup and sustained combat frame time
 
 On the integrated renderer at `07566a473`, the heavier Hard 1024 minute
-averaged 0.298 ms in the BSP’s lit material callbacks. Inside them, draw
+averaged 0.298 ms in the BSPÃ¢â‚¬â„¢s lit material callbacks. Inside them, draw
 preparation took 0.190 ms, including 0.118 ms in texture setup. Issuing the
 indexed draw took about 0.010 ms of CPU time. These clocks rotate between
 scopes and subtract a back-to-back clock measurement. They measure CPU time
 spent submitting work. The GPU can continue executing after a draw returns.
-[Material draws](../../source/rasterizer/xbox/rasterizer_xbox_environment.c) ·
+[Material draws](../../source/rasterizer/xbox/rasterizer_xbox_environment.c) Ã‚Â·
 [Texture binding](../../port/linux/src/d3d8_gl.c)
 
 In a separate stage trace, the late part of the Hard run averaged 345
@@ -702,9 +1517,9 @@ Positive time means the experimental path took longer.
 
 | Mode | Paired frame-time change | Faster blocks | 95% block-bootstrap interval |
 | --- | ---: | ---: | ---: |
-| Lighting only | +0.002 ms | 6/14 | −0.043 to +0.046 ms |
-| Hard 1024 | +0.016 ms | 5/14 | −0.017 to +0.050 ms |
-| Soft 1024 | +0.011 ms | 7/14 | −0.068 to +0.096 ms |
+| Lighting only | +0.002 ms | 6/14 | Ã¢Ë†â€™0.043 to +0.046 ms |
+| Hard 1024 | +0.016 ms | 5/14 | Ã¢Ë†â€™0.017 to +0.050 ms |
+| Soft 1024 | +0.011 ms | 7/14 | Ã¢Ë†â€™0.068 to +0.096 ms |
 
 Timing the texture function itself in an independent Hard run gave
 301 ns per lit draw on the existing path and 291 ns with reuse. That
@@ -740,13 +1555,13 @@ batch in each layer. Counts below include every measured frame and GPU
 times include the sampled draws. Each second has equal weight within a
 minute.
 
-| First → second minute | Hard 1024 | Soft 1024 |
+| First Ã¢â€ â€™ second minute | Hard 1024 | Soft 1024 |
 | --- | ---: | ---: |
-| Queued decal entries per frame | 450 → 1,011 | 449 → 1,007 |
-| Decal batches per frame | 251 → 591 | 251 → 585 |
-| Submitted decal vertices per frame | 3,985 → 8,947 | 3,972 → 8,989 |
-| GPU time in decal draws | 0.219 → 0.507 ms | 0.220 → 0.503 ms |
-| Visibility queries sent per frame | 23.27 → 23.33 | 23.27 → 23.33 |
+| Queued decal entries per frame | 450 Ã¢â€ â€™ 1,011 | 449 Ã¢â€ â€™ 1,007 |
+| Decal batches per frame | 251 Ã¢â€ â€™ 591 | 251 Ã¢â€ â€™ 585 |
+| Submitted decal vertices per frame | 3,985 Ã¢â€ â€™ 8,947 | 3,972 Ã¢â€ â€™ 8,989 |
+| GPU time in decal draws | 0.219 Ã¢â€ â€™ 0.507 ms | 0.220 Ã¢â€ â€™ 0.503 ms |
+| Visibility queries sent per frame | 23.27 Ã¢â€ â€™ 23.33 | 23.27 Ã¢â€ â€™ 23.33 |
 
 Decals contributed the largest measured increase in GPU time in both
 replays. Local shadow depth grew by 0.007 ms in Hard and 0.004 ms in Soft.
@@ -787,7 +1602,7 @@ was 0.90 of 255. Snow and effects continue animating during a simulation freeze.
 
 The table uses separate passive Windows release benchmarks on the RTX 5070 Ti.
 Each replay used the same 19-Covenant checkpoint, 25 seconds of warmup
-and two measured minutes at 2560×1440 with AA and VSync off. Hard and
+and two measured minutes at 2560Ãƒâ€”1440 with AA and VSync off. Hard and
 Soft used 1024 with the full sunlight fade and all eight local shadow slots.
 Only the frame-time runs are used for FPS. The GPU query run is for
 visibility correctness. The OpenCE comparison uses commit `307a42ee04ba`.
@@ -815,20 +1630,20 @@ recorded on later runs. The cause of the slow launch is open.
 A separate Soft replay alternated the final decal check every few seconds
 within one process. Across fourteen eight-second blocks, frame time fell
 from 4.002 to 3.805 ms. Twelve blocks improved. The mean paired difference
-was −0.197 ms (95% block-resampling interval −0.272 to −0.126 ms).
+was Ã¢Ë†â€™0.197 ms (95% block-resampling interval Ã¢Ë†â€™0.272 to Ã¢Ë†â€™0.126 ms).
 The rendering thread sampled a performance core on all 30,869 measured frames.
 
 With all 189 submitted marks in view on a stationary CE Death Island floor,
 frame time changed from 1.086 to 1.089 ms. The 95% paired interval across
-nine eight-second windows was −0.006 to +0.013 ms.
+nine eight-second windows was Ã¢Ë†â€™0.006 to +0.013 ms.
 
 On the sampled Hard GPU replay, decal draws in the heavier minute fell
 from 0.507 to 0.057 ms per frame. Local shadow depth cost 0.423 ms, and
 environmental depth cost 0.259 ms. A separate Hard run measured 0.776 ms
 per frame of dynamic-light occlusion on the CPU. GPU and CPU work overlap.
 In the two final Hard runs, the slowest twelve one-second windows cost
-0.286–0.325 ms more per frame than the middle twelve. CPU occlusion
-accounted for 0.097–0.103 ms of that increase.
+0.286Ã¢â‚¬â€œ0.325 ms more per frame than the middle twelve. CPU occlusion
+accounted for 0.097Ã¢â‚¬â€œ0.103 ms of that increase.
 
 Keep the decal change. Every measured second of the independent Hard and
 Soft runs fell below 360 FPS. The slow Soft launch also keeps the sustained
@@ -846,7 +1661,7 @@ Local evidence is in `build/lighting-performance/e5-decal-*` and
 #### Measuring slow launches and local depth
 
 At renderer `086578a5b`, fresh launches replayed the 19-Covenant
-snowy Two Betrayals checkpoint on Windows at 2560×1440. Hard and Soft used
+snowy Two Betrayals checkpoint on Windows at 2560Ãƒâ€”1440. Hard and Soft used
 1024, the full sun fade and eight available local slots, including the
 shared flashlight. The measured fight lasted 120 seconds after 25 seconds
 of warmup. Each second below a target is a complete one-second FPS window.
@@ -861,13 +1676,13 @@ of warmup. Each second below a target is a complete one-second FPS window.
 | Soft with timers C | 256.2 | 255.9 | 10 | 2 | 120 |
 
 The preceding 116.6 FPS Soft replay was already down to 118.6 FPS at
-15–20 seconds, before the measured window began. Its two normal repeats
-were at 259–263 FPS by that point. The four new runs with present timers
+15Ã¢â‚¬â€œ20 seconds, before the measured window began. Its two normal repeats
+were at 259Ã¢â‚¬â€œ263 FPS by that point. The four new runs with present timers
 did not reproduce that launch. Across them, the render thread finished
 122,474 of 122,474 measured frames on a performance core. No shader
 compiles or links were recorded during those measured frames. The CPU
 time spent issuing query copies, swapping, waiting on the pacing fence
-and reading visibility results together averaged 0.052–0.057 ms/frame.
+and reading visibility results together averaged 0.052Ã¢â‚¬â€œ0.057 ms/frame.
 These calls can still take longer on individual frames. The frame-boundary
 CPU samples cannot establish the earlier process's scheduling history.
 [Windows stall instrumentation](../../tools/fixtures/lighting_stall_diagnostics.inc)
@@ -936,7 +1751,7 @@ Local evidence and reproduction scripts are under `build/e5-launch-investigation
 The renderer stayed at `07566a473` for these measurements. The fixed builds
 used passive benchmark clocks with the palette prototype and pass timers
 absent. All five runs used the same snowy Two Betrayals core, 19 live
-Covenant, 25 seconds of warmup, 120 measured seconds, 2560×1440, and AA and
+Covenant, 25 seconds of warmup, 120 measured seconds, 2560Ãƒâ€”1440, and AA and
 VSync off on the RTX 5070 Ti. Hard and Soft used 1024, the full sun fade
 and all eight available local slots with the flashlight sharing one.
 
@@ -949,7 +1764,7 @@ and all eight available local slots with the flashlight sharing one.
 | GulchCE Soft | 249.5 | 242.5 | 22 | 5 | 120 |
 
 Each configuration had one independent live fight. Their ordering varies
-between repeats. The prototype’s [paired frame-time comparison](#texture-setup-and-sustained-combat-frame-time)
+between repeats. The prototypeÃ¢â‚¬â„¢s [paired frame-time comparison](#texture-setup-and-sustained-combat-frame-time)
 is the comparison for the proposed code change. Local fixed reports are
 `build/lighting-performance/e5-material-fixed-*`. Timing breakdowns and the
 paired analysis are under `build/e5-material-submit/`.
@@ -1185,9 +2000,9 @@ the 1440p Classic 128 runs used GulchCE first.
 
 | Framebuffer and Classic shadow size | OpenCE average FPS | GulchCE average FPS | OpenCE second minute | GulchCE second minute |
 | --- | ---: | ---: | ---: | ---: |
-| 2560×1440, 128 | 415.8 | 428.3 | 376.3 | 380.4 |
-| 2560×1440, 1024 | 379.7 | 421.3 | 364.1 | 379.9 |
-| 1280×720, 1024 | 458.2 | 489.1 | 431.7 | 439.5 |
+| 2560Ãƒâ€”1440, 128 | 415.8 | 428.3 | 376.3 | 380.4 |
+| 2560Ãƒâ€”1440, 1024 | 379.7 | 421.3 | 364.1 | 379.9 |
+| 1280Ãƒâ€”720, 1024 | 458.2 | 489.1 | 431.7 | 439.5 |
 
 In pinned OpenCE, `halo_shadow_map_scale` sets a common size for the
 Classic object targets. In the [GulchCE renderer](../../port/linux/src/d3d8_gl.c),
@@ -1241,6 +2056,6 @@ first-visit and warm-reload measurements when the renderer changes.
 
 The final sun receiver was also compared against its preceding implementation
 in a frozen exterior pose on NVIDIA. At tick 270 both runs reported 24 sun
-casters and four local shadows. Across 24 paired 1280×720 images the largest
-per-channel mean absolute difference was 0.262 on a 0–255 scale. The snow
+casters and four local shadows. Across 24 paired 1280Ãƒâ€”720 images the largest
+per-channel mean absolute difference was 0.262 on a 0Ã¢â‚¬â€œ255 scale. The snow
 and shield animations continue to draw while simulation is frozen.

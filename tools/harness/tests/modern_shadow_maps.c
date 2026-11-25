@@ -1,5 +1,5 @@
 #include "harness.h"
-static struct { int model,soft; unsigned static_depth,object_depth; float tint[3],frame[16],radius,detail[4],region[8]; } sun;
+static struct { int model,soft; unsigned static_depth,object_depth; float tint[3],frame[16],radius,detail[4],region[8],eye[4],close[4]; } sun;
 static int sun_detail_caster, sun_detail_in_batch;
 static int sun_draw_batch(void) {return 0;}
 static unsigned long long spot_window;
@@ -17,7 +17,7 @@ enum { GL_TEXTURE0,GL_TEXTURE_2D,GL_FRAMEBUFFER,GL_DEPTH_ATTACHMENT,
  GL_POLYGON_OFFSET_FILL,GL_FRONT_AND_BACK,GL_FILL,GL_DEPTH_BUFFER_BIT,
  GL_ARRAY_BUFFER,GL_ELEMENT_ARRAY_BUFFER,GL_FLOAT,GL_TRIANGLES,
  GL_UNSIGNED_SHORT,GL_UPPER_LEFT,GL_ZERO_TO_ONE,GL_TEXTURE_CUBE_MAP };
-struct xgpu_texture_description { int unused; };
+struct xgpu_texture_description { int base_opaque; };
 static struct { unsigned depth[2]; int enabled; float frames[32], radius; int soft; } environment_model;
 static int fbo,allocated,handoffs,receiver,texture,element,draw_counts[16][4],fail_fbo,deleted_textures,delete_calls;
 static unsigned int bound[2];
@@ -25,9 +25,12 @@ static int copy_count, copied_faces, submitted[4];
 static int map_slots[2]={0,1};
 static long resolution_scale=8;
 static int viewport_size;
-long halo_shadow_resolution_scale(void) { return resolution_scale; }
+static struct { int resolution, promoted; } adaptive;
+static void adaptive_reject_size(void) {}
+static int modern_shadow_pixels(void) { return 128 * resolution_scale; }
+static void adaptive_reset(void) {}
 static void glViewport(int x,int y,int width,int height) {
- CHECK(width==height && width==128*resolution_scale,"viewport follows selected shadow resolution");viewport_size=width;
+ CHECK(width==height && (adaptive.resolution || width==128*resolution_scale),"viewport follows selected shadow resolution");viewport_size=width;
 }
 static void glClipControl(int origin,int depth) {
  CHECK(depth==GL_ZERO_TO_ONE,"reversed float depth retains precision through zero-to-one clipping");
@@ -42,7 +45,9 @@ static void glDepthFunc(int comparison) { CHECK(comparison==GL_GREATER,"nearest 
 static int offset_calls;
 static void glPolygonOffset(float factor,float units) { CHECK(factor==-.5f/256 && units==0,"accepted ground slope");offset_calls++; }
 #define glPolygonMode(...) ((void)0)
-#define glUseProgram(...) ((void)0)
+static GLuint active_program;
+static int opaque_draws;
+#define glUseProgram(value) (active_program=(value))
 #define glBindVertexArray(array) (element=(int)(array))
 #define glActiveTexture(...) ((void)0)
 #define glBindSampler(...) ((void)0)
@@ -66,7 +71,7 @@ static void glDeleteTextures(int n,const GLuint *textures) {
  CHECK(n==1 || n==2,"release failed cube or owned pair");deleted_textures+=!!textures[0]+(n==2 && !!textures[1]);
 }
 static void glBindFramebuffer(int target,int value) { fbo=value; }
-static void create_depth_cube(GLuint *value) { allocated++;*value=90+allocated; }
+static void create_depth_cube(GLuint *value,int size) { CHECK(size>=128 && size<=4096,"cube dimensions");allocated++;*value=90+allocated; }
 static void glFramebufferTexture2D(int t,int a,int face,int value,int l) {
  CHECK(fbo==9,"depth attachment uses owned framebuffer, including lazy allocation");texture=value;
 }
@@ -77,6 +82,7 @@ static void glUniform4fv(int location,int count,const float *v) {
 }
 static void glBindBuffer(int target,int buffer) { if(target==GL_ELEMENT_ARRAY_BUFFER) element=buffer; }
 static void glDrawElements(int mode,int count,int type,void *p) {
+ if(active_program==77)opaque_draws++;
  CHECK(texture>=91 && texture<=106,"known world/view depth target");draw_counts[texture-91][element-10]++;submitted[element-10]++;
 }
 static void glCopyImageSubData(GLuint source,GLenum source_target,int sl,int sx,int sy,int sz,
@@ -89,7 +95,9 @@ static void glCopyImageSubData(GLuint source,GLenum source_target,int sl,int sx,
  memcpy(draw_counts[destination-91],draw_counts[source-91],sizeof(draw_counts[0]));copy_count++;
 }
 static void xgpu_gl_end_external_pass(void) { handoffs++; }
-static GLuint xgpu_texture_get(const void *p,void *u,GLenum *target,struct xgpu_texture_description *d) { *target=GL_TEXTURE_2D;return 5; }
+static unsigned long lookup_serial=7;
+static unsigned long xgpu_texture_lookup_serial(void) { return lookup_serial; }
+static GLuint xgpu_texture_get(const void *p,void *u,GLenum *target,struct xgpu_texture_description *d) { *target=GL_TEXTURE_2D;d->base_opaque=*(const int *)p;return 5; }
 static void glBindTextures(int unit,int n,const GLuint *p) { bound[unit==10]=*p; }
 static int modern_shadows_map(int slot) { return map_slots[slot]; }
 static int xgpu_gl_ready(void) { return 1; }
@@ -290,7 +298,58 @@ int main(int argc,char **argv) {
   face_clears=0;
   modern_shadow_begin(0,origin,4,0,0); modern_shadow_end();
   CHECK(!face_clears,"previously empty depth faces need no attachment clear");
+  {
+   int full=1, cutout=0;
+   opaque_program=77;
+   meshes[0].model=1;meshes[0].bounded=0;meshes[0].array=10;
+   modern_shadow_begin(0,origin,4,0,0);
+   modern_shadow_draw(1,bones,2,&full,uv,MODERN_SHADOW_WORLD);
+   lookup_serial++;
+   modern_shadow_draw(1,bones,2,&cutout,uv,MODERN_SHADOW_WORLD);
+   modern_shadow_end();
+   CHECK(!opaque_draws,"a reupload before rendering invalidates an earlier opaque draw");
+   modern_shadow_begin(0,origin,4,0,0);
+   modern_shadow_draw(1,bones,2,&full,uv,MODERN_SHADOW_WORLD);
+   modern_shadow_draw(1,bones,2,&cutout,uv,MODERN_SHADOW_WORLD);
+   modern_shadow_end();
+   CHECK(opaque_draws==6,"only the opaque model uses depth-only on all six faces");
+   meshes[0].model=0;
+   modern_shadow_begin(0,origin,4,0,0);
+   modern_shadow_draw(1,bones,2,&full,uv,MODERN_SHADOW_WORLD);
+   modern_shadow_end();
+   CHECK(opaque_draws==6,"textured world geometry keeps its material shader");
+   modern_shadow_begin(0,origin,4,0,0);
+   modern_shadow_draw(1,bones,2,NULL,uv,MODERN_SHADOW_WORLD);
+   modern_shadow_draw(1,bones,2,&cutout,uv,MODERN_SHADOW_WORLD);
+   modern_shadow_end();
+   CHECK(opaque_draws==12,"only untextured world geometry uses the opaque depth program");
+  }
   modern_shadow_dispose();
  }
+ /* Keep all eight light maps valid while exactly one slot changes per frame. */
+ modern_shadow_dispose();
+ adaptive.resolution=1; resolution_scale=16; framebuffer=9; allocated=0;
+ {
+  int frame, slot, expected;
+  for(frame=0;frame<=MODERN_SHADOW_LIGHTS+1;frame++) {
+   if(frame==1) resolution_scale=32;
+   adaptive.promoted=0;
+   for(slot=0;slot<MODERN_SHADOW_LIGHTS;slot++) {
+    CHECK(modern_shadow_begin(slot,origin,2,0,0) && modern_shadow_end(),"all slots render during a promotion");
+    expected=frame>1 && slot<frame-1 ? 4096 : 2048;
+    CHECK(viewport_size==expected && maps[slot].size==expected,"staggered maps render at their own allocated size");
+   }
+  }
+  CHECK(allocated==2*MODERN_SHADOW_LIGHTS,"each slot allocated once per tier");
+  resolution_scale=8;
+  CHECK(modern_shadow_begin(0,origin,2,0,0) && modern_shadow_end() && viewport_size==1024,
+        "budget pressure frees large cubes immediately");
+  for(slot=1;slot<MODERN_SHADOW_LIGHTS;slot++) CHECK(!maps[slot].depth_cube[0],"unused larger maps were released");
+  resolution_scale=16;
+  CHECK(modern_shadow_begin(0,origin,2,0,0) && modern_shadow_end() && viewport_size==1024,"keep old tier on upgrade frame");
+  adaptive.resolution=0;
+  CHECK(modern_shadow_begin(0,origin,2,0,0) && modern_shadow_end() && viewport_size==2048,"switch to fixed during promotion");
+ }
+ modern_shadow_dispose();
  return 0;
 }

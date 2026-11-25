@@ -221,6 +221,7 @@ context has the extension, never required (gl_functions.c). On ES 3.0 and
 	X(glBindBuffer) \
 	X(glBufferData) \
 	X(glBufferSubData) \
+	X(glGetBufferParameteriv) \
 	X(glBufferStorage) \
 	X(glMapBufferRange) \
 	X(glBindBufferBase) \
@@ -273,6 +274,9 @@ context has the extension, never required (gl_functions.c). On ES 3.0 and
 	X(glMemoryBarrier) \
 	X(glCreateQueries) \
 	X(glIsQuery) \
+	X(glQueryCounter) \
+	X(glGetQueryObjectui64v) \
+	X(glDeleteQueries) \
 	X(glGetQueryBufferObjectuiv) \
 	X(glFenceSync) \
 	X(glClientWaitSync) \
@@ -474,6 +478,7 @@ pointers, sees the declarations without these aliases */
 #define glBindBuffer halo_glBindBuffer
 #define glBufferData halo_glBufferData
 #define glBufferSubData halo_glBufferSubData
+#define glGetBufferParameteriv halo_glGetBufferParameteriv
 #define glBufferStorage halo_glBufferStorage
 #define glMapBufferRange halo_glMapBufferRange
 #define glBindBufferBase halo_glBindBufferBase
@@ -526,6 +531,9 @@ pointers, sees the declarations without these aliases */
 #define glMemoryBarrier halo_glMemoryBarrier
 #define glCreateQueries halo_glCreateQueries
 #define glIsQuery halo_glIsQuery
+#define glQueryCounter halo_glQueryCounter
+#define glGetQueryObjectui64v halo_glGetQueryObjectui64v
+#define glDeleteQueries halo_glDeleteQueries
 #define glGetQueryBufferObjectuiv halo_glGetQueryBufferObjectuiv
 #define glFenceSync halo_glFenceSync
 #define glClientWaitSync halo_glClientWaitSync

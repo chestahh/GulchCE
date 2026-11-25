@@ -83,11 +83,7 @@ static int sun_classify_surfaces(void)
     return 1;
 }
 
-/* Looking down in first person puts the old forward focus beyond the body,
-   often below the floor. Fit towards the player's shadow-map footprint as
-   the camera approaches the body and pitches down. Detached cameras keep
-   their own near coverage. */
-static float sun_detail_focus(real_point3d *focus, float radius)
+static float sun_detail_focus(real_point3d *focus, float radius, float *strength)
 {
     long unit;
     real_point3d center;
@@ -102,6 +98,7 @@ static float sun_detail_focus(real_point3d *focus, float radius)
     pitch = PIN((-render.camera.forward.k-.1f)/.5f,0.f,1.f);
     weight = pitch*proximity;
     weight *= weight*(3.f-2.f*weight);
+    *strength = weight;
     points_interpolate(focus,&center,weight,focus);
     return radius + weight*(MAX(.25f,extent*1.15f)-radius);
 }
@@ -109,11 +106,12 @@ static float sun_detail_focus(real_point3d *focus, float radius)
 static void sun_prepare(void)
 {
     const float radius = 12.f;
-    float detail[2], detail_radius, region[8];
+    const float detail_radius = 4.f;
+    float detail[2], close[4]={0}, region[8];
     real_matrix4x3 basis;
     real_vector3d toward;
     real_rgb_color tint;
-    real_point3d focus, near_focus;
+    real_point3d focus, player_focus;
     struct object_iterator it;
     struct object_datum *obj;
     float frame[16], color[3], depth_extent = 1.f;
@@ -132,9 +130,12 @@ static void sun_prepare(void)
     perpendicular3d(&basis.up,&basis.forward);
     normalize3d(&basis.forward);
     cross_product3d(&basis.up,&basis.forward,&basis.left);
-    point_from_line3d(&render.camera.position,&render.camera.forward,radius*.65f,&focus);
-    point_from_line3d(&render.camera.position,&render.camera.forward,4.f,&near_focus);
-    detail_radius = sun_detail_focus(&near_focus,3.f);
+    /* Keep the camera and close peripheral receivers inside both full-strength
+       regions. Quantization and the outer handoff still use the same grids. */
+    point_from_line3d(&render.camera.position,&render.camera.forward,radius*.25f,&focus);
+    point_from_line3d(&render.camera.position,&render.camera.forward,4.f,&player_focus);
+    close[2] = sun_detail_focus(&player_focus,3.f,&close[3]);
+    if (close[2] >= 3.f) close[2] = 0.f;
     basis.position = *global_origin3d;
     /* World-anchored tile steps are integral texels at all supported tiers.
        Quantize translation in the shadow plane only. Depth stays BSP-fixed. */
@@ -143,11 +144,17 @@ static void sun_prepare(void)
         real_vector3d const *axis = i ? &basis.left : &basis.forward;
         float along = dot_product3d(axis,(real_vector3d const *)&focus);
         float snapped = floorf(along / 1.5f + .5f) * 1.5f;
-        float near_along = dot_product3d(axis,(real_vector3d const *)&near_focus);
+        float near_along = dot_product3d(axis,(real_vector3d const *)&render.camera.position);
         /* Express the finer tile in the wide tile's light plane. Both share
            the same BSP-fixed depth, including blockers far above the camera. */
         float detail_step = detail_radius/64.f;
         detail[i] = floorf(near_along/detail_step+.5f)*detail_step - snapped;
+        if (close[2] > 0.f)
+        {
+            float step = close[2]/64.f;
+            float along_player = dot_product3d(axis,(real_vector3d const *)&player_focus);
+            close[i] = floorf(along_player/step+.5f)*step-snapped;
+        }
         /* Cache the BSP on a snapped grid, but move coverage continuously.
            Even the far end of the fade stays inside the snapped depth map. */
         for (int j=0;j<3;j++) region[4*i+j] = axis->n[j]/radius;
@@ -165,7 +172,7 @@ static void sun_prepare(void)
     matrix_to_gl(&basis,frame);
     for (i = 0; i < 3; i++) frame[8+i] *= radius/depth_extent;
     if (!sun_classify_surfaces()) return;
-    reuse = modern_environment_sun_begin(frame,radius,region,detail,detail_radius,sun_static_unchanged(),sky,mode == 2);
+    reuse = modern_environment_sun_begin(frame,radius,region,detail,detail_radius,render.camera.position.n,close,sun_static_unchanged(),sky,mode == 2);
     if (!reuse) return;
     if (reuse == 1)
     {
@@ -196,9 +203,13 @@ static void sun_prepare(void)
         if (fabsf(x) > radius+extent || fabsf(y) > radius+extent || z > depth_extent+extent ||
             !sun_reaches_view(&center,extent,&toward)) continue;
         remaining = 128;
-        modern_environment_sun_detail_caster(
-            fabsf(x-detail[0]) <= detail_radius+extent &&
-            fabsf(y-detail[1]) <= detail_radius+extent);
+        /* Projected distance is a lower bound along the entire shadow ray.
+           A distant caster behind the view may still overlap the near disk. */
+        float dx=x-detail[0], dy=y-detail[1];
+        float reach=detail_radius+extent+detail_radius/64.f;
+        int radial = dx*dx+dy*dy <= reach*reach;
+        int player = close[2]>0.f && fabsf(x-close[0])<=close[2]+extent && fabsf(y-close[1])<=close[2]+extent;
+        modern_environment_sun_detail_caster(radial | (player<<1));
         ok = environmental_casters(it.index,&remaining);
         if (z+extent < depth_extent &&
             sun_cluster_sky(obj->object.location.cluster_index) == sky)

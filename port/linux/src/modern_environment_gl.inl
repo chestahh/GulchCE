@@ -4,7 +4,7 @@
 struct environment_receiver_uniforms
 {
     GLint frame, camera, projection, radius, reversed_depth, viewport, soft, color;
-    GLint clip_offset, sun_frame, sun_color_radius, sun_soft, sun_detail, sun_region;
+    GLint clip_offset, sun_frame, sun_color_radius, sun_soft, sun_detail, sun_region, sun_eye, sun_close;
 };
 
 static struct
@@ -37,8 +37,9 @@ static struct
     int writing, sky;
     int size, valid, projecting, object_checked;
     float frame[16], radius;
-    float detail_frame[16], detail_radius, detail[4], region[8];
-    int detail_atlas, drawing_detail, detail_drawn;
+    float detail_frame[16], detail_radius, detail[4], region[8], eye[4];
+    float close_frame[16], close_radius, close[4];
+    int atlas_tiles, drawing_detail, detail_drawn;
 } sun;
 
 enum { FIXTURE_LIMIT = 2, FLASH_SLOT = 2, SPOT_SOURCES = 3, SPOT_LAYERS = 5 };
@@ -169,6 +170,8 @@ static void environment_receiver_locations(GLuint program, struct environment_re
         u->sun_frame = glGetUniformLocation(program, "sun_frame");
         u->sun_color_radius = glGetUniformLocation(program, "sun_color_radius");
         u->sun_soft = glGetUniformLocation(program, "sun_soft");
+        u->sun_close = glGetUniformLocation(program,"sun_close");
+        u->sun_eye = glGetUniformLocation(program, "sun_eye");
         u->sun_detail = glGetUniformLocation(program, "sun_detail");
     }
     else
@@ -239,8 +242,8 @@ static int environment_resources_for(int projector)
         "vec2 gradient=abs(det)>1.e-12?vec2(dx.z*dy.y-dy.z*dx.y,dx.x*dy.z-dy.x*dx.z)/det:vec2(0);\n"
         "vec3 n=cross(dFdx(world),dFdy(world)); float nl=length(n);\n"
         "if(any(greaterThan(abs(q.xy),vec2(1)))||q.z< -1||q.z>4||nl<1.e-12) discard;\n"
-        "#ifdef SUN\n"
         "if(dot(n,camera[3].xyz-world)<0.) n=-n;\n"
+        "#ifdef SUN\n"
         "result=sun_light(world,n/nl,true);\n"
         "#else\n"
         "float shadow=compare_at(uv,depth,gradient);\n"
@@ -248,11 +251,11 @@ static int environment_resources_for(int projector)
         "shadow=mix(mix(compare_at(base,depth+dot(base-uv,gradient),gradient),compare_at(base+vec2(1,0)/size,depth+dot(base+vec2(1,0)/size-uv,gradient),gradient),f.x),\n"
         "mix(compare_at(base+vec2(0,1)/size,depth+dot(base+vec2(0,1)/size-uv,gradient),gradient),compare_at(base+1/size,depth+dot(base+1/size-uv,gradient),gradient),f.x),f.y);}\n"
         "float fade=clamp(1-q.z/4,0,1)*clamp(1+q.z*2,0,1);\n"
-        "float facing=abs(dot(n/nl,frame[2].xyz));\n"
+        "float facing=max(dot(n/nl,-frame[2].xyz),0.);\n"
         "if(color.w==0.) shadow*=sun_fallback(world);\n"
         "result=vec4(mix(vec3(1),color.xyz,shadow*fade*facing),1);\n"
         "#endif\n}\n";
-    int size = 128 * (int)halo_shadow_resolution_scale();
+    int size = modern_shadow_pixels();
     if (environment.failed_size != size) environment.failed_size = 0;
     if ((!projector && environment.failed_size) || !create_resources()) return 0;
     if (!environment.caster)
@@ -311,7 +314,7 @@ static int environment_resources_for(int projector)
     if (!environment.caster || !environment.receiver) return 0;
     if (!environment.depth || environment.size != size)
     {
-        if (!environment_resize_texture(&environment.depth, &environment.depth_fbo, size, size, 0)) return 0;
+        if (!environment_resize_texture(&environment.depth, &environment.depth_fbo, size, size, 0)) { adaptive_reject_size(); return 0; }
         environment.checked_handoff_target = 0;
         environment.size = size;
     }
@@ -394,7 +397,7 @@ int modern_environment_begin(const float frame[16], float radius, int soft)
     environment.count++;
     if (!environment_snapshot() || !environment_resources())
     {
-        environment.failed_size = 128 * (int)halo_shadow_resolution_scale();
+        environment.failed_size = modern_shadow_pixels();
         xgpu_gl_end_external_pass();
         return 0;
     }
@@ -463,7 +466,7 @@ static int environment_draw_depth(GLuint target)
     {
         glBindFramebuffer(GL_FRAMEBUFFER, target);
         int depth_size = spots.rendering ? spots.size : environment.size;
-        glViewport(sun.drawing_detail ? depth_size : 0,0,depth_size,depth_size);
+        glViewport(sun.drawing_detail*depth_size,0,depth_size,depth_size);
         glClipControl(GL_LOWER_LEFT,GL_ZERO_TO_ONE);
         glDisable(GL_SCISSOR_TEST); glDisable(GL_STENCIL_TEST); glDisable(GL_BLEND);
         glDisable(GL_CULL_FACE); glDisable(GL_POLYGON_OFFSET_FILL);
@@ -477,14 +480,14 @@ static int environment_draw_depth(GLuint target)
             if (!sun.partial) { glClearColor(0,0,0,0); glClear(GL_COLOR_BUFFER_BIT); }
         }
         glUseProgram(p); glBindVertexArray(vao);
-        glUniformMatrix4fv(frame,1,GL_FALSE,sun.drawing_detail ? sun.detail_frame : environment.frame);
-        glUniform1f(radius,sun.drawing_detail ? sun.detail_radius : environment.radius);
+        glUniformMatrix4fv(frame,1,GL_FALSE,sun.drawing_detail==2 ? sun.close_frame : sun.drawing_detail ? sun.detail_frame : environment.frame);
+        glUniform1f(radius,sun.drawing_detail==2 ? sun.close_radius : sun.drawing_detail ? sun.detail_radius : environment.radius);
         glUniform1i(alpha_map,9);
         glActiveTexture(GL_TEXTURE9); glBindSampler(9,alpha_sampler);
         for (draw=0;draw<draw_count;draw++)
         {
             int mesh=draws[draw].mesh;
-            if (sun.drawing_detail && !draws[draw].sun_detail) continue;
+            if (sun.drawing_detail && !(draws[draw].sun_detail & sun.drawing_detail)) continue;
             bind_caster_draw(draw, &previous, bones, uv, alpha);
             if (sun.writing)
             {
@@ -597,6 +600,8 @@ int modern_environment_end(int complete, const float camera[16], const float pro
             glUniformMatrix4fv(u->sun_frame,1,GL_FALSE,sun.frame);
             glUniform4fv(u->sun_color_radius,1,(const float[4]){color[0],color[1],color[2],sun.radius});
             glUniform1i(u->sun_soft,sun.soft);
+            glUniform4fv(u->sun_close,1,sun.close);
+            glUniform4fv(u->sun_eye,1,sun.eye);
             glUniform4fv(u->sun_detail,1,sun.detail);
         }
         else
@@ -626,18 +631,33 @@ static int sun_depth_resources(void)
 {
     if (sun.size != environment.size || !sun.static_depth || !sun.object_depth)
     {
-        if (!environment_resize_texture(&sun.static_depth, &environment.depth_fbo, environment.size, environment.size, 1)) return 0;
+        if (!environment_resize_texture(&sun.static_depth, &environment.depth_fbo, environment.size, environment.size, 1)) { adaptive_reject_size(); return 0; }
         sun.valid = sun.object_checked = 0;
         sun.checked_receiver_target = environment.checked_handoff_target = 0;
-        sun.detail_atlas = environment_resize_texture(&sun.object_depth,&sun.object_fbo,2*environment.size,environment.size,0);
-        if (!sun.detail_atlas && !environment_resize_texture(&sun.object_depth,&sun.object_fbo,environment.size,environment.size,0)) return 0;
+        /* Allocate at map preparation so looking down never resizes the atlas. */
+        for (sun.atlas_tiles=3; sun.atlas_tiles>0; sun.atlas_tiles--)
+            if (environment_resize_texture(&sun.object_depth,&sun.object_fbo,sun.atlas_tiles*environment.size,environment.size,0)) break;
+        if (!sun.atlas_tiles) { adaptive_reject_size(); return 0; }
         sun.size = environment.size;
     }
     return 1;
 }
 
+static void sun_fit_tile(float tile_frame[16], float tile[4], const float frame[16], float radius,
+    const float offset[2], float tile_radius)
+{
+    memcpy(tile_frame,frame,16*sizeof(float));
+    for (int i=0;i<3;i++) {
+        tile_frame[12+i] += frame[i]*offset[0]+frame[4+i]*offset[1];
+        tile_frame[8+i] *= tile_radius/radius;
+    }
+    tile[0] = .5f+.5f*offset[0]/radius;
+    tile[1] = .5f+.5f*offset[1]/radius;
+    tile[2] = radius/tile_radius;
+}
+
 /* Returns 2 on a static cache hit, 1 when the caller must submit BSP depth. */
-int modern_environment_sun_begin(const float frame[16], float radius, const float region[8], const float detail[2], float detail_radius, int cache_static, int sky, int soft)
+int modern_environment_sun_begin(const float frame[16], float radius, const float region[8], const float detail[2], float detail_radius, const float eye[3], const float close[4], int cache_static, int sky, int soft)
 {
     if (drawing || !xgpu_gl_ready()) return 0;
     sun.projecting = 1;
@@ -651,17 +671,19 @@ int modern_environment_sun_begin(const float frame[16], float radius, const floa
     sun.partial = 0;
     sun.soft = soft;
     sun_detail_caster = sun_detail_in_batch = sun.detail_drawn = 0;
+    memcpy(sun.eye,eye,3*sizeof(float));
+    sun.eye[3] = 1.f/(detail_radius*detail_radius);
+    /* Leave a texel border for snapped centres and the Soft filter. */
+    detail_radius *= 1.02f;
     memcpy(sun.region,region,sizeof(sun.region));
     sun.detail_radius = detail_radius;
-    memcpy(sun.detail_frame,frame,sizeof(sun.detail_frame));
-    for (int i=0;i<3;i++) {
-        sun.detail_frame[12+i] += frame[i]*detail[0]+frame[4+i]*detail[1];
-        sun.detail_frame[8+i] *= detail_radius/radius;
-    }
-    sun.detail[0] = .5f+.5f*detail[0]/radius;
-    sun.detail[1] = .5f+.5f*detail[1]/radius;
-    sun.detail[2] = radius/detail_radius;
-    sun.detail[3] = sun.detail_atlas ? .5f : 1.f;
+    sun.close_radius = close[2];
+    sun_fit_tile(sun.detail_frame,sun.detail,frame,radius,detail,detail_radius);
+    sun.close[2] = 0.f;
+    sun.close[3] = close[3];
+    if (close[2] > 0.f && sun.atlas_tiles==3)
+        sun_fit_tile(sun.close_frame,sun.close,frame,radius,close,close[2]);
+    sun.detail[3] = 1.f/(float)sun.atlas_tiles;
     if (cache_static && sun.valid && sky==sun.sky && radius==sun.radius && !memcmp(sun.frame,frame,sizeof(sun.frame))) return 2;
     sun.writing=1;
     sun.sky=sky;
@@ -693,14 +715,15 @@ static int sun_draw_batch(void)
         glDrawBuffers(1,&target);
     }
     int ok = environment_draw_depth(sun.writing ? environment.depth_fbo : sun.object_fbo);
-    /* The first wide clear covers both atlas tiles. Reuse the submitted
-       poses and alpha materials for families crossing the finer light rays. */
-    if (ok && !sun.writing && sun.detail_atlas && sun_detail_in_batch)
+    /* The wide clear covers the entire atlas once. Each extra draw reuses
+       this batch's poses and only visits casters overlapping its light rays. */
+    if (!sun.writing) for (int tile=1; ok && tile<sun.atlas_tiles; tile++)
     {
-        sun.drawing_detail = 1;
+        if (!(sun_detail_in_batch & tile) || (tile==2 && sun.close_radius<=0.f)) continue;
+        sun.drawing_detail = tile;
         ok = environment_draw_depth(sun.object_fbo);
         sun.drawing_detail = 0;
-        sun.detail_drawn = 1;
+        sun.detail_drawn |= tile;
     }
     sun_detail_in_batch = 0;
     sun.partial = 1;
@@ -727,7 +750,8 @@ int modern_environment_sun_finish(int complete, const float color[3])
        error every frame serializes unrelated lighting work ahead of this pass. */
     if (sun.ready && !sun.object_checked)
         sun.object_checked = sun.ready = glGetError() == GL_NO_ERROR;
-    if (!sun.detail_drawn) sun.detail[2] = 0.f;
+    if (!(sun.detail_drawn & 1)) sun.detail[2] = 0.f;
+    if (!(sun.detail_drawn & 2)) sun.close[2] = 0.f;
     sun_detail_caster = 0;
     memcpy(sun.tint,color,sizeof(sun.tint));
     sun.partial = sun.projecting = drawing = environment_drawing = draw_count = 0;
@@ -808,6 +832,7 @@ static int environment_model_resources(void)
             glDeleteFramebuffers(2, environment_model.framebuffer);
             memset(environment_model.depth, 0, sizeof(environment_model.depth));
             memset(environment_model.framebuffer, 0, sizeof(environment_model.framebuffer));
+            adaptive_reject_size();
             environment_model.unavailable = 1;
             xgpu_gl_end_external_pass();
             return 0;
@@ -821,7 +846,7 @@ int modern_environment_model_begin(const float frames[32], float radius, int sof
     environment_model.enabled = environment_model.valid = 0;
     if (drawing || !xgpu_gl_ready() || environment_model.count >= 32) return 0;
     environment_model.count++;
-    if ((!environment.caster || !program || environment.size != 128 * (int)halo_shadow_resolution_scale()) &&
+    if ((!environment.caster || !program || environment.size != modern_shadow_pixels()) &&
         !environment_resources()) { xgpu_gl_end_external_pass(); return 0; }
     if (!environment_model_resources()) return 0;
     memcpy(environment_model.frames, frames, sizeof(environment_model.frames));

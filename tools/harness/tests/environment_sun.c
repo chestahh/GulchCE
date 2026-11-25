@@ -34,6 +34,19 @@ int main(void)
     CHECK(sun_reaches_view(&center,.25f,&toward),"sphere straddling the edge survives");
     center.y=1.3f;
     CHECK(!sun_reaches_view(&center,.25f,&toward),"parallel ray misses the view");
+    /* A turn puts a caster behind the near plane. Its long shadow can
+       still cross the visible ground in front of the camera. */
+    memset(&render.frustum,0,sizeof(render.frustum));
+    render.frustum.world_planes[0]=(real_plane3d){{-1,0,0},-.05f};
+    center=(real_point3d){-5,0,0};toward=(real_vector3d){-1,0,0};
+    CHECK(sun_reaches_view(&center,.1f,&toward),"long shadow from behind the camera");
+    toward.i=1;
+    CHECK(!sun_reaches_view(&center,.1f,&toward),"wholly rearward shadow");
+    center=(real_point3d){1,1,0};toward=(real_vector3d){0,0,1};
+    render.frustum.world_planes[1]=(real_plane3d){{-.5f,.8660254f,0},0};
+    CHECK(!sun_reaches_view(&center,.1f,&toward),"outside a narrow FOV");
+    render.frustum.world_planes[1]=(real_plane3d){{-.8660254f,.5f,0},0};
+    CHECK(sun_reaches_view(&center,.1f,&toward),"inside a wide FOV");
     bsp.surfaces.count=4;
     bsp.surface_references=(struct block){4,refs};
     bsp.leaves=(struct block){2,leaves};

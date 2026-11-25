@@ -100,6 +100,7 @@ static struct
 static int sun_cutout_count;
 static int part_count;
 static int map_mode, prepare_pending;
+static int local_budget = MODERN_SHADOW_LIGHTS;
 static struct structure_bsp const *cached_bsp;
 static long identities[SHADOW_LIGHTS];
 static struct shadow_selection
@@ -427,7 +428,7 @@ static int mesh_get(struct vertex_buffer const *vertices, void const *key,
 		}
 	}
 	else memcpy(list, indices, count * sizeof(word));
-	mesh = modern_shadow_mesh_create(converted, vertices->count, list, count);
+	mesh = modern_shadow_mesh_create(converted, vertices->count, list, count, triangles != NULL);
 done:
 	if (source) IDirect3DVertexBuffer8_Unlock(vertices->hardware_format);
 	if (triangles && indices) IDirect3DIndexBuffer8_Unlock(triangles->hardware_format);
@@ -748,12 +749,12 @@ static void select_lights(void)
 		score = brightness * light->radius * light->radius / (1.f + distance_squared3d(&render.camera.position, &light->position));
 		if (!(score > 0)) continue;
 		scores[index] = score;
-		for (i = 0; i < MODERN_SHADOW_LIGHTS; i++)
+		for (i = 0; i < local_budget; i++)
 			if (identities[index] == selections[i].identity) { selections[i].rasterizer = index; retained[i] = score; }
 	}
 	/* Fill vacancies / replace the weaker incumbent first, without moving a
 	   surviving light between maps. A pending challenger cannot own two slots. */
-	for (i = 0; i < MODERN_SHADOW_LIGHTS; i++)
+	for (i = 0; i < local_budget; i++)
 	{
 		int j = i;
 		while (j && retained[ordered[j - 1]] > retained[i])
@@ -763,7 +764,7 @@ static void select_lights(void)
 		}
 		ordered[j] = i;
 	}
-	for (order = 0; order < MODERN_SHADOW_LIGHTS; order++)
+	for (order = 0; order < local_budget; order++)
 	{
 		int slot = ordered[order];
 		float best = 0;
@@ -771,10 +772,10 @@ static void select_lights(void)
 		for (index = 0; index < MIN(rasterizer_lights.light_count, SHADOW_LIGHTS); index++)
 		{
 			int other;
-			for (other = 0; other < MODERN_SHADOW_LIGHTS; other++)
+			for (other = 0; other < local_budget; other++)
 				if (other != slot && selections[other].rasterizer != NONE &&
 					identities[index] == selections[other].identity) break;
-			if (other < MODERN_SHADOW_LIGHTS) continue;
+			if (other < local_budget) continue;
 			if (scores[index] > best) { best = scores[index]; best_index = index; }
 		}
 		best_index = select_light(&selections[slot], best_index, selections[slot].rasterizer, best, retained[slot]);
@@ -787,7 +788,7 @@ static void select_lights(void)
 	if ((modern_spot_mask() & 4) && !config_boolean("display.flashlight_extra_slot"))
 	{
 		int weakest = 0;
-		for (i = 0; i < MODERN_SHADOW_LIGHTS; i++)
+		for (i = 0; i < local_budget; i++)
 		{
 			if (selections[i].rasterizer == NONE) return;
 			if (scores[selections[i].rasterizer] < scores[selections[weakest].rasterizer]) weakest = i;
@@ -987,6 +988,7 @@ void modern_shadows_prepare(int primary)
 		cached_bsp = bsp;
 	}
 	if (!bsp || receiver_failed) return;
+	local_budget = modern_adaptive_begin();
 	check_static_breakables(bsp);
 	extern boolean render_shadows;
 	if (render_shadows) sun_prepare();

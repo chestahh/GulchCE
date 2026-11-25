@@ -21,6 +21,7 @@ static real_matrix4x3 poses[8];
 static int submitted[8],views_used[8];
 static int vehicle[8],biped[8];
 static struct unit_datum {struct {int type;} object; struct {int parent_seat_index,current_weapon_index;} unit;} units[8];
+#define unit_get(index) (&units[index])
 static long inventory[8][MAXIMUM_WEAPONS_PER_UNIT];
 static long unit_inventory_get_weapon(long owner,short slot) {return inventory[owner][slot];}
 static struct object_datum *object_try_and_get(long i) {return i>=0 && i<8 ? &objects[i] : NULL;}
@@ -83,8 +84,9 @@ int main(int argc,char **argv) {
  CHECK(!submitted[2] && submitted[3] && submitted[0] && submitted[1] && submitted[4],"ordinary owner exemption");
  biped[2]=1;objects[3].object.type=objects[4].object.type=_object_type_weapon;
  memset(submitted,0,sizeof(submitted));
- CHECK(flashlight_object_casters(&origin,2,2) && !submitted[2] && submitted[0] && submitted[3] && submitted[4],
-       "beam skips its own wearer and preserves other bipeds and objects");
+ inventory[2][0]=3;
+ CHECK(flashlight_object_casters(&origin,2,2) && !submitted[2] && submitted[0] && !submitted[3] && submitted[1] && submitted[4],
+       "beam omits its wearer and equipped gun, retaining another biped, its gun and a dropped object");
  memset(submitted,0,sizeof(submitted));
  CHECK(flashlight_object_casters(&origin,2,3) && !submitted[2] && !submitted[3] && submitted[0] && submitted[4],
        "a weapon-mounted beam resolves its current wearer");
@@ -100,6 +102,8 @@ int main(int argc,char **argv) {
  CHECK(!unshadowed_object(2,3) && unshadowed_object(2,4),"exemption follows a weapon switch");
  objects[4].object.parent_object_index=NONE;
  CHECK(!unshadowed_object(2,4),"a dropped weapon casts even before the inventory slot clears");
+ memset(submitted,0,sizeof(submitted));
+ CHECK(flashlight_object_casters(&origin,2,2) && submitted[3] && submitted[4],"beam retains a dropped gun with a stale inventory slot");
  units[2].unit.current_weapon_index=NONE;
  CHECK(!unshadowed_object(2,3),"unarmed Jackal does not exempt stored weapons");
  biped[2]=0;

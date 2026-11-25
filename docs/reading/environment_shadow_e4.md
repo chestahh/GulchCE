@@ -18,6 +18,13 @@ adds directional sunlight on exposed surfaces. When a model blocks sunlight
 on otherwise exposed lightmapped ground, its silhouette also removes a
 bounded estimate of the direct share of the bake, based on the sky colour
 and surface angle. A roof or other BSP blocker keeps its authored shade.
+The fine object tile follows the camera position. Receivers within 3.5
+world units use its full detail and blend to the wide tile by four units in
+any direction. Turning or changing FOV leaves that radius fixed. The active
+frustum limits submissions by testing where each caster's shadow can reach,
+including shadows entering the view from behind. The 12-unit tile still
+favours the space ahead, with its centre three units along the view. Per-object projections in the handoff
+apply only to surfaces facing their environmental light.
 The depth grid moves in cacheable steps. Its visible strength follows the
 unsnapped camera focus instead, fading between 7.2 and 11.1 world units
 along the axes of the shadow map. A placed object's previous projection
@@ -47,17 +54,22 @@ share their comparison and interpolation code with local-light shadows.
 The sun uses an orthographic projection. A blocker in either map removes
 the added directional light. The filter adds no caster passes or local slots.
 
-Nearby posed objects also render into a six-world-unit-wide region of the
-object depth atlas. When the camera looks down near the local biped, this
-region contracts towards its shadow bounds so the player's silhouette uses
-more of the selected resolution. Both regions use the same sun direction and depth range.
+Nearby posed objects also render into the fine region of the object depth
+atlas. The camera-centred footprint has a small border for filtering and grid
+snapping. When the local player looks down near their body, a third tile
+uses the original player-centred footprint and texel density. Its contribution
+fades in with camera pitch and proximity and blends out at the tile rim. Only
+casters overlapping those rays are redrawn. All three regions share the sun
+direction and depth range.
 BSP depth stays in the wide map. Hard samples the finer object depth and
 Soft filters it at its own texel spacing. Visibility blends into the wide
-object depth at the rim. An allocation failure falls back to wide coverage.
+object depth at the rim.
 
-The dedicated 32-bit sun textures occupy 12 MiB at 1024² and 192 MiB at
-4096² with the detail region. BSP generation also uses the shared environmental scratch depth
-(4 MiB at 1024² or 64 MiB at 4096²). These figures exclude the scene depth
+The dedicated 32-bit sun textures occupy 16 MiB at 1024 and 256 MiB at
+4096 with both detail regions. If the full atlas cannot be allocated, the
+renderer tries the radial and wide tiles together, then the wide tile alone.
+BSP generation also uses the shared environmental scratch depth (4 MiB at
+1024 or 64 MiB at 4096). These figures exclude the scene depth
 copy, other render targets, driver overhead and temporary storage while resizing.
 The renderer validates a replacement attachment before releasing the
 previous texture. The menu uses the existing 128 through 4096 tiers.

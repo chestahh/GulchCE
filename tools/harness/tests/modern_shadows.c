@@ -71,6 +71,8 @@ static long muzzle_lighting_shadow_caster(long light,long emitter_object,long *c
 static long exempt_light=NONE, exempt_owner=NONE;
 static long stuck_light=NONE, impact_parent=0x10007;
 static long plasma_lighting_shadow_owner(long light, struct plasma_shadow_source *grenade) { grenade->stuck_host=light==stuck_light ? impact_parent : NONE; grenade->casing=light==stuck_light ? 27 : NONE; grenade->emitter_object=NONE; grenade->grounded=0; return light==exempt_light ? exempt_owner : NONE; }
+static int test_shadow_budget = MODERN_SHADOW_LIGHTS;
+static int modern_adaptive_begin(void) { return test_shadow_budget; }
 static int spot_mask, extra_flashlight;
 static int config_boolean(const char *s) { CHECK(!strcmp(s,"display.flashlight_extra_slot"),"flashlight budget option"); return extra_flashlight; }
 static int modern_spot_mask(void) { return spot_mask; }
@@ -142,6 +144,14 @@ static int full_budget(void)
  CHECK(__builtin_popcount(active)==7,"one published flashlight shares a slot even with two fixtures");
  extra_flashlight=1;modern_shadows_prepare(1);
  CHECK(active==255,"extra retains eight other lights with an active projector");
+ test_shadow_budget=3;modern_shadows_prepare(1);
+ CHECK(__builtin_popcount(active)==3,"extra flashlight keeps the adaptive number of other lights");
+ extra_flashlight=0;modern_shadows_prepare(1);
+ CHECK(__builtin_popcount(active)==2,"shared flashlight counts against the reduced budget");
+ test_shadow_budget=1;modern_shadows_prepare(1);
+ CHECK(active==0,"the active beam owns the single shared slot");
+ test_shadow_budget=MODERN_SHADOW_LIGHTS;
+
  extra_flashlight=0;spot_mask=3;modern_shadows_prepare(1);
  CHECK(active==255,"fixtures alone and failed or faded beams leave every slot available");
  for(i=0;i<8;i++) {

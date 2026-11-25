@@ -9,7 +9,9 @@ exclusions. The sun and fixtures have their own shadow budgets. Shared gives
 an active flashlight one of the eight local slots. Extra Slot allows eight
 local shadows plus the flashlight.
 
-E8 adaptive shadow quality is the next milestone for Phase 2 1.0, followed by final E9 qualification. E7 map authoring is deferred.
+E5 closed on 25 November 2026 with fixed Hard and Soft 1024 as the sustained
+240 FPS baseline. E8 adaptive quality closed on 25 November 2026 after the
+Rat Race 4096 transition retest. E9 is the remaining 1.0 milestone. E6 distant sunlight and E7 map authoring remain deferred.
 
 ### Established on modern-dynamic-shadows
 
@@ -19,12 +21,12 @@ E8 adaptive shadow quality is the next milestone for Phase 2 1.0, followed by fi
 | E2 — Directional sunlight | Added a stabilized Hard sun map with its own budget. Off-camera casters qualify when their shadows can reach visible receivers. Covered objects hand off from their existing environmental shadow path. [Sunlight and ownership](environment_shadow_e2.md) |
 | E3 — Fixtures and flashlight | Added two independent fixture slots using map data, and a stock flashlight that shadows eligible objects and world geometry. Rat Race is the two-lamp reference scene. [Fixtures and flashlight](environment_shadow_e3.md) |
 | E4 — Outdoor geometry, Soft and menus | Eligible placed models and BSP geometry cast and receive near-camera sunlight. Hard and Soft share the selected resolution. Environmental controls are available in every desktop menu style. [Coverage, limits and measurements](environment_shadow_e4.md) |
-| E5 — Rendering performance | Signed off on 24 November 2026 at sustained 240+ FPS in busy Two Betrayals on the reference Windows PC. [Acceptance results](environment_shadow_e5.md#fresh-windows-launches) |
+| E5 — Rendering performance | Hard and Soft 1024 sustained 240+ FPS in the final snowy combat benchmark with all eight local slots. Sustained 240 at fixed 2048 and the 360 FPS stretch goal are deferred. [E5 closeout measurements](environment_shadow_e5.md#matched-1024-and-2048-combat-dips) |
 
 The reference Windows release at `e4022bf04` averaged 271.1 FPS in Hard
 and 277.5 FPS in Soft in separate two-minute busy combat runs. Soft had
 three frames above 100 ms. Those runs established the starting point for E5.
-Sustained 360 FPS is deferred to a future performance milestone.
+Keep these historical results separate from the current fixed-checkpoint comparison.
 
 ### E5 — Rendering performance and hitch removal
 
@@ -39,13 +41,17 @@ Xbox, CE and MCC maps, selection takes effect behind the existing gameplay-map
 loading screen. A checkpoint revert or mid-level BSP change keeps the active
 mode. Some first-use stalls remain. [Loading and driver measurements](environment_shadow_e5.md#loading-compatibility-and-driver-checks)
 
+The following procedure records the E5 reference setup for future regressions.
+
 1. **Keep the accepted comparison reproducible.** Alternate the previous playtest
    (`9f114ec33`) and accepted playtest (`2864bc026`) in the same snowy
    Two Betrayals encounter. Use the same exterior checkpoint, camera and
    combat workload on the i7-14700K and RTX 5070 Ti. Run release PGO/LTO at
    2560×1440, AA and VSync off, 25 seconds of warmup and 120 seconds uncapped.
-   Enable all dynamic lighting categories. Compare lighting alone, Hard 1024
-   and Soft 1024. For both shadow runs, enable the sun, fixtures and Shared
+   Enable all dynamic lighting categories. Compare lighting alone and both shadow modes
+   at fixed 1024 and 2048. Optimise the shared path across resolutions and
+   measure gains at both tiers. Keep 4096 on that path without requiring a
+   separate performance baseline for the experimental tier. For both shadow runs, enable the sun, fixtures and Shared
    flashlight with all eight local slots available and adaptive scaling off.
    Record actual light, beam and combat activity. Keep busy Rat Race with both lamps as the indoor control.
 2. **Windows CPU scheduling.** Four [fresh foreground launches](environment_shadow_e5.md#fresh-windows-launches)
@@ -66,7 +72,7 @@ mode. Some first-use stalls remain. [Loading and driver measurements](environmen
    visibility reconstruction separately from BSP surface selection, temporary
    lighting triangles and model drawing. The [bounded exact-ray survey](environment_shadow_e5.md#exact-ray-reuse-and-receiver-state)
    found 432 repeats across 82.8 million rays. Retain exact moving-object
-   intersections. The next comparison should profile foreground CPU world
+   intersections. If E5 reopens, profile foreground CPU world
    traversal and BSP diffuse/specular draw submission alongside GPU local
    and environmental depth. Continue timing local and environmental
    shadow depth generation and reuse, receiver shading, draw submission and
@@ -81,8 +87,9 @@ mode. Some first-use stalls remain. [Loading and driver measurements](environmen
    preparation behind map loading and check Classic, host policy, failed
    preparation, cleanup and map transitions after changes.
 5. **Qualify sustained FPS at fixed quality.** Use sustained 240+ FPS
-   (4.17 ms/frame) in busy combat as the regression target for Hard and Soft
-   independently. Record how many seconds fall below target, how often it
+   (4.17 ms/frame) at fixed 1024 as the Phase 2 regression target for each mode.
+   If E5 reopens, use fixed 2048 to investigate longer dips and track the deferred
+   sustained 360 FPS target (2.78 ms/frame). Record how many seconds fall below target, how often it
    happens and the longest continuous stretch.
    Track the full two-minute and heavier-minute averages alongside these
    sustained measurements. A repeatable gain in average FPS counts as progress
@@ -129,34 +136,108 @@ direct-light contributions can be revisited in a future phase.
 
 ### E8 — Optional adaptive quality
 
-Offer independent adaptive resolution and shadow-count controls, both off
-by default. Keep the existing planned targets of 30, 60, 120 and 240 FPS and
-include 360 FPS for the new target hardware. On sustained shadow-related
-pressure, lower resolution first and reduce counts only when enabled. On
-recovery, restore counts first, then raise resolution up to the selected
-ceiling (4096 maximum). Use separate thresholds and slower recovery to
-avoid oscillation. Keep environmental budgets independent. Exercise sudden
-combat, camera cuts and quiet cutscenes, check quality recovery and measure
-allocation hitches. The fixed-quality E5 gate applies with scaling disabled.
+Adaptive resolution and adaptive shadow budget are independent desktop options
+under Shadows in every menu style. Both default to off. Frame Budget defaults
+to 240 FPS and also offers 30, 60, 120, 144, 165 and 180 FPS. It applies to
+either option. The ordinary frame limiter and host lighting policy still apply.
+
+The [adaptive controller](../../port/linux/src/modern_shadow_adaptive.inl)
+uses the first primary view and the final display blit to sample the time spent
+rendering on the GPU. Presentation waits sit outside that interval. Completed
+timestamps and the delivered frame rate are evaluated over half-second windows.
+Two slow windows with expensive rendering lower one resolution tier, down to
+128. When enabled, count scaling can then remove one local slot at a time,
+down to one. With resolution scaling off it can adjust slots at the selected
+fixed size. Six windows of GPU headroom restore one slot or, once all slots
+are available, raise the resolution one tier. Adaptive resolution starts at
+up to 1024 and can recover as far as the selected Shadow Resolution (maximum
+4096). Classic shadow buffers keep the player's fixed setting.
+
+The local cubes, sun, fixtures and flashlight use the effective Modern size.
+The sun and fixtures keep their own counts. Shared reserves one of the current
+local slots for an active beam. Extra Slot keeps the beam separate. A map
+disposal clears timing queries and adaptation history. If a depth allocation
+fails, adaptive resolution lowers its ceiling for the current configuration.
+
+In the snowy Two Betrayals fight on Windows, resolution-only Soft dropped from
+2048 to 512 with all eight local slots available. A separate count-only test at
+fixed 4096 dropped to two slots. A Hard run capped at 60 FPS recovered from
+1024 to 2048 with eight slots. These runs exercised the controller under
+different loads. The target is a rendering budget, not a guaranteed frame rate.
+The [controller tests](../../tools/test_adaptive_shadows.py) exercise all seven
+targets, recovery up to 4096, and an allocation failure. Two Windows players
+also completed the Xbox, CE, MCC and Xbox map cycle on loopback with a fixed
+host and an adaptive client. The seven targets and saved settings were
+checked across the four Windows menu styles.
+
+Rat Race and the Xbox Pillar of Autumn opening both reached 4096 with eight
+local slots available and a 30 FPS target. The Rat Race trace contained a
+56 ms frame during the 2048 transition window and a 189 ms frame during
+the 4096 transition window. Those are whole-frame measurements. They include
+other rendering work as well as depth allocation.
+
+The original upgrade discarded every local cube at once. A 4096 six-face
+32-bit depth cube uses 384 MiB. In a Hard Rat Race reproduction, the first
+six cube preparations after the upgrade took 89 ms on the render thread.
+Allocating all six faces in one GL call still gave a 72 ms transition frame
+in a separate run.
+
+On an adaptive increase, the [local shadow renderer](../../port/linux/src/modern_shadows_gl.c)
+lets the environmental passes switch first. Each subsequent primary frame
+upgrades at most one active local slot. A light continues rendering fresh
+geometry at its previous size until its turn. Its world and first-person
+cubes change together so face copies, viewports and depth comparisons agree.
+Lowering the target size releases larger cubes immediately. Selecting a fixed
+resolution also ends a partial upgrade. The [map lifecycle test](../../tools/harness/tests/modern_shadow_maps.c)
+checks every slot through a 2048 to 4096 upgrade.
+
+On the RTX 5070 Ti at 1920×1080 and a 30 FPS target, with slot scaling off,
+the slowest frame in the one-second 4096 transition window went from 100.5
+to 36.9 ms in one-bot Hard. In 15-bot Soft it went from 86.7 to 33.4 ms,
+with a 33.5 ms repeat. All three 15-bot runs used eight local shadow slots
+during gameplay. Bot and light positions varied between launches.
+
+A separate 15-bot Soft comparison held the requested upgrade until the
+preceding frame rendered eight local cube maps. Using the same diagnostic
+executable, the slowest frame from the trigger through the following second
+was 150.345 ms with bulk replacement and 33.343 ms with staggered replacement.
+The staggered run also rendered eight cube
+maps on the trigger frame. An earlier candidate run peaked at seven and
+never triggered, so it did not contribute a transition time.
+
+With both adaptive settings off, the two-minute Hard 1024 combat control
+averaged 278.66 FPS with one second at 235 FPS. Soft 1024 averaged 274.18 FPS
+and its slowest second was 245 FPS. Both reached eight local shadows.
 
 ### E9 — Compatibility and Phase 2 1.0 sign-off
 
-Use the completed two-player pass as the baseline. On the E8 candidate,
-check a join with adaptive quality enabled on one peer and fixed quality on
-the other. Both should see the same gameplay and obey host policy.
+The Windows two-player pass covers mixed modes, shield policy, late join,
+reconnect, respawns and map changes. After the 4096 fix, the fixed Hard host
+and adaptive Soft client also passed the Xbox Rat Race → CE Death Island →
+MCC Albatross → Xbox Blood Gulch rotation (`e8-hitch-cycle`). E8 exercised
+save and restart in all four Windows menu styles. Carry that evidence forward
+and repeat affected cases if the release candidate changes those paths.
 
-Repeat the fixed Hard and Soft 1024 combat benchmark with scaling disabled,
-all eight local slots available and the E5 sustained 240+ FPS target.
+Remaining release-candidate checks, in order:
 
-Verify stock/off isolation, host allow/deny, mixed client settings, joining,
-respawns and map transitions across representative Xbox, CE and MCC maps.
-Check all desktop menu styles and the pending shadow-mode lifecycle. Exercise
-AMD and NVIDIA renderer paths and record any unavailable hardware. Refresh
-platform checks, including Android exclusion. Check visuals at 30/60/120 FPS
-and repeat the Rat Race lamp and Sidewinder
-transition tests. Review combined changes and cache lifetimes, deliver matched
-captures, frame-time and loading results, and a Windows playtest for sign-off.
-Promote through testing and main with CI verification when approved.
+1. Review the combined branch changes, commit the intended local work and
+   identify the exact revision for qualification. Check shadow resource
+   ownership through map load, failed load, unload and the next map.
+2. Replay the fixed snowy Two Betrayals encounter at Hard and Soft 1024
+   with both adaptive switches off and eight local slots available. Record
+   average FPS, seconds below 240 and the longest dip. The latest Hard run
+   had one second at 235 FPS, so reproduce that case first. Use fixed 2048
+   as a regression comparison. Sustained 240 at fixed 2048 and sustained
+   360 remain deferred.
+3. Check visuals at 30/60/120 FPS with matched captures of the Rat Race lamps
+   and flashlight, the Sidewinder sunlight transition, and the Mercury Rising
+   II fade and player silhouette. Verify Classic/off behaviour, the next-map
+   application of shadow-mode changes, and loading and first-use frame times.
+4. Refresh the supported platform builds and regression checks, including
+   Android and web exclusion. Record NVIDIA results and the physical AMD
+   hardware gap. Package a Windows playtest from the qualified revision with
+   captures and timings for final sign-off. After release approval, promote
+   through testing and main and monitor CI on both.
 
 #### Two-player Windows compatibility
 
@@ -203,7 +284,8 @@ player die and return. Evidence is written to
 
 The two-process compatibility runs used a 60 FPS cap. The
 [E5 foreground combat measurements](environment_shadow_e5.md#fresh-windows-launches)
-remain the single-client performance baseline. These Windows loopback cases
+established the original 1024 single-client baseline. The
+[final E5 comparison](environment_shadow_e5.md#matched-1024-and-2048-combat-dips) records the 1024 and 2048 results. These Windows loopback cases
 cover Slayer on the named maps. Internet transport, cross-platform pairs,
 campaign co-op and physical AMD rendering require separate evidence.
 

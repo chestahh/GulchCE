@@ -195,6 +195,7 @@ def main():
     parser.add_argument('--build-dir',type=Path,default=ROOT/'build/lighting-compatibility-build')
     parser.add_argument('--host-shadows',choices=['off','hard','soft'],default='off')
     parser.add_argument('--client-shadows',choices=['off','hard','soft'],default='off')
+    parser.add_argument('--adaptive-client',action='store_true',help='Exercise independent adaptive shadow settings on the joining peer')
     parser.add_argument('--mcc-package',type=Path)
     parser.add_argument('--fire',action='store_true',help='Use real trigger input as well as the scripted damage/respawn probes')
     parser.add_argument('--reconnect',action='store_true',help='Restart the client with its saved settings while the host keeps running')
@@ -239,6 +240,8 @@ def main():
                 display.update({key:True for key in LIGHTS})
                 display.update(shield_glow=(role=='host'), shadow_resolution=1024, environment_sun=True, environment_fixtures=True,
                                flashlight_shadows=True, flashlight_extra_slot=False)
+            if args.adaptive_client and role == 'client':
+                display.update(adaptive_shadow_resolution=True, adaptive_shadow_budget=True, shadow_frame_budget=60, shadow_resolution=2048)
             settings[role]=display
             (out/'config.toml').write_text('[display]\n'+''.join(f'{k} = {json.dumps(v)}\n' for k,v in display.items()))
         started=time.monotonic()

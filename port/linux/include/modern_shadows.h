@@ -3,6 +3,10 @@
 #ifndef MODERN_SHADOWS_H
 #define MODERN_SHADOWS_H
 
+#ifndef HALO_GLES
+int modern_adaptive_begin(void);
+void modern_adaptive_present(void);
+#endif
 void modern_shadows_map_loaded(int gameplay);
 int modern_shadows_prepare_loaded_map(void);
 void modern_shadows_prepare(int primary);
@@ -23,7 +27,7 @@ void modern_spot_bsp(void);
 struct xgpu_text;
 void modern_spot_emit(struct xgpu_text *text);
 int modern_shadows_sun_casters(void);
-int modern_environment_sun_begin(const float frame[16], float radius, const float region[8], const float detail[2], float detail_radius, int cache_static, int sky, int soft);
+int modern_environment_sun_begin(const float frame[16], float radius, const float region[8], const float detail[2], float detail_radius, const float eye[3], const float close[4], int cache_static, int sky, int soft);
 void modern_environment_sun_detail_caster(int eligible);
 int modern_environment_sun_interior(const float frame[16], float radius);
 void modern_environment_sun_surfaces(const unsigned char *owners);
@@ -83,7 +87,7 @@ int modern_shadows_viewmodel(int hands, long *model, long *owner,
 /* Meshes are immutable until reset. Matrices are column-major world poses;
    each draw copies them, so no borrowed object state survives the frame. */
 int modern_shadow_mesh_create(const struct modern_shadow_vertex *vertices, int vertex_count,
-	const unsigned short *indices, int index_count);
+	const unsigned short *indices, int index_count, int model);
 int modern_shadow_draw(int mesh, const float *matrices, int node_count,
 	const void *alpha_texture, const float uv_transform[8], int views);
 int modern_shadow_begin(int slot, const float position[3], float radius, int soft, int ground_grenade);
@@ -103,7 +107,7 @@ struct modern_shadow_uniforms
     int sun_enabled;
     int last_flash_slots;
     int spot_frames, spot_origins, spot_colors, spot_mask, spot_flash_slots, spot_camera, spot_projection, spot_viewport, spot_reversed, spot_soft;
-    int sun_frame, sun_color_radius, sun_soft, sun_detail, sun_region;
+    int sun_frame, sun_color_radius, sun_soft, sun_detail, sun_region, sun_eye, sun_close;
     int environment_frames, environment_radius, environment_mask, environment_filter;
 };
 void modern_shadow_emit(struct xgpu_text *text);

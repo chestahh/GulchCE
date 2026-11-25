@@ -14,11 +14,14 @@
 	<widget name="main_menu/settings_select/player_setup/player_profile_edit/video_settings/shadows/options_menu" type="column_list" width="640" height="480" flags="pass_unhandled_to_focused_child up_down_tabs_children" description="main_menu/settings_select/player_setup/player_profile_edit/video_settings/shadows/help">
 		<data input="port settings help"/>
 		<child widget="main_menu/settings_select/player_setup/player_profile_edit/video_settings/shadows/op_modern_shadows" x="54" y="73" platform="desktop"/>
-		<child widget="main_menu/settings_select/player_setup/player_profile_edit/video_settings/shadows/op_shadow_resolution" x="54" y="103"/>
-		<child widget="main_menu/settings_select/player_setup/player_profile_edit/video_settings/shadows/op_environment_sun" x="54" y="133" platform="desktop"/>
-		<child widget="main_menu/settings_select/player_setup/player_profile_edit/video_settings/shadows/op_environment_fixtures" x="54" y="163" platform="desktop"/>
-		<child widget="main_menu/settings_select/player_setup/player_profile_edit/video_settings/shadows/op_flashlight_shadows" x="54" y="193" platform="desktop"/>
-		<child widget="main_menu/settings_select/player_setup/player_profile_edit/video_settings/shadows/op_flashlight_extra_slot" x="54" y="223" platform="desktop"/>
+		<child widget="main_menu/settings_select/player_setup/player_profile_edit/video_settings/shadows/op_shadow_resolution" x="54" y="97"/>
+		<child widget="main_menu/settings_select/player_setup/player_profile_edit/video_settings/shadows/op_environment_sun" x="54" y="121" platform="desktop"/>
+		<child widget="main_menu/settings_select/player_setup/player_profile_edit/video_settings/shadows/op_environment_fixtures" x="54" y="145" platform="desktop"/>
+		<child widget="main_menu/settings_select/player_setup/player_profile_edit/video_settings/shadows/op_flashlight_shadows" x="54" y="169" platform="desktop"/>
+		<child widget="main_menu/settings_select/player_setup/player_profile_edit/video_settings/shadows/op_flashlight_extra_slot" x="54" y="193" platform="desktop"/>
+		<child widget="main_menu/settings_select/player_setup/player_profile_edit/video_settings/shadows/op_adaptive_shadow_resolution" x="54" y="217" platform="desktop"/>
+		<child widget="main_menu/settings_select/player_setup/player_profile_edit/video_settings/shadows/op_shadow_frame_budget" x="54" y="241" platform="desktop"/>
+		<child widget="main_menu/settings_select/player_setup/player_profile_edit/video_settings/shadows/op_adaptive_shadow_budget" x="54" y="265" platform="desktop"/>
 		<child widget="main_menu/settings_select/player_setup/player_profile_edit/video_settings/shadows/button_bar" y="414"/>
 	</widget>
 	<widget name="main_menu/settings_select/player_setup/player_profile_edit/video_settings/shadows/button_bar" type="column_list" width="640" height="28" flags="pass_unhandled_to_focused_child left_right_tabs_items">
@@ -80,6 +83,33 @@
 	<widget name="main_menu/settings_select/player_setup/player_profile_edit/video_settings/shadows/flashlight_extra_slot_spinner" type="spinner" left="3" top="2" width="147" height="20" flags="pass_unhandled_to_focused_child left_right_tabs_items" strings="SHARED|EXTRA SLOT" setting="display.flashlight_extra_slot" values="false|true" font="ui\large_ui" color="#FF2896FF" align="center" text_y="1" header_bitmap="bitmaps/arrow_sm_left" footer_bitmap="bitmaps/arrow_sm_right" header_bounds="7 -6 19 0" footer_bounds="7 150 19 156">
 		<on event="created" run="port setting load"/>
 	</widget>
+	<widget name="main_menu/settings_select/player_setup/player_profile_edit/video_settings/shadows/op_adaptive_shadow_resolution" width="512" height="28" flags="pass_unhandled_to_focused_child" bitmap="bitmaps/option_bkds" color="#FF2896FF" platform="desktop">
+		<child widget="main_menu/settings_select/player_setup/player_profile_edit/video_settings/shadows/adaptive_shadow_resolution_label"/>
+		<child widget="main_menu/settings_select/player_setup/player_profile_edit/video_settings/shadows/adaptive_shadow_resolution_spinner" x="320" y="1"/>
+	</widget>
+	<widget name="main_menu/settings_select/player_setup/player_profile_edit/video_settings/shadows/adaptive_shadow_resolution_label" type="text" controller="1" width="300" height="22" string_list="main_menu/settings_select/player_setup/player_profile_edit/video_settings/shadows/labels" string_index="6" font="ui\large_ui" color="#FF2896FF" text_x="13" text_y="4">
+	</widget>
+	<widget name="main_menu/settings_select/player_setup/player_profile_edit/video_settings/shadows/adaptive_shadow_resolution_spinner" type="spinner" left="3" top="2" width="147" height="20" flags="pass_unhandled_to_focused_child left_right_tabs_items" strings="ON|OFF" setting="display.adaptive_shadow_resolution" values="true|false" font="ui\large_ui" color="#FF2896FF" align="center" text_y="1" header_bitmap="bitmaps/arrow_sm_left" footer_bitmap="bitmaps/arrow_sm_right" header_bounds="7 -6 19 0" footer_bounds="7 150 19 156">
+		<on event="created" run="port setting load"/>
+	</widget>
+	<widget name="main_menu/settings_select/player_setup/player_profile_edit/video_settings/shadows/op_shadow_frame_budget" width="512" height="28" flags="pass_unhandled_to_focused_child" bitmap="bitmaps/option_bkds" color="#FF2896FF" platform="desktop">
+		<child widget="main_menu/settings_select/player_setup/player_profile_edit/video_settings/shadows/shadow_frame_budget_label"/>
+		<child widget="main_menu/settings_select/player_setup/player_profile_edit/video_settings/shadows/shadow_frame_budget_spinner" x="320" y="1"/>
+	</widget>
+	<widget name="main_menu/settings_select/player_setup/player_profile_edit/video_settings/shadows/shadow_frame_budget_label" type="text" controller="1" width="300" height="22" string_list="main_menu/settings_select/player_setup/player_profile_edit/video_settings/shadows/labels" string_index="7" font="ui\large_ui" color="#FF2896FF" text_x="13" text_y="4">
+	</widget>
+	<widget name="main_menu/settings_select/player_setup/player_profile_edit/video_settings/shadows/shadow_frame_budget_spinner" type="spinner" left="3" top="2" width="147" height="20" flags="pass_unhandled_to_focused_child left_right_tabs_items" strings="30 FPS|60 FPS|120 FPS|144 FPS|165 FPS|180 FPS|240 FPS" setting="display.shadow_frame_budget" values="30|60|120|144|165|180|240" font="ui\large_ui" color="#FF2896FF" align="center" text_y="1" header_bitmap="bitmaps/arrow_sm_left" footer_bitmap="bitmaps/arrow_sm_right" header_bounds="7 -6 19 0" footer_bounds="7 150 19 156">
+		<on event="created" run="port setting load"/>
+	</widget>
+	<widget name="main_menu/settings_select/player_setup/player_profile_edit/video_settings/shadows/op_adaptive_shadow_budget" width="512" height="28" flags="pass_unhandled_to_focused_child" bitmap="bitmaps/option_bkds" color="#FF2896FF" platform="desktop">
+		<child widget="main_menu/settings_select/player_setup/player_profile_edit/video_settings/shadows/adaptive_shadow_budget_label"/>
+		<child widget="main_menu/settings_select/player_setup/player_profile_edit/video_settings/shadows/adaptive_shadow_budget_spinner" x="320" y="1"/>
+	</widget>
+	<widget name="main_menu/settings_select/player_setup/player_profile_edit/video_settings/shadows/adaptive_shadow_budget_label" type="text" controller="1" width="300" height="22" string_list="main_menu/settings_select/player_setup/player_profile_edit/video_settings/shadows/labels" string_index="8" font="ui\large_ui" color="#FF2896FF" text_x="13" text_y="4">
+	</widget>
+	<widget name="main_menu/settings_select/player_setup/player_profile_edit/video_settings/shadows/adaptive_shadow_budget_spinner" type="spinner" left="3" top="2" width="147" height="20" flags="pass_unhandled_to_focused_child left_right_tabs_items" strings="ON|OFF" setting="display.adaptive_shadow_budget" values="true|false" font="ui\large_ui" color="#FF2896FF" align="center" text_y="1" header_bitmap="bitmaps/arrow_sm_left" footer_bitmap="bitmaps/arrow_sm_right" header_bounds="7 -6 19 0" footer_bounds="7 150 19 156">
+		<on event="created" run="port setting load"/>
+	</widget>
 	<widget name="main_menu/settings_select/player_setup/player_profile_edit/video_settings/shadows/button_defaults" type="text" width="128" height="24" bitmap="bitmaps/text_button_background" string_list="strings/common_button_captions" string_index="3" font="ui\small_ui" color="#FFFFFFFF" align="center" text_y="2">
 		<on event="a" run="port settings defaults"/>
 		<on event="start" run="port settings defaults"/>
@@ -97,6 +127,9 @@
 		<string text="FIXTURE SHADOWS:"/>
 		<string text="FLASHLIGHT:"/>
 		<string text="FLASHLIGHT BUDGET:"/>
+		<string text="ADAPTIVE RESOLUTION:"/>
+		<string text="FRAME BUDGET:"/>
+		<string text="ADAPTIVE SHADOW BUDGET:"/>
 	</strings>
 	<strings name="main_menu/settings_select/player_setup/player_profile_edit/video_settings/shadows/help_strings">
 		<string text=""/>
@@ -106,5 +139,8 @@
 		<string text="Let nearby indoor lamps cast independent\nshadows with either Modern shadow mode."/>
 		<string text="Let objects and scenery cast shadows\nin the stock flashlight beam."/>
 		<string text="Shared uses one of eight slots while lit.\nExtra allows eight other shadowed lights."/>
+		<string text="Adjust Modern shadow size up to your selected\nresolution to meet the frame budget."/>
+		<string text="Target for both adaptive shadow options.\nYour frame rate limit is set separately."/>
+		<string text="Reduce local shadow slots under pressure.\nRestore slots first when time is available."/>
 	</strings>
 </menus>

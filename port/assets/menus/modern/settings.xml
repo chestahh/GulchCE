@@ -3745,7 +3745,10 @@
 		<child widget="modern/shadows/row_display_environment_fixtures3" x="28" y="227" platform="desktop" />
 		<child widget="modern/shadows/row_display_flashlight_shadows4" x="28" y="257" platform="desktop" />
 		<child widget="modern/shadows/row_display_flashlight_extra_slot5" x="28" y="287" platform="desktop" />
-		<child widget="modern/shadows/row_link_6" x="28" y="317" />
+		<child widget="modern/shadows/row_display_adaptive_shadow_resolution6" x="28" y="317" platform="desktop" />
+		<child widget="modern/shadows/row_display_shadow_frame_budget7" x="28" y="347" platform="desktop" />
+		<child widget="modern/shadows/row_display_adaptive_shadow_budget8" x="28" y="377" platform="desktop" />
+		<child widget="modern/shadows/row_link_6" x="28" y="407" />
 		<child widget="modern/shadows/button_bar" x="26" y="414" />
 	</widget>
 	<widget name="modern/shadows/tabs" type="column_list" width="584" height="26" flags="pass_unhandled_to_focused_child left_right_tabs_items">
@@ -3834,13 +3837,37 @@
 	<widget name="modern/shadows/spinner_display_flashlight_extra_slot5" type="spinner" width="140" height="20" flags="pass_unhandled_to_focused_child left_right_tabs_items" strings="SHARED|EXTRA SLOT" values="false|true" setting="display.flashlight_extra_slot" font="ui\large_ui" color="#FF2896FF" align="center" header_bitmap="bitmaps/arrow_sm_left" footer_bitmap="bitmaps/arrow_sm_right" header_bounds="4 -10 16 -4" footer_bounds="4 144 16 150">
 		<on event="created" run="port setting load" />
 	</widget>
+	<widget name="modern/shadows/row_display_adaptive_shadow_resolution6" width="336" height="26" bitmap="modern/row" platform="desktop" flags="pass_unhandled_to_focused_child nifty_fx">
+		<child widget="modern/shadows/label_display_adaptive_shadow_resolution6" x="12" y="3" />
+		<child widget="modern/shadows/spinner_display_adaptive_shadow_resolution6" x="180" y="3" />
+	</widget>
+	<widget name="modern/shadows/label_display_adaptive_shadow_resolution6" type="text" controller="1" width="152" height="24" string_list="modern/shadows/labels" string_index="6" font="ui\large_ui" color="#FF2896FF" />
+	<widget name="modern/shadows/spinner_display_adaptive_shadow_resolution6" type="spinner" width="140" height="20" flags="pass_unhandled_to_focused_child left_right_tabs_items" strings="ON|OFF" values="true|false" setting="display.adaptive_shadow_resolution" font="ui\large_ui" color="#FF2896FF" align="center" header_bitmap="bitmaps/arrow_sm_left" footer_bitmap="bitmaps/arrow_sm_right" header_bounds="4 -10 16 -4" footer_bounds="4 144 16 150">
+		<on event="created" run="port setting load" />
+	</widget>
+	<widget name="modern/shadows/row_display_shadow_frame_budget7" width="336" height="26" bitmap="modern/row" platform="desktop" flags="pass_unhandled_to_focused_child nifty_fx">
+		<child widget="modern/shadows/label_display_shadow_frame_budget7" x="12" y="3" />
+		<child widget="modern/shadows/spinner_display_shadow_frame_budget7" x="180" y="3" />
+	</widget>
+	<widget name="modern/shadows/label_display_shadow_frame_budget7" type="text" controller="1" width="152" height="24" string_list="modern/shadows/labels" string_index="7" font="ui\large_ui" color="#FF2896FF" />
+	<widget name="modern/shadows/spinner_display_shadow_frame_budget7" type="spinner" width="140" height="20" flags="pass_unhandled_to_focused_child left_right_tabs_items" strings="30 FPS|60 FPS|120 FPS|144 FPS|165 FPS|180 FPS|240 FPS" values="30|60|120|144|165|180|240" setting="display.shadow_frame_budget" font="ui\large_ui" color="#FF2896FF" align="center" header_bitmap="bitmaps/arrow_sm_left" footer_bitmap="bitmaps/arrow_sm_right" header_bounds="4 -10 16 -4" footer_bounds="4 144 16 150">
+		<on event="created" run="port setting load" />
+	</widget>
+	<widget name="modern/shadows/row_display_adaptive_shadow_budget8" width="336" height="26" bitmap="modern/row" platform="desktop" flags="pass_unhandled_to_focused_child nifty_fx">
+		<child widget="modern/shadows/label_display_adaptive_shadow_budget8" x="12" y="3" />
+		<child widget="modern/shadows/spinner_display_adaptive_shadow_budget8" x="180" y="3" />
+	</widget>
+	<widget name="modern/shadows/label_display_adaptive_shadow_budget8" type="text" controller="1" width="152" height="24" string_list="modern/shadows/labels" string_index="8" font="ui\large_ui" color="#FF2896FF" />
+	<widget name="modern/shadows/spinner_display_adaptive_shadow_budget8" type="spinner" width="140" height="20" flags="pass_unhandled_to_focused_child left_right_tabs_items" strings="ON|OFF" values="true|false" setting="display.adaptive_shadow_budget" font="ui\large_ui" color="#FF2896FF" align="center" header_bitmap="bitmaps/arrow_sm_left" footer_bitmap="bitmaps/arrow_sm_right" header_bounds="4 -10 16 -4" footer_bounds="4 144 16 150">
+		<on event="created" run="port setting load" />
+	</widget>
 	<widget name="modern/shadows/row_link_6" width="336" height="26" bitmap="modern/row" flags="nifty_fx">
 		<on event="a" run="port frontend page" />
 		<on event="start" run="port frontend page" />
 		<on event="left_mouse" run="mouse emit accept event" />
 		<child widget="modern/shadows/label_link_6" x="12" y="3" />
 	</widget>
-	<widget name="modern/shadows/label_link_6" type="text" controller="1" width="312" height="24" string_list="modern/shadows/labels" string_index="6" font="ui\large_ui" color="#FF2896FF" />
+	<widget name="modern/shadows/label_link_6" type="text" controller="1" width="312" height="24" string_list="modern/shadows/labels" string_index="9" font="ui\large_ui" color="#FF2896FF" />
 	<strings name="modern/shadows/labels">
 		<string text="SHADOW MODE" />
 		<string text="SHADOW RESOLUTION" />
@@ -3848,6 +3875,9 @@
 		<string text="FIXTURE SHADOWS" />
 		<string text="FLASHLIGHT" />
 		<string text="FLASHLIGHT BUDGET" />
+		<string text="ADAPTIVE RES." />
+		<string text="FRAME BUDGET" />
+		<string text="ADAPTIVE SLOTS" />
 		<string text="&lt; BACK" />
 	</strings>
 	<strings name="modern/shadows/help_strings">
@@ -3858,6 +3888,9 @@
 		<string text="Let nearby indoor lamps cast independent shadows with either Modern shadow mode." />
 		<string text="Let objects and scenery cast shadows in the stock flashlight beam." />
 		<string text="Shared uses one of eight slots while lit. Extra allows eight other shadowed lights." />
+		<string text="Adjust Modern shadow size up to your selected resolution to meet the frame budget." />
+		<string text="Target for both adaptive shadow options. Your frame rate limit is set separately." />
+		<string text="Reduce local shadow slots under pressure. Restore slots first when time is available." />
 		<string text="Return to the parent page, keeping pending changes." />
 	</strings>
 	<widget name="modern/shadows/button_bar" type="column_list" width="588" height="26" flags="pass_unhandled_to_focused_child left_right_tabs_items">

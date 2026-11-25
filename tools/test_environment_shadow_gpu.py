@@ -48,8 +48,8 @@ def test_directional_receiver_depth_and_empty_rays(reverse,soft,depth_stencil,su
         for unit,tex in enumerate(textures):
             g('ActiveTexture',None,U)(0x84C0+unit);g('BindTexture',None,U,U)(0x0DE1,tex)
             for param in (0x2801,0x2800):g('TexParameteri',None,U,U,I)(0x0DE1,param,0x2600)
-        def draw(z,empty=False,roof=False,detail=False,region=None):
-            world_z=z;view_z=world_z-camera[2,3]
+        def draw(z,empty=False,roof=False,detail=False,region=None,close_strength=None):
+            world_z=z;view_z=(world_z-camera[2,3])*camera[2,2]
             clip=projection@np.array([0,0,view_z,1]);d=clip[2]/clip[3]
             data=np.full((64,64),1-d if reverse else d,np.float32)
             shadow=np.zeros((64,64),np.float32)
@@ -57,6 +57,9 @@ def test_directional_receiver_depth_and_empty_rays(reverse,soft,depth_stencil,su
                 shadow[16:48,16:48]=.5
                 shadow[20:30,24:28]=0  # Asymmetric opening catches swapped gather taps.
             arrays=[data,np.concatenate((shadow,np.zeros_like(shadow)),axis=1) if detail else shadow]
+            if close_strength is not None:
+                # The close tile blocks this receiver. Its radial neighbour is clear.
+                arrays[1]=np.concatenate((shadow,np.zeros_like(shadow),np.full_like(shadow,.5)),axis=1)
             if sun: arrays.append(np.full_like(data, .9 if roof else .5+.5*z))
             for unit,array in enumerate(arrays):
                 g('ActiveTexture',None,U)(0x84C0+unit);g('BindTexture',None,U,U)(0x0DE1,textures[unit])
@@ -81,6 +84,9 @@ def test_directional_receiver_depth_and_empty_rays(reverse,soft,depth_stencil,su
                 r.uniform(p,'sun_color_radius',[.5,.5,.5,1])
                 r.uniform(p,'sun_soft',soft)
                 r.uniform(p,'sun_detail',[.5,.5,4,.5] if detail else [0,0,0,1])
+                r.uniform(p,'sun_close',[.5,.5,8,close_strength] if close_strength is not None else [0,0,0,0])
+                if close_strength is not None:
+                    r.uniform(p,'sun_detail',[.5,.5,4,1/3])
                 g('ClearColor',None,F,F,F,F)(.4,.4,.4,1)
                 g('Clear',None,U)(0x4000)
                 g('Enable',None,U)(0x0BE2)
@@ -137,11 +143,32 @@ def test_directional_receiver_depth_and_empty_rays(reverse,soft,depth_stencil,su
             with_detail=draw(-.5,detail=True)
             assert np.allclose(with_detail[31:33,31:33,:3],.6,atol=.002)
             assert np.allclose(with_detail[:25,:,:3],behind[:25,:,:3],atol=.002)
+            radial=draw(-.5,detail=True,close_strength=0)
+            close=draw(-.5,detail=True,close_strength=1)
+            assert np.allclose(radial,with_detail,atol=.002)
+            assert np.allclose(close[31:33,31:33,:3],.2,atol=.002)
+            assert np.allclose(close[:29],radial[:29],atol=.002), 'Close-player detail must preserve the surrounding radial shadow'
+            for axis in (0,1,2):
+                for direction in (-1,1):
+                    samples=[]
+                    for dist in (3.45,3.7,3.85,4.05):
+                        eye=np.array([0.,0.,-.5,1./16])
+                        eye[axis]+=direction*dist
+                        r.uniform(p,'sun_eye',eye)
+                        samples.append(draw(-.5,detail=True)[32,32,0])
+                    assert np.all(np.diff(samples)<0) and np.allclose([samples[0],samples[-1]],[.6,.2],atol=.003)
+            r.uniform(p,'sun_eye',[0.,0.,0.,0.])
             assert np.allclose(draw(-.00008)[31:33,31:33,:3],.2,atol=.002), "Retain close object-to-ground contact"
             assert np.allclose(draw(-.5,roof=True)[:,:,:3],.4), "A roof must preserve the baked base"
             for surface in (draw(.25),draw(-.5,True)):
                 assert np.allclose(surface[30:34,30:34,:3],.6), "Unblocked surface receives direct sun"
             return
+        # View the same receiver from underneath while the light stays above.
+        camera[0,0]=camera[2,2]=-1
+        camera[2,3]=-3
+        assert np.allclose(draw(-.5)[29:35,29:35,:3],1), 'Back of a walkable slab receives no silhouette'
+        camera[0,0]=camera[2,2]=1
+        camera[2,3]=3
         assert np.allclose(behind[:4,:,:3],1)
         assert np.allclose(draw(.25)[:,:,:3],1), 'Surface in front of caster must remain lit'
         assert np.allclose(draw(-.5,True)[:,:,:3],1), 'Empty rays must never occlude'

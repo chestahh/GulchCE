@@ -506,7 +506,8 @@ def test_modern_lighting_and_shadows_live_under_advanced_graphics_in_shell_and_p
         shell = widgets[f'modern/{page}settings'].findall('child')
         pause = widgets[f'modern/paused/{page}settings'].findall('child')
         assert shell and [c.attrib for c in pause] == [c.attrib for c in shell]
-    for setting in ('display.shadow_resolution', 'display.modern_shadows', 'display.environment_sun', 'display.environment_fixtures', 'display.flashlight_shadows', 'display.flashlight_extra_slot'):
+    for setting in ('display.shadow_resolution', 'display.modern_shadows', 'display.environment_sun', 'display.environment_fixtures', 'display.flashlight_shadows', 'display.flashlight_extra_slot',
+                    'display.adaptive_shadow_resolution', 'display.shadow_frame_budget', 'display.adaptive_shadow_budget'):
         matches = [name for name, widget in widgets.items() if widget.get('setting') == setting
                    and name.startswith('modern/')]
         assert len(matches) == 1 and matches[0].startswith('modern/shadows/')

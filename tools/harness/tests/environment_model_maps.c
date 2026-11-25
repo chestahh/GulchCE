@@ -15,7 +15,8 @@ static int allocations, deletions, checks, attachments, draws, handoffs, fail_fb
 static unsigned program=1, next_id=10;
 static GLuint targets[2];
 static int xgpu_gl_ready(void) { return ready; }
-static float halo_shadow_resolution_scale(void) { return (float)scale; }
+static void adaptive_reject_size(void) {}
+static int modern_shadow_pixels(void) { return 128 * scale; }
 static void xgpu_gl_end_external_pass(void) { handoffs++; }
 static void glDeleteTextures(int n, const GLuint *v) { deletion_calls++;while(n--) if(v[n]) deletions++; }
 static void glDeleteFramebuffers(int n, const GLuint *v) { deletion_calls++;while(n--) if(v[n]) deletions++; }
@@ -75,9 +76,12 @@ int main(int argc,char **argv)
  int queries=error_queries;
  sun.projecting=drawing=environment_drawing=1;
  CHECK(modern_environment_sun_finish(1,tint) && error_queries==queries,"validated posed target draws without a driver round trip");
- sun.projecting=drawing=environment_drawing=sun.detail_atlas=sun_detail_in_batch=1;
+ sun.projecting=drawing=environment_drawing=sun_detail_in_batch=1;sun.atlas_tiles=2;
  int before=draws;
  CHECK(modern_environment_sun_finish(1,tint) && draws==before+2 && sun.detail_drawn && !sun.drawing_detail,"overlapping families draw into both sun tiles");
+ sun.projecting=drawing=environment_drawing=1;sun_detail_in_batch=3;sun.atlas_tiles=3;sun.close_radius=.5f;
+ before=draws;
+ CHECK(modern_environment_sun_finish(1,tint) && draws==before+3 && sun.detail_drawn==3 && !sun.drawing_detail,"close player and radial tiles share the posed batch");
  modern_environment_sun_model(1);CHECK(modern_environment_model_active(),"prepared sun reaches models independently");
  modern_environment_window();modern_environment_sun_model(1);
  CHECK(!modern_environment_model_active(),"next view cannot sample stale sun");

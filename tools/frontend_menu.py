@@ -81,6 +81,7 @@ def value_caption(value):
 
 SHORT_LABELS = {
     "display.plasma_prong_lighting": "PLASMA PRONGS",
+    "display.adaptive_shadow_resolution": "ADAPTIVE RES.", "display.adaptive_shadow_budget": "ADAPTIVE SLOTS",
     "display.widescreen_loading": "WIDE LOADING",
     "input.mouse_sensitivity": "HORIZONTAL SENS.", "input.mouse_vertical_sensitivity": "VERTICAL SENS.",
     "input.invert_mouse": "INVERT MOUSE", "network.allow_upnp": "UPNP FORWARDING",

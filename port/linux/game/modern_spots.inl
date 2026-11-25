@@ -150,6 +150,17 @@ static int flashlight_object_casters(real_point3d const *origin, real radius, lo
         if (object && object->object.type == _object_type_biped) held_emitter = emitter;
     }
     if (!object || object->object.type != _object_type_biped) wearer = NONE;
+    else if (held_emitter == NONE)
+    {
+        short slot = unit_get(wearer)->unit.current_weapon_index;
+        if (slot >= 0 && slot < MAXIMUM_WEAPONS_PER_UNIT)
+        {
+            long weapon = unit_inventory_get_weapon(wearer, slot);
+            object = object_try_and_get(weapon);
+            if (object && object->object.parent_object_index == wearer)
+                held_emitter = weapon;
+        }
+    }
     return object_casters(origin, radius, owners, NONE, wearer, held_emitter);
 }
 

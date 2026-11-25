@@ -1631,6 +1631,9 @@ struct gl_device
 #endif
 	unsigned long stream_offset;
 	GLuint index_buffer;
+#ifndef HALO_GLES
+	GLuint sequential_quad_buffer;
+#endif
 	unsigned long index_offset;
 #ifdef HALO_GLES
 	/* (web_chunk_get) the room in the stream and index buffers, the draws
@@ -3150,6 +3153,10 @@ static void visibility_results_initialize(void);
 static BOOL visibility_readback_gl_ok(const char *phase);
 #endif
 
+#ifndef HALO_GLES
+static GLuint create_sequential_quad_buffer(void);
+#endif
+
 static void gl_initialize(void)
 {
 	GLint major = 0, minor = 0;
@@ -3262,6 +3269,7 @@ static void gl_initialize(void)
 	glGenBuffers(1, &device.index_buffer);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, device.index_buffer);
 	glBufferData(GL_ELEMENT_ARRAY_BUFFER, INDEX_BUFFER_SIZE, NULL, GL_STREAM_DRAW);
+	device.sequential_quad_buffer = create_sequential_quad_buffer();
 #endif
 	glGenSamplers(D3DTSS_MAXSTAGES, device.samplers);
 #ifdef HALO_GLES
@@ -7861,6 +7869,60 @@ static WORD *quad_indices(const WORD *indices, unsigned long count, unsigned lon
 	return result;
 }
 
+#ifndef HALO_GLES
+/* Every unindexed quad uses the same two triangles. A 16-bit index can
+   address 65,536 vertices, so one device-lifetime buffer covers them all. */
+#define SEQUENTIAL_QUAD_VERTICES 65536u
+
+static GLuint create_sequential_quad_buffer(void)
+{
+	unsigned long count;
+	WORD *indices = quad_indices(NULL, SEQUENTIAL_QUAD_VERTICES, &count);
+	GLuint buffer = 0;
+	GLint bytes = 0;
+
+	if (!indices)
+		return 0;
+	glGenBuffers(1, &buffer);
+	if (buffer)
+	{
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, buffer);
+		glBufferData(GL_ELEMENT_ARRAY_BUFFER, count * sizeof(WORD), indices, GL_STATIC_DRAW);
+		glGetBufferParameteriv(GL_ELEMENT_ARRAY_BUFFER, GL_BUFFER_SIZE, &bytes);
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, device.index_buffer);
+		if (bytes != (GLint)(count * sizeof(WORD)))
+		{
+			glDeleteBuffers(1, &buffer);
+			buffer = 0;
+		}
+	}
+	free(indices);
+	return buffer;
+}
+#endif
+
+static void draw_sequential_quads(unsigned long vertices)
+{
+	unsigned long count;
+	WORD *indices;
+
+#ifndef HALO_GLES
+	if (device.sequential_quad_buffer && vertices <= SEQUENTIAL_QUAD_VERTICES)
+	{
+		state_element_array_buffer(device.sequential_quad_buffer);
+		glDrawElements(GL_TRIANGLES, (GLsizei)(vertices / 4 * 6), GL_UNSIGNED_SHORT, NULL);
+		return;
+	}
+#endif
+	indices = quad_indices(NULL, vertices, &count);
+	if (indices)
+	{
+		glDrawElements(GL_TRIANGLES, (GLsizei)count, GL_UNSIGNED_SHORT,
+			(const void *)index_upload(indices, count * sizeof(WORD)));
+		free(indices);
+	}
+}
+
 void WINAPI D3DDevice_SetStreamSource(UINT stream_number, D3DVertexBuffer *stream_data, UINT stride)
 {
 	if (stream_number >= 16)
@@ -7883,15 +7945,7 @@ void WINAPI D3DDevice_DrawVertices(D3DPRIMITIVETYPE primitive_type, UINT start_v
 	setup_streams(start_vertex, vertex_count);
 	if (primitive_type == D3DPT_QUADLIST)
 	{
-		unsigned long count;
-		WORD *indices = quad_indices(NULL, vertex_count, &count);
-
-		if (indices)
-		{
-			glDrawElements(GL_TRIANGLES, (GLsizei)count, GL_UNSIGNED_SHORT,
-				(const void *)index_upload(indices, count * sizeof(WORD)));
-			free(indices);
-		}
+		draw_sequential_quads(vertex_count);
 	}
 	else
 	{
@@ -8386,31 +8440,26 @@ void WINAPI D3DDevice_End(void)
 #endif
 		}
 	}
-	if (type == D3DPT_QUADLIST)
+	if (type == D3DPT_QUADLIST && first_vertex)
 	{
+		/* (the indices from the first vertex on, past what 16 bits hold) */
 		unsigned long index_count;
 		WORD *indices = quad_indices(NULL, count, &index_count);
+		GLuint *placed = indices ? malloc(index_count * sizeof(GLuint)) : NULL;
 
-		if (first_vertex)
+		if (placed)
 		{
-			/* (the indices from the first vertex on, past what 16 bits hold) */
-			GLuint *placed = indices ? malloc(index_count * sizeof(GLuint)) : NULL;
-
-			if (placed)
-			{
-				for (index = 0; index < index_count; index++)
-					placed[index] = (GLuint)(first_vertex + indices[index]);
-				glDrawElements(GL_TRIANGLES, (GLsizei)index_count, GL_UNSIGNED_INT,
-					(const void *)index_upload(placed, index_count * sizeof(GLuint)));
-				free(placed);
-			}
-		}
-		else if (indices)
-		{
-			glDrawElements(GL_TRIANGLES, (GLsizei)index_count, GL_UNSIGNED_SHORT,
-				(const void *)index_upload(indices, index_count * sizeof(WORD)));
+			for (index = 0; index < index_count; index++)
+				placed[index] = (GLuint)(first_vertex + indices[index]);
+			glDrawElements(GL_TRIANGLES, (GLsizei)index_count, GL_UNSIGNED_INT,
+				(const void *)index_upload(placed, index_count * sizeof(GLuint)));
+			free(placed);
 		}
 		free(indices);
+	}
+	else if (type == D3DPT_QUADLIST)
+	{
+		draw_sequential_quads(count);
 	}
 	else
 	{
@@ -9275,6 +9324,9 @@ void WINAPI D3DDevice_Present(CONST RECT *source_rectangle, CONST RECT *destinat
 		}
 		glBindVertexArray(device.vertex_array);
 		glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
+#ifndef HALO_GLES
+		modern_adaptive_present();
+#endif
 		platform_video_swap();
 #ifndef HALO_GLES
 		frame_pacing_wait();

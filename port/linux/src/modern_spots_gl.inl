@@ -42,7 +42,7 @@ static void spot_depth_resources(int size, int layers)
 
 int modern_spot_begin(int layer, const float frame[16], int cacheable)
 {
-    int size = 128 * (int)halo_shadow_resolution_scale();
+    int size = modern_shadow_pixels();
     int fixture = layer - 2;
     /* A flashlight-only scene needs one layer. Grow on first fixture use. */
     int layers = layer == 4 && spots.layers <= 1 ? 1 : 5;
@@ -57,7 +57,11 @@ int modern_spot_begin(int layer, const float frame[16], int cacheable)
     {
         GLenum none=GL_NONE;
         glDrawBuffers(1,&none); glReadBuffer(GL_NONE);
-        if (glCheckFramebufferStatus(GL_FRAMEBUFFER)!=GL_FRAMEBUFFER_COMPLETE || glGetError()!=GL_NO_ERROR) goto failed_begin;
+        if (glCheckFramebufferStatus(GL_FRAMEBUFFER)!=GL_FRAMEBUFFER_COMPLETE || glGetError()!=GL_NO_ERROR)
+        {
+            adaptive_reject_size();
+            goto failed_begin;
+        }
         spots.checked_layers |= 1<<layer;
     }
     memcpy(environment.frame,frame,sizeof(environment.frame));
