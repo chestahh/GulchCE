@@ -1,9 +1,10 @@
 <p align="center">
-  <img width="420" height="420" alt="gulchceopencelogo" src="https://github.com/user-attachments/assets/1787aa2f-3305-4353-8dd4-27d08661f6d4" />
+  <img width="420" height="420" alt="gulchcelogo" src="https://github.com/user-attachments/assets/68e86aac-2324-4c75-8a87-e9688f57fd33" />
 </p>
 
+
 <h2 align="center">
-  A fork of OpenCE focused on bringing experimental features to OpenCE.
+  A fork of OpenCE focusing on experimental enhancements and features.
 </h2>
 
 <p align="center">
@@ -25,12 +26,8 @@ Windows, Android and web browsers.
 </p>
 <hr>
 <h3 align="center">
-GulchCE will always be compatible with OpenCE, so players on both clients can play together.
-</h3>
-<br>
-<p align="center">
 Any fork compatible with OpenCE is also compatible with GulchCE. Crossplay galore!
-</p>
+</h3>
 <br>
 <p align="center">
   Halo is a trademark of Microsoft. GulchCE is a fan project, not made or endorsed by Microsoft, Bungie, 343 Industries, or Halo Studios, and does not include any game assets or content.
@@ -58,16 +55,21 @@ For installation, controls and platform requirements, see the [Windows](port/win
 
 ## Other cool community forks
 
-GulchCE is one of several community forks of the Halo: Combat Evolved
-decompilation and [OpenCE](https://github.com/OpenCommunityEdition/OpenCE).
+GulchCE is one of several community forks of the Halo: Combat Evolved Xbox
+decompilation project.
 Each has its own focus, and they borrow from each other. Some notable ones:
+
+### ChupathingyCE
+
+<img align="right" width="96" alt="The ChupathingyCE logo" src="https://raw.githubusercontent.com/ChupathingyCE/chupathingyce/refs/heads/main/docs/icon-160.png" />
+
+[ChupathingyCE/chupathingyce](https://github.com/ChupathingyCE/chupathingyce), by Milenko: a fork of the decompilation project focusing on true multi-platform support, its own network spec under Delta, combining social features with an enhanced server browser and quality-of-life experience. ChupathingyCE has support for Halo PC, HaloMD and community Xbox map packs, like Halo CE+.
 
 ### SlipstreamCE
 
 <img align="right" width="96" alt="The SlipstreamCE logo" src="https://raw.githubusercontent.com/thelinkin3000/SlipstreamCE/refs/heads/main/port/assets/icon/slipstream-logo-2048.png" />
 
-[thelinkin3000/SlipstreamCE](https://github.com/thelinkin3000/SlipstreamCE), by thelinkin3000: an
-OpenCE fork focused on mobile and console platforms, among them its own Vulkan renderer
+[thelinkin3000/SlipstreamCE](https://github.com/thelinkin3000/SlipstreamCE), by thelinkin3000: the decompilation fork focused on mobile and console platforms, among them its own Vulkan renderer
 and dynamic lighting on mobile and console platforms, and MCC custom map support.
 SlipstreamCE's dynamic lighting is ported from GulchCE, and its MCC support
 builds on GulchCE's. **If you're an Android player, this is the best place to experience OpenCE.**
