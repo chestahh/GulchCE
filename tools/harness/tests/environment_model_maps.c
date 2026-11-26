@@ -76,9 +76,11 @@ int main(int argc,char **argv)
  int queries=error_queries;
  sun.projecting=drawing=environment_drawing=1;
  CHECK(modern_environment_sun_finish(1,tint) && error_queries==queries,"validated posed target draws without a driver round trip");
+ sun_detail_caster=1;
  sun.projecting=drawing=environment_drawing=sun_detail_in_batch=1;sun.atlas_tiles=2;
  int before=depth_calls;
  CHECK(modern_environment_sun_finish(1,tint) && depth_calls==before+2 && sun.detail_drawn && !sun.drawing_detail,"overlapping families draw into both sun tiles");
+ CHECK(!sun_detail_caster,"finishing sunlight clears detail eligibility");
  sun.projecting=drawing=environment_drawing=1;sun_detail_in_batch=3;sun.atlas_tiles=3;sun.close_radius=.5f;
  before=depth_calls;
  CHECK(modern_environment_sun_finish(1,tint) && depth_calls==before+3 && sun.detail_drawn==3 && !sun.drawing_detail,"close player and radial tiles share the posed batch");

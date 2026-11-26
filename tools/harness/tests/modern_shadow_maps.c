@@ -161,7 +161,10 @@ int main(int argc,char **argv) {
  CHECK(!modern_shadow_begin(-1,origin,2,0,0) && !modern_shadow_begin(MODERN_SHADOW_LIGHTS,origin,2,0,0),"invalid slot never allocates");
  CHECK(modern_shadow_begin(0,origin,2,0,1),"first light begins");
  CHECK(!modern_shadow_begin(1,origin,2,0,0),"cannot overwrite an unfinished submission");
+ sun_detail_caster=1;
  CHECK(modern_shadow_draw(1,matrix,1,NULL,uv,MODERN_SHADOW_BOTH),"shared caster");
+ CHECK(sun_detail_in_batch==1,"batch retains the detail flag of a submitted caster");
+ sun_detail_caster=0;
  CHECK(modern_shadow_draw(2,matrix,1,NULL,uv,MODERN_SHADOW_WORLD),"world body/weapon");
  CHECK(modern_shadow_draw(3,matrix,1,NULL,uv,MODERN_SHADOW_VIEW),"viewmodel arms/weapon");
  CHECK(modern_shadow_end(),"complete depth maps");

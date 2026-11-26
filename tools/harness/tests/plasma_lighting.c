@@ -25,7 +25,7 @@ static real_point3d connected_position;
 int lighting_config_boolean(const char *name) { return strcmp(name, "display.muzzle_lighting") ? enabled : muzzle_on; }
 static struct object_datum *object_try_and_get(long index) { return present ? &grenade.base : NULL; }
 static const char *tag_get_name(long index) { return tag_name; }
-struct light_datum { long object_index, parent_light_index; int flags; float radius; long definition_index; real_point3d position; real_vector3d forward; };
+struct light_datum { long object_index, parent_light_index; short rasterizer_light_index; int flags; float radius; long definition_index; real_point3d position; real_vector3d forward; };
 struct rasterizer_light_submit_parameters { real_point3d position; real_vector3d forward; real radius; };
 static struct { long light_count; struct rasterizer_light_submit_parameters lights[32]; } rasterizer_lights;
 static struct { int valid; } storage = { 1 }, *light_data = &storage;
@@ -37,7 +37,9 @@ static struct light_datum *datum_try_and_get(void *data, long index)
 	light.parent_light_index = NONE;
 	return &light;
 }
-enum { _light_definition_no_specular_bit = 1 };
+enum { _light_definition_no_specular_bit = 1, _light_definition_is_first_person_flashlight_bit };
+static int flashlight_slot = NONE;
+static int modern_spot_is_flashlight(long index) { return flashlight_slot != NONE && index == flashlight_slot; }
 #define _pi 3.14159265f
 struct point_light_definition { real radius_modifier_upper_bound, radius, specular_radius_multiplier, lens_flare_radius, cutoff_angle, runtime_cosine_cutoff_angle, runtime_sine_cutoff_angle; int flags; };
 static struct point_light_definition light_definition = {1,1,2,0,2,1,1,0};

@@ -70,7 +70,7 @@ int main(void)
     }
     CHECK(draws == 7, "one draw for each list");
 #ifdef HALO_GLES
-    CHECK(uploads == 7, "GLES keeps streamed indices");
+    CHECK(uploads == 7 && !deletes, "GLES streams indices without allocating a cached buffer");
 #else
     CHECK(uploads == 1, "oversized lists keep streamed wrapping semantics");
 #endif

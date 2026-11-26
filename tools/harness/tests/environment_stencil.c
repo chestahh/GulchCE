@@ -14,7 +14,10 @@ static struct {
 	GLint stencil_reference;
 	GLuint stencil_value_mask, stencil_write_mask;
 } gl_state;
-static int marking, enabled, changes;
+static int enabled, changes;
+#ifndef HALO_GLES
+static int marking;
+#endif
 static GLint reference;
 static GLenum function, operations[3];
 static GLuint compare_mask, write_mask;
@@ -36,9 +39,10 @@ int main(void)
 {
 	int first;
 	memset(&gl_state, 0xff, sizeof(gl_state));
+
+#ifndef HALO_GLES
 	marking = 1;
 	apply_stencil_state(1);
-#ifndef HALO_GLES
 	CHECK(enabled && function == GL_NEVER && reference == 131 && compare_mask == 127 && write_mask == 128,
 		"world draw compares stock bits and writes only the receiver bit");
 	CHECK(operations[0] == GL_KEEP && operations[1] == GL_KEEP && operations[2] == GL_REPLACE,
@@ -50,8 +54,8 @@ int main(void)
 	apply_stencil_state(1);
 	CHECK(enabled && function == GL_ALWAYS && compare_mask == 0 && write_mask == 128, "world-only coverage");
 	D3D__RenderState[D3DRS_STENCILENABLE] = 1;
-#endif
 	marking = 0;
+#endif
 	apply_stencil_state(1);
 	CHECK(enabled && function == GL_NEVER && reference == 3 && compare_mask == 255 && write_mask == 3,
 		"ordinary drawing restores the game's stencil values");

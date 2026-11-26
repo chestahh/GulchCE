@@ -279,7 +279,9 @@ int main(int argc,char **argv)
  CHECK(active, "BSP transition retries receiver resources");
  modern_shadows_world_begin(1,1); modern_shadows_cancel();
  CHECK(rebound_stage==1 && rebound_light==1, "failed specular shader restores its collision mask");
+ prepared_sky=1; patches_ready=1;
  before=disposals; mode="off"; modern_shadows_map_loaded(1); modern_shadows_prepare(1);
+ CHECK(prepared_sky==NONE && !patches_ready,"disable clears the prepared map sources");
  CHECK(disposals==before+1 && !cached_bsp && !active, "disable releases resources");
  modern_shadows_window();
  CHECK(identities[0]==NONE && slots[0]==NONE, "window transition clears light identities and slots");

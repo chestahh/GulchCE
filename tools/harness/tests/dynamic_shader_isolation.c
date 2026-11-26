@@ -84,8 +84,10 @@ int main(int argc, char **argv)
   CHECK(enhanced && key.modern_shadow==3 && key.per_pixel_lighting==2,"verified transparent receiver uses pixel shadows");
   CHECK(translated_lighting==&program.plasma_lighting,"optional shader gets verified normal and position metadata");
   CHECK(!program.lighting.lights,"shadow reception does not register the stock program");
-  CHECK(draw_program_get(&program,FALSE,&key,0)==stock && !key.modern_shadow,"disabled lighting restores exact stock program despite stale shadow slots");
+  CHECK(draw_program_get(&program,FALSE,&key,0) && key.modern_shadow==3 && !key.plasma_model,
+        "a native light casts even when the model uses stock falloff");
   shadow_mask=0;
+  CHECK(draw_program_get(&program,FALSE,&key,0)==stock && !key.modern_shadow,"clearing receiver shadows restores the exact stock program");
   CHECK(draw_program_get(&program,FALSE,&key,1) && !key.per_pixel_lighting,"lighting alone preserves established vertex behavior");
 #else
   CHECK(enhanced==stock && !key.modern_shadow && !key.per_pixel_lighting,"Android keeps unregistered shaders stock");
@@ -94,7 +96,7 @@ int main(int argc, char **argv)
  }
  if (!strcmp(argv[1], "environment"))
  {
-  pp=0; shadow_mask=3;
+  pp=0; shadow_mask=0;
   for (lit=0;lit<2;lit++)
   {
    memset(&program,0,sizeof(program));
@@ -105,7 +107,7 @@ int main(int argc, char **argv)
    program.lighting.lights=lit*2;
    environment_active=0;
    stock=draw_program_get(&program,FALSE,&key,0);
-   CHECK(stock && !key.modern_shadow && !key.plasma_model,"inactive environment ignores stale local slots");
+   CHECK(stock && !key.modern_shadow && !key.plasma_model,"inactive environment and empty shadow slots use stock shading");
    environment_active=1;
    enhanced=draw_program_get(&program,FALSE,&key,0);
 #ifndef HALO_GLES
