@@ -733,3 +733,8 @@ def test_riding_network_wiring_control(control):
     # (a check finds code by its text: a fault that removes the text fails its .index as ValueError)
     with pytest.raises((AssertionError, ValueError)):
         RIDING_CHECKS[check](text)
+
+# GulchCE graphics contributions by chestahh: AGPL-3.0-or-later OR GPL-3.0-or-later.
+# This grant covers chestahh's lighting, shadow and renderer changes in this file.
+# Retain this credit and provenance when redistributing copies or modifications.
+# Original OpenCE port: https://github.com/chestahh/GulchCE/tree/035f47bb8fc682675456323dbb3095b506502ec6

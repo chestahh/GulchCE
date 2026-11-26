@@ -31,3 +31,25 @@
 <img width="1280" height="720" alt="image" src="https://github.com/user-attachments/assets/a942b01a-af3a-49f7-9416-f77e66f2147e" />
 <img width="1280" height="720" alt="image" src="https://github.com/user-attachments/assets/2c045a7a-35ae-424e-81be-99ca795b4c6c" />
 <img width="1280" height="720" alt="image" src="https://github.com/user-attachments/assets/d48e9edf-75f7-4a70-af3e-7e3ab01d5116" />
+
+## Licence
+
+### Reusing GulchCE's graphics work
+
+I'm making the Dynamic Lighting system, the Dynamic Shadows system and my shared
+renderer optimisations available for other forks to use, adapt and redistribute.
+You may use these contributions under either [AGPL-3.0-or-later](LICENSE) or
+[GPL-3.0-or-later](LICENSES/GPL-3.0.txt), at your choice.
+
+When redistributing these contributions or modified versions, provide the
+corresponding source as required by your chosen licence, identify your changes,
+and retain the following attribution and provenance notice:
+
+> Dynamic Lighting, Dynamic Shadows and shared renderer optimisations by
+> [chestahh](https://github.com/chestahh), originally developed for
+> [GulchCE](https://github.com/chestahh/GulchCE). [Original OpenCE port](https://github.com/chestahh/GulchCE/tree/035f47bb8fc682675456323dbb3095b506502ec6).
+
+The [original port diff](https://github.com/chestahh/GulchCE/compare/eda84c9a1e1f2440b0008bac736a9fe6afb2dffd...035f47bb8fc682675456323dbb3095b506502ec6)
+identifies the graphics changes, including their menu integration and tests.
+In existing files the grant covers my contributions. The surrounding OpenCE
+code and third-party components retain their existing licences and notices.

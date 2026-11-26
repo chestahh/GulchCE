@@ -1,3 +1,8 @@
+/* SPDX-FileCopyrightText: chestahh (GulchCE)
+   SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-3.0-or-later
+   Retain this credit and provenance when redistributing copies or modifications.
+   Original OpenCE port: https://github.com/chestahh/GulchCE/tree/035f47bb8fc682675456323dbb3095b506502ec6 */
+
 /* Included by first_person_weapons.c: its pose and remapping tables are
    private. Only the enabled desktop shadow collector calls this accessor;
    it never advances animation or changes the visible model's matrices. */

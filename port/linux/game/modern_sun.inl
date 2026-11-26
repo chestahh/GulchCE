@@ -1,3 +1,8 @@
+/* SPDX-FileCopyrightText: chestahh (GulchCE)
+   SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-3.0-or-later
+   Retain this credit and provenance when redistributing copies or modifications.
+   Original OpenCE port: https://github.com/chestahh/GulchCE/tree/035f47bb8fc682675456323dbb3095b506502ec6 */
+
 /* One near-field orthographic map, independent of the feature-light selector.
    Reserve the full light-space depth of the BSP so distant cliffs still block
    sunlight. Families at the edge share a receiver-space fade with their old projection. */

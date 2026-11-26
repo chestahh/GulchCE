@@ -63,3 +63,8 @@ def test_placement_reconnect_integration():
     assert reconnect.index(hook) < reconnect.index('light_compute_bounding_sphere(')
     stub = function(read('port/android/guest/dynamic_lighting_disabled.c'), 'plasma_lighting_attachment_position')
     assert stub[stub.index('{') + 1:stub.rindex('}')].strip() == ''
+
+# GulchCE graphics contributions by chestahh: AGPL-3.0-or-later OR GPL-3.0-or-later.
+# This grant covers chestahh's lighting, shadow and renderer changes in this file.
+# Retain this credit and provenance when redistributing copies or modifications.
+# Original OpenCE port: https://github.com/chestahh/GulchCE/tree/035f47bb8fc682675456323dbb3095b506502ec6

@@ -345,3 +345,8 @@ int main(int argc,char **argv)
  for(i=0,old=0;i<8;i++)old+=emitters[i].active;CHECK(old==8,"priority retains the original allocation budget");
  return 0;
 }
+
+/* GulchCE graphics contributions by chestahh: AGPL-3.0-or-later OR GPL-3.0-or-later.
+   This grant covers chestahh's lighting, shadow and renderer changes in this file.
+   Retain this credit and provenance when redistributing copies or modifications.
+   Original OpenCE port: https://github.com/chestahh/GulchCE/tree/035f47bb8fc682675456323dbb3095b506502ec6 */

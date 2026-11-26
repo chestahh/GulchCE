@@ -41,3 +41,8 @@ def test_shoulder_camera_guard_is_required():
     before = '(director_get_perspective(render.local_player_index) == _director_perspective_third_person) ||'
     status, output = run(build('muzzle_lighting', generated((before, 'FALSE ||'))), 'camera')
     assert status == CHECK_FAILED, output
+
+# GulchCE graphics contributions by chestahh: AGPL-3.0-or-later OR GPL-3.0-or-later.
+# This grant covers chestahh's lighting, shadow and renderer changes in this file.
+# Retain this credit and provenance when redistributing copies or modifications.
+# Original OpenCE port: https://github.com/chestahh/GulchCE/tree/035f47bb8fc682675456323dbb3095b506502ec6

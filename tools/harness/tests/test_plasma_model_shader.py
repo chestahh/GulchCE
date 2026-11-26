@@ -42,3 +42,8 @@ def shader_source(platform):
 def test_stock_programs(platform):
     status, output = run(build('plasma_model_shader', (('under_test.inc', shader_source(platform)),)), 'programs')
     assert status == 0, output
+
+# GulchCE graphics contributions by chestahh: AGPL-3.0-or-later OR GPL-3.0-or-later.
+# This grant covers chestahh's lighting, shadow and renderer changes in this file.
+# Retain this credit and provenance when redistributing copies or modifications.
+# Original OpenCE port: https://github.com/chestahh/GulchCE/tree/035f47bb8fc682675456323dbb3095b506502ec6

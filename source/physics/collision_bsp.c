@@ -2965,3 +2965,8 @@ static boolean bsp3d_test_pill_recursive(
 
 	return hit;
 }
+
+/* port: GulchCE graphics contributions by chestahh: AGPL-3.0-or-later OR GPL-3.0-or-later.
+   This grant covers chestahh's lighting, shadow and renderer changes in this file.
+   Retain this credit and provenance when redistributing copies or modifications.
+   Original OpenCE port: https://github.com/chestahh/GulchCE/tree/035f47bb8fc682675456323dbb3095b506502ec6 */

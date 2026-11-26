@@ -211,3 +211,8 @@ static void QueryPerformanceFrequency(LARGE_INTEGER *v) { v->QuadPart=1000000; }
     monkeypatch.chdir(tmp_path)
     status, output = run(build('plasma_occlusion', (('under_test.inc', code),)), 'visibility')
     assert status == 0, output
+
+# GulchCE graphics contributions by chestahh: AGPL-3.0-or-later OR GPL-3.0-or-later.
+# This grant covers chestahh's lighting, shadow and renderer changes in this file.
+# Retain this credit and provenance when redistributing copies or modifications.
+# Original OpenCE port: https://github.com/chestahh/GulchCE/tree/035f47bb8fc682675456323dbb3095b506502ec6

@@ -11,3 +11,8 @@ def test_scene_snapshot():
     source = 'enum { PLASMA_COLLISION_SCENE_BYTES = 65536 };\n' + structure(read('port/linux/include/plasma_collision.h'), 'plasma_collision_scene') + '\n' + source
     status, output = run(build('plasma_collision_scene', (('under_test.inc', source),)), 'scene')
     assert status == 0, output
+
+# GulchCE graphics contributions by chestahh: AGPL-3.0-or-later OR GPL-3.0-or-later.
+# This grant covers chestahh's lighting, shadow and renderer changes in this file.
+# Retain this credit and provenance when redistributing copies or modifications.
+# Original OpenCE port: https://github.com/chestahh/GulchCE/tree/035f47bb8fc682675456323dbb3095b506502ec6

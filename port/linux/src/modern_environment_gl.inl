@@ -1,3 +1,8 @@
+/* SPDX-FileCopyrightText: chestahh (GulchCE)
+   SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-3.0-or-later
+   Retain this credit and provenance when redistributing copies or modifications.
+   Original OpenCE port: https://github.com/chestahh/GulchCE/tree/035f47bb8fc682675456323dbb3095b506502ec6 */
+
 /* Environmental object shadows. Included beside the immutable Modern mesh
    cache so conversion/poses/materials have one owner. One 2D map is reused
    sequentially; no local-light cube or selection slot is borrowed. */

@@ -2420,3 +2420,8 @@ static short first_person_weapon_index_from_unit_index(
 
 /* port: read-only access to private poses for optional shadow casting. */
 #include "modern_shadows_first_person.inl"
+
+/* port: GulchCE graphics contributions by chestahh: AGPL-3.0-or-later OR GPL-3.0-or-later.
+   This grant covers chestahh's lighting, shadow and renderer changes in this file.
+   Retain this credit and provenance when redistributing copies or modifications.
+   Original OpenCE port: https://github.com/chestahh/GulchCE/tree/035f47bb8fc682675456323dbb3095b506502ec6 */

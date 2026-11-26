@@ -63,3 +63,8 @@ int main(void) {
     result = subprocess.run([compiler,*flags,'-std=gnu89',str(path),'-o',str(binary)],capture_output=True,text=True)
     assert result.returncode==0,result.stderr
     subprocess.run([str(binary)],check=True)
+
+# GulchCE graphics contributions by chestahh: AGPL-3.0-or-later OR GPL-3.0-or-later.
+# This grant covers chestahh's lighting, shadow and renderer changes in this file.
+# Retain this credit and provenance when redistributing copies or modifications.
+# Original OpenCE port: https://github.com/chestahh/GulchCE/tree/035f47bb8fc682675456323dbb3095b506502ec6

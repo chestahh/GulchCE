@@ -104,3 +104,8 @@ def test_world_stencil_state_and_stock_transitions():
     for platform in ('', '#define HALO_GLES 1\n'):
         status, output = run(build('environment_stencil', (('under_test.inc', platform + code),)), 'all')
         assert status == 0, output
+
+# GulchCE graphics contributions by chestahh: AGPL-3.0-or-later OR GPL-3.0-or-later.
+# This grant covers chestahh's lighting, shadow and renderer changes in this file.
+# Retain this credit and provenance when redistributing copies or modifications.
+# Original OpenCE port: https://github.com/chestahh/GulchCE/tree/035f47bb8fc682675456323dbb3095b506502ec6
