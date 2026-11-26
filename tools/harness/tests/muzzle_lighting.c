@@ -91,7 +91,7 @@ int main(int argc,char **argv)
  }
  else if(!strcmp(name,"profiles"))
  {
-  long collision;
+  long collision, shooter;
   for(i=0;i<NUMBEROF(muzzle_profiles);i++)
   {
    tag=muzzle_profiles[i].tag;
@@ -101,8 +101,12 @@ int main(int argc,char **argv)
    if(!vehicle_owner)
    {
     muzzle_lighting_update();
-    CHECK(pulses[0].light!=NONE && muzzle_lighting_shadow_caster(pulses[0].light,NONE,&collision)==1 &&
-          collision==NONE,"every handheld muzzle profile excludes its weapon");
+    CHECK(pulses[0].light!=NONE && muzzle_lighting_shadow_caster(pulses[0].light,NONE,NONE,&shooter,&collision)==1 &&
+          collision==NONE && shooter==NONE,"every third-person handheld flash keeps its shooter");
+    CHECK(muzzle_lighting_shadow_caster(pulses[0].light,NONE,20,&shooter,&collision)==1 &&
+          shooter==20,"viewer's own handheld flash excludes its shooter");
+    CHECK(muzzle_lighting_shadow_caster(pulses[0].light,NONE,21,&shooter,&collision)==1 &&
+          shooter==NONE,"another player's view sees the shooter");
    }
    muzzle_lighting_forget();
   }
@@ -198,12 +202,15 @@ int main(int argc,char **argv)
  }
  if(!strcmp(name,"owner"))
  {
-  long collision;
+  long collision, shooter;
   vehicle_owner=0;muzzle_lighting_shot(1,0);muzzle_lighting_update();
-  CHECK(muzzle_lighting_shadow_caster(pulses[0].light,NONE,&collision)==1 && collision==NONE,"handheld excludes only its firing weapon");
-  CHECK(muzzle_lighting_shadow_caster(63,NONE,&collision)==NONE && collision==NONE,"other light retains shooter");
+  weapons[1].weapon.triggers[0].state=_trigger_charged;
+  CHECK(muzzle_lighting_shadow_caster(pulses[0].light,NONE,NONE,&shooter,&collision)==1 && shooter==NONE &&
+        collision==NONE,"a distinct shot pulse keeps its third-person shooter even during charge");
+  weapons[1].weapon.triggers[0].state=_trigger_idle;
+  CHECK(muzzle_lighting_shadow_caster(63,NONE,NONE,&shooter,&collision)==NONE && collision==NONE,"other light retains shooter");
   muzzle_lighting_forget();on=0;
-  CHECK(muzzle_lighting_shadow_caster(63,1,&collision)==NONE,"idle weapon casts");
+  CHECK(muzzle_lighting_shadow_caster(63,1,NONE,&shooter,&collision)==NONE,"idle weapon casts");
   {
    const int states[] = { _trigger_charging, _trigger_charged, _trigger_overloading, _trigger_recovering, _trigger_spewing };
    for (int trigger=0;trigger<2;trigger++)
@@ -211,47 +218,50 @@ int main(int argc,char **argv)
     for (int i=0;i<NUMBEROF(states);i++)
     {
      weapons[1].weapon.triggers[trigger].state=states[i];
-     CHECK(muzzle_lighting_shadow_caster(63,1,&collision)==1 && collision==NONE,"own attachment excludes only the active gun");
-     CHECK(muzzle_lighting_shadow_caster(63,NONE,&collision)==NONE,"external light still shadows the active gun");
+     CHECK(muzzle_lighting_shadow_caster(63,1,NONE,&shooter,&collision)==1 && collision==NONE &&
+           shooter==(i<3 ? 20 : NONE),"held charge excludes the shooter in third person; firing and recovery retain it");
+     CHECK(muzzle_lighting_shadow_caster(63,1,20,&shooter,&collision)==1 && shooter==20,
+           "first-person owner is excluded for both the charge and firing attachment");
+     CHECK(muzzle_lighting_shadow_caster(63,NONE,NONE,&shooter,&collision)==NONE,"external light still shadows the active gun");
      source_for_light=1;
-     CHECK(muzzle_lighting_shadow_caster(63,NONE,&collision)==1,"stock attachment resolves the same weapon");
+     CHECK(muzzle_lighting_shadow_caster(63,NONE,NONE,&shooter,&collision)==1,"stock attachment resolves the same weapon");
      source_for_light=NONE;
      weapons[1].weapon.triggers[trigger].state=_trigger_idle;
     }
     weapons[1].weapon.triggers[trigger].rate_of_fire=1.0f;
-    CHECK(muzzle_lighting_shadow_caster(63,1,&collision)==1,"automatic gun between shots");
+    CHECK(muzzle_lighting_shadow_caster(63,1,NONE,&shooter,&collision)==1,"automatic gun between shots");
     weapons[1].weapon.triggers[trigger].rate_of_fire=0.0f;
-    CHECK(muzzle_lighting_shadow_caster(63,1,&collision)==NONE,"automatic gun at rest casts normally");
+    CHECK(muzzle_lighting_shadow_caster(63,1,NONE,&shooter,&collision)==NONE,"automatic gun at rest casts normally");
    }
    weapons[1].weapon.triggers[0].state=_trigger_charged;
    weapons[1].object.parent_object_index=NONE;
-   CHECK(muzzle_lighting_shadow_caster(63,1,&collision)==NONE,"dropped gun with residual charge casts normally");
+   CHECK(muzzle_lighting_shadow_caster(63,1,NONE,&shooter,&collision)==NONE,"dropped gun with residual charge casts normally");
    weapons[1].object.parent_object_index=20;
    weapons[1].weapon.triggers[0].state=_trigger_idle;
   }
   weapons[1].weapon.state=_weapon_state_secondary_recoil;
-  CHECK(muzzle_lighting_shadow_caster(63,1,&collision)==1 && collision==NONE,"authored secondary fire without muzzle pulses");
-  CHECK(muzzle_lighting_shadow_caster(63,NONE,&collision)==NONE,"independent light keeps firing weapon");
+  CHECK(muzzle_lighting_shadow_caster(63,1,NONE,&shooter,&collision)==1 && collision==NONE,"authored secondary fire without muzzle pulses");
+  CHECK(muzzle_lighting_shadow_caster(63,NONE,NONE,&shooter,&collision)==NONE,"independent light keeps firing weapon");
   weapons[1].weapon.state=0;weapons[1].weapon.flags=FLAG(_weapon_overheated_bit);
-  CHECK(muzzle_lighting_shadow_caster(63,1,&collision)==1,"heat vent uses the emitting weapon");
+  CHECK(muzzle_lighting_shadow_caster(63,1,NONE,&shooter,&collision)==1,"heat vent uses the emitting weapon");
   weapons[1].weapon.flags=0;
-  CHECK(muzzle_lighting_shadow_caster(63,1,&collision)==NONE,"recovered gun casts immediately");
+  CHECK(muzzle_lighting_shadow_caster(63,1,NONE,&shooter,&collision)==NONE,"recovered gun casts immediately");
   bolt.object.owner_object_index=20;weapons[1].object.bounding_sphere_radius=.5f;source_for_light=0x10020;
   muzzle_lighting_projectile_created(source_for_light,1);
-  CHECK(muzzle_lighting_shadow_caster(63,NONE,&collision)==1,"own bolt overlapping gun ignores the exact firing weapon");
+  CHECK(muzzle_lighting_shadow_caster(63,NONE,20,&shooter,&collision)==1 && shooter==NONE,"launched bolt ignores only the overlapping weapon");
   bolt.object.bounding_sphere_center.x=2;
-  CHECK(muzzle_lighting_shadow_caster(63,NONE,&collision)==NONE,"outgoing projectile shadows gun normally after separation");
+  CHECK(muzzle_lighting_shadow_caster(63,NONE,NONE,&shooter,&collision)==NONE,"outgoing projectile shadows gun normally after separation");
   bolt.object.bounding_sphere_center.x=0;bolt.projectile.odometer=4;
-  CHECK(muzzle_lighting_shadow_caster(63,NONE,&collision)==NONE,"returning projectile acts as external light");
+  CHECK(muzzle_lighting_shadow_caster(63,NONE,NONE,&shooter,&collision)==NONE,"returning projectile acts as external light");
   bolt.projectile.odometer=0;source_for_light=0x20020;
-  CHECK(muzzle_lighting_shadow_caster(63,NONE,&collision)==NONE,"recycled slot cannot inherit previous gun");
+  CHECK(muzzle_lighting_shadow_caster(63,NONE,NONE,&shooter,&collision)==NONE,"recycled slot cannot inherit previous gun");
   modern_mode=0;muzzle_lighting_projectile_created(source_for_light,1);
-  CHECK(muzzle_lighting_shadow_caster(63,NONE,&collision)==NONE,"disabled shadow system records no new provenance");
+  CHECK(muzzle_lighting_shadow_caster(63,NONE,NONE,&shooter,&collision)==NONE,"disabled shadow system records no new provenance");
   modern_mode=1;source_for_light=NONE;on=1;vehicle_owner=1;tick++;
   tag="vehicles\\warthog\\warthog gun";muzzle_lighting_shot(1,0);muzzle_lighting_update();
-  CHECK(muzzle_lighting_shadow_caster(pulses[0].light,NONE,&collision)==20 && collision==20,"turret identifies live chassis");
-  vehicle_owner=0;CHECK(muzzle_lighting_shadow_caster(pulses[0].light,NONE,&collision)==NONE && collision==NONE,"non-vehicle owner stays rendered");
-  on=0;CHECK(muzzle_lighting_shadow_caster(pulses[0].light,NONE,&collision)==NONE && collision==NONE,"disabled feature has no exemption");
+  CHECK(muzzle_lighting_shadow_caster(pulses[0].light,NONE,NONE,&shooter,&collision)==20 && collision==20,"turret identifies live chassis");
+  vehicle_owner=0;CHECK(muzzle_lighting_shadow_caster(pulses[0].light,NONE,NONE,&shooter,&collision)==NONE && collision==NONE,"non-vehicle owner stays rendered");
+  on=0;CHECK(muzzle_lighting_shadow_caster(pulses[0].light,NONE,NONE,&shooter,&collision)==NONE && collision==NONE,"disabled feature has no exemption");
  }
  return 0;
 }

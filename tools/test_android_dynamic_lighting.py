@@ -69,7 +69,7 @@ int main(void)
 {
     int map;
     struct plasma_shadow_source grenade;
-    long collision_owner = 42;
+    long collision_owner = 42, excluded_shooter = 42;
     real_rgb_color color = {0.2f, 0.7f, 0.3f}, saved = color;
     real_point3d position = {{1, 2, 3}}, old_position = position;
     real_vector3d direction = {{0, 0, 1}}, old_direction = direction;
@@ -117,7 +117,8 @@ int main(void)
             memcmp(&position, &old_position, sizeof(position)) ||
             memcmp(&direction, &old_direction, sizeof(direction))) return 5;
         muzzle_lighting_projectile_created(17, 42);
-        if (muzzle_lighting_shadow_caster(17, 42, &collision_owner) != NONE || collision_owner != NONE) return 6;
+        if (muzzle_lighting_shadow_caster(17, 42, 9, &excluded_shooter, &collision_owner) != NONE ||
+            excluded_shooter != NONE || collision_owner != NONE) return 6;
         grenade.grounded = 1; grenade.emitter_object = grenade.casing = grenade.stuck_host = 42;
         if (muzzle_lighting_vehicle_occlusion(17) || plasma_lighting_vehicle_occlusion(17, NULL) ||
             covenant_emitter_lighting_vehicle_occlusion(17) ||

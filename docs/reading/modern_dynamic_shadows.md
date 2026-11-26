@@ -355,8 +355,12 @@ model triangles block its illumination. The translucent shield surface is
 not turned into an opaque wall. Other lighting and baked illumination remain
 unchanged. A muzzle flash participates through the same selection interface.
 For a handheld muzzle flash, Hard and Soft omit the firing weapon from its own
-light's caster list in first and third person. The shooter and first-person arms
-still cast. For weapon-mounted lights, the exclusion also covers charge buildup,
+light's caster list in first and third person. In first person, the viewer's own
+flash also skips their body and arms. In third person, and when watching someone
+else fire, the shooter's body casts normally. A weapon-mounted charge glow,
+including the plasma pistol's held overcharge, skips its wielder in both views.
+The released muzzle flash and projectile are separate lights. Other objects can
+still block any of these lights. For the firing weapon itself, the exclusion covers charge buildup,
 a held full charge, overload, automatic fire between rounds, shot recovery and overheating.
 Either trigger can activate it, even with muzzle flashes disabled. A newly fired
 projectile also identifies its launching weapon while their render bounds overlap.

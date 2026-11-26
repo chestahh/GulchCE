@@ -326,34 +326,40 @@ float muzzle_lighting_radius(long light_index, float radius)
 
 /* Charge and recovery are trigger states. A weapon can leave its recoil
    animation while its own attachment is still lighting the shooter. */
-static int weapon_emitting_during_fire(struct weapon_datum const *weapon)
+static int weapon_emitting_during_fire(struct weapon_datum const *weapon, int *charging)
 {
 	int i;
-	if (weapon->weapon.state == _weapon_state_primary_recoil || weapon->weapon.state == _weapon_state_secondary_recoil ||
-		TEST_FLAG(weapon->weapon.flags, _weapon_overheated_bit)) return TRUE;
+	int emitting = weapon->weapon.state == _weapon_state_primary_recoil || weapon->weapon.state == _weapon_state_secondary_recoil ||
+		TEST_FLAG(weapon->weapon.flags, _weapon_overheated_bit);
+	*charging = FALSE;
 	for (i = 0; i < NUMBEROF(weapon->weapon.triggers); i++)
 		switch (weapon->weapon.triggers[i].state)
 		{
 		case _trigger_idle:
 			/* Automatic triggers return to idle between rounds. */
-			if (weapon->weapon.triggers[i].rate_of_fire > 0.0f) return TRUE;
+			if (weapon->weapon.triggers[i].rate_of_fire > 0.0f) emitting = TRUE;
 			break;
 		case _trigger_overloading:
 		case _trigger_charging:
 		case _trigger_charged:
+			*charging = TRUE;
+			return TRUE;
 		case _trigger_spewing:
 		case _trigger_recovering:
-			return TRUE;
+			emitting = TRUE;
+			break;
 		}
-	return FALSE;
+	return emitting;
 }
 
-/* Exclude the firing weapon only from its own light. Vehicle turrets also
-   supply their chassis to collision-based world blocking. */
-long muzzle_lighting_shadow_caster(long light, long emitter_object, long *collision_owner)
+/* A mounted charge glow and a muzzle pulse have separate light identities,
+   even on the same tick. Only the former skips its wielder in every view. */
+long muzzle_lighting_shadow_caster(long light, long emitter_object, long first_person_unit,
+	long *excluded_shooter, long *collision_owner)
 {
 	struct weapon_datum *weapon;
-	int i;
+	int i, charging;
+	*excluded_shooter = NONE;
 	*collision_owner = NONE;
 	if (light == NONE) return NONE;
 	/* Authored weapon attachments and generated glows also run when muzzle
@@ -364,8 +370,12 @@ long muzzle_lighting_shadow_caster(long light, long emitter_object, long *collis
 		weapon = weapon_try_and_get(emitter_object);
 		if (!weapon) return launching_weapon(emitter_object);
 		if (object_try_and_get_and_verify_type(weapon->object.parent_object_index, _object_mask_biped) &&
-			weapon_emitting_during_fire(weapon))
+			weapon_emitting_during_fire(weapon, &charging))
+		{
+			if (charging || weapon->object.parent_object_index == first_person_unit)
+				*excluded_shooter = weapon->object.parent_object_index;
 			return emitter_object;
+		}
 		return NONE;
 	}
 	if (!lighting_config_boolean("display.muzzle_lighting")) return NONE;
@@ -382,7 +392,10 @@ long muzzle_lighting_shadow_caster(long light, long emitter_object, long *collis
 		weapon = weapon_try_and_get(pulse->weapon);
 		if (weapon && weapon->object.parent_object_index == pulse->owner &&
 			object_try_and_get_and_verify_type(pulse->owner, _object_mask_biped))
+		{
+			if (pulse->owner == first_person_unit) *excluded_shooter = pulse->owner;
 			return pulse->weapon;
+		}
 		break;
 	}
 	return NONE;

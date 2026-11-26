@@ -33,6 +33,7 @@
 #include "physics/breakable_surfaces.h"
 #include "objects/light_definitions.h"
 #include "render/render.h"
+#include "camera/director.h"
 #include "game/game_engine.h"
 #include "game/players.h"
 #include "interface/progress_bar.h"
@@ -973,7 +974,7 @@ void modern_shadows_prepare(int primary)
 {
 	struct structure_bsp const *bsp;
 	int mode = setting(), complete, slot;
-	long owners[2];
+	long owners[2], first_person_unit = NONE;
 	active = world_stage = 0;
 	prepared_sky = NONE;
 	sun_count = flash_world = 0;
@@ -994,24 +995,29 @@ void modern_shadows_prepare(int primary)
 	if (render_shadows) sun_prepare();
 	prepare_spots(mode);
 	select_lights();
+	if (!render.camera.mirrored && render.local_player_index != NONE &&
+		director_get_perspective(render.local_player_index) == _director_perspective_first_person)
+		first_person_unit = player_control_get_unit_index(render.local_player_index);
 	for (slot = 0; slot < MODERN_SHADOW_LIGHTS; slot++)
 	{
 		long index = selections[slot].rasterizer;
 		struct rasterizer_light_submit_parameters const *light;
 		float radius;
 		struct plasma_shadow_source grenade;
-		long excluded_caster;
+		long excluded_caster, caster_owner;
 		if (index == NONE) continue;
 		selections[slot].unshadowed_owner = plasma_lighting_shadow_owner(selections[slot].identity, &grenade);
-		excluded_caster = muzzle_lighting_shadow_caster(selections[slot].identity, grenade.emitter_object, &selections[slot].collision_owner);
+		excluded_caster = muzzle_lighting_shadow_caster(selections[slot].identity, grenade.emitter_object,
+			first_person_unit, &caster_owner, &selections[slot].collision_owner);
+		if (caster_owner == NONE) caster_owner = selections[slot].unshadowed_owner;
 		light = &rasterizer_lights.lights[index];
 		/* Diffuse and specular share the map, including the larger extent. */
 		radius = light->radius * MAX(1.f, plasma_occlusion_specular_scale(index));
 		if (!modern_shadow_begin(slot, (float const *)&light->position, radius, mode == 2, grenade.grounded)) continue;
 		/* Caster exclusions leave both the shooter and the weapon as receivers. */
 		if (grenade.stuck_host != NONE) excluded_caster = grenade.stuck_host;
-		complete = viewmodel_casters(owners, excluded_caster, selections[slot].unshadowed_owner) && world_casters(bsp, &light->position, radius) &&
-			object_casters(&light->position, radius, owners, selections[slot].unshadowed_owner, excluded_caster, grenade.casing);
+		complete = viewmodel_casters(owners, excluded_caster, caster_owner) && world_casters(bsp, &light->position, radius) &&
+			object_casters(&light->position, radius, owners, caster_owner, excluded_caster, grenade.casing);
 		if (modern_shadow_end() && complete)
 		{
 			view_unit = owners[1];
