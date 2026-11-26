@@ -68,12 +68,13 @@ static struct network_game game;
 static struct network_machine machine;
 static struct network_message fake_reply;
 static int state,late,joined,decode_ok,token_ok,slots,open_game,banned,accepted,name_blocked;
-static int camera_locked;
+static int camera_locked, mutators_locked;
 static word join_version;
 static int replaceable_bots;
 static int bots_population_can_join(struct network_game_server *s) {(void)s;return replaceable_bots;}
 static unsigned long peer_address;
 static void third_person_session_lock(void) {camera_locked=1;}
+static void mutator_session_lock(void) {mutators_locked=1;}
 static int decode(void *out) {
  struct message_client_join_game_request *q=out;
  memset(q,0,sizeof(*q));memset(q->join_game_token,token_ok?7:8,16);
@@ -110,7 +111,7 @@ static int accept(void) {if(banned)return 0;accepted++;return 1;}
 ''' + join + r'''
 static void reset(void) {
  state=0;late=joined=banned=accepted=name_blocked=0;
- camera_locked=replaceable_bots=0;peer_address=2;game.machine_count=1;
+ camera_locked=mutators_locked=replaceable_bots=0;peer_address=2;game.machine_count=1;
  decode_ok=token_ok=slots=open_game=1;
  join_version=HALO_PORT_NETWORK_VERSION;
 }
@@ -126,11 +127,11 @@ int main(void) {
    reset();join_version=invalid_versions[i];
    CHECK(!try_join() && !accepted && !camera_locked);
   }
-  reset();CHECK(try_join()==1);CHECK(accepted==1);CHECK(camera_locked==accepted);
+  reset();CHECK(try_join()==1);CHECK(accepted==1);CHECK(camera_locked==accepted && mutators_locked==accepted);
   reset();peer_address=IPV4_LOOPBACK_ADDRESS;
-  CHECK(try_join()==1);CHECK(!camera_locked);
+  CHECK(try_join()==1);CHECK(!camera_locked && !mutators_locked);
   reset();peer_address=IPV4_LOOPBACK_ADDRESS;game.machine_count=2;
-  CHECK(try_join()==1);CHECK(camera_locked==accepted);
+  CHECK(try_join()==1);CHECK(camera_locked==accepted && mutators_locked==accepted);
   reset();decode_ok=0;CHECK(!try_join() && !accepted);
   reset();token_ok=0;CHECK(!try_join() && !accepted);
   reset();slots=0;CHECK(!try_join() && !accepted);

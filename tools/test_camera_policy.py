@@ -179,6 +179,7 @@ static struct widget_instance *named(struct widget_instance *w,char const *n,int
  if(!strcmp(n,"session_compatibility_spinner"))return &compat;
  if(!strcmp(n,"camera_policy_spinner"))return &spinner;
  if(!strcmp(n,"op_camera_policy"))return &policy_row;
+ if(!strcmp(n,"op_mutator_options"))return 0;
  return &invite;
 }
 static short third_person_policy(void){return policy;}

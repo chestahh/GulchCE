@@ -385,7 +385,9 @@ int host_steam_shared_state(void);
 #endif
 /* MCC's shared sets asked of Steam with the download's resources
 (mcc_share_shared_begin): the identity check reads them, so it waits for them */
+#if defined(HALO_ANDROID)
 static int mcc_share_shared_asked;
+#endif
 
 static int mcc_share_shared_pending(void)
 {
@@ -482,8 +484,8 @@ static char mcc_share_steam_root[1024];
 missing, as a host never sends them */
 static void mcc_share_shared_begin(void)
 {
-    mcc_share_shared_asked=0;
 #if defined(HALO_ANDROID)
+    mcc_share_shared_asked=0;
     snprintf(mcc_share_steam_root,sizeof(mcc_share_steam_root),"%s",platform_data_root());
     mcc_share_shared_asked=host_steam_shared_fetch(MCC_SHARE_HOST_ADDRESS(mcc_share_steam_root))==1;
     if (mcc_share_shared_asked)

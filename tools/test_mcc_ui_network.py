@@ -122,6 +122,7 @@ static void network_game_server_change_map_name(struct network_game_server *s,ch
 static int mcc_cache_tags_loaded(void) {return loaded;}
 static int mcc_level_name(char const *name) {return !strncmp(name,"mcc_maps\\",9);}
 static int network_player_is_valid(struct network_player const *p) {return p->machine_index>=0;}
+static void mutator_session_lock(void) {}
 static void main_set_multiplayer_map_name(char const *name) {strcpy(map_name,name);}
 static char const *main_get_multiplayer_map_name(void) {return server.game.map.name;}
 static void network_game_server_open_game(struct network_game_server *s) {(void)s;opened++;}

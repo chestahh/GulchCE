@@ -160,6 +160,10 @@ def test_game_adapter_authenticates_transport_and_current_settings(tmp_path, mis
         __import__("re").findall(r"\b(network_game_server_handle_message_\w+)\(", ingress + datagram))))
     declarations = r'''
 #include "third_person_protocol.h"
+#include "mutator_protocol.h"
+#define mutator_session_active() 0
+#define mutator_session_version(map) ((void)(map), 0u)
+#define mutator_protocol_unwrap(a,b,c,d) ((void)(a),(void)(b),(void)(c),(void)(d),0)
 #define MINIMUM_TRANSPORT_ERROR_MESSAGE_SIZE 4
 #define TRANSPORT_ERROR_MESSAGE_TEXT_LENGTH 1
 #define _network_game_server_state_ingame 1

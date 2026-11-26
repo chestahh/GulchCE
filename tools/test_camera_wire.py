@@ -26,6 +26,8 @@ typedef unsigned short word;
 #define DISTRIBUTED_INPUT_HISTORY 4
 static int camera_mode=CAMERA_MODE;
 static int third_person_session_active(void){return camera_mode;}
+static int mutator_session_active(void){return 0;}
+#define DISTRIBUTED_RELAYED_ACTION_SCRIPT_BUTTONS_BIT 7
 #define TRUE 1
 #define TEST_FLAG(v,b) ((v)&(1u<<(b)))
 #define SET_FLAG(v,b,x) ((v)=(x)?((v)|(1u<<(b))):((v)&~(1u<<(b))))

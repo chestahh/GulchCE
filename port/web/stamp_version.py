@@ -29,6 +29,24 @@ def network_version() -> int:
     return int(match.group(1)) if match else 0
 
 
+def supported_network_versions() -> list:
+    """Protocols compiled into the web game; fail the stamp if a header drifts."""
+    versions = [network_version()]
+    for header, constant in (
+        ("third_person_protocol.h", "THIRD_PERSON_PROTOCOL_VERSION"),
+        ("mutator_protocol.h", "MUTATOR_PROTOCOL_VERSION"),
+        ("mutator_protocol.h", "MUTATOR_CAMERA_PROTOCOL_VERSION"),
+    ):
+        text = (ROOT / "port/linux/game" / header).read_text(encoding="utf-8")
+        match = re.search(r"^#define\s+" + constant + r"\s+(\d+)\s*$", text, re.M)
+        if not match:
+            raise ValueError(f"Missing network capability: {constant}")
+        versions.append(int(match.group(1)))
+    if any(version <= 0 or version > 65535 for version in versions):
+        raise ValueError("Invalid network capability")
+    return list(dict.fromkeys(versions))
+
+
 def commit() -> str:
     if os.environ.get("GITHUB_SHA"):
         return os.environ["GITHUB_SHA"]
@@ -60,6 +78,7 @@ def stamp(output: Path, inputs: list, flavor: str) -> dict:
         "flavor": flavor,
         "commit": commit(),
         "network_version": network_version(),
+        "supported_network_versions": supported_network_versions(),
         "files": names,
     }
     output.write_text(json.dumps(version, indent=1) + "\n", encoding="utf-8")

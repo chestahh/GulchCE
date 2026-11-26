@@ -238,9 +238,21 @@ static byte game_modes_option(
 	return value >= minimum && value <= maximum ? value : default_value;
 }
 
+int mutators_gameplay_allowed(void);
+
 void game_modes_options_sanitize(
 	struct game_variant_options *options)
 {
+	/* These bytes were reserved in stock sessions. Do not reinterpret them
+	 * as add-on slots, nor leave saved add-on weapons as empty loadouts. */
+	if (!mutators_gameplay_allowed())
+	{
+		csmemset(options->addon_vehicles_fewer, 0, sizeof(options->addon_vehicles_fewer));
+		if (options->primary_weapon >= _loadout_weapon_addon_first)
+			options->primary_weapon = _loadout_weapon_rocket_launcher;
+		if (options->secondary_weapon >= _loadout_weapon_addon_first)
+			options->secondary_weapon = _loadout_weapon_rocket_launcher;
+	}
 	if (options->mode >= NUMBER_OF_GAME_MODES)
 		options->mode = _game_mode_none;
 	options->hardcore = options->hardcore != FALSE;

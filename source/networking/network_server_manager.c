@@ -480,6 +480,8 @@ symbols in this file:
 #include "cache/cache_files.h"
 #include "interface/player_ui.h"
 #include "third_person.h" /* port: port/linux/game/third_person_policy.c */
+#include "mutator_protocol.h"
+#include "mutator_share.h"
 #include "third_person_protocol.h" /* port: session compatibility lifecycle */
 #include "tag_files/tag_files.h"
 #include "map_share.h" /* port: port/linux/game/map_share.c */
@@ -489,6 +491,7 @@ symbols in this file:
 
 /* port: internet play's Discord presence (port/linux/src/p2p.c), and the
 server browser's listing of a public game (p2p_lobby.c) */
+void p2p_set_game_network_version(unsigned int version);
 void p2p_set_game_player_counts(int count, int maximum);
 void p2p_set_game_listing(const char *name, const char *map, const char *gametype, int engine_type, int kind,
 	int open, int in_progress, int has_teams);
@@ -1392,6 +1395,7 @@ struct network_game_server *network_game_server_create(
 			/* port: every match path, including quickstart and co-op, starts
 			with the host's camera rule. Subsequent rounds retain it. */
 			third_person_session_host_begin();
+			mutator_session_host_begin();
 			if (third_person_session_active())
 				server->game.cooperative_flags |= third_person_host_policy() << THIRD_PERSON_POLICY_SHIFT;
 
@@ -1443,7 +1447,9 @@ struct network_game_server *network_game_server_create(
 void network_game_server_dispose(
 	struct network_game_server *server)
 {
+	mutator_session_host_end();
 	third_person_session_host_end(); /* port: discard the prior camera contract */
+	p2p_set_game_network_version(HALO_PORT_NETWORK_VERSION);
 	bots_network_session_end(); /* port: bot policy belongs to this host alone */
 	match_assert(NETWORK_SERVER_MANAGER_FILE, 0x120, server);
 
@@ -1643,6 +1649,7 @@ static void network_game_server_list(
 	}
 	/* (the scenario's name, not its path, when no MCC title is available) */
 	/* port: (and its OpenCE gametype's kind: port/linux/game/game_modes.c) */
+	p2p_set_game_network_version(mutator_session_version(game->map.name));
 	p2p_set_game_listing(name, map_label, gametype, game->variant.game_engine_index,
 		game_modes_kind(&game->variant, &game->variant_options), open, in_progress,
 		game->variant.universal_variant.teams);
@@ -2040,6 +2047,7 @@ boolean network_game_server_start_network_game(
 	/* port: an MCC check still in progress is a successful idle, not a failed
 	connection. Keep the countdown pending until its validated settings are sent. */
 	if (mcc_ui_network_map_pending(server)) return TRUE;
+	mutator_session_lock();
 	third_person_session_lock(); /* port: non-menu hosts also fix the session contract before starting */
 
 	if (server->sent_start_game_message == FALSE)
@@ -2462,6 +2470,8 @@ address, real address or hardware id) */
 			if (success == TRUE)
 			{
 				struct transport_address address = { { { 0 } } };
+
+				mutator_share_machine_reset(machine_index);
 
 				network_connection_get_address(
 					machine->connection,
@@ -3999,6 +4009,7 @@ boolean network_game_server_remove_client_machine_from_game(
 	match_assert(NETWORK_SERVER_MANAGER_FILE, 0x230, client);
 	/* port: release MCC transfers before this connection slot is reused */
 	mcc_share_game_peer_left(client);
+	mutator_share_machine_reset(client->machine_index);
 
 	if (_network_game_server_state_ingame == server->state)
 	{
@@ -4197,6 +4208,7 @@ boolean network_game_server_remove_machine_from_game(
 	{
 		int i;
 
+		mutator_share_machine_reset(machine->machine_index);
 		for (i = 0; i < MAXIMUM_NETWORK_MACHINE_COUNT; i++)
 		{
 			if (server->client_machines[i].machine_index == machine->machine_index)
@@ -4926,6 +4938,7 @@ static void network_game_server_variant_options(
 		*options = *player_ui_get_game_variant_options();
 	else
 		game_variant_options_default(variant, options);
+	game_modes_options_sanitize(options);
 }
 
 static boolean network_game_server_setup_game_from_playlist(
@@ -5039,6 +5052,7 @@ static boolean network_game_server_add_new_client(
 					}
 					else
 					{
+						mutator_share_machine_reset(i);
 						server->client_machines[i].connection = new_connection;
 						network_game_invalidate_machine(&server->game, i);
 						server->client_machines[i].machine_index = (short)i;

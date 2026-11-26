@@ -292,6 +292,7 @@ def generate_web_build(n: Writer, sln: Any) -> None:
         add_object(source, opus_cflags(abi))
     for name in ("monocypher.c", "monocypher-ed25519.c"):
         add_object(MONOCYPHER_DIR / name, " ".join([abi, "-std=gnu11", "-w"]))
+
     for name in ZLIB_SOURCES:
         add_object(ZLIB_DIR / name, " ".join([abi, "-std=gnu11", *ZLIB_DEFINES, "-w"]))
     for source in musl_math_sources():
@@ -305,6 +306,9 @@ def generate_web_build(n: Writer, sln: Any) -> None:
     halo_js = site_dir / "halo.js"
     halo_wasm = site_dir / "halo.wasm"
     link_flags = [
+        # exit() otherwise proxies to the browser before running C/C++ exit
+        # handlers. OPFS closes and WasmFS destruction must run on a worker.
+        "-Wl,--wrap=exit",
         "-O2", "-g2", "-pthread", sdl_flag,
         # a call that does not match its callee's type is an error, not a
         # trap when it runs
@@ -329,7 +333,10 @@ def generate_web_build(n: Writer, sln: Any) -> None:
         # (the game recurses deeply in places: scripts, the BSP's walks)
         "-sSTACK_SIZE=8MB",
         "-sDEFAULT_PTHREAD_STACK_SIZE=2MB",
-        "-sEXIT_RUNTIME=0",
+        # exit() is process-wide: stop RAF callbacks and pthreads after the
+        # normal exit handlers. Keeping the runtime alive lets SDL deliver a
+        # second quit to the still-scheduled game loop (and proxy exit twice).
+        "-sEXIT_RUNTIME=1",
         "-sENVIRONMENT=web,worker",
         "-sERROR_ON_UNDEFINED_SYMBOLS=1",
         # the page gives the game its arguments and reads its output
@@ -337,7 +344,7 @@ def generate_web_build(n: Writer, sln: Any) -> None:
         "-sEXPORT_NAME=createHalo",
         # (the memory, which the page reads web_state's words from, and what
         # the page hands the room's frames to the game with: net.js)
-        "-sEXPORTED_RUNTIME_METHODS=HEAPU8,HEAPU32",
+        "-sEXPORTED_RUNTIME_METHODS=HEAPU8,HEAPU32,PThread",
         # (and what the page calls on the module: the frames shown, which hide
         # its loading notice, the room's frames and internet play's
         # connections; EMSCRIPTEN_KEEPALIVE alone keeps a function in the wasm,
@@ -392,6 +399,7 @@ def generate_web_build(n: Writer, sln: Any) -> None:
     )
     version_file = site_dir / "version.json"
     n.build(outputs=version_file, rule="web_version", inputs=[halo_js, halo_wasm, *site_files],
-            implicit=[PORT_DIR / "stamp_version.py", Path("port/linux/include/halo_port_limits.h")])
+            implicit=[PORT_DIR / "stamp_version.py", Path("port/linux/include/halo_port_limits.h"),
+                      Path("port/linux/game/third_person_protocol.h"), Path("port/linux/game/mutator_protocol.h")])
     n.build(outputs="web", rule="phony", inputs=[halo_js, halo_wasm, version_file, *site_files])
     n.newline()

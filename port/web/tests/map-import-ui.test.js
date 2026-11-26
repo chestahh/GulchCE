@@ -56,7 +56,7 @@ test('CE/MCC cancel waits for cleanup acknowledgement and keeps Xbox import disa
 });
 test('busy cross-tab guard refuses Xbox/mod imports and delete without changing data',async()=>{
   const l=launcher();l.busy(true);
-  await l.run('importData({type:"folder",files:[]})');await l.run('modTask({type:"remove",name:"test"})');
+  await l.run('importData({type:"folder",files:[]})');await l.run('folderTask("mods",{type:"remove",name:"test"})');
   await l.element('delete-data').events.click();
   assert.equal(l.workers.length,0);assert.deepEqual(l.deleted,[]);
   assert.match(l.element('data-status').textContent,/busy/);assert.equal(l.run('canPlay()'),true);
@@ -64,7 +64,7 @@ test('busy cross-tab guard refuses Xbox/mod imports and delete without changing 
 test('uncontended Xbox deletion retains saves and mods retain their original worker',async()=>{
   const l=launcher();await l.element('delete-data').events.click();
   assert.deepEqual(l.deleted,['maps','save/z/cache000.map']);assert.equal(l.releases(),1);
-  await l.run('modTask({type:"add",files:[]})');assert.equal(l.workers[0].path,'mods-worker.js');
+  await l.run('folderTask("mods",{type:"add",files:[]})');assert.equal(l.workers[0].path,'mods-worker.js');
   assert.equal(l.run('canPlay()'),false);
   await l.workers[0].onmessage({data:{type:'done',name:'test',files:1,bytes:1}});
   assert.equal(l.run('canPlay()'),true);assert.equal(l.releases(),2);

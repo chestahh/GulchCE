@@ -124,6 +124,8 @@ struct network_game {wchar_t name[16]; struct {char name[128];} map;
 struct network_game_server {struct network_game game;};
 static wchar_t const *title=L"Abyss";
 static char published[64];
+static unsigned int mutator_session_version(char const *map){(void)map;return 0;}
+static void p2p_set_game_network_version(unsigned int version){(void)version;}
 static int network_game_server_get_state(struct network_game_server *s,void *p){(void)s;(void)p;return 0;}
 static int network_game_server_game_is_loading(struct network_game_server *s){(void)s;return 0;}
 static int network_game_server_accepts_late_joins(struct network_game_server *s){(void)s;return 1;}

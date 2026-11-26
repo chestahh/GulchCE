@@ -388,6 +388,7 @@ symbols in this file:
 #include "networking/network_connection.h"
 #include "networking/network_game_globals.h"
 #include "networking/network_game_manager.h"
+#include "mutator_protocol.h"
 #include "third_person_protocol.h" /* port: port/linux/game/third_person_protocol.c */
 void network_game_client_reset_settings_staging(void); /* port: discard partial settings across connections */
 #include "mcc_cache.h" /* port: MCC-only origin-change admission guard */
@@ -936,6 +937,7 @@ void network_game_client_dispose(
 	if (client)
 	{
 		network_game_client_reset_settings_staging(); /* port: discard partial old-host settings */
+		mutator_session_client_clear();
 		third_person_session_client_clear(); /* port: discard camera permission too */
 		mcc_identity_disconnect(); /* port: discard the MCC session's local binding */
 		if (client->connection)
@@ -2149,13 +2151,14 @@ boolean network_game_client_initiate_join_game(
 		 * advertisement, which is not an entry in available_games. */
 		if (global_network_game_server_get() &&
 			address->address.long_words[0] == IPV4_LOOPBACK_ADDRESS)
-			camera_version = third_person_session_version(game->map.name);
+			camera_version = mutator_session_version(game->map.name);
 		else for (advertised_index = 0; advertised_index < MAXIMUM_NETWORK_ADVERTISED_GAMES; advertised_index++)
 			if (game == &client->available_games[advertised_index])
 			{
 				camera_version = network_game_client_advertised_versions[advertised_index].version;
 				break;
 			}
+		mutator_session_client_begin(camera_version);
 		third_person_session_client_begin(camera_version); /* port: host state owns loopback mode */
 	}
 	client->join_in_progress = TRUE;
@@ -2185,6 +2188,7 @@ boolean network_game_client_initiate_join_game(
 	else
 	{
 		client->join_in_progress = FALSE;
+		mutator_session_client_clear();
 		third_person_session_client_clear(); /* port: failed connection grants no camera permission */
 		display_error_when_main_menu_loaded(7);
 		network_event(
@@ -2323,6 +2327,7 @@ void network_game_client_reset(
 		0x4EE,
 		client);
 
+	mutator_session_client_clear();
 	third_person_session_client_clear(); /* port: a reset ends the selected camera session */
 	network_game_invalidate(&client->game);
 
@@ -2408,7 +2413,7 @@ void network_game_client_rejected_by_game(
 	word rejection_code)
 {
 	const char *reason = "<unknown>";
-	boolean camera_retry = third_person_session_active(); /* port: retain only for the same-host pass retry */
+	unsigned int retry_version = mutator_session_version(NULL); /* port: same-host pass retry only */
 
 	match_assert(
 		"c:\\halo\\SOURCE\\networking\\network_client_manager.c",
@@ -2504,7 +2509,8 @@ void network_game_client_rejected_by_game(
 		if (joining)
 		{
 			/* port: the temporary advertisement has no camera metadata; this is the same host. */
-			third_person_session_client_begin(camera_retry ? THIRD_PERSON_PROTOCOL_VERSION : 0);
+			mutator_session_client_begin(retry_version);
+			third_person_session_client_begin(retry_version);
 			network_event("joining again with a Discord account's pass");
 			network_game_client_joined_again_with_link = TRUE;
 			return;
@@ -3005,6 +3011,7 @@ static boolean network_game_client_idle_joining(
 				struct message_client_join_game_request join_game_request;
 				message_header *message;
 				word camera_join[THIRD_PERSON_PROTOCOL_JOIN_MAX / sizeof(word)]; /* port: required camera admission */
+				word mutator_join[MUTATOR_PROTOCOL_JOIN_MAX / sizeof(word)];
 
 				csmemset(&join_game_request, 0, sizeof(join_game_request));
 				join_game_request.network_version = HALO_PORT_NETWORK_VERSION; /* port: explicit shared agreement */
@@ -3043,6 +3050,8 @@ static boolean network_game_client_idle_joining(
 					sizeof(join_game_request));
 				if (message && third_person_session_active()) /* port: only negotiated camera sessions */
 					message = (message_header *)third_person_protocol_join(message, GET_MESSAGE_SIZE(*message), camera_join);
+				if (message && mutator_session_active())
+					message = (message_header *)mutator_protocol_join(message, GET_MESSAGE_SIZE(*message), mutator_join);
 				if (message)
 				{
 					if (network_game_client_write(
@@ -3347,7 +3356,7 @@ boolean network_game_client_advertised_game_compatible(
 	theirs = network_game_client_advertised_versions[game_index].version;
 	distributed = (network_game_client_advertised_versions[game_index].flags &
 		HALO_PORT_ADVERTISED_DISTRIBUTED_FLAG) != 0;
-	if (third_person_session_compatible(game->map.name, theirs,
+	if (mutator_session_compatible(game->map.name, theirs,
 		network_game_client_advertised_versions[game_index].flags)) /* port: exact base or camera agreement */
 	{
 		network_event("joining a host of network version %u", theirs);
@@ -3367,7 +3376,13 @@ void network_game_client_tell_version(
 	unsigned int ours = HALO_PORT_NETWORK_VERSION;
 	char message[600]; /* port: room for the experimental branch's compatibility notice */
 
-	if (theirs == ours)
+	if (theirs == MUTATOR_PROTOCOL_VERSION || theirs == MUTATOR_CAMERA_PROTOCOL_VERSION)
+	{
+		csprintf(message, "This host uses opt-in mutators%s (network version %u).\n\n"
+			"Join with a matching mutator-capable build. The host must enable network.mutators before creating the session.",
+			theirs == MUTATOR_CAMERA_PROTOCOL_VERSION ? " and third-person camera" : "", theirs);
+	}
+	else if (theirs == ours)
 	{
 		csprintf(message,
 			"The host is using the lockstep network code, which this version no longer has.\n\n"

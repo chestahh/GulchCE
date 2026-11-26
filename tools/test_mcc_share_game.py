@@ -170,6 +170,7 @@ typedef int boolean;
 #define TRUE 1
 struct host_machine {int downloading,downloaded;};
 static struct {struct host_machine machines[128];} map_share_globals;
+static int mutator_share_machine_fetching(long i){(void)i;return 0;}
 static int host_machine_valid(long i){return i>=0&&i<128;}
 static int host_machine_downloading(struct host_machine const *m){return m->downloading;}
 int h_mcc_share_game_machine_active(long);

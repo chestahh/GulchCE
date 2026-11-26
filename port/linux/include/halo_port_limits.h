@@ -75,7 +75,9 @@ MCC conversion holds a round's start out of an allowance; a player standing
 on a vehicle rides it (a unit's state carries the deck it stands on, the map's
 riding choice has its own message: port/linux/NETCODE.md).
 Version 44: MCC package offers are automatic under Map Sharing, and a joiner
-may satisfy omitted base resources with its own validated local files. */
+may satisfy omitted base resources with its own validated local files.
+Optional mutator sessions use 32747 (32748 with the camera extension),
+not the base protocol: stock sessions remain version 44. */
 #define HALO_PORT_NETWORK_VERSION 44
 /* ... the advertisement's reserved bytes: the version (a little-endian word),
 then flags, then the game's kind (an OpenCE gametype's mode, and Hardcore:

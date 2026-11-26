@@ -245,6 +245,61 @@ test('a row: what it shows, and when Play here cannot join', () => {
     'bloodgulch, CTF · 5/16 players · player-hosted');
 });
 
+test('Play requires an explicitly advertised protocol capability', () => {
+  const base = { ...servers.readEntry(entry('a1')), invite: 'ab'.repeat(32), locked: false };
+  const capabilities = [44, 32746, 32747, 32748];
+  for (const network_version of capabilities) {
+    const row = { ...base, network_version };
+    assert.strictEqual(servers.serverRow(row, 44, capabilities).playable, true);
+    assert.strictEqual(servers.serverRow(row, 44).playable, network_version === 44);
+  }
+  for (const network_version of [43, 32745, 32749, 65535]) {
+    assert.strictEqual(servers.serverRow({ ...base, network_version }, 44, capabilities).playable, false);
+  }
+  assert.strictEqual(servers.serverRow(base, undefined).playable, false);
+  assert.strictEqual(servers.serverRow({ ...base, network_version: 32747 }, 44, '32747').playable, false);
+  assert.strictEqual(servers.serverRow({ ...base, network_version: 44, locked: true }, 44, capabilities).playable, false);
+  assert.strictEqual(servers.serverRow({ ...base, network_version: 44, players: 16 }, 44, capabilities).playable, false);
+});
+
+test('master filters legacy builds by base version and discovers extensions with the bounded unfiltered API', async () => {
+  const list = signedList([]);
+  for (const [options, query] of [
+    [{ networkVersion: 44 }, '?network_version=44'],
+    [{ networkVersion: 44, supportedNetworkVersions: [44] }, '?network_version=44'],
+    [{ networkVersion: 44, supportedNetworkVersions: [44, 44, null, '32747', -1, 65536] }, '?network_version=44'],
+    [{ networkVersion: 44, supportedNetworkVersions: [44, 32746, 32747, 32748] }, ''],
+    [{}, ''],
+  ]) {
+    let requested;
+    const result = await servers.fetchMaster(masterEntry, { ...options, subtle, now: () => NOW,
+      fetch: async (url, init) => {
+        requested = url;
+        assert.strictEqual(init.credentials, 'omit');
+        return new Response(list.bytes, { headers: list.headers });
+      } });
+    assert.strictEqual(requested, `${masterEntry.url}/v1/servers${query}`);
+    assert.deepStrictEqual(result.entries, []);
+    assert.ok(!result.error);
+  }
+});
+
+test('signed camera and mutator listings remain joinable after master verification', async () => {
+  const capabilities = [44, 32746, 32747, 32748];
+  const versions = [...capabilities, 32749];
+  const list = signedList(versions.map((version, index) => entry(`a${index}`, {
+    listing: listing(keyPair(), { version }).base64, network_version: 44,
+  })));
+  const result = await servers.fetchMaster(masterEntry, {
+    networkVersion: 44, supportedNetworkVersions: capabilities, subtle, now: () => NOW,
+    fetch: async () => new Response(list.bytes, { headers: list.headers }),
+  });
+  assert.strictEqual(result.verified, true);
+  assert.deepStrictEqual(result.entries.map((item) => item.network_version), versions);
+  assert.deepStrictEqual(result.entries.map((item) => servers.serverRow(item, 44, capabilities).playable),
+    [true, true, true, true, false]);
+});
+
 test("a master fetched: its list checked, its listings read, a broken one left out", async () => {
   const host = keyPair();
   const made = listing(host);

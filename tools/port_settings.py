@@ -1167,6 +1167,11 @@ PLAYER_OPTIONS_ROWS = ['number_of_lives', 'maximum_health', 'shields', 'respawn_
 # GUN TURRETS and CUSTOM (menu_functions.c's VEHICLE_PRESET_PC), and its help
 # among the sets' (its rows' values' in turn: gametype_option_help)
 VEHICLE_EDIT = "main_menu/settings_select/multiplayer_setup/vehicle_options_edit"
+# the custom vehicle set's rows of the vehicle add-ons of the mutators on
+# (game_engine.h's MAXIMUM_VARIANT_ADDON_VEHICLES), which menu_functions.c's
+# vehicles_layout adds to the screen's list after the stock vehicles' (it
+# names them, lays them out and gives their helps)
+ADDON_VEHICLE_ROWS = 2
 VEHICLE_RIDING_HELP = "Players standing on a vehicle are carried by it.\\nOff: as the original game, riders slide off."
 AIM_ASSIST_HELP = [
     "Players keep their current mouse aim assist setting.",
@@ -1795,6 +1800,21 @@ def _session_options(base: str, host: str) -> list:
     extra += _value_row(base, "invite", 2, "ss copy invite")
     extra += _strings(f"{base}/labels", ["", "", "INVITE LINK:"])
     rows.append((f"{base}/op_invite", None))
+    # MUTATOR OPTIONS (port_mutators.c), the mutators turned on and off for
+    # any game, in a screen of their own laid out as the Mods screen is
+    # (_mutator_options): below INVITE LINK, moved up with it while CAMERA
+    # POLICY is hidden (menu_functions.c's session_options_update)
+    target = f"{host}/mutator_options/mutator_options_screen"
+    extra += _widget(f"{base}/op_mutator_options", [("width", 512), ("height", 28),
+                                                   ("flags", "pass_unhandled_to_focused_child"),
+                                                   ("bitmap", "bitmaps/option_bkds"), ("color", "#FF2896FF")],
+                     [f'<on event="a" open="{target}"/>', f'<on event="start" open="{target}"/>',
+                      '<on event="left_mouse" run="mouse emit accept event"/>',
+                      f'<child widget="{base}/mutator_options_label"/>'])
+    extra += _widget(f"{base}/mutator_options_label", [("type", "text"), ("controller", 1), ("width", 480),
+        ("height", 22), ("text", "MUTATOR OPTIONS:"), ("font", "ui\\large_ui"), ("color", "#FF2896FF"),
+        ("text_x", 13), ("text_y", 4)], [])
+    rows.append((f"{base}/op_mutator_options", None))
     extra += _strings(f"{base}/help_strings", [
         "OpenCE and GulchCE can join; third person is off.\\nXbox, CE and MCC maps use the shared protocol.",
         "Compatible GulchCE hosts and clients only.\\nEnables GulchCE session features, including third person.",
@@ -1802,6 +1822,7 @@ def _session_options(base: str, host: str) -> list:
         "Each player chooses first or third person.\\nTheir camera toggle remains available.",
         "Third person is disabled for everyone.\\nNormal vehicle and cinematic cameras remain.",
         "Players join by this invite link. Enter copies it.\\nLAN games use the server browser instead.",
+        "The mutators that change this game's rules, and\\nthe stock game's when none are on.",
     ])
     lines = _screen(base, {"screen": "session_options_screen", "spacing": 30,
         "header": ("header", f"{host}/header_server_settings")}, rows,
@@ -1984,7 +2005,8 @@ def _server_settings() -> list:
     lines = [line.replace(f'<child widget="{base}/button_defaults" y="1"/>', "") for line in lines]
     lines = [line.replace('<on event="b" back="true"/>', SCREEN_BACK[0])
              .replace('<on event="back" back="true"/>', SCREEN_BACK[1]) for line in lines]
-    return lines
+    # (MUTATOR OPTIONS' screen, which has no text field: B goes back)
+    return lines + _mutator_options(f"{base}/mutator_options")
 
 
 MAXIMUM_PLAYERS = [2, 4, 8, 12, 16, 24, 32, 48, 64, 96, 128]
@@ -2066,6 +2088,76 @@ SETUP_OPTIONS_PLACE = 6
 # (their screens' titles)
 TITLES.update({f"{MT}/server_settings/{key}/header_{key}": title
                for key, title, _, _ in [*COOP_SETUP_SCREENS, MAP_SHARE_SETUP]})
+TITLES[f"{MT}/server_settings/mutator_options/header_mutator_options"] = "MUTATOR OPTIONS"
+TITLES[f"{MT}/server_settings/mutator_options/mutator_settings/header_mutator_settings"] = "MUTATOR SETTINGS"
+# MUTATOR SETTINGS' rows (menu_functions.c's MUTATOR_SETTING_ROWS)
+MUTATOR_SETTING_ROWS = 4
+
+
+def _mutator_options(base: str) -> list:
+    """Server Setup's MUTATOR OPTIONS: the mutators, the stock ones first,
+    laid out as the Mods screen shows them (_mod_list), each turned on or off
+    with A; OK keeps them (game.mutators), which the game started next plays,
+    and Cancel forgets them (menu_functions.c's "port mutators init" and
+    "port mutators save")"""
+    target = f"{base}/mutator_settings/mutator_settings_screen"
+    lines = _mod_list(base, "mutator_options_screen", "header_mutator_options", "port mutators init",
+                      [(f"{base}/button_settings", 256), (f"{base}/button_ok", 384)])
+    lines += _text_button(f"{base}/button_settings", "SETTINGS", [f'<on event="a" open="{target}"/>',
+                                                                  f'<on event="start" open="{target}"/>'])
+    lines += _button(f"{base}/button_ok", 1, ['<on event="a" run="port mutators save" back="true"/>',
+                                              '<on event="start" run="port mutators save" back="true"/>'])
+    return lines + _mutator_settings(f"{base}/mutator_settings")
+
+
+def _mutator_settings(base: str) -> list:
+    """MUTATOR OPTIONS' SETTINGS: the options of the mutators MUTATOR OPTIONS
+    has on, a row each, its name and its percent, which left and right step
+    (menu_functions.c's "port mutator settings init", "... left", "... right");
+    OK keeps them (game.mutator_options, "port mutator settings save"), Cancel
+    forgets them"""
+    key = "mutator_settings"
+    lines = _widget(f"{base}/{key}_screen", [("width", 640), ("height", 480),
+                                            ("flags", "pass_unhandled_to_focused_child"),
+                                            ("bitmap", "bitmaps/gradient")],
+                    ['<on event="b" back="true"/>', '<on event="back" back="true"/>',
+                     f'<child widget="{base}/header_{key}"/>', f'<child widget="{base}/{key}_menu"/>'])
+    lines += _header(f"{base}/header_{key}", f"{base}/header_{key}")
+    lines += _widget(f"{base}/{key}_help", [("type", "text"), ("controller", 1), ("left", 68), ("top", 341),
+                                           ("width", 482), ("height", 79), ("string_list", f"{base}/cap_{key}"),
+                                           ("font", "ui\\large_ui"), ("color", "#FFFFFFFF")], [])
+    children = ['<data input="port mutator settings update"/>',
+                '<on event="created" run="port mutator settings init"/>']
+    children += [f'<child widget="{base}/op_mutator_setting_{index + 1}" x="54" y="{73 + 30 * index}"/>'
+                 for index in range(MUTATOR_SETTING_ROWS)]
+    children.append(f'<child widget="{base}/{key}_button_bar" y="414"/>')
+    lines += _widget(f"{base}/{key}_menu", [("type", "column_list"), ("width", 640), ("height", 480),
+                                           ("flags", "pass_unhandled_to_focused_child up_down_tabs_children"),
+                                           ("description", f"{base}/{key}_help")], children)
+    lines += _widget(f"{base}/{key}_button_bar", [("type", "column_list"), ("width", 640), ("height", 28),
+                                                 ("flags", "pass_unhandled_to_focused_child left_right_tabs_items")],
+                     ['<data input="common button bar update"/>', f'<child widget="{base}/{key}_button_ok" x="380" y="1"/>',
+                      '<child widget="common_button_cancel" x="510" y="1"/>'])
+    lines += _button(f"{base}/{key}_button_ok", 1, ['<on event="a" run="port mutator settings save" back="true"/>',
+                                                     '<on event="start" run="port mutator settings save" back="true"/>'])
+    for index in range(MUTATOR_SETTING_ROWS):
+        lines += _widget(f"{base}/op_mutator_setting_{index + 1}", [("width", 512), ("height", 28),
+                                                         ("flags", "pass_unhandled_to_focused_child"),
+                                                         ("bitmap", "bitmaps/option_bkds"), ("color", "#FF2896FF")],
+                         ['<on event="left" run="port mutator settings left"/>',
+                          '<on event="right" run="port mutator settings right"/>',
+                          f'<child widget="{base}/mutator_setting_name"/>',
+                          f'<child widget="{base}/mutator_setting_value" x="286"/>'])
+    lines += _widget(f"{base}/mutator_setting_name", [("type", "text"), ("controller", 1), ("width", 286),
+                                                      ("height", 22), ("font", "ui\\large_ui"),
+                                                      ("color", "#FF2896FF"), ("text_x", 13), ("text_y", 4)], [])
+    lines += _widget(f"{base}/mutator_setting_value", [("type", "text"), ("controller", 1), ("width", 206),
+                                                       ("height", 22), ("font", "ui\\large_ui"),
+                                                       ("color", "#FF2896FF"), ("align", "center"), ("text_y", 4),
+                                                       ("text_flags", "no_focus_test")], [])
+    lines += _strings(f"{base}/cap_{key}", ["The options of the mutators on, for the games\\nyou host. Left and right "
+                                            "change one."])
+    return lines
 # (the rows of a co-op options screen in one place, the one shown: PER
 # PLAYER's and MULTIPLIER's, by EXTRA ENEMIES')
 SETUP_OPTION_SAME_PLACE = set()
@@ -2493,6 +2585,35 @@ def _coop() -> list:
     return lines
 
 
+def _addon_vehicle_rows() -> list:
+    """Vehicle Options' rows of the custom vehicle set's add-on vehicles, each
+    a count (NONE to 4), its label the mutator's name: no screen's children,
+    menu_functions.c's vehicles_layout adds those of the add-ons there are"""
+    lines = []
+    for row in range(1, ADDON_VEHICLE_ROWS + 1):
+        key = f"addon_vehicle_{row}"
+        lines += _widget(f"{VEHICLE_EDIT}/op_{key}", [("width", 512), ("height", 28),
+                                                       ("flags", "pass_unhandled_to_focused_child"),
+                                                       ("bitmap", "bitmaps/option_bkds"), ("color", "#FF2896FF")],
+                         [f'<child widget="{VEHICLE_EDIT}/{key}_label"/>',
+                          f'<child widget="{VEHICLE_EDIT}/{key}_spinner" x="286" y="1"/>'])
+        # (no string list: its text the mutator's name, which a list's would
+        # be drawn over)
+        lines += _widget(f"{VEHICLE_EDIT}/{key}_label", [("type", "text"), ("controller", 1), ("width", 300),
+                                                          ("height", 22), ("font", "ui\\large_ui"),
+                                                          ("color", "#FF2896FF"), ("text_x", 13), ("text_y", 4)], [])
+        lines += _widget(f"{VEHICLE_EDIT}/{key}_spinner",
+                         [("type", "spinner"), ("top", 2), ("width", 206), ("height", 20),
+                          ("flags", "pass_unhandled_to_focused_child left_right_tabs_items"),
+                          ("string_list", f"{VEHICLE_EDIT}/var_vehicle_options"), ("font", "ui\\large_ui"),
+                          ("color", "#FF2896FF"), ("align", "center"), ("text_y", 4),
+                          ("list_flags", "items_from_strings"), ("header_bitmap", "bitmaps/arrow_sm_left"),
+                          ("footer_bitmap", "bitmaps/arrow_sm_right"), ("header_bounds", "7 -13 19 -7"),
+                          ("footer_bounds", "7 208 19 214")],
+                         ['<on event="left_mouse" run="mouse spinner 1wide click"/>'])
+    return lines
+
+
 def _item_options_extras() -> list:
     """Item Options' rows of the port's: the map's weapons (YES or NO), and
     the loadout, CATEGORY (the weapon set) or CUSTOM (each player's primary
@@ -2666,7 +2787,9 @@ def multiplayer_files() -> dict:
         f"{MT}/lobby".replace("/", ".") + ".xml": head + _lobby() + ["</menus>", ""],
         f"{MT}/coop".replace("/", ".") + ".xml": head + _coop() + ["</menus>", ""],
         "main_menu/new_select".replace("/", ".") + ".port.xml": head + _map_kind() + ["</menus>", ""],
-        "main_menu/settings_select/multiplayer_setup/item_options_edit".replace("/", ".") + ".port.xml": head + _item_options_extras() + ["</menus>", ""],
+        # (and Vehicle Options' add-on vehicles' rows)
+        "main_menu/settings_select/multiplayer_setup/item_options_edit".replace("/", ".") + ".port.xml":
+            head + _item_options_extras() + _addon_vehicle_rows() + ["</menus>", ""],
         PLAYER_EDIT.replace("/", ".") + ".port.xml": head + _player_options_extras() + ["</menus>", ""],
         VEHICLE_EDIT.replace("/", ".") + ".port.xml": head + _vehicle_options_extras() + ["</menus>", ""],
         TEAMPLAY_EDIT.replace("/", ".") + ".port.xml": head + _teamplay_options_extras() + ["</menus>", ""],
@@ -2773,27 +2896,50 @@ def _mods() -> list:
     lobby's frame, the mod chosen: its name, what is wrong with it, whether it
     is on and its priority, and what its mod.toml says. A turns the mod chosen
     on or off, left and right (and MOVE UP and MOVE DOWN, for the mouse) move
-    it; OK keeps it all (load_order.toml) and plays them, Cancel forgets it
-    (menu_functions.c)"""
+    it; MUTATORS shows the mutators in the rows instead (and MODS the mods
+    again); OK keeps it all (load_order.toml, game.mutators) and plays them,
+    Cancel forgets it (menu_functions.c)"""
     base = MODS
     lines = _widget("main_menu/main_menu_item_mods",
                     [("type", "text"), ("width", 256), ("height", 33), ("bitmap", "main_menu/menu_mods")],
                     [f'<on event="a" open="{base}/mods_screen"/>', f'<on event="start" open="{base}/mods_screen"/>',
                      '<on event="left_mouse" run="mouse emit accept event"/>'])
-    lines += _widget(f"{base}/mods_screen", [("width", 640), ("height", 480),
-                                             ("flags", "pass_unhandled_to_focused_child pause_game"),
-                                             ("bitmap", "bitmaps/gradient")],
-                     ['<on event="b" back="true"/>', '<on event="back" back="true"/>',
-                      '<child widget="main_menu/new_select/sel_list_desc_bkd"/>',
-                      f'<child widget="{base}/mods_list"/>',
-                      f'<child widget="{base}/header_mods"/>'])
-    lines += _header(f"{base}/header_mods", f"{base}/header_mods")
+    lines += _mod_list(base, "mods_screen", "header_mods", "port mods init", [
+        (f"{base}/button_up", 0), (f"{base}/button_down", 128), (f"{base}/button_mutators", 256),
+        (f"{base}/button_ok", 384)])
+    lines += _text_button(f"{base}/button_up", "MOVE UP", ['<on event="a" run="port mods move up"/>',
+                                                          '<on event="start" run="port mods move up"/>'])
+    lines += _text_button(f"{base}/button_down", "MOVE DOWN", ['<on event="a" run="port mods move down"/>',
+                                                              '<on event="start" run="port mods move down"/>'])
+    # (the rows the mutators', and the mods' again: the button says which
+    # it shows next, as menu_functions.c's mods_update sets it)
+    lines += _text_button(f"{base}/button_mutators", "MUTATORS", ['<on event="a" run="port mods switch"/>',
+                                                                 '<on event="start" run="port mods switch"/>'])
+    lines += _button(f"{base}/button_ok", 1, ['<on event="a" run="port mods save" back="true"/>',
+                                              '<on event="start" run="port mods save" back="true"/>'])
+    return lines
+
+
+def _mod_list(base: str, screen: str, header: str, init: str, buttons: list) -> list:
+    """the Mods screen's widgets (_mods), in `base`: the screen, its header,
+    the list of rows (opened by `init`, and by "port mods close" closed),
+    the frame of the details of the one chosen, and the button bar of
+    `buttons` (each a widget and its x) and Cancel. menu_functions.c finds
+    them by their names, the same in each screen of them"""
+    lines = _widget(f"{base}/{screen}", [("width", 640), ("height", 480),
+                                         ("flags", "pass_unhandled_to_focused_child pause_game"),
+                                         ("bitmap", "bitmaps/gradient")],
+                    ['<on event="b" back="true"/>', '<on event="back" back="true"/>',
+                     '<child widget="main_menu/new_select/sel_list_desc_bkd"/>',
+                     f'<child widget="{base}/mods_list"/>',
+                     f'<child widget="{base}/{header}"/>'])
+    lines += _header(f"{base}/{header}", f"{base}/{header}")
     # (the lobby's rows, MOD_ROWS of them, scrolling over more mods)
     rows = [f'<child widget="{base}/op_mod_{index + 1}" x="20" y="{73 + 30 * index}"/>' for index in range(MOD_ROWS)]
     lines += _widget(f"{base}/mods_list", [("type", "column_list"), ("width", 640), ("height", 480),
                                            ("flags", "pass_unhandled_to_focused_child up_down_tabs_children"),
                                            ("description", f"{base}/mod_details")],
-                     ['<data input="port mods update"/>', '<on event="created" run="port mods init"/>',
+                     ['<data input="port mods update"/>', f'<on event="created" run="{init}"/>',
                       '<on event="deleted" run="port mods close"/>', *rows,
                       f'<child widget="{base}/button_bar" y="414"/>'])
     for index in range(MOD_ROWS):
@@ -2831,15 +2977,8 @@ def _mods() -> list:
     lines += _widget(f"{base}/button_bar",
                      [("type", "column_list"), ("width", 640), ("height", 28),
                       ("flags", "pass_unhandled_to_focused_child left_right_tabs_items")],
-                     [f'<child widget="{base}/button_up" y="1"/>', f'<child widget="{base}/button_down" x="130" y="1"/>',
-                      f'<child widget="{base}/button_ok" x="380" y="1"/>',
-                      '<child widget="common_button_cancel" x="510" y="1"/>'])
-    lines += _text_button(f"{base}/button_up", "MOVE UP", ['<on event="a" run="port mods move up"/>',
-                                                          '<on event="start" run="port mods move up"/>'])
-    lines += _text_button(f"{base}/button_down", "MOVE DOWN", ['<on event="a" run="port mods move down"/>',
-                                                              '<on event="start" run="port mods move down"/>'])
-    lines += _button(f"{base}/button_ok", 1, ['<on event="a" run="port mods save" back="true"/>',
-                                              '<on event="start" run="port mods save" back="true"/>'])
+                     [*(f'<child widget="{name}"{f" x={chr(34)}{x}{chr(34)}" if x else ""} y="1"/>' for name, x in buttons),
+                      '<child widget="common_button_cancel" x="512" y="1"/>'])
     return lines
 
 
