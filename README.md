@@ -39,7 +39,7 @@
 I'm making the Dynamic Lighting system, the Dynamic Shadows system and my shared
 renderer optimisations available for other forks to use, adapt and redistribute.
 You may use these contributions under either [AGPL-3.0-or-later](LICENSE) or
-[GPL-3.0-or-later](LICENSES/GPL-3.0.txt), at your choice.
+[GPL-3.0-or-later](LICENSES/GPL-3.0.txt), at your choice. Permissive licenses are deliberately out of scope.
 
 When redistributing these contributions or modified versions, provide the
 corresponding source as required by your chosen licence, identify your changes,
