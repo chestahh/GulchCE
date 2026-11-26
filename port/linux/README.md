@@ -279,7 +279,8 @@ grenades switched with the left bumper (the flashlight moves to X).
 | while typing a chat line: to everyone, the team or the vehicle, in turn | Tab |
 
 With a controller, or the touch controls' D-pad, D-pad Up opens the text
-chat's on-screen keyboard (refer to "Text chat").
+chat's on-screen keyboard (on Android's touch controls, Android's own
+keyboard; refer to "Text chat").
 
 Always: \` opens the developer console, F12 releases or captures the mouse,
 F11 changes between fullscreen and window. Screenshot (default F10,
@@ -700,6 +701,7 @@ the setting for one start of the game. It has priority over the file.
 | `network.votekick_threshold` | `"dynamic"` | `HALO_NET_VOTEKICK_THRESHOLD` | When you host: the yes votes that a vote (to kick, to end the game) needs, of the players who can vote. `"dynamic"`: scaled with the players, more than half up to 8 players, 40% (at least 5) up to 32, 30% (at least 13) above. `"static"`: `network.votekick_percent` of them, rounded up. At least 2 in both cases, and more yes than no. Only in config.toml (and a dedicated server's `sv_set`), not in the menus. |
 | `network.votekick_percent` | `50` | `HALO_NET_VOTEKICK_PERCENT` | When you host, with `network.votekick_threshold = "static"`: the percentage of the players who can vote that must vote yes (`1` to `100`). For a vote to kick, never more than the players who can vote yes (the player of the vote cannot). |
 | `network.vote_end_game` | `true` | `HALO_NET_VOTE_END_GAME` | When you host: `true`, the players can vote to end the game (`!endgame` in the chat; F1 votes yes, F2 no), counted as a vote to kick. The game ends with its scores, as `sv_end_game` ends it. `false`: no such votes. |
+| `network.one_team_ends_game` | `true` | `HALO_NET_ONE_TEAM_ENDS_GAME` | When you host: `true`, a team game ends as soon as only one team's players are in it, as the Xbox game's does: a game that starts before the other team's players have loaded (they are downloading the map, say), or that the other team's players leave. `false`: it goes on to its score or time limit. A team whose players are all out of lives still ends it. Only in config.toml, not in the menus. A dedicated server goes by `server.one_team_ends_game` instead. |
 | `network.votekick_minutes` | `5` | `HALO_NET_VOTEKICK_MINUTES` | When you host: the minutes that a player must play on the server before the player can start a vote to kick (`0` to `60`). To vote, a player must play for 2 minutes, or for this time if it is less. |
 | `network.votekick_ban_minutes` | `30` | `HALO_NET_VOTEKICK_BAN_MINUTES` | When you host: the minutes that a player who is kicked by a vote cannot join again (`1` to `1440`). |
 | `network.shield_effects` | `stock` | `HALO_NET_SHIELD_EFFECTS` | Host: the shield effects every player of a network game sees, whatever their own settings, so that none sees what another does not: `stock`, `glow` (`display.shield_glow`), `light_show` (its Light Show intensity), `overshield` (`display.overshield_effect`), `glow_overshield` or `light_show_overshield`; or `players`, not synced: each player sees their own settings' (PLAYERS' OWN). Sent to each client when it is ready and when it changes (`network_shield_effects.c`); a client draws stock until it has it. An online co-op game is always each player's own, whatever the host chose: the players play together. SHIELD EFFECTS in Server Setup > Player Options writes its choice here. |
@@ -738,6 +740,7 @@ the setting for one start of the game. It has priority over the file.
 | `server.empty_seconds` | `30` | `HALO_SERVER_EMPTY_SECONDS` | The seconds a game with nobody in it goes on before it ends. `0`: it does not end. A game whose last player leaves ends at once, as the game ends it. |
 | `server.idle_minutes` | `0` | `HALO_SERVER_IDLE_MINUTES` | The minutes a game goes on with no score before it ends. `0`: it does not end. |
 | `server.team_start` | `"one"` | `HALO_SERVER_TEAM_START` | A team game. `"one"`: it starts with the players of one team (the next players to join balance the teams). `"both"`: it waits, saying nothing, for a player on each team. `"skip"`: while one player waits, a team game (not one `sv_map` asked for) gives way to the rotation's next entry without teams, if it has one; checked when the lobby opens and again when its countdown would begin. |
+| `server.one_team_ends_game` | `false` | `HALO_SERVER_ONE_TEAM_ENDS_GAME` | A team game. `false`: it goes on while only one team's players are in it, as when it starts before the other team's players have loaded the map or they leave, to its score or time limit; a team whose players are all out of lives still ends it. `true`: it ends as soon as only one team's players are in it, as the Xbox game's does. A game a player hosts goes by `network.one_team_ends_game`. |
 | `server.team_switch` | `true` | `HALO_SERVER_TEAM_SWITCH` | `true`: a player in a team game changes teams by saying `!switch` (or `!team`) in the chat; the line goes to no one, and everyone is told of the switch. Not in the postgame, co-op or Infection, and with the gametype's auto team balance only to a team with fewer players than theirs (one player bigger than the old at most after). A living player dies as they switch, no one's kill and no suicide scored. Refer to `docs/dedicated_server.md`, "Changing teams". |
 | `server.team_switch_cooldown_seconds` | `30` | `HALO_SERVER_TEAM_SWITCH_COOLDOWN_SECONDS` | The seconds a player waits after a `!switch` before another (`0` to `3600`; `0`: no wait). |
 | `server.motd` | `""` | `HALO_SERVER_MOTD` | A notice each machine sees when it joins (127 characters). Empty: none. |
@@ -1176,11 +1179,15 @@ the key, X deletes, Y switches capitals, D-pad Up and Down change who the
 line is to (all the players, your team, your vehicle), Start sends the
 line, and B closes the keyboard (the button that closed it does nothing in
 the game until you let it go). Its last row has Aa (capitals), #+= (the
-symbols), space, DEL and SEND. On a touchscreen (Android, and a browser on
-a phone or tablet), the touch controls' D-pad Up opens it, a tap on a key
-types it, and a tap anywhere else closes it: the touch controls hide while
-it is up. While the keyboard is up the controller and the touch controls
-move nothing in the game. The face buttons are the same places on
+symbols), space, DEL and SEND. In a browser on a phone or tablet, the touch
+controls' D-pad Up opens it, a tap on a key types it, and a tap anywhere
+else closes it: the touch controls hide while it is up. On Android, the
+touch controls' D-pad Up brings up Android's own keyboard instead: Enter
+sends the line, and back or a tap above the keyboard cancels it (the touch
+controls hide while it is up too). With a controller connected, the touch
+D-pad uses the game's keyboard in `"auto"` mode and Android's keyboard
+in `"on"` mode. While either keyboard is up the
+controller and the touch controls move nothing in the game. The face buttons are the same places on
 other controllers (on a PlayStation controller: Cross types, Square
 deletes, Triangle switches capitals, Circle closes).
 

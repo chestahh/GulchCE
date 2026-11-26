@@ -52,7 +52,9 @@ their existing map loaders, limits, rules and resource ownership.
 - Android's **Cheat Menu** option adds a **CHEATS** touch button beside
   **Hide/Touch**, as well as **Cheats** in touch **Options**. The button is
   available during offline or hosted gameplay, including when the gameplay controls
-  are hidden; the layout editor and cinematics hide it. Tapping opens the
+  are hidden with **Hide**. Controller input hides the whole toolbar until
+  the next touch. The layout editor and cinematics also hide the cheat
+  button. Tapping the visible button opens the
   existing dialog through `openDialog`, which releases held controls.
   It defaults off and is unavailable to joining clients, including while joining
   a lobby. Android hosts use the same cheat APIs as desktop hosts. It exposes
@@ -180,9 +182,9 @@ executes arbitrary console strings from a widget or another machine.
 ## Read the Android flow
 
 [TouchControls.java](../../port/android/app/src/main/java/com/halo/decomp/TouchControls.java)
-retains its existing sensor lifecycle and
+keeps an enabled gyro active while gameplay buttons are hidden and passes samples to
 [GyroscopeAim.java](../../port/android/app/src/main/java/com/halo/decomp/GyroscopeAim.java)
-integration. Explicit gyro modes bypass swipe sensitivity, reset accumulated
+for integration. Explicit gyro modes bypass swipe sensitivity, reset accumulated
 motion on mode changes and leave legacy mode behavior intact.
 [host_touch.c](../../port/android/host/host_touch.c) transfers scalar mode
 and motion values under its existing mutex.

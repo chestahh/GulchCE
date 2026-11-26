@@ -253,6 +253,19 @@ Bluetooth or USB keyboard types into the names in the same way, with or
 without Android's keyboard (`port/linux/src/sdl_platform.c`, "the system's
 on-screen keyboard").
 
+In a network game, the touch controls' D-pad Up brings up Android's keyboard
+to type a text chat line to all the players: Enter sends the line, and back
+(or a tap on the game above the keyboard) cancels it. The touch controls
+hide while it is up. As for a name, the line is typed as a visible password
+(so that Android's keyboard offers no suggestions), and only ASCII letters,
+numbers and symbols type into it. With a controller connected and
+`input.touch_controls = "auto"`, tapping the touch D-pad uses the game's
+keyboard even after a tap reveals the overlay. Set the mode to `"on"` to
+use Android's keyboard from the touch D-pad with a controller connected.
+A controller's D-pad Up opens the chat's own
+on-screen keyboard instead, which the controller drives
+(`port/linux/README.md`, "Text chat").
+
 After a multiplayer game, the carnage report shows buttons in place of its
 prompt at the bottom: the host's CONTINUE goes on to the next game (PICK
 GAME), as A does, and LEAVE leaves the game, as B does (the host's LEAVE
@@ -276,7 +289,7 @@ controller for player 1. With the default buttons of the profile:
 | Crouch, Zoom | left and right stick clicks |
 | Light, Gren. type | white, black |
 | Pause, Back | start, back |
-| Up, Down, Left, Right | D-pad (in a network game, Up opens the text chat's keyboard) |
+| Up, Down, Left, Right | D-pad (in a network game, Up opens text chat) |
 
 The names on the buttons follow the profile's "Button layout" (Settings >
 Gamepads): with "Swap triggers", the right trigger's button says "Grenade".
@@ -297,23 +310,25 @@ as the phone turns, never inverted). The setting `input.touch_aim_assist`
 turns the aim assist off. "Look sensitivity" sets how far a swipe turns;
 the mouse settings do not apply.
 
-The touch controls show only in a game. In the menus and during
-cinematics they hide, and the touchscreen operates the menus as described
-above. They also hide when a controller is connected, for example the
-built-in controller of a handheld. A device without a touchscreen (a TV)
-never shows them. The setting `input.touch_controls` changes this (refer
-to "Settings").
+The touch overlay is available during gameplay on a touchscreen. With
+`input.touch_controls = "auto"` (the default), a connected controller
+starts with the overlay hidden. The first tap reveals it, and moving a stick
+or pressing a controller button hides it again. Enabled device gyro and
+vibration work while it is hidden. This also works with built-in controllers,
+such as the AYN Odin 2 Portal. In `"on"` mode, controller input hides only
+the toolbar. The toolbar stays visible while editing the layout.
 
 The buttons at the top of the screen:
 
-- "Hide" removes the controls (and stops the gyroscope aiming and the
-  vibration) until you push "Touch"; the app remembers it.
+- "Hide" removes the touch buttons and turns off swipe aiming until you push
+  "Touch". Gyroscope aiming and device vibration keep working when enabled.
+  The app remembers whether the buttons are hidden.
 - "Options" opens these items:
   - "General": the phone's vibration (on by default; it follows the
     vibration setting of the game's profile), aiming with the gyroscope
     (off by default), a floating move stick (off by default: the stick goes
     where your thumb lands in the lower left of the screen), the opacity of
-    the controls, whether held-button swipes also aim (on by default), and
+    the controls (5% to 100%), whether held-button swipes also aim (on by default), and
     a three- or four-finger cheat-menu gesture (three by default). The panel
     scrolls on short displays. It also contains "Hide or add buttons" (hide
     a button, add a copy of a button) and "Edit buttons size".
@@ -341,8 +356,9 @@ layout still has gyro off. **OFF**, **ON** and **ZOOM ONLY** override that
 switch; ON and ZOOM ONLY use their own horizontal/vertical sensitivity and
 inversion, leaving swipe sensitivity and the profile's Invert Look alone.
 Unzoomed samples in ZOOM ONLY are discarded, so entering zoom does not
-apply a turn accumulated earlier. Hiding controls or backgrounding the app
-still stops gyro input.
+apply a turn accumulated earlier. Enabled gyro aiming continues when the
+buttons are hidden. Turning touch controls off or backgrounding the app
+stops gyro input.
 
 | Setting | Default | Environment variable |
 | --- | --- | --- |
@@ -356,8 +372,9 @@ The **Cheat Menu** setting in **Android Controls** is off by default
 (`android.cheat_menu = false`, `HALO_ANDROID_CHEAT_MENU`). When enabled,
 the **CHEATS** touch button beside **Hide/Touch** opens the menu directly
 during offline gameplay or while hosting co-op or multiplayer. It remains
-visible when the gameplay controls are hidden, and disappears in the layout
-editor, cinematics and when joining another host.
+visible when **Hide** removes the gameplay controls. Controller input hides
+the toolbar until the next touch. The layout editor, cinematics and joining
+another host also hide the cheat button.
 Touch **Options > Cheats** also exposes invincibility, unlimited ammunition,
 bottomless clip, super jump, omnipotence, no fall damage, Medusa, bump
 possession, Easy Rider (no rider ejection), weapon/powerup/vehicle spawning
@@ -404,7 +421,7 @@ These settings are only for Android:
 | Setting | Function |
 | --- | --- |
 | `input.touch_aim_assist` | `true` (the default): the touch controls' swipe aiming gets the aim assist of a controller (the aim slows over a target and follows a moving one). `false`: none, as with a mouse; the bullets' own autoaim stays. |
-| `input.touch_controls` | The touch controls in a game. `"auto"` (the default): shown on a touchscreen while no controller is connected. `"on"`: also shown with a controller. `"off"`: never shown. A device without a touchscreen never shows them. The carnage report's CONTINUE and LEAVE buttons follow the same rule (otherwise it shows its A and B prompt), and so does a cinematic's SKIP button (otherwise any tap skips it). The menus take taps in any case. |
+| `input.touch_controls` | `"auto"` (the default): show the overlay when using touch and hide it when using a controller. `"on"`: keep gameplay touch buttons visible with a controller, unless hidden with **Hide**. `"off"`: disable the gameplay overlay and its device gyro and vibration. The menus take taps in all modes. With `"auto"` and a controller connected, or with `"off"`, cinematics and the carnage report use their controller prompts. |
 | `display.screen_width` | The number of columns of the 480-line picture. `0` (the default): the shape of the display (1068 on a 20:9 phone). `640`: the 4:3 shape of the Xbox. |
 | `display.stats_log` | `false` (the default): `true` writes a line a second to the log with the frame rate, the mode, the map, the renderer and the size of the 3D view, for a bug report or to compare two builds. |
 | `display.resolution_scaling` | Also Linux's, with another default on Android. `"original"` (the default): the game draws the 480 lines of the Xbox, which the display scales up. `"native"`: the game draws at the display's resolution (1080 lines on a 1080p phone). `"75%"`, `"50%"` or `"25%"`: that part of the display's resolution each way, scaled up: less for the GPU to draw, for more frames a second and less heat. Video Setup's Resolution Scaling sets it, from the next frame. |
@@ -751,7 +768,7 @@ computer until the tester chooses to share them.
   `0x80000000` to `0x8c000000`. If ART uses them, the app shows a message
   (refer to "The fixed addresses").
 - Touch operates the menus and skips cinematics. In the game, the touch
-  controls appear when no controller is connected; their size follows the
+  controls in automatic mode reappear on touch after controller use. Their size follows the
   height of the screen (larger on a tablet than on a phone), never smaller
   than a finger.
 - Kernels with 16 KB pages (a developer option of Android 15) do not
