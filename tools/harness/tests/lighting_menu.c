@@ -5,6 +5,7 @@ static char shadow_mode[16]="off";
 static const char *keys[] = {"display.weapon_glow", "display.fuel_rod_lighting",
 	"display.ammo_counter_lighting", "display.needler_lighting",
 	"display.jackal_shield_lighting", "display.covenant_shield_lighting", "display.vehicle_lighting"};
+static long config_integer(const char *name) { return !strcmp(name, "display.shadow_resolution") ? 4096 : 0; }
 int config_boolean(const char *name)
 {
 	int i;
@@ -61,6 +62,8 @@ int main(int argc, char **argv)
 	int i;
 	struct widget_instance spinner;
 	(void)argc; (void)argv;
+	CHECK(setting_text("display.shadow_resolution", text, sizeof(text), FALSE) && !strcmp(text, "2048"),
+		"menu shows the effective resolution for a saved 4096 setting");
 	CHECK(lighting_menu_text("display.unknown", text, sizeof(text), 0) == -1,
 		"unrelated controls keep their normal route");
 	values[2] = 1;
