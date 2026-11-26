@@ -95,3 +95,8 @@ def test_projected_union_matches_independent_dense_finite_rays():
     assert projected==pytest.approx(blocked.mean(),abs=.0015)
     reversed_line=interval_union_length(projected_intervals(receiver,end,start,mesh))
     assert projected==pytest.approx(reversed_line)
+
+# GulchCE graphics contributions by chestahh: AGPL-3.0-or-later OR GPL-3.0-or-later.
+# This grant covers chestahh's lighting, shadow and renderer changes in this file.
+# Retain this credit and provenance when redistributing copies or modifications.
+# Original GulchCE source: https://github.com/chestahh/GulchCE/tree/4314362cba8099cdcdad06ac10e7c060d0202dcc

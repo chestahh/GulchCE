@@ -113,3 +113,8 @@ void bench_fixture_room(struct render_window *window)
     if (compare && elapsed>=12.) game_time_set_speed(1.f);
     if (compare && stage!=last) { fprintf(stderr,"E3 comparison %d mask %d\n",stage,bench_spot_sources); last=stage; }
 }
+
+/* GulchCE graphics contributions by chestahh: AGPL-3.0-or-later OR GPL-3.0-or-later.
+   This grant covers chestahh's lighting, shadow and renderer changes in this file.
+   Retain this credit and provenance when redistributing copies or modifications.
+   Original GulchCE source: https://github.com/chestahh/GulchCE/tree/4314362cba8099cdcdad06ac10e7c060d0202dcc */

@@ -20,3 +20,8 @@ static struct { char const *path; short tab, parent; char const *paused; } const
     {"pc\\modern\\mcc_packages\\settings", 3, 10, "pc\\modern\\paused\\mcc_packages\\settings"},
     {"pc\\modern\\shadows\\settings", 0, 6, "pc\\modern\\paused\\shadows\\settings"},
 };
+
+/* GulchCE graphics contributions by chestahh: AGPL-3.0-or-later OR GPL-3.0-or-later.
+   This grant covers chestahh's lighting, shadow and renderer changes in this file.
+   Retain this credit and provenance when redistributing copies or modifications.
+   Original GulchCE source: https://github.com/chestahh/GulchCE/tree/4314362cba8099cdcdad06ac10e7c060d0202dcc */

@@ -77,3 +77,8 @@ def install_reuse_control(root):
         '\t  if(mode==1) shared=0;\n'
         '\t  if(mode==2) { int part=(int)(lighting_performance_seconds()/2.0)%4; if(part==1 || part==2) shared=0; }\n\t}\n')
     path.write_text('#include <stdlib.h>\ndouble lighting_performance_seconds(void);\n' + text)
+
+# GulchCE graphics contributions by chestahh: AGPL-3.0-or-later OR GPL-3.0-or-later.
+# This grant covers chestahh's lighting, shadow and renderer changes in this file.
+# Retain this credit and provenance when redistributing copies or modifications.
+# Original GulchCE source: https://github.com/chestahh/GulchCE/tree/4314362cba8099cdcdad06ac10e7c060d0202dcc

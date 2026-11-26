@@ -129,3 +129,8 @@ def test_seated_occupant_exemption_is_required():
     code = code.replace('unit->unit.parent_seat_index != NONE', 'unit->unit.parent_seat_index == NONE')
     status, output = run(build('modern_shadow_objects', (('under_test.inc', code),)), 'objects')
     assert status == CHECK_FAILED, output
+
+# GulchCE graphics contributions by chestahh: AGPL-3.0-or-later OR GPL-3.0-or-later.
+# This grant covers chestahh's lighting, shadow and renderer changes in this file.
+# Retain this credit and provenance when redistributing copies or modifications.
+# Original GulchCE source: https://github.com/chestahh/GulchCE/tree/4314362cba8099cdcdad06ac10e7c060d0202dcc

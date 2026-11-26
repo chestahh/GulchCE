@@ -214,8 +214,28 @@ GulchCE is maintained by Chester ([@chestahh](https://github.com/chestahh)) and 
 
 The decompilation comes from [bnunu/halo-1](https://github.com/bnunu/halo-1), a fork of [punpckhdq/halo](https://github.com/punpckhdq/halo), and targets Xbox build 2342 (`cachebeta.exe`). Artwork credits are in [AUTHORS.md](AUTHORS.md); bot and Android feature credits are in the [provenance guide](docs/reading/bots_and_android_features.md).
 
-Current revisions are licensed under [AGPL-3.0-or-later](LICENSE), with no warranty. Earlier revisions and releases published under [CC0 1.0](LICENSES/CC0-1.0.txt) retain that licence. Contributions use AGPL-3.0-or-later; adapted GPL code retains its notices, including the [GPL-3.0-only](LICENSES/GPL-3.0-only.txt) bot tactics. Third-party code, fonts and artwork retain their own licences and accompanying notices.
+Current revisions are licensed under [AGPL-3.0-or-later](LICENSE), with no warranty. Earlier revisions and releases published under [CC0 1.0](LICENSES/CC0-1.0.txt) retain that licence. Contributions generally use AGPL-3.0-or-later; adapted GPL code retains its notices, including the [GPL-3.0-only](LICENSES/GPL-3.0-only.txt) bot tactics. Third-party code, fonts and artwork retain their own licences and accompanying notices.
 
 The talking timer’s voice was recorded by [Rose on Toast](https://www.instagram.com/NyxFinSharkCat/) and is distributed under [CC BY 4.0](port/assets/sound/talking_timer/LICENSE).
 
 GulchCE is an unofficial fan project, not affiliated with or endorsed by Microsoft, Bungie or Halo Studios. Halo is a trademark of Microsoft Corporation. The project's licence does not grant rights to Halo or its game data.
+
+### Reusing GulchCE's graphics work
+
+I'm making the Dynamic Lighting system, the Dynamic Shadows system and my shared
+renderer optimisations available for other forks to use, adapt and redistribute.
+You may use these contributions under either [AGPL-3.0-or-later](LICENSE) or
+[GPL-3.0-or-later](LICENSES/GPL-3.0-only.txt), at your choice. Permissive licences are deliberately out of scope.
+
+When redistributing these contributions or modified versions, provide the
+corresponding source as required by your chosen licence, identify your changes,
+and retain the following attribution and provenance notice:
+
+> Dynamic Lighting, Dynamic Shadows and shared renderer optimisations by
+> [chestahh](https://github.com/chestahh), originally developed for
+> [GulchCE](https://github.com/chestahh/GulchCE).
+> [Original GulchCE source](https://github.com/chestahh/GulchCE/tree/4314362cba8099cdcdad06ac10e7c060d0202dcc).
+
+In existing files this grant covers my contributions. The surrounding OpenCE code
+and third-party components retain their existing licences and notices. Fork
+maintainers can also use the [OpenCE port](https://github.com/chestahh/GulchCE/tree/GET-YOUR-SHADOWS-HERE).

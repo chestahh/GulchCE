@@ -63,3 +63,8 @@ def test_exact_ray_survey_separates_world_and_object_changes():
     source = read('tools/fixtures/lighting_ray_reuse.inc')
     status, output = run(build('lighting_ray_reuse', (('survey.inc', source),)), 'moving')
     assert status == 0, output
+
+# GulchCE graphics contributions by chestahh: AGPL-3.0-or-later OR GPL-3.0-or-later.
+# This grant covers chestahh's lighting, shadow and renderer changes in this file.
+# Retain this credit and provenance when redistributing copies or modifications.
+# Original GulchCE source: https://github.com/chestahh/GulchCE/tree/4314362cba8099cdcdad06ac10e7c060d0202dcc

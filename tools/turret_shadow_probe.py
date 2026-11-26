@@ -114,3 +114,8 @@ void platform_log(const char *, ...);
 static int turret_probe_quiet(void) { static int mode=-1; if(mode<0) mode=getenv("HALO_TURRET_TIMING")!=NULL; return mode; }
 #define turret_probe_log(format, ...) do { if(!turret_probe_quiet() || (format)[0]=='G') platform_log(format, ##__VA_ARGS__); } while(0)
 ''' + text
+
+# GulchCE graphics contributions by chestahh: AGPL-3.0-or-later OR GPL-3.0-or-later.
+# This grant covers chestahh's lighting, shadow and renderer changes in this file.
+# Retain this credit and provenance when redistributing copies or modifications.
+# Original GulchCE source: https://github.com/chestahh/GulchCE/tree/4314362cba8099cdcdad06ac10e7c060d0202dcc

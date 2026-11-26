@@ -1,3 +1,8 @@
+/* SPDX-FileCopyrightText: chestahh (GulchCE)
+   SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-3.0-or-later
+   Retain this credit and provenance when redistributing copies or modifications.
+   Original GulchCE source: https://github.com/chestahh/GulchCE/tree/4314362cba8099cdcdad06ac10e7c060d0202dcc */
+
 /* Exact collision-input snapshots for stationary visibility fields. Store
    values, never borrowed object/tag pointers. Moving lights still trace at
    their existing cadence; any changed blocker invalidates stationary reuse. */

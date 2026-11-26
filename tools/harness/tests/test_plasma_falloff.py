@@ -33,3 +33,8 @@ def test_tint_negative_control():
         ('plasma_specular_tint = real_rgb_color_to_pixel32(&tint);',
          'plasma_specular_tint = 0x00FFFFFFUL;'))), 'tint')
     assert status == CHECK_FAILED, output
+
+# GulchCE graphics contributions by chestahh: AGPL-3.0-or-later OR GPL-3.0-or-later.
+# This grant covers chestahh's lighting, shadow and renderer changes in this file.
+# Retain this credit and provenance when redistributing copies or modifications.
+# Original GulchCE source: https://github.com/chestahh/GulchCE/tree/4314362cba8099cdcdad06ac10e7c060d0202dcc

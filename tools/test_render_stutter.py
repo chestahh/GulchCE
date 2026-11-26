@@ -113,3 +113,8 @@ def test_player_trace_comparison_preserves_gameplay_fields():
     assert not compare_player_traces(log, log.replace('(1 2 3)', '(1 2 4)'))['matched']
     assert not compare_player_traces(log, log.replace('tick 30', 'tick 60'))['matched']
     assert not compare_player_traces('', '')['matched']
+
+# GulchCE graphics contributions by chestahh: AGPL-3.0-or-later OR GPL-3.0-or-later.
+# This grant covers chestahh's lighting, shadow and renderer changes in this file.
+# Retain this credit and provenance when redistributing copies or modifications.
+# Original GulchCE source: https://github.com/chestahh/GulchCE/tree/4314362cba8099cdcdad06ac10e7c060d0202dcc

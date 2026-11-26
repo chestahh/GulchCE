@@ -72,3 +72,8 @@ def test_needler_shoulder_guard_is_required():
     code = source().replace('third_person_active(render.local_player_index) ||', 'FALSE ||')
     status, output = run(build('covenant_emitter_lighting', (('under_test.inc', code),)), 'camera')
     assert status == CHECK_FAILED, output
+
+# GulchCE graphics contributions by chestahh: AGPL-3.0-or-later OR GPL-3.0-or-later.
+# This grant covers chestahh's lighting, shadow and renderer changes in this file.
+# Retain this credit and provenance when redistributing copies or modifications.
+# Original GulchCE source: https://github.com/chestahh/GulchCE/tree/4314362cba8099cdcdad06ac10e7c060d0202dcc

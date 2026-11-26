@@ -11,3 +11,8 @@ def test_packed_visibility_preserves_every_cell():
     for variant in (code, code.replace('#if defined(__SSE2__)', '#if 0')):
         status, output = run(build('plasma_visibility', (('under_test.inc', variant),)), 'compare')
         assert status == 0, output
+
+# GulchCE graphics contributions by chestahh: AGPL-3.0-or-later OR GPL-3.0-or-later.
+# This grant covers chestahh's lighting, shadow and renderer changes in this file.
+# Retain this credit and provenance when redistributing copies or modifications.
+# Original GulchCE source: https://github.com/chestahh/GulchCE/tree/4314362cba8099cdcdad06ac10e7c060d0202dcc
