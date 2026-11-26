@@ -20,6 +20,9 @@ high-res HUD's are (hud_hires.c).
 #include "halo_menus.h"
 #include "hud_hires.h"
 #include "menu_files.h"
+#ifdef HALO_WINDOWS
+#include "win32_cpu_scheduling.h"
+#endif
 #include "platform.h"
 #include "port_config.h"
 #include "xgpu.h"
@@ -415,10 +418,19 @@ static int for_this_platform(struct reader *reader, const XML_Char **attributes)
 
 				if (length)
 				{
-					if ((length != 7 || strncmp(name, "desktop", 7)) && (length != 7 || strncmp(name, "android", 7)) &&
+					if ((length == 6 && !strncmp(name, "hybrid", 6)) ||
+						(length == 8 && !strncmp(name, "ordinary", 8)))
+					{
+#ifdef HALO_WINDOWS
+						if ((length == 6) == win32_cpu_scheduling_supported()) found = 1;
+#elif !defined(HALO_ANDROID) && !defined(HALO_WEB)
+						if (length == 8) found = 1;
+#endif
+					}
+					else if ((length != 7 || strncmp(name, "desktop", 7)) && (length != 7 || strncmp(name, "android", 7)) &&
 						(length != 3 || strncmp(name, "web", 3)))
 					{
-						reader_error(reader, "platform=\"%s\" names one that is not desktop, android or web",
+						reader_error(reader, "platform=\"%s\" contains an unknown platform",
 							attributes[index + 1]);
 						return 1;
 					}

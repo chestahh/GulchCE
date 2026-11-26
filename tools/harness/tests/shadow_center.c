@@ -16,7 +16,6 @@ typedef unsigned short word;
 typedef struct { real scale; real_vector3d forward, left, up; real_point3d position; } real_matrix4x3;
 union real_rgb_color { struct { real red, green, blue; }; real n[3]; };
 struct render_lighting { real_vector3d shadow_vector; union real_rgb_color shadow_color; };
-
 #include "config.inc"
 
 /* the object, a vehicle: not a unit with camouflage */

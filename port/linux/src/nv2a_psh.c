@@ -16,6 +16,8 @@ Register values are clamped to [-1, 1] between stages, as on the hardware.
 */
 
 #include "xgpu.h"
+#include "plasma_model_shader.h"
+#include "modern_shadows.h"
 #include "port_config.h"
 #include "mcc_environment_shader.h"
 
@@ -574,9 +576,19 @@ world position the vertex program hands on and the same constants
 terms, clamped where the programs clamp them. The diffuse alpha, which the
 programs write apart (0, or planar fog's), is kept. */
 
-static void model_lighting(struct xgpu_text *text, BOOL point_lights)
+static void model_lighting(struct xgpu_text *text, BOOL point_lights, BOOL plasma_model, int modern_shadow)
 {
 	int light;
+#ifdef HALO_GLES
+	modern_shadow = FALSE;
+#endif
+
+#ifndef HALO_ANDROID
+	if (point_lights && plasma_model)
+		plasma_model_emit_pixel(text);
+#else
+	(void)plasma_model;
+#endif
 
 	xgpu_text_append(text,
 		"uniform vec4 model_lights[%d];\n"
@@ -591,9 +603,13 @@ static void model_lighting(struct xgpu_text *text, BOOL point_lights)
 		/* the ambient light, the first distant light, which also lights the
 		back by the translucency, and the second */
 		"\tfloat facing = dot(n, -model_lights[7].xyz);\n"
-		"\tvec3 light = model_lights[11].xyz + max(max(facing, -facing * model_lights[0].z), 0.0) * model_lights[8].xyz +\n"
-		"\t\tmax(dot(n, -model_lights[9].xyz), 0.0) * model_lights[10].xyz;\n",
-		XGPU_MODEL_LIGHT_COUNT, point_lights ? "in vec3 xWorldPosition;\n" : "");
+		"\tvec3 light = model_lights[11].xyz + max(max(facing, -facing * model_lights[0].z), 0.0) * model_lights[8].xyz%s +\n"
+		"\t\tmax(dot(n, -model_lights[9].xyz), 0.0) * model_lights[10].xyz%s;\n",
+		XGPU_MODEL_LIGHT_COUNT, point_lights ? "in vec3 xWorldPosition;\n" : "",
+		modern_shadow ? " * modern_environment_visibility(0,xWorldPosition)" : "",
+		modern_shadow ? " * modern_environment_visibility(1,xWorldPosition)" : "");
+	if (modern_shadow == 5) xgpu_text_append(text,"\tlight *= fixture_visibility(xWorldPosition,n,false);\n");
+	if (modern_shadow) xgpu_text_append(text,"\tlight += sun_light(xWorldPosition,n,false,0.).rgb;\n");
 	/* each point light: its position and 1 / radius squared, its cone's axis
 	and falloff scale, its color and falloff offset */
 	for (light = 0; point_lights && light < 2; light++)
@@ -604,24 +620,97 @@ static void model_lighting(struct xgpu_text *text, BOOL point_lights)
 			"\t{\n"
 			"\t\tvec3 to_light = model_lights[%d].xyz - xWorldPosition;\n"
 			"\t\tfloat distance_squared = dot(to_light, to_light);\n"
-			"\t\tvec3 l = to_light * inversesqrt(max(distance_squared, 1.0e-12));\n"
-			"\t\tlight += max(1.0 - distance_squared * model_lights[%d].w, 0.0) * clamp(dot(l, n), 0.0, 1.0) *\n"
+			"\t\tvec3 l = to_light * inversesqrt(max(distance_squared, 1.0e-12));\n", first);
+#ifndef HALO_ANDROID
+		if (plasma_model)
+			xgpu_text_append(text,
+				"\t\tlight += plasma_model_falloff(max(1.0 - distance_squared * model_lights[%d].w, 0.0), plasma_model_slots[%d],%d,xWorldPosition) * clamp(dot(l, n), 0.0, 1.0) *\n",
+				first, light, light);
+		else
+#endif
+			xgpu_text_append(text,
+				"\t\tlight += max(1.0 - distance_squared * model_lights[%d].w, 0.0) * clamp(dot(l, n), 0.0, 1.0) *\n", first);
+		if (modern_shadow == 5) xgpu_text_append(text,"\t\t\t((spot_flash_slots & %d)!=0 ? beam_visibility(xWorldPosition) : 1.0) *\n",1<<light);
+		if (modern_shadow)
+			xgpu_text_append(text, "\t\t\tmodern_model(%d,xWorldPosition) *\n", light);
+		xgpu_text_append(text,
 			"\t\t\tclamp(dot(l, -model_lights[%d].xyz) * model_lights[%d].w + model_lights[%d].w, 0.0, 1.0) *\n"
 			"\t\t\tmodel_lights[%d].xyz;\n"
 			"\t}\n",
-			first, first, first + 1, first + 1, first + 2, first + 2);
+			first + 1, first + 1, first + 2, first + 2);
 	}
 	xgpu_text_append(text, "\treturn clamp(light, 0.0, 1.0);\n}\n");
 }
 
+#ifndef HALO_GLES
+static BOOL inputs_read_r0_alpha(DWORD inputs)
+{
+	int input;
+	for (input = 0; input < 4; input++, inputs >>= 8)
+		if ((inputs & 0x1f) == (_register_r0 | 0x10)) return TRUE;
+	return FALSE;
+}
+
+/* Model draws can inherit an unused alpha combiner from preceding materials.
+ * Its source still costs a new driver link. Remove only alpha portions whose
+ * destinations are discard or r0.a, with no later read of r0.a. RGB writes,
+ * all other destinations, mux selectors and the implicit final r0 are retained.
+ * This is deliberately conservative; no general liveness analysis is needed. */
+static void discard_dead_r0_alpha(DWORD *state)
+{
+	unsigned count = state[D3DRS_PSCOMBINERCOUNT] & 0xff;
+	unsigned stage, later, destination;
+	DWORD final_abcd = state[D3DRS_PSFINALCOMBINERINPUTSABCD];
+	DWORD final_efg = state[D3DRS_PSFINALCOMBINERINPUTSEFG];
+	if (count > 8) count = 8;
+	for (stage = 0; stage < count; stage++)
+	{
+		DWORD outputs = state[D3DRS_PSALPHAOUTPUTS0 + stage];
+		BOOL writes_r0 = FALSE, live = FALSE;
+		for (destination = 0; destination < 3; destination++)
+		{
+			unsigned reg = (outputs >> (destination * 4)) & 0xf;
+			if (reg == _register_r0) writes_r0 = TRUE;
+			else if (reg) live = TRUE;
+		}
+		if (writes_r0)
+		{
+			if ((!final_abcd && !final_efg) || inputs_read_r0_alpha(final_abcd) ||
+				inputs_read_r0_alpha(final_efg & 0xffffff00UL)) live = TRUE;
+			for (later = stage + 1; later < count && !live; later++)
+				if (inputs_read_r0_alpha(state[D3DRS_PSRGBINPUTS0 + later]) ||
+					inputs_read_r0_alpha(state[D3DRS_PSALPHAINPUTS0 + later]) ||
+					((state[D3DRS_PSRGBOUTPUTS0 + later] | state[D3DRS_PSALPHAOUTPUTS0 + later]) & 0x4000)) live = TRUE;
+		}
+		if (!live)
+		{
+			state[D3DRS_PSALPHAINPUTS0 + stage] = 0;
+			state[D3DRS_PSALPHAOUTPUTS0 + stage] = 0;
+		}
+	}
+}
+#endif
+
 char *nv2a_pixel_shader_to_glsl(const struct nv2a_pixel_shader_key *key)
 {
+#ifndef HALO_GLES
+	struct nv2a_pixel_shader_key normalized;
+#endif
 	const DWORD *state = key->combiner_state;
 	struct xgpu_text text = { 0 };
 	unsigned long combiner_count = state[D3DRS_PSCOMBINERCOUNT] & 0xff;
 	DWORD final_abcd = state[D3DRS_PSFINALCOMBINERINPUTSABCD];
 	DWORD final_efg = state[D3DRS_PSFINALCOMBINERINPUTSEFG];
 	int stage;
+
+#ifndef HALO_GLES
+	normalized = *key;
+	/* A diagnostic expression may explicitly inspect an otherwise dead register. */
+	if (!*config_string("debug.gpu_debug_expression"))
+		discard_dead_r0_alpha(normalized.combiner_state);
+	key = &normalized;
+	state = key->combiner_state;
+#endif
 
 	if (combiner_count > 8)
 		combiner_count = 8;
@@ -654,8 +743,13 @@ char *nv2a_pixel_shader_to_glsl(const struct nv2a_pixel_shader_key *key)
 		xgpu_text_append(&text, "uniform %s tex%d;\n", sampler_declaration(key->sampler_type[stage]), stage);
 	if (key->source_blend)
 		xgpu_text_append(&text, "uniform vec4 blend_constant;\n");
+#ifndef HALO_GLES
+	if (key->modern_shadow && key->modern_shadow != 4) modern_shadow_emit(&text);
+	if (key->modern_shadow == 4 || key->modern_shadow == 5) modern_spot_emit(&text);
+	if (key->modern_shadow == 4) xgpu_text_append(&text,"in vec3 beamWorldPosition;\n");
+#endif
 	if (key->per_pixel_lighting)
-		model_lighting(&text, key->per_pixel_lighting == 2);
+		model_lighting(&text, key->per_pixel_lighting == 2, key->plasma_model, (key->modern_shadow == 3 || key->modern_shadow == 5) ? key->modern_shadow : 0);
 	xgpu_text_append(&text,
 		"float signed_byte(float x)\n"
 		"{\n"
@@ -679,6 +773,12 @@ char *nv2a_pixel_shader_to_glsl(const struct nv2a_pixel_shader_key *key)
 
 	for (stage = 0; stage < 4; stage++)
 		texture_stage(&text, key, stage);
+	/* Only this light's attenuation is shadowed, preserving baked light. */
+#ifndef HALO_GLES
+	if (key->modern_shadow == 1 || key->modern_shadow == 2)
+		xgpu_text_append(&text, "\tt%d *= modern_world((xT%d.xyz-vec3(0.5))*modern_extent,t%d);\n",
+			key->modern_shadow, key->modern_shadow, key->modern_shadow);
+#endif
 
 	/* the fog register: rgb is the fog color, alpha the fog factor */
 	if (key->fog_enable)
@@ -742,6 +842,7 @@ char *nv2a_pixel_shader_to_glsl(const struct nv2a_pixel_shader_key *key)
 		xgpu_text_append(&text, ";\n\tvec4 result = vec4(fA * fB + (1.0 - fA) * fC + fD, fG);\n");
 	}
 
+	if (key->modern_shadow == 4) xgpu_text_append(&text,"\tresult.rgb *= beam_visibility(beamWorldPosition);\n");
 	if (key->coverage_alpha)
 		xgpu_text_append(&text, "\tresult.a = mix(1.0, result.a, t0.g);\n");
 	if (key->alpha_test_function)

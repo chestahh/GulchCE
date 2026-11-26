@@ -128,6 +128,7 @@ static void *mcc_texture_register(void const *bitmap,unsigned long format,
     entry->next=mcc_gpu_textures[bucket];mcc_gpu_textures[bucket]=entry;
     bucket=mcc_texture_bucket(entry->header);
     entry->hardware_next=mcc_gpu_hardware[bucket];mcc_gpu_hardware[bucket]=entry;
+    xgpu_texture_lookups_changed();
     return entry->header;
 }
 
@@ -166,7 +167,7 @@ BOOL xgpu_mcc_texture_get(DWORD const *resource,D3DCOLOR const *palette,
         if (entry->hud_asset>=0 && config_boolean("display.high_res_hud")) {
             GLuint replacement=hud_hires_override_texture(entry->hud_asset,&description->levels);
             if (replacement) {
-                description->hires=TRUE;*texture=replacement;
+                description->hires=TRUE;description->base_opaque=FALSE;*texture=replacement;
                 return TRUE;
             }
             /* Allocation/upload failure retains the original descriptor. */
@@ -189,6 +190,7 @@ BOOL xgpu_mcc_texture_get(DWORD const *resource,D3DCOLOR const *palette,
             }
             else if (created) {glDeleteTextures(1,&created);xgpu_gl_state_invalidate();}
         }
+        description->base_opaque=entry->texture && entry->description.base_opaque;
         *texture=entry->texture;
         return TRUE;
     }
@@ -198,6 +200,7 @@ BOOL xgpu_mcc_texture_get(DWORD const *resource,D3DCOLOR const *palette,
 void mcc_texture_bridge_dispose(void)
 {
     unsigned long bucket;
+    xgpu_texture_lookups_changed();
     memset(mcc_gpu_hardware,0,sizeof(mcc_gpu_hardware));
     for (bucket=0;bucket<MCC_TEXTURE_BUCKETS;bucket++) {
         struct mcc_gpu_texture *entry=mcc_gpu_textures[bucket];
@@ -216,7 +219,7 @@ unsigned long mcc_texture_bridge_prepare(void const *bitmap, unsigned long budge
 #ifndef HALO_GLES
     struct mcc_gpu_texture *entry;
     for (entry=mcc_gpu_textures[mcc_texture_bucket(bitmap)];entry;entry=entry->next) {
-        struct xgpu_texture_description const *description=&entry->description;
+        struct xgpu_texture_description *description=&entry->description;
         unsigned long long estimate=0;
         unsigned long width,height,depth,level;
         GLuint created=0;

@@ -18,6 +18,7 @@ clip-space position again.
 */
 
 #include "xgpu.h"
+#include "plasma_model_shader.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -358,6 +359,8 @@ static const char shader_prologue[] =
 	"out vec4 xT2;\n"
 	"out vec4 xT3;\n"
 	"out float xFog;\n"
+	/* The shield surface uses the model UVs, without changing the original outputs. */
+	"out vec2 shield_uv;\n"
 	"invariant gl_Position;\n"
 	"vec4 unpack_normpacked3(uint p)\n"
 	"{\n"
@@ -372,6 +375,25 @@ static const char shader_prologue[] =
 	"	if (r > 0.0) r = clamp(r, 5.42101e-20, 1.884467e+19);\n"
 	"	else r = clamp(r, -1.884467e+19, -5.42101e-20);\n"
 	"	return vec4(r);\n"
+	"}\n"
+	/* rcp and rsq of zero are infinite on the NV2A, whose multiply takes
+	zero times infinity as zero: a program that scales a vector by the rsq of
+	its own length squared (the bumped lightmaps' incident radiosity,
+	nothing at a vertex of no one direction) gets the zero vector. In GLSL
+	that product is not a number, and so is every pixel of the triangles
+	that vertex is in, which each GPU draws as it will. The results are
+	kept as large as rcc's, and finite, so that zero times them is zero;
+	one gives exactly one, as on the NV2A. */
+	"vec4 nv2a_rcp(float x)\n"
+	"{\n"
+	"	if (x == 1.0) return vec4(1.0);\n"
+	"	return vec4(x != 0.0 ? clamp(1.0 / x, -1.884467e+19, 1.884467e+19) : 1.884467e+19);\n"
+	"}\n"
+	"vec4 nv2a_rsq(float x)\n"
+	"{\n"
+	"	float s = abs(x);\n"
+	"	if (s == 1.0) return vec4(1.0);\n"
+	"	return vec4(s > 0.0 ? min(inversesqrt(s), 1.884467e+19) : 1.884467e+19);\n"
 	"}\n"
 	"vec4 nv2a_exp(float x)\n"
 	"{\n"
@@ -467,12 +489,18 @@ static void reversed_depth_instruction(struct xgpu_text *text, const DWORD *inst
 }
 
 char *nv2a_vertex_shader_to_glsl(const DWORD *instructions, unsigned long instruction_count,
-	unsigned long packed_attribute_mask, const struct nv2a_vertex_lighting *lighting)
+	unsigned long packed_attribute_mask, const struct nv2a_vertex_lighting *lighting, BOOL plasma_model)
 {
 	struct xgpu_text text = { 0 };
 	unsigned long index;
 	struct reversed_depth_rows rows;
 	BOOL position_converted = FALSE, reversed_rows;
+#ifndef HALO_ANDROID
+	struct nv2a_vertex_lighting plasma_lighting;
+	plasma_model = plasma_model && nv2a_vertex_shader_lighting(instructions, instruction_count, &plasma_lighting) && plasma_lighting.lights == 2;
+#else
+	(void)plasma_model;
+#endif
 
 	rows.z_row = rows.w_row = -1;
 	rows.other = FALSE;
@@ -481,6 +509,15 @@ char *nv2a_vertex_shader_to_glsl(const DWORD *instructions, unsigned long instru
 	xgpu_text_append(&text, "#version %s\n", xgpu_capabilities.shading_language);
 #endif
 	xgpu_text_append(&text, "%s", shader_prologue);
+#ifndef HALO_ANDROID
+	if (plasma_model)
+		plasma_model_emit_uniform(&text);
+#endif
+#ifndef HALO_GLES
+	/* BSP lighting shaders receive world-space vertices in input zero. The
+	   linker discards this varying for materials without a beam receiver. */
+	xgpu_text_append(&text, "out vec3 beamWorldPosition;\n");
+#endif
 	/* (the pixel shader's model_lighting; the normal's length in w) */
 	if (lighting)
 		xgpu_text_append(&text, "out vec4 xWorldNormal;\n");
@@ -502,6 +539,9 @@ char *nv2a_vertex_shader_to_glsl(const DWORD *instructions, unsigned long instru
 		else
 			xgpu_text_append(&text, "\tvec4 v%lu = v%lu_in;\n", index, index);
 	}
+#ifndef HALO_GLES
+	xgpu_text_append(&text, "\tbeamWorldPosition = v0.xyz;\n");
+#endif
 	xgpu_text_append(&text,
 		"\tvec4 r0 = vec4(0.0), r1 = vec4(0.0), r2 = vec4(0.0), r3 = vec4(0.0);\n"
 		"\tvec4 r4 = vec4(0.0), r5 = vec4(0.0), r6 = vec4(0.0), r7 = vec4(0.0);\n"
@@ -546,6 +586,11 @@ char *nv2a_vertex_shader_to_glsl(const DWORD *instructions, unsigned long instru
 		xgpu_text_append(&text, "\tB = "); operand(&text, instruction, 'B', relative); xgpu_text_append(&text, ";\n");
 		xgpu_text_append(&text, "\tC = "); operand(&text, instruction, 'C', relative); xgpu_text_append(&text, ";\n");
 
+#ifndef HALO_ANDROID
+		if (plasma_model)
+			plasma_model_emit_vertex(&text, instruction, index, &plasma_lighting);
+#endif
+
 		switch (mac)
 		{
 		case _mac_nop: break;
@@ -568,9 +613,9 @@ char *nv2a_vertex_shader_to_glsl(const DWORD *instructions, unsigned long instru
 		{
 		case _ilu_nop: break;
 		case _ilu_mov: xgpu_text_append(&text, "\tilu = C;\n"); break;
-		case _ilu_rcp: xgpu_text_append(&text, "\tilu = vec4(1.0 / C.x);\n"); break;
+		case _ilu_rcp: xgpu_text_append(&text, "\tilu = nv2a_rcp(C.x);\n"); break;
 		case _ilu_rcc: xgpu_text_append(&text, "\tilu = nv2a_rcc(C.x);\n"); break;
-		case _ilu_rsq: xgpu_text_append(&text, "\tilu = vec4(inversesqrt(abs(C.x)));\n"); break;
+		case _ilu_rsq: xgpu_text_append(&text, "\tilu = nv2a_rsq(C.x);\n"); break;
 		case _ilu_exp: xgpu_text_append(&text, "\tilu = nv2a_exp(C.x);\n"); break;
 		case _ilu_log: xgpu_text_append(&text, "\tilu = nv2a_log(C.x);\n"); break;
 		case _ilu_lit: xgpu_text_append(&text, "\tilu = nv2a_lit(C);\n"); break;
@@ -709,6 +754,7 @@ char *nv2a_vertex_shader_to_glsl(const DWORD *instructions, unsigned long instru
 		"\txD1 = clamp(oD1, 0.0, 1.0);\n"
 		"\txB0 = clamp(oB0, 0.0, 1.0);\n"
 		"\txB1 = clamp(oB1, 0.0, 1.0);\n"
+		"\tshield_uv = v4.xy;\n"
 		"\txT0 = oT0;\n"
 		"\txT1 = oT1;\n"
 		"\txT2 = oT2;\n"
@@ -748,6 +794,7 @@ char *nv2a_fixed_function_glsl(void)
 		"\txD1 = clamp(v4_in, 0.0, 1.0);\n"
 		"\txB0 = vec4(0.0, 0.0, 0.0, 1.0);\n"
 		"\txB1 = vec4(0.0, 0.0, 0.0, 1.0);\n"
+		"\tshield_uv = vec2(0.0);\n"
 		"\txT0 = v9_in;\n"
 		"\txT1 = v10_in;\n"
 		"\txT2 = v11_in;\n"
@@ -755,6 +802,6 @@ char *nv2a_fixed_function_glsl(void)
 		"\txFog = 1.0;\n"
 		"}\n",
 		/* (display.reversed_depth) */
-		xgpu_reversed_depth ? "\tgl_Position.z = gl_Position.w - gl_Position.z;\n" : "");
+		xgpu_reversed_depth ? "\tgl_Position.z = gl_Position.w - gl_Position.z + depth_bias * gl_Position.w;\n" : "");
 	return text.buffer;
 }

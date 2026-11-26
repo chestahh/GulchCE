@@ -219,6 +219,11 @@ symbols in this file:
 #include "rasterizer_console_vars.h"
 #include "rasterizer_geometry.h"
 #include "rasterizer_xbox_draw_primitives.h"
+#ifdef HALO_WINDOWS
+#include "bsp_light_index_batch.h" /* port: per-light index uploads */
+#include "modern_shadows.h" /* port: active shadow mode */
+#include "plasma_lighting.h" /* port: selected dynamic-light sources */
+#endif
 /* The January object retains out-of-line copies of the D3D inline wrappers.
  * The stock XDK definition of D3DINLINE (static __forceinline) reproduces all
  * of them; do not replace them with handwritten Microsoft dispatchers, take
@@ -1261,6 +1266,23 @@ void rasterizer_draw_dynamic_triangles_dynamic_vertices(
 	return;
 }
 
+#ifdef HALO_WINDOWS
+/* port: this module owns the bounds and CPU storage of the triangle buffer. */
+void bsp_light_index_batch_begin(long index, long light)
+{
+	if (index >= 0 && index < dynamic_triangles.buffer_count &&
+		(modern_shadows_enabled() || plasma_lighting_selected(light)))
+	{
+		struct dynamic_triangle_buffer *buffer = &dynamic_triangles.buffers[index];
+		bsp_light_index_batch_set(buffer->triangles, buffer->triangle_count * sizeof(struct rasterizer_triangle));
+	}
+	else
+	{
+		bsp_light_index_batch_set(NULL, 0);
+	}
+}
+#endif
+
 void rasterizer_draw_dynamic_triangles_static_vertices(
 	long dynamic_triangle_buffer_index,
 	long first_triangle_index,
@@ -1879,6 +1901,8 @@ void rasterizer_draw(
 	struct vertex_buffer const *vertex_buffer,
 	long dynamic_vertex_buffer_index)
 {
+	/* port: select/compile loading-time materials without submitting geometry. */
+	if (material_prepare_draw()) return;
 	match_assert(
 		RASTERIZER_XBOX_DRAW_PRIMITIVES_FILE,
 		1145,

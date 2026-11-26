@@ -1884,6 +1884,40 @@ void progress_bar_display(
 	return;
 }
 
+/* port: map loading may present the stock effect without a gameplay frame, widgets,
+   or a depth attachment inherited from the previous scene. */
+int progress_bar_present_standalone(real progress)
+{
+    D3DVIEWPORT8 viewport;
+    IDirect3DSurface8 *surface;
+    D3DSURFACE_DESC description;
+    if (!global_d3d_device) return 0;
+    surface = NULL;
+    if (IDirect3DDevice8_GetBackBuffer(global_d3d_device, 0, 0, &surface) < 0 || !surface) {
+        return 0;
+    }
+    if (IDirect3DSurface8_GetDesc(surface, &description) < 0) {
+        IDirect3DSurface8_Release(surface);
+        return 0;
+    }
+    /* A standalone draw can inherit a prior scene's offscreen/depth targets.
+     * The effect needs only the backbuffer; its capture must not pair that
+     * buffer with an unrelated depth surface. The next game window installs
+     * its own color/depth targets through the ordinary rasterizer setup. */
+    IDirect3DDevice8_SetRenderTarget(global_d3d_device, surface, NULL);
+    IDirect3DSurface8_Release(surface);
+    memset(&viewport, 0, sizeof(viewport));
+    viewport.Width = description.Width;
+    viewport.Height = description.Height;
+    viewport.MaxZ = 1.f;
+    IDirect3DDevice8_SetViewport(global_d3d_device, &viewport);
+    IDirect3DDevice8_BeginScene(global_d3d_device);
+    progress_bar_display(progress);
+    IDirect3DDevice8_EndScene(global_d3d_device);
+    IDirect3DDevice8_Present(global_d3d_device, NULL, NULL, NULL, NULL);
+    return 1;
+}
+
 /* ---------- private code */
 
 void to_screen(

@@ -7,6 +7,8 @@ An Xbox texture is a Direct3D header - Common, Data (physical address),
 Lock, Format and Size - over texels in guest memory. Power-of-two textures
 are swizzled (Morton order, one level after another); textures with a Size
 field are linear, with a pitch, and are addressed with texel coordinates.
+The port also uses Size for bounded CE non-power-of-two DXT textures;
+these retain normalized coordinates and tightly packed compressed blocks.
 DXT textures are stored as plain 4x4 blocks. Everything except DXT is
 converted to 32-bit BGRA on upload.
 
@@ -19,6 +21,7 @@ memory_watch.c detects that by write-protecting the pages.
 #include "menu_files.h"
 #include "text_hires.h"
 #include "port_config.h"
+#include "modern_shadows.h"
 #include "../game/cache_file_formats.h"
 
 #include <SDL3/SDL.h>
@@ -166,7 +169,11 @@ void xgpu_texture_describe(DWORD format_word, DWORD size_word, struct xgpu_textu
 		description->depth = 1;
 		description->levels = 1;
 		description->pitch = (((size_word & D3DSIZE_PITCH_MASK) >> D3DSIZE_PITCH_SHIFT) + 1) * D3DTEXTURE_PITCH_ALIGNMENT;
-		description->linear = TRUE;
+		/* port: a compressed texture is never linear on an Xbox (it has no
+		linear DXT formats), so a Size word on one only gives the true sides
+		of a Custom Edition bitmap that is not a power of two; it is addressed
+		with normalized coordinates like any compressed texture */
+		description->linear = !description->compressed;
 	}
 	else
 	{
@@ -414,12 +421,32 @@ static BOOL decode_level(const struct xgpu_texture_description *description, uns
 			for (y = 0; y < height; y++)
 			{
 				unsigned long y_offset = spread(masks.y, y) | z_offset;
+				unsigned long *row = destination + (z * height + y) * width;
 
-				for (x = 0; x < width; x++)
+				/* port: the commonest kinds a row at a time, without
+				convert_texel's switch for each texel (the same texels: a
+				level start's palettized and 32-bit textures were 3 ms
+				each to convert) */
+				if (information.kind == _texel_p8 && palette)
 				{
-					const unsigned char *texel = source + (x_offsets[x] | y_offset) * information.bytes;
+					for (x = 0; x < width; x++)
+						row[x] = palette[source[x_offsets[x] | y_offset]];
+				}
+				else if (information.kind == _texel_a8r8g8b8 || information.kind == _texel_x8r8g8b8)
+				{
+					unsigned long or_mask = information.kind == _texel_x8r8g8b8 ? 0xff000000UL : 0;
 
-					destination[(z * height + y) * width + x] = convert_texel(information.kind, texel, palette, x, texel);
+					for (x = 0; x < width; x++)
+						row[x] = TEXEL32(source + (x_offsets[x] | y_offset) * 4) | or_mask;
+				}
+				else
+				{
+					for (x = 0; x < width; x++)
+					{
+						const unsigned char *texel = source + (x_offsets[x] | y_offset) * information.bytes;
+
+						row[x] = convert_texel(information.kind, texel, palette, x, texel);
+					}
 				}
 			}
 		}
@@ -862,8 +889,28 @@ static unsigned long custom_edition_texel_capacity;
 
 static int custom_edition_hud_meter_active;
 
+/* changes whenever looking a texture header up again might give something
+other than it gave: a texture dropped, a frame begun, a replacement (high-res
+text, menu art, a HUD placeholder, an MCC texture, a render target) or a
+texel order registered, the meter's channels turned on or off. Until it
+does, and while no watched page is written, a lookup that gave the
+texture's own pixels (xgpu_texture_description.direct) gives them again. */
+static unsigned long texture_lookup_serial = 1;
+
+void xgpu_texture_lookups_changed(void)
+{
+	texture_lookup_serial++;
+}
+
+unsigned long xgpu_texture_lookup_serial(void)
+{
+	return texture_lookup_serial;
+}
+
 void halo_custom_edition_hud_meter(int active)
 {
+	if (custom_edition_hud_meter_active != active)
+		texture_lookup_serial++;
 	custom_edition_hud_meter_active = active;
 }
 
@@ -885,6 +932,7 @@ void halo_custom_edition_texels_channels(const void *texels, unsigned char chann
 	unsigned long address = (unsigned long)texels;
 	unsigned long index;
 
+	texture_lookup_serial++;
 	if (channel_order >= NUMBER_OF_CUSTOM_EDITION_CHANNEL_ORDERS)
 		channel_order = _custom_edition_channels_xbox;
 	for (index = 0; index < custom_edition_texel_count && custom_edition_texels[index].address != address; index++)
@@ -921,6 +969,7 @@ void halo_custom_edition_texels_channels(const void *texels, unsigned char chann
 
 void halo_custom_edition_texels_forget(void)
 {
+	texture_lookup_serial++;
 	custom_edition_hud_meter_active = 0;
 	free(custom_edition_texels);
 	custom_edition_texels = NULL;
@@ -929,7 +978,63 @@ void halo_custom_edition_texels_forget(void)
 }
 
 
-static void upload(GLuint texture, GLenum target, const struct xgpu_texture_description *description,
+#ifndef HALO_GLES
+/* The shadow sampler uses linear filtering at level zero. Full alpha at every
+   texel also proves full alpha between texels. Padding in partial DXT blocks
+   may conservatively keep a texture on the sampled path. */
+static BOOL base_level_opaque(unsigned char kind, const unsigned char *source,
+	const unsigned long *converted, unsigned long width, unsigned long height)
+{
+	unsigned long i, count;
+	if (converted)
+	{
+		count = width * height;
+		for (i = 0; i < count; i++)
+			if ((converted[i] >> 24) != 255) return FALSE;
+		return count != 0;
+	}
+	count = ((width + 3) / 4) * ((height + 3) / 4);
+	for (i = 0; i < count; i++)
+	{
+		unsigned int j;
+		if (kind == _texel_dxt1)
+		{
+			unsigned int c0 = source[0] | (source[1] << 8);
+			unsigned int c1 = source[2] | (source[3] << 8);
+			if (c0 <= c1)
+				for (j = 4; j < 8; j++)
+					if (source[j] & (source[j] >> 1) & 0x55) return FALSE;
+			source += 8;
+		}
+		else if (kind == _texel_dxt3)
+		{
+			for (j = 0; j < 8; j++)
+				if (source[j] != 255) return FALSE;
+			source += 16;
+		}
+		else if (kind == _texel_dxt5)
+		{
+			/* With equal white endpoints the interpolants are white too.
+			   In six-alpha mode index 6 is black and index 7 is white. */
+			unsigned int white = (source[0] == 255) | ((source[1] == 255) << 1);
+			if (white == 3) white |= 0x3c;
+			if (source[0] <= source[1]) white |= 0x80;
+			for (j = 2; j < 8; j += 3)
+			{
+				unsigned int k, bits = source[j] | (source[j+1] << 8) | (source[j+2] << 16);
+				for (k = 0; k < 8; k++, bits >>= 3)
+					if (!(white & (1u << (bits & 7)))) return FALSE;
+			}
+			source += 16;
+		}
+		else return FALSE;
+	}
+	return count != 0;
+}
+
+#endif
+
+static void upload(GLuint texture, GLenum target, struct xgpu_texture_description *description,
 	const unsigned char *base, const D3DCOLOR *palette, unsigned char channel_order)
 {
 	struct format_information information = format_information(description->format);
@@ -937,6 +1042,9 @@ static void upload(GLuint texture, GLenum target, const struct xgpu_texture_desc
 	unsigned long face_size = xgpu_texture_face_size(description);
 	unsigned long largest = description->width * description->height * description->depth;
 	BOOL decode_compressed = FALSE;
+#ifndef HALO_GLES
+	BOOL base_opaque = FALSE;
+#endif
 	unsigned long *converted;
 	unsigned char *astc = NULL;
 	unsigned long face, level;
@@ -1090,16 +1198,28 @@ static void upload(GLuint texture, GLenum target, const struct xgpu_texture_desc
 				else
 					glTexImage2D(image_target, (GLint)level, GL_RGBA8, width, height, 0, GL_BGRA, GL_UNSIGNED_BYTE, converted);
 			}
+#ifndef HALO_GLES
+			if (level == 0 && target == GL_TEXTURE_2D && modern_shadows_enabled() && custom_edition_channel_sources[channel_order][3] == 3 && information.kind != _texel_p8)
+				base_opaque = base_level_opaque(information.kind, source, converted, width, height);
+#endif
 		}
 	}
 	free(converted);
 	free(astc);
+#ifndef HALO_GLES
+	if (base_opaque)
+	{
+		GLenum error = glGetError();
+		if (error == GL_NO_ERROR) description->base_opaque = TRUE;
+		else platform_log("textures: opacity unknown after GL error %lx", (unsigned long)error);
+	}
+#endif
 	texture_dump(target, description);
 }
 
 /* MCC bounded immutable upload. The original guest-memory uploader above
  * remains unchanged; native format decoding is shared, ownership is separate. */
-BOOL xgpu_mcc_texture_upload(GLuint texture, GLenum target, const struct xgpu_texture_description *description,
+BOOL xgpu_mcc_texture_upload(GLuint texture, GLenum target, struct xgpu_texture_description *description,
 	void const *pixels, unsigned long bytes, const D3DCOLOR *palette)
 {
 	const unsigned char *base = pixels;
@@ -1108,10 +1228,14 @@ BOOL xgpu_mcc_texture_upload(GLuint texture, GLenum target, const struct xgpu_te
 	unsigned long face_size = xgpu_texture_face_size(description);
 	unsigned long largest = description->width * description->height * description->depth;
 	BOOL decode_compressed = FALSE;
+#ifndef HALO_GLES
+	BOOL base_opaque = FALSE;
+#endif
 	unsigned long *converted;
 	unsigned long face, level;
 	GLenum gl_error;
 	GLint maximum;
+	description->base_opaque = FALSE;
 	/* MCC effects can use a 15360-pixel strip. Keep the legacy texture cache's
 	 * size policy unchanged; this entry point owns only checked MCC pixels. */
 	if (!base || !description->width || !description->height || !description->depth ||
@@ -1227,6 +1351,10 @@ BOOL xgpu_mcc_texture_upload(GLuint texture, GLenum target, const struct xgpu_te
 				else
 					glTexImage2D(image_target, (GLint)level, GL_RGBA8, width, height, 0, GL_BGRA, GL_UNSIGNED_BYTE, converted);
 			}
+#ifndef HALO_GLES
+			if (level == 0 && target == GL_TEXTURE_2D && modern_shadows_enabled() && information.kind != _texel_p8)
+				base_opaque = base_level_opaque(information.kind, source, converted, width, height);
+#endif
 		}
 	}
 	free(converted);
@@ -1235,6 +1363,9 @@ BOOL xgpu_mcc_texture_upload(GLuint texture, GLenum target, const struct xgpu_te
 		platform_log("mcc textures: upload failed, GL error %lx", (unsigned long)gl_error);
 		return FALSE;
 	}
+#ifndef HALO_GLES
+	description->base_opaque = base_opaque;
+#endif
 	texture_dump(target, description);
 	return TRUE;
 }
@@ -1321,6 +1452,43 @@ static unsigned long palette_hash(const D3DCOLOR *palette)
 	return hash ? hash : 1;
 }
 
+/* Draws bind the same few palettes again and again. Each is remembered with
+a copy of its colors: comparing them is several times faster than hashing
+them again (each step of the hash waits on the one before), and finds a
+palette rewritten in place as surely as hashing it does. */
+#define RECENT_PALETTE_COUNT 16
+
+static struct
+{
+	const D3DCOLOR *address;
+	unsigned long hash;
+	D3DCOLOR colors[256];
+} recent_palettes[RECENT_PALETTE_COUNT];
+
+static unsigned long palette_hash_recent(const D3DCOLOR *palette)
+{
+	unsigned long slot, index;
+	D3DCOLOR difference = 0;
+
+	if (!palette)
+		return 0;
+	/* (every bit of the address mixed into the top ones: palettes may lie a
+	palette or a page apart) */
+	slot = ((((unsigned long)palette >> 6) * 2654435761UL & 0xffffffffUL) >> 24) % RECENT_PALETTE_COUNT;
+	if (recent_palettes[slot].address == palette)
+	{
+		/* (every color compared, without stopping early: it vectorizes) */
+		for (index = 0; index < 256; index++)
+			difference |= recent_palettes[slot].colors[index] ^ palette[index];
+		if (!difference)
+			return recent_palettes[slot].hash;
+	}
+	memcpy(recent_palettes[slot].colors, palette, sizeof(recent_palettes[slot].colors));
+	recent_palettes[slot].address = palette;
+	recent_palettes[slot].hash = palette_hash(recent_palettes[slot].colors);
+	return recent_palettes[slot].hash;
+}
+
 #ifdef HALO_ANDROID
 void android_ce_texture_gpu_forget(const void *resource)
 {
@@ -1335,8 +1503,9 @@ void android_ce_texture_gpu_forget(const void *resource)
 			*link = entry->next;
 			glDeleteTextures(1, &entry->texture);
 			if (entry->hud_upscale)
-				glDeleteTextures(1, &entry->hud_upscale);
+				hud_hires_upscale_release(entry->hud_upscale);
 			texture_drop_serial++;
+			texture_lookup_serial++;
 			free(entry);
 		}
 		else
@@ -1357,6 +1526,7 @@ static BOOL texture_entry_pixels_valid(const struct texture_entry *entry)
 	return platform_is_contiguous((void *)entry->address) &&
 		platform_is_contiguous((void *)(entry->address + entry->size - 1));
 }
+
 /* display.high_res_hud, read again only when a setting changes: it is asked
 at every bind, and config_boolean takes the settings' lock and looks the name
 up among them all */
@@ -1380,6 +1550,9 @@ static GLuint texture_entry_result(struct texture_entry *entry, GLenum *target,
 {
 	*target = entry->target;
 	*description = entry->description;
+
+	/* Linear textures retain texel coordinates, including the loading art
+	and mask. bind_textures normalizes them using these dimensions. */
 	/* (the high-res text's atlas, for its placeholder bitmap: text_hires.h) */
 	{
 		GLuint atlas = text_hires_atlas_texture(entry->data);
@@ -1466,6 +1639,20 @@ static GLuint texture_entry_result(struct texture_entry *entry, GLenum *target,
 	return entry->texture;
 }
 
+/* texture_entry_result, saying whether it gave the texture's own pixels as
+they are, which the same lookup gives again while xgpu_texture_lookup_serial
+and the memory watch serial stay the same */
+static GLuint texture_entry_given(struct texture_entry *entry, BOOL palettized, BOOL no_cache, GLenum *target,
+	struct xgpu_texture_description *description)
+{
+	GLuint texture = texture_entry_result(entry, target, description);
+
+	description->direct = texture == entry->texture && !palettized && !no_cache && !description->hires &&
+		!description->ce_meter_channels;
+	description->base_opaque &= description->direct;
+	return texture;
+}
+
 GLuint xgpu_texture_get(const DWORD *resource, const D3DCOLOR *palette, GLenum *target,
 	struct xgpu_texture_description *description)
 {
@@ -1494,7 +1681,7 @@ GLuint xgpu_texture_get(const DWORD *resource, const D3DCOLOR *palette, GLenum *
 	data = resource[1]; format_word = resource[3]; size_word = resource[4];
 	bucket = &texture_buckets[bucket_index(data, format_word, size_word)];
 	palettized = ((format_word & D3DFORMAT_FORMAT_MASK) >> D3DFORMAT_FORMAT_SHIFT) == 0x0b;
-	hash = palettized ? palette_hash(palette) : 0;
+	hash = palettized ? palette_hash_recent(palette) : 0;
 	recent = bucket_index(data, format_word, size_word) % RECENT_TEXTURE_COUNT;
 	watch_serial = memory_watch_serial();
 #ifdef HALO_ANDROID
@@ -1516,7 +1703,7 @@ GLuint xgpu_texture_get(const DWORD *resource, const D3DCOLOR *palette, GLenum *
 		if (recent_textures[recent].watch_serial == watch_serial)
 		{
 			entry->last_used_frame = texture_frame;
-			return texture_entry_result(entry, target, description);
+			return texture_entry_given(entry, FALSE, FALSE, target, description);
 		}
 	}
 
@@ -1582,7 +1769,7 @@ GLuint xgpu_texture_get(const DWORD *resource, const D3DCOLOR *palette, GLenum *
 		}
 		entry->generation = 0;
 		entry->override = -1;
-		glGenTextures(1, &entry->texture);
+		entry->texture = xgpu_texture_name_new();
 		entry->next = *bucket;
 		*bucket = entry;
 	}
@@ -1622,7 +1809,7 @@ GLuint xgpu_texture_get(const DWORD *resource, const D3DCOLOR *palette, GLenum *
 		/* (which bitmap is here may have changed with the pixels) */
 		if (entry->hud_upscale)
 		{
-			glDeleteTextures(1, &entry->hud_upscale);
+			hud_hires_upscale_release(entry->hud_upscale);
 			entry->hud_upscale = 0;
 			xgpu_gl_state_invalidate();
 		}
@@ -1637,6 +1824,11 @@ GLuint xgpu_texture_get(const DWORD *resource, const D3DCOLOR *palette, GLenum *
 				xgpu_texture_level_offset(&entry->description, 1) : xgpu_texture_face_size(&entry->description));
 			if (entry->override >= 0 && !hud_hires_override_texture(entry->override, &levels))
 				entry->override = -1;
+		}
+		if (entry->description.base_opaque)
+		{
+			entry->description.base_opaque = FALSE;
+			xgpu_texture_lookups_changed(); /* invalidate proofs on already queued draws */
 		}
 		if (entry->override < 0 && entry->size && texture_entry_pixels_valid(entry))
 		{
@@ -1657,6 +1849,9 @@ GLuint xgpu_texture_get(const DWORD *resource, const D3DCOLOR *palette, GLenum *
 			}
 			upload(entry->texture, entry->target, &entry->description, (const unsigned char *)entry->address, palette,
 				custom_edition_texels_order(entry->address));
+			/* A guest write during transfer makes the classification uncertain. */
+			if (entry->description.base_opaque && watch_serial != memory_watch_serial())
+				entry->description.base_opaque = FALSE;
 			xgpu_statistics_texture_upload(entry->size);
 		}
 	}
@@ -1673,7 +1868,7 @@ GLuint xgpu_texture_get(const DWORD *resource, const D3DCOLOR *palette, GLenum *
 		recent_textures[recent].ce_resource = ce_resource;
 #endif
 	}
-	return texture_entry_result(entry, target, description);
+	return texture_entry_given(entry, palettized, no_cache != 0, target, description);
 }
 
 void xgpu_texture_cache_begin_frame(void)
@@ -1682,6 +1877,8 @@ void xgpu_texture_cache_begin_frame(void)
 	unsigned long changed = hud_hires_settings_changed();
 	Uint64 now;
 
+	/* (and each texture's last use is counted again: a lookup each frame) */
+	texture_lookup_serial++;
 	/* Refresh only map bitmaps belonging to the setting that changed. Keep
 	 * decoded replacement art and world textures; rebuild native pixels on
 	 * demand too, since an override may have skipped their first upload. */
@@ -1726,9 +1923,10 @@ void xgpu_texture_cache_begin_frame(void)
 				*link = entry->next;
 				glDeleteTextures(1, &entry->texture);
 				if (entry->hud_upscale)
-					glDeleteTextures(1, &entry->hud_upscale);
+					hud_hires_upscale_release(entry->hud_upscale);
 				xgpu_gl_state_invalidate();
 				texture_drop_serial++;
+				texture_lookup_serial++;
 				free(entry);
 			}
 			else

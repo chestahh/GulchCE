@@ -130,6 +130,8 @@ static const struct config_setting config_settings[] =
 	{ "display.max_fps", _config_integer, "0", "HALO_MAX_FPS", _environment_value, _platform_all,
 		"With vsync off, the most frames a second: 0 for twice the display's\n"
 		"refresh rate, -1 for no limit (which can hang some Intel graphics)." },
+	{ "display.performance_cores_only", _config_boolean, "false", "HALO_PERFORMANCE_CORES_ONLY", _environment_value,
+		_platform_windows, "Use only available performance cores on a supported hybrid CPU. Takes effect at next launch." },
 	{ "display.frames_in_flight", _config_integer, "3", "HALO_FRAMES_IN_FLIGHT", _environment_value,
 		_platform_desktop,
 		"The most frames the GPU has queued (1 to 8): a frame waits for the GPU\n"
@@ -221,8 +223,14 @@ static const struct config_setting config_settings[] =
 		"and glow trails. False keeps the central 4:3 framing." },
 	{ "display.shadow_resolution", _config_integer, "128", "HALO_SHADOW_RESOLUTION", _environment_value,
 		_platform_all,
-		"The size the objects' shadows are drawn at, in pixels each way: 128 as\n"
-		"on the Xbox, or 256, 512 or 1024 for smoother edges, as soft." },
+		"The most the objects' shadows are drawn at, in pixels each way: 128 as\n"
+		"on the Xbox, or 256, 512 or 1024 for smoother edges, as soft. Each\n"
+		"stock shadow is sized for the object. Modern maps also accept 2048." },
+	{ "display.shadow_map_reuse", _config_boolean, "false", "HALO_SHADOW_MAP_REUSE", _environment_value,
+		_platform_all,
+		"True: a small shadow's map is drawn every other frame, the frame\n"
+		"between projecting the one kept where its object is now. Less GPU time\n"
+		"with many shadows in view. False: each shadow's map each frame." },
 	{ "display.menus", _config_string, "\"pc\"", "HALO_MENUS", _environment_value, _platform_all,
 		"The menus: \"pc\" for the PC version's main menu (port/assets/menus,\n"
 		"and a menus folder here for your own), \"xbox\" for the Xbox's." },
@@ -274,10 +282,18 @@ static const struct config_setting config_settings[] =
 		"Keep the GPU programs the game links under the save root (shader_cache),\n"
 		"and load them from there next time instead of linking them again, which\n"
 		"stalls a frame on some drivers; false links each every run." },
+	{ "display.shader_prepare", _config_boolean, "false", "HALO_SHADER_PREPARE", _environment_value, _platform_desktop,
+		"Prepare observed shader pairs and bounded opaque/transparent material\n"
+		"variants while loading. Uses recipe files in shader_cache and can\n"
+		"extend loading. Effects outside this pass still prepare on first use." },
 	{ "display.mcc_texture_prepare_mb", _config_integer, "0", "HALO_MCC_TEXTURE_PREPARE_MB", _environment_value, _platform_desktop,
 		"MCC only: prepare large non-paletted textures during loading, within\n"
 		"this estimated GPU memory budget in MiB (0 disables, maximum 512).\n"
 		"Does not change texture quality or the Xbox/Custom Edition caches." },
+	{ "display.texture_prepare_mb", _config_integer, "0", "HALO_TEXTURE_PREPARE_MB", _environment_value, _platform_desktop,
+		"Xbox/Custom Edition: prepare non-paletted textures while loading.\n"
+		"Budget in MiB (0 disables, maximum 128), conservatively accounting\n"
+		"for both guest and GPU storage. MCC uses its own preparation budget." },
 	{ "display.stats_log", _config_boolean, "false", "HALO_STATS_LOG", _environment_value, _platform_all,
 		"A line a second in the log with the frame rate, the mode, the map, the\n"
 		"renderer and the size of the 3D view, so a graphics bug's report or two\n"
@@ -552,6 +568,47 @@ static const struct config_setting config_settings[] =
 	{ "display.first_person_legs", _config_boolean, "false", "HALO_FIRST_PERSON_LEGS", _environment_value, _platform_all,
 		"Your own legs in first person, seen looking down: your body as others\n"
 		"see it, drawn from the waist down, moving as it moves." },
+	{ "display.environment_fixtures", _config_boolean, "false", "HALO_ENVIRONMENT_FIXTURES", _environment_value, _platform_desktop,
+		"Independent Modern shadows from up to two nearby baked indoor emitters." },
+	{ "display.flashlight_shadows", _config_boolean, "false", "HALO_FLASHLIGHT_SHADOWS", _environment_value, _platform_desktop,
+		"Shadow the direct beam of the active flashlight with its own depth map." },
+	{ "display.flashlight_extra_slot", _config_boolean, "false", "HALO_FLASHLIGHT_EXTRA_SLOT", _environment_value, _platform_desktop,
+		"Give an active shadowed flashlight an extra slot alongside all eight other local lights." },
+	{ "display.environment_sun", _config_boolean, "false", "HALO_ENVIRONMENT_SUN", _environment_value, _platform_desktop,
+		"Directional sun shadows on eligible nearby map geometry and objects in Modern Hard and Soft." },
+	{ "display.environment_distant_sun", _config_boolean, "false", "HALO_ENVIRONMENT_DISTANT_SUN", _environment_value, _platform_desktop,
+		"Extend Sun Shadows into the distance and toward scoped targets. Applies on the next map load." },
+	{ "display.modern_shadows", _config_string, "\"off\"", "HALO_MODERN_SHADOWS", _environment_value, _platform_desktop,
+		"Rendered shadows for up to eight enabled dynamic lights: \"off\",\n"
+		"\"hard\" or \"soft\". Changes apply on the next map load. Desktop only." },
+	{ "display.plasma_occlusion", _config_boolean, "false", "HALO_PLASMA_OCCLUSION", _environment_value, _platform_desktop,
+		"Collision-filtered projectile, Covenant emitter and Shield Glow visibility.\n"
+		"Off preserves unoccluded plasma lighting. At most eight occluded lights." },
+	{ "display.jackal_shield_lighting", _config_boolean, "false", "HALO_JACKAL_SHIELD_LIGHTING", _environment_value, _platform_desktop,
+		"Soft illumination from visible Jackal shields, following their colour and pose.\n"
+		"Stock shield effects remain intact. Optional occlusion uses plasma_occlusion." },
+	{ "display.weapon_glow", _config_boolean, "false", "HALO_WEAPON_GLOW", _environment_value, _platform_desktop,
+		"Held energy weapons cast soft light. Disabled by default." },
+	{ "display.vehicle_lighting", _config_boolean, "false", "HALO_VEHICLE_LIGHTING", _environment_value, _platform_desktop,
+		"Vehicle engines and headlights illuminate nearby surfaces. Disabled by default." },
+	{ "display.world_lighting", _config_boolean, "false", "HALO_WORLD_LIGHTING", _environment_value, _platform_desktop,
+		"Visible powerups and teleporters cast soft light. Disabled by default." },
+	{ "display.needler_lighting", _config_boolean, "false", "HALO_NEEDLER_LIGHTING", _environment_value, _platform_desktop,
+	  "Soft pink-purple spill and luminous crystals on held Needlers." },
+	{ "display.ammo_counter_lighting", _config_boolean, "false", "HALO_AMMO_COUNTER_LIGHTING", _environment_value, _platform_desktop,
+	  "Blue spill and screen emission from held Assault Rifle ammo counters (off by default)." },
+	{ "display.fuel_rod_lighting", _config_boolean, "false", "HALO_FUEL_ROD_LIGHTING", _environment_value, _platform_desktop,
+		"Soft green illumination from exposed Grunt and Hunter fuel rods.\n"
+		"Stock weapon effects remain intact. Optional occlusion uses plasma_occlusion." },
+	{ "display.covenant_shield_lighting", _config_boolean, "false", "HALO_COVENANT_SHIELD_LIGHTING", _environment_value, _platform_desktop,
+		"Soft illumination from active stationary Covenant shield emitters.\n"
+		"Stock shield effects remain intact. Optional occlusion uses plasma_occlusion." },
+	{ "display.muzzle_lighting", _config_boolean, "false", "HALO_MUZZLE_LIGHTING", _environment_value, _platform_desktop,
+		"Optional soft muzzle illumination with a smooth render-time fade.\n"
+		"Stock flash effects remain intact. Off keeps stock lighting." },
+	{ "display.plasma_lighting", _config_boolean, "false", "HALO_PLASMA_LIGHTING", _environment_value, _platform_desktop,
+		"Supported plasma, Covenant and rocket flight lights follow rendered poses\n"
+		"with soft world/model falloff and omni highlights. Off keeps stock lighting." },
 	{ "display.overshield_effect", _config_boolean, "false", "HALO_OVERSHIELD_EFFECT", _environment_value, _platform_all,
 		"The overshield as this machine draws it: its flare rising up the body as\n"
 		"it charges (2 seconds, 3 from a shield that was down) and staying lit,\n"
@@ -560,12 +617,12 @@ static const struct config_setting config_settings[] =
 		"plays on an Elite's shield. Only what is drawn and heard changes.\n"
 		"In a network game, the host's network.shield_effects decides, unless\n"
 		"it is \"players\" (each player's own) or the game is co-op." },
-	{ "display.shield_glow", _config_boolean, "false", "HALO_SHIELD_GLOW", _environment_value, _platform_all,
+	{ "display.shield_glow", _config_boolean, "false", "HALO_SHIELD_GLOW", _environment_value, _platform_desktop,
 		"Energy shields light what is around them as they flare, as plasma\n"
 		"does, in the shield's own color. In a network game, the host's\n"
 		"network.shield_effects decides, unless it is \"players\" (each\n"
 		"player's own) or the game is co-op." },
-	{ "display.shield_glow_intensity", _config_string, "\"default\"", "HALO_SHIELD_GLOW_INTENSITY", _environment_value, _platform_all,
+	{ "display.shield_glow_intensity", _config_string, "\"default\"", "HALO_SHIELD_GLOW_INTENSITY", _environment_value, _platform_desktop,
 		"How far the shield glow reaches: \"default\" or \"light_show\" (three\n"
 		"times as far, and at full strength from a third of the flare).\n"
 		"In a network game, the host's network.shield_effects decides, unless\n"

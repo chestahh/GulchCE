@@ -40,6 +40,12 @@ boolean collision_model_test_point(
 	struct collision_model_instance const *instance,
 	real_point3d const *point);
 
+/* port: share the node broad-phase with the render-only collision ray batch. */
+struct collision_bsp;
+boolean collision_bsp_bounds_cache_sphere(struct collision_bsp const *bsp, real_point3d *center, real *radius);
+boolean collision_model_port_vector_near_sphere(real_point3d const *point, real_vector3d const *vector,
+    real maximum_t, real_point3d const *center, real radius);
+
 boolean collision_model_test_vector(
 		struct collision_model_instance const *instance,
 		unsigned long flags,

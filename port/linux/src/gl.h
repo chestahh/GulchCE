@@ -103,6 +103,7 @@ this list to generate the guest's entry points */
 	X(glBindBufferBase) \
 	X(glBindBufferRange) \
 	X(glGenVertexArrays) \
+	X(glDeleteVertexArrays) \
 	X(glBindVertexArray) \
 	X(glEnableVertexAttribArray) \
 	X(glDisableVertexAttribArray) \
@@ -125,6 +126,7 @@ this list to generate the guest's entry points */
 	X(glLinkProgram) \
 	X(glGetProgramiv) \
 	X(glGetProgramInfoLog) \
+	X(glDeleteProgram) \
 	X(glUseProgram) \
 	X(glGetUniformLocation) \
 	X(glUniform1i) \
@@ -149,6 +151,9 @@ context has the extension, never required (gl_functions.c). On ES 3.0 and
 	X(glGetString) \
 	X(glGetIntegerv) \
 	X(glGetTexImage) \
+	X(glReadBuffer) \
+	X(glUniformMatrix4fv) \
+	X(glDeleteSamplers) \
 	X(glCopyImageSubData) \
 	X(glGenerateMipmap) \
 	X(glGetError) \
@@ -216,10 +221,12 @@ context has the extension, never required (gl_functions.c). On ES 3.0 and
 	X(glBindBuffer) \
 	X(glBufferData) \
 	X(glBufferSubData) \
+	X(glGetBufferParameteriv) \
 	X(glBufferStorage) \
 	X(glMapBufferRange) \
 	X(glBindBufferBase) \
 	X(glGenVertexArrays) \
+	X(glDeleteVertexArrays) \
 	X(glBindVertexArray) \
 	X(glEnableVertexAttribArray) \
 	X(glDisableVertexAttribArray) \
@@ -229,6 +236,7 @@ context has the extension, never required (gl_functions.c). On ES 3.0 and
 	X(glVertexAttribIFormat) \
 	X(glVertexAttribBinding) \
 	X(glBindVertexBuffer) \
+	X(glFramebufferTextureLayer) \
 	X(glBindTextures) \
 	X(glVertexAttrib4fv) \
 	X(glVertexAttribI4ui) \
@@ -357,6 +365,7 @@ pointers, sees the declarations without these aliases */
 #define glBindBufferBase halo_glBindBufferBase
 #define glBindBufferRange halo_glBindBufferRange
 #define glGenVertexArrays halo_glGenVertexArrays
+#define glDeleteVertexArrays halo_glDeleteVertexArrays
 #define glBindVertexArray halo_glBindVertexArray
 #define glEnableVertexAttribArray halo_glEnableVertexAttribArray
 #define glDisableVertexAttribArray halo_glDisableVertexAttribArray
@@ -379,6 +388,7 @@ pointers, sees the declarations without these aliases */
 #define glLinkProgram halo_glLinkProgram
 #define glGetProgramiv halo_glGetProgramiv
 #define glGetProgramInfoLog halo_glGetProgramInfoLog
+#define glDeleteProgram halo_glDeleteProgram
 #define glUseProgram halo_glUseProgram
 #define glGetUniformLocation halo_glGetUniformLocation
 #define glUniform1i halo_glUniform1i
@@ -395,6 +405,9 @@ pointers, sees the declarations without these aliases */
 #define glGetString halo_glGetString
 #define glGetIntegerv halo_glGetIntegerv
 #define glGetTexImage halo_glGetTexImage
+#define glReadBuffer halo_glReadBuffer
+#define glUniformMatrix4fv halo_glUniformMatrix4fv
+#define glDeleteSamplers halo_glDeleteSamplers
 #define glCopyImageSubData halo_glCopyImageSubData
 #define glGenerateMipmap halo_glGenerateMipmap
 #define glGetError halo_glGetError
@@ -462,10 +475,12 @@ pointers, sees the declarations without these aliases */
 #define glBindBuffer halo_glBindBuffer
 #define glBufferData halo_glBufferData
 #define glBufferSubData halo_glBufferSubData
+#define glGetBufferParameteriv halo_glGetBufferParameteriv
 #define glBufferStorage halo_glBufferStorage
 #define glMapBufferRange halo_glMapBufferRange
 #define glBindBufferBase halo_glBindBufferBase
 #define glGenVertexArrays halo_glGenVertexArrays
+#define glDeleteVertexArrays halo_glDeleteVertexArrays
 #define glBindVertexArray halo_glBindVertexArray
 #define glEnableVertexAttribArray halo_glEnableVertexAttribArray
 #define glDisableVertexAttribArray halo_glDisableVertexAttribArray
@@ -475,6 +490,7 @@ pointers, sees the declarations without these aliases */
 #define glVertexAttribIFormat halo_glVertexAttribIFormat
 #define glVertexAttribBinding halo_glVertexAttribBinding
 #define glBindVertexBuffer halo_glBindVertexBuffer
+#define glFramebufferTextureLayer halo_glFramebufferTextureLayer
 #define glBindTextures halo_glBindTextures
 #define glVertexAttrib4fv halo_glVertexAttrib4fv
 #define glVertexAttribI4ui halo_glVertexAttribI4ui

@@ -230,10 +230,12 @@ struct collision_bsp_test_vector_context
 	long last_plane_index;
 	/* port: (as in collision_bsp_test_pill_new_context) */
 	long nodes_left;
+	/* port: only an explicit synchronous batch reuses node/point data. */
+	struct collision_bsp_vector_cache *cache;
 };
 
 typedef char collision_bsp_test_vector_context_size_assert[
-	sizeof(struct collision_bsp_test_vector_context) == 0x28 + 4 ? 1 : -1];
+	sizeof(struct collision_bsp_test_vector_context) == 0x28 + 8 ? 1 : -1]; /* port: batch scratch */
 
 struct collision_bsp_usage_times
 {
@@ -279,8 +281,16 @@ static long collision_leaf_test_vector(
 	long leaf_index,
 	long plane_index,
 	real t,
-	boolean test_surface);
+	boolean test_surface,
+	/* port: optional render batch */ struct collision_bsp_vector_cache *cache);
 static boolean collision_bsp_test_vector_recursive(
+	struct collision_bsp_test_vector_context *data,
+	long node_index,
+	real t0,
+	real t1,
+	short depth);
+/* port: bounded traversal for synchronous render batches */
+static boolean collision_bsp_test_vector_batch(
 	struct collision_bsp_test_vector_context *data,
 	long node_index,
 	real t0,
@@ -1217,7 +1227,114 @@ boolean collision_bsp_test_sphere(
 	return result->surface_count > 0 || result->edge_count > 0;
 }
 
-boolean collision_bsp_test_vector(
+/* port: (collision_bsp_test_vector) the result of a vector the bsp would
+take through one leaf, without the walk; FALSE for any other */
+static boolean collision_bsp_test_vector_in_one_leaf(
+	struct collision_bsp const *bsp,
+	real_point3d const *point,
+	real_vector3d const *vector,
+	real t,
+	struct collision_bsp_test_vector_result *result)
+{
+	real_point3d end;
+	long leaf_index;
+
+	end.x = point->x + vector->i * t;
+	end.y = point->y + vector->j * t;
+	end.z = point->z + vector->k * t;
+	if (!scenario_leaf_cache_test_segment(point, &end, &leaf_index))
+	{
+		return FALSE;
+	}
+	if (leaf_index != NONE && collision_bsp_valid_leaf(bsp, leaf_index))
+	{
+		result->leaf_indices[0] = leaf_index;
+		result->leaf_count = 1;
+	}
+
+	return TRUE;
+}
+
+/* port: (collision_bsp_test_vector) a vector short enough to stay within a
+point's clearance now and then; a long one (a shot, a line of sight) leaves
+any. Not one of no length or not a number */
+static boolean collision_bsp_test_vector_short(
+	real_vector3d const *vector,
+	real t)
+{
+	return t * t * (vector->i * vector->i + vector->j * vector->j + vector->k * vector->k) < 4.0f;
+}
+
+/* port: (collision_bsp_test_vector) the walk of collision_bsp_test_vector_recursive
+from the root, its descent to the first node whose plane divides the vector,
+or to its leaf, taken here: a vector that reaches a leaf undivided was
+sorted as its start would be, which keeps its leaf and clearance as
+bsp3d_test_point_clearance would find them (scenario_leaf_cache_keep), and
+the next vectors near it need no walk. One divided keeps nothing: its start
+is nearer a plane than it is long */
+static boolean collision_bsp_test_vector_descend(
+	struct collision_bsp_test_vector_context *data,
+	real t1)
+{
+	real_point3d const *point = data->point;
+	real point_size = (real)(fabs(point->x) + fabs(point->y) + fabs(point->z));
+	real least = 1.0e30f;
+	long node_index = 0;
+	short depth = 0;
+
+	while (!(node_index & LONG_MIN))
+	{
+		struct bsp3d_node const *node;
+		real_plane3d const *plane;
+		real distance;
+		real dot;
+		real distance0;
+		real distance1;
+		boolean reaches_back;
+		boolean reaches_front;
+
+		if (!collision_bsp3d_enter_node(data->bsp, node_index, depth, &data->nodes_left))
+		{
+			return FALSE;
+		}
+		node = TAG_BLOCK_GET_ELEMENT(
+			&data->bsp->bsp3d.nodes,
+			node_index,
+			struct bsp3d_node);
+		plane = TAG_BLOCK_GET_ELEMENT(
+			&data->bsp->bsp3d.planes,
+			node->plane_designator,
+			real_plane3d);
+		/* (as collision_bsp_test_vector_recursive, from t0 0) */
+		distance = plane3d_distance_to_point(plane, data->point);
+		dot = dot_product3d(data->vector, &plane->n);
+		distance0 = dot*0.f + distance;
+		distance1 = dot*t1 + distance;
+		reaches_back = distance0 < 0.f || distance1 < 0.f;
+		reaches_front = distance0 >= 0.f || distance1 >= 0.f;
+		if (reaches_back && reaches_front)
+		{
+			/* (the walk enters this node again) */
+			data->nodes_left++;
+			return collision_bsp_test_vector_recursive(data, node_index, 0.f, t1, depth);
+		}
+		/* (undivided: its start on the side it goes, as bsp3d_test_point
+		sorts it) */
+		least = bsp3d_clearance_least(least, plane, distance, point_size);
+		node_index = node->children[reaches_front];
+		depth++;
+	}
+	scenario_leaf_cache_keep(
+		point,
+		node_index == NONE ? NONE : node_index & LONG_MAX,
+		node_index != NONE && least > 0.f ? least : 0.f);
+
+	return collision_bsp_test_vector_recursive(data, node_index, 0.f, t1, depth);
+}
+
+/* port: a render-only batch may prove a common prefix of the tree. Keep the
+same traversal, leaf order, intersection tests and remaining safety budgets. */
+static boolean collision_bsp_test_vector_at_node(
 	unsigned long flags,
 	struct collision_bsp const *bsp,
 	short breakable_surface_count,
@@ -1225,7 +1342,10 @@ boolean collision_bsp_test_vector(
 	real_point3d const *point,
 	real_vector3d const *vector,
 	real maximum_t,
-	struct collision_bsp_test_vector_result *result)
+	struct collision_bsp_test_vector_result *result,
+	long start_node,
+	short start_depth,
+	struct collision_bsp_vector_cache *cache)
 {
 	struct collision_bsp_test_vector_context context;
 	short collision_function = 4 + (bsp == global_collision_bsp);
@@ -1242,21 +1362,80 @@ boolean collision_bsp_test_vector(
 	context.point = point;
 	context.vector = vector;
 	context.result = result;
+	context.cache = cache; /* port: stock callers pass NULL */
 	result->t = maximum_t < 0.f ? 0.f : maximum_t;
 	context.last_leaf_index = NONE;
 	context.last_plane_index = NONE;
 	result->leaf_count = 0;
 	context.last_contents = _contents_unknown;
 	/* port: (collision_bsp3d_enter_node) */
-	context.nodes_left = bsp->bsp3d.nodes.count;
+	context.nodes_left = bsp->bsp3d.nodes.count - start_depth;
 
 	t = PIN(maximum_t, 0.f, 1.f);
-	return_value = collision_bsp_test_vector_recursive(&context, 0, 0.f, t, 0);
+	/* port: a vector within the clearance of a point whose leaf was kept
+	(scenario_leaf_cache_test_segment) crosses none of the planes that point
+	was sorted by, so the bsp gives it that one leaf, and no surface to test:
+	a particle's short step each frame. Another short one keeps its start
+	as it is walked */
+	if (!cache && start_node == 0 && start_depth == 0 && bsp == global_collision_bsp && collision_bsp_test_vector_short(vector, t))
+	{
+		if (collision_bsp_test_vector_in_one_leaf(bsp, point, vector, t, result))
+		{
+			return_value = FALSE;
+		}
+		else
+		{
+			return_value = collision_bsp_test_vector_descend(&context, t);
+		}
+	}
+	else
+	{
+		/* port: a render batch starts at a validated, non-negative tree depth.
+		   Only such entries may use the bounded far-child stack. */
+		if (cache && start_depth >= 0)
+			return_value = collision_bsp_test_vector_batch(&context, start_node, 0.f, t, start_depth);
+		else
+			return_value = collision_bsp_test_vector_recursive(&context, start_node, 0.f, t, start_depth);
+	}
 	collision_log_end_time(
 		collision_function,
 		collision_bsp_usage_times.vector.QuadPart);
 
 	return return_value;
+}
+
+/* port: stock callers always start at the root, as before. */
+boolean collision_bsp_test_vector(
+	unsigned long flags,
+	struct collision_bsp const *bsp,
+	short breakable_surface_count,
+	byte const *breakable_surface_flags,
+	real_point3d const *point,
+	real_vector3d const *vector,
+	real maximum_t,
+	struct collision_bsp_test_vector_result *result)
+{
+	return collision_bsp_test_vector_at_node(flags, bsp, breakable_surface_count,
+		breakable_surface_flags, point, vector, maximum_t, result, 0, 0, NULL);
+}
+
+/* port: only callers that proved the entire segment stays in this subtree
+may skip its prefix. No global state or change to simulation callers. */
+boolean collision_bsp_test_vector_from_node(
+	unsigned long flags,
+	struct collision_bsp const *bsp,
+	short breakable_surface_count,
+	byte const *breakable_surface_flags,
+	real_point3d const *point,
+	real_vector3d const *vector,
+	real maximum_t,
+	struct collision_bsp_test_vector_result *result,
+	long start_node,
+	short start_depth,
+	struct collision_bsp_vector_cache *cache)
+{
+	return collision_bsp_test_vector_at_node(flags, bsp, breakable_surface_count,
+		breakable_surface_flags, point, vector, maximum_t, result, start_node, start_depth, cache);
 }
 
 /* ---------- private code */
@@ -1827,16 +2006,37 @@ static long collision_leaf_test_vector(
 	long leaf_index,
 	long plane_index,
 	real t,
-	boolean test_surface)
+	boolean test_surface,
+	/* port: optional render batch */ struct collision_bsp_vector_cache *cache)
 {
 	struct collision_leaf const *leaf = TAG_BLOCK_GET_ELEMENT(
 		&bsp->leaves,
 		leaf_index,
 		struct collision_leaf);
 	long reference_index;
+	/* port: adjacent light rays often cross the same leaf boundary. Only
+	cache where its reference scan starts. Each ray still tests its own
+	projected point, surface and breakable flags, in original order. */
+	long first = leaf->first_bsp2d_reference_index;
+	unsigned long slot = 0;
+	boolean fill = FALSE;
+	if (cache && leaf->bsp2d_reference_count > 1)
+	{
+		slot = ((unsigned long)leaf_index * 33u + (unsigned long)plane_index) % 64u;
+		if (cache->references[slot].leaf_plus_one == leaf_index + 1 &&
+			cache->references[slot].plane == plane_index)
+			first = cache->references[slot].first;
+		else
+		{
+			cache->references[slot].leaf_plus_one = leaf_index + 1;
+			cache->references[slot].plane = plane_index;
+			cache->references[slot].first = first + leaf->bsp2d_reference_count;
+			fill = TRUE;
+		}
+	}
 
 	for (
-		reference_index = leaf->first_bsp2d_reference_index;
+		reference_index = first; /* port: verified first reference */
 		reference_index <
 			leaf->first_bsp2d_reference_index + leaf->bsp2d_reference_count;
 		reference_index++)
@@ -1861,6 +2061,12 @@ static long collision_leaf_test_vector(
 			real_point2d point2d;
 			long surface_index;
 
+			/* port: a later matching reference may still be needed. */
+			if (fill)
+			{
+				cache->references[slot].first = reference_index;
+				fill = FALSE;
+			}
 			if (absolute_k >= absolute_j && absolute_k >= absolute_i)
 				projection = _z;
 			else
@@ -2123,13 +2329,27 @@ static void bsp3d_test_sphere_recursive(
 	return;
 }
 
-static boolean collision_bsp_test_vector_recursive(
+/* port: render batches keep far children on a bounded stack. Every push
+   follows a validated BSP node and increases depth. Stock queries recurse at
+   split planes and need no stack allocation here. Both use the same leaves. */
+struct collision_vector_branch
+{
+	long node, plane;
+	real split, end;
+	short depth;
+};
+
+__forceinline boolean collision_bsp_test_vector_walk(
 	struct collision_bsp_test_vector_context *data,
 	long node_index,
 	real t0,
 	real t1,
-	short depth)
+	short depth,
+	struct collision_vector_branch *branches)
 {
+	int count = 0;
+
+next_node:
 	if (!(node_index & LONG_MIN))
 	{
 		struct bsp3d_node const *node;
@@ -2140,22 +2360,55 @@ static boolean collision_bsp_test_vector_recursive(
 		real distance1;
 		boolean reaches_back;
 		boolean reaches_front;
+		unsigned long cache_slot; /* port: batch-only node/point reuse */
 
 		/* port: (collision_bsp3d_enter_node: the test ends with no more
 		hits) */
 		if (!collision_bsp3d_enter_node(data->bsp, node_index, depth, &data->nodes_left))
 		{
-			return FALSE;
+			goto resume_branch;
 		}
-		node = TAG_BLOCK_GET_ELEMENT(
-			&data->bsp->bsp3d.nodes,
-			node_index,
-			struct bsp3d_node);
-		plane = TAG_BLOCK_GET_ELEMENT(
-			&data->bsp->bsp3d.planes,
-			node->plane_designator,
-			real_plane3d);
-		distance = plane3d_distance_to_point(plane, data->point);
+		/* port: identical BSP and origin throughout the batch. Keep the
+		original checked lookup and arithmetic on a miss or a stock query. */
+		cache_slot = (unsigned long)node_index % COLLISION_VECTOR_CACHE_NODES;
+		if (data->cache && data->cache->nodes[cache_slot].index_plus_one == node_index + 1)
+		{
+			node = data->cache->nodes[cache_slot].node;
+			plane = data->cache->nodes[cache_slot].plane;
+			distance = data->cache->nodes[cache_slot].distance;
+			/* port: batch preparation can prove an entire one-sided chain.
+			Charge every skipped node to the original depth/visit limits; if
+			the remaining budget is insufficient, use the original traversal. */
+			if (data->cache->nodes[cache_slot].skip_count > 0 &&
+				depth + data->cache->nodes[cache_slot].skip_count <= MAXIMUM_BSP3D_TRAVERSAL_DEPTH &&
+				data->nodes_left >= data->cache->nodes[cache_slot].skip_count - 1)
+			{
+				data->nodes_left -= data->cache->nodes[cache_slot].skip_count - 1;
+				node_index = data->cache->nodes[cache_slot].skip_node;
+				depth += data->cache->nodes[cache_slot].skip_count;
+				goto next_node;
+			}
+		}
+		else
+		{
+			node = TAG_BLOCK_GET_ELEMENT(
+				&data->bsp->bsp3d.nodes,
+				node_index,
+				struct bsp3d_node);
+			plane = TAG_BLOCK_GET_ELEMENT(
+				&data->bsp->bsp3d.planes,
+				node->plane_designator,
+				real_plane3d);
+			distance = plane3d_distance_to_point(plane, data->point);
+			if (data->cache)
+			{
+				data->cache->nodes[cache_slot].index_plus_one = node_index + 1;
+				data->cache->nodes[cache_slot].node = node;
+				data->cache->nodes[cache_slot].plane = plane;
+				data->cache->nodes[cache_slot].distance = distance;
+				data->cache->nodes[cache_slot].skip_count = 0; /* port: slot replacement */
+			}
+		}
 		dot = dot_product3d(data->vector, &plane->n);
 		distance0 = dot*t0 + distance;
 		distance1 = dot*t1 + distance;
@@ -2166,6 +2419,21 @@ static boolean collision_bsp_test_vector_recursive(
 		{
 			boolean front = dot > 0.f;
 			real t = -(distance/dot);
+
+			if (branches)
+			{
+				/* port: finish the near side before restoring this far side's plane. */
+				struct collision_vector_branch *far = &branches[count++];
+				far->node = node->children[front];
+				far->plane = node->plane_designator;
+				far->split = t;
+				far->end = t1;
+				far->depth = depth + 1;
+				node_index = node->children[!front];
+				t1 = t;
+				depth++;
+				goto next_node;
+			}
 
 			if (collision_bsp_test_vector_recursive(
 				data,
@@ -2191,14 +2459,11 @@ static boolean collision_bsp_test_vector_recursive(
 				return TRUE;
 			}
 		}
-		else if (collision_bsp_test_vector_recursive(
-			data,
-			node->children[reaches_front],
-			t0,
-			t1,
-			depth + 1))
+		else
 		{
-			return TRUE;
+			node_index = node->children[reaches_front];
+			depth++;
+			goto next_node;
 		}
 	}
 	else
@@ -2261,7 +2526,7 @@ static boolean collision_bsp_test_vector_recursive(
 				test_leaf_index,
 				data->last_plane_index,
 				t0,
-				test_surface);
+				test_surface, data->cache); /* port: render batch reference lookup */
 
 			if (surface_index != NONE)
 			{
@@ -2308,7 +2573,40 @@ static boolean collision_bsp_test_vector_recursive(
 		data->last_contents = contents;
 	}
 
+resume_branch:
+	while (count)
+	{
+		struct collision_vector_branch const *far = &branches[--count];
+		if (data->result->t <= far->split) continue;
+		node_index = far->node;
+		t0 = far->split;
+		t1 = far->end;
+		depth = far->depth;
+		data->last_plane_index = far->plane;
+		goto next_node;
+	}
 	return FALSE;
+}
+
+static boolean collision_bsp_test_vector_recursive(
+	struct collision_bsp_test_vector_context *data,
+	long node_index,
+	real t0,
+	real t1,
+	short depth)
+{
+	return collision_bsp_test_vector_walk(data, node_index, t0, t1, depth, NULL);
+}
+
+static boolean collision_bsp_test_vector_batch(
+	struct collision_bsp_test_vector_context *data,
+	long node_index,
+	real t0,
+	real t1,
+	short depth)
+{
+	struct collision_vector_branch far[MAXIMUM_BSP3D_TRAVERSAL_DEPTH];
+	return collision_bsp_test_vector_walk(data, node_index, t0, t1, depth, far);
 }
 
 static boolean collision_surface_test_pill(

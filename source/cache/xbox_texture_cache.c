@@ -653,6 +653,29 @@ static void texture_cache_initialize_hardware_format(
 			((bitmap->height - 1) << D3DSIZE_HEIGHT_SHIFT) |
 			(bitmap->width - 1);
 	}
+	else if (bitmap->type == _bitmap_type_2d &&
+		bitmap->format >= _bitmap_format_dxt1 && bitmap->format <= _bitmap_format_dxt5 &&
+		((bitmap->width & (bitmap->width - 1)) || (bitmap->height & (bitmap->height - 1))))
+	{
+		/* port: a compressed 2D bitmap of sides only Halo PC draws (a HUD
+		icon, 200 by 112) can't be described by power-of-two sizes, which
+		would make it 128 by 64; its true sides go in the Size word, as a
+		linear texture's. It has its first level only. */
+		long block_bytes = bitmap->format == _bitmap_format_dxt1 ? 8 : 16;
+		long row_bytes = ((bitmap->width + 3) / 4) * block_bytes;
+
+		texture->Format =
+			(bitmap_format_to_d3d_format(bitmap->format, bitmap->flags) << D3DFORMAT_FORMAT_SHIFT) |
+			(1 << D3DFORMAT_MIPMAP_SHIFT) |
+			(2 << D3DFORMAT_DIMENSION_SHIFT) |
+			D3DFORMAT_BORDERSOURCE_COLOR |
+			D3DFORMAT_DMACHANNEL_A;
+		texture->Size =
+			(((row_bytes + D3DTEXTURE_PITCH_ALIGNMENT - 1) / D3DTEXTURE_PITCH_ALIGNMENT - 1)
+				<< D3DSIZE_PITCH_SHIFT) |
+			((bitmap->height - 1) << D3DSIZE_HEIGHT_SHIFT) |
+			(bitmap->width - 1);
+	}
 	else
 	{
 		texture->Format =
@@ -670,6 +693,15 @@ static void texture_cache_initialize_hardware_format(
 	IDirect3DBaseTexture8_Register(texture, bitmap->base_address);
 
 	return;
+}
+
+/* port: loading-only preparation reuses the native descriptor contract without
+ * fetching pixels. MCC descriptors remain owned by mcc_texture_cache_get. */
+int texture_cache_prepare_descriptor(struct bitmap_data *bitmap, void *header)
+{
+	if (!texture_cache_bitmap_valid(bitmap)) return FALSE;
+	texture_cache_initialize_hardware_format(bitmap, (D3DBaseTexture *)header);
+	return TRUE;
 }
 
 static void render_inverse_transform_screen_point(
@@ -1067,6 +1099,8 @@ void *_texture_cache_bitmap_get_hardware_format(
 		"c:\\halo\\SOURCE\\cache\\xbox_texture_cache.c",
 		210,
 		load || !block);
+	/* port: metadata only during the optional loading pass, never gameplay. */
+	if (material_prepare_bitmap(bitmap, &hardware_format)) return hardware_format;
 #ifdef HALO_ANDROID
 	/* port: CE's frame working set is not bounded by the Xbox texture arena.
 	 * Keep dynamic textures and both other map families on their own paths. */

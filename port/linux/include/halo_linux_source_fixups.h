@@ -7,6 +7,9 @@ The port's functions that the game's sources call, declared for them.
 #ifndef __HALO_LINUX_SOURCE_FIXUPS_H
 #define __HALO_LINUX_SOURCE_FIXUPS_H
 
+/* port: port/linux/game/modern_shadows.c */
+#include "modern_shadows.h"
+
 /* Discard measured listener motion at camera cuts and lifecycle boundaries
 (source/sound/sound_manager.c). NONE resets every local listener. */
 void sound_listener_motion_reset(short local_player_index);
@@ -80,6 +83,23 @@ long halo_screen_commit(void);
 /* the shadow maps' pixels for each of their 128 texels each way, a power of
 two (display.shadow_resolution) */
 long halo_shadow_map_scale(void);
+/* the next shadow's maps sized for its object, diameter pixels across in
+the 480-line screen (render_objects.c), up to display.shadow_resolution */
+void halo_shadow_map_size(float diameter);
+/* a larger shadow map's blur from the primary map's surface into the
+secondary's (rasterizer_xbox_shadows.c): FALSE where the game's passes
+must draw it */
+int halo_shadow_map_blur(const void *source, const void *destination);
+/* the shadow whose maps are drawn or read next: its scale, and its slot of
+a batch's maps of the slotted surface (rasterizer_xbox_shadows.c) */
+void halo_shadow_map_select(long scale, long slot, const void *slotted);
+/* how many slots of the blurred map past the first fit in bytes of the GPU's
+memory, at display.shadow_resolution (rasterizer_xbox_shadows.c) */
+long halo_shadow_map_slots(unsigned long bytes);
+/* display.shadow_map_reuse: small shadows' kept maps reused (render_objects.c) */
+int halo_shadow_map_reuse(void);
+/* how many times the slots past the first were freed, with what they held */
+unsigned long halo_shadow_map_slots_freed(void);
 /* how many times a model's size in the 480-line screen's pixels to measure
 it at (display.model_detail, source/models/models.c): level nonzero, to
 choose its level of detail, otherwise whether it is drawn */
@@ -140,5 +160,14 @@ short halo_stick_dead_range(short stick);
 middle button, R and F are held, and the wheel's notches since the last call
 (port/linux/src/xinput_sdl.c) */
 int halo_linux_debug_camera_input(int *middle, int *up, int *down, float *wheel);
+
+/* port/linux/src/shader_prepare.c, through the active GL backend. */
+void render_prepare_map(char const *name);
+void render_prepare_end(void);
+/* port/linux/game/texture_prepare.c: bounded Xbox/CE preparation, default off. */
+void texture_prepare_map(void);
+int render_prepare_texture(void const *header);
+/* port/linux/game/material_prepare.c: optional loading-only shader selection. */
+#include "../game/material_prepare.h"
 
 #endif

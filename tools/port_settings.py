@@ -124,10 +124,6 @@ SCREENS = {
             ("TEXTURE FILTERING:", "display.anisotropic_filtering",
              [("OFF", "0"), ("2X", "2"), ("4X", "4"), ("8X", "8"), ("16X", "16")],
              "Keep floors and walls sharp at a grazing angle,\nwhich the Xbox did not. Off: as the Xbox.", None),
-            ("SHADOW RESOLUTION:", "display.shadow_resolution",
-             [("128", "128"), ("256", "256"), ("512", "512"), ("1024", "1024")],
-             "The size objects' shadows are drawn at: 128 as on\nthe Xbox; larger for smoother, as soft, edges.",
-             None),
             ("PER-PIXEL LIGHTING:", "display.per_pixel_lighting", ON_OFF,
              "Light models for each pixel, without the facets\nof the Xbox's lighting for each vertex.", None),
             ("OVERSHIELD:", "display.overshield_effect", ON_OFF,
@@ -320,20 +316,24 @@ SCREENS["gamepad_setup/dead_zones"] = {
 _video = SCREENS["video_settings"]
 _graphics = {"display.widescreen_loading", "display.show_fps", "display.high_res_hud",
              "display.high_res_text", "display.anti_aliasing",
-             "display.anisotropic_filtering", "display.shadow_resolution", "display.per_pixel_lighting",
+             "display.anisotropic_filtering", "display.per_pixel_lighting",
              "display.model_detail"}
 # (the visual modifiers: a screen of their own, Extra Effects)
 _extra_effects = {"display.shield_glow", "display.shield_glow_intensity",
                   "display.overshield_effect", "display.hdr", "display.hdr_output", "display.hdr_tone_mapping", "display.hdr_paper_white",
                   "display.hdr_peak_brightness"}
+_video["rows"].insert(0, ("CPU SCHEDULING:", "display.performance_cores_only", [("AUTO", "false"), ("P-CORES ONLY", "true")],
+    "Restrict scheduling to available performance cores. Applies on restart.", "hybrid"))
+_graphics.add("display.performance_cores_only")
 SCREENS["video_settings/graphics"] = {
     "screen": "graphics_settings_screen", "header": _video["header"], "spacing": 27,
     "same_place": ["anti_aliasing_android"],
     "rows": [row for row in _video["rows"] if row[1] in _graphics],
 }
+_shield_rows = [row for row in _video["rows"] if row[1] in {"display.shield_glow", "display.shield_glow_intensity"}]
 SCREENS["video_settings/extra_effects"] = {
     "screen": "extra_effects_settings_screen", "header": _video["header"], "spacing": 30,
-    "rows": [row for row in _video["rows"] if row[1] in _extra_effects],
+    "rows": [row for row in _video["rows"] if row[1] in _extra_effects and row not in _shield_rows],
     # (shown only with an HDR display: menu_functions.c's
     # hdr_calibration_row_show)
     "categories": [
@@ -356,12 +356,63 @@ SCREENS["video_settings/hdr_calibration"] = {
     ],
 }
 _video["rows"] = [row for row in _video["rows"] if row[1] not in _graphics | _extra_effects]
+_video["spacing"] = 24
 _video["categories"] = [
     ("GRAPHICS:", "video_settings/graphics", "The HUD, text, anti-aliasing, shadows,\nlighting and HDR."),
     ("FOV AND VIEWMODELS:", "video_settings/fov_viewmodels",
      "The field of view and the first-person\nweapon. Their defaults keep the stock view."),
+    ("DYNAMIC LIGHTING:", "video_settings/dynamic_lighting",
+     "Added light from projectiles, weapons and\nenergy shields. Added lights default to off.", "desktop web"),
+    ("SHADOWS:", "video_settings/shadows", "Choose the shadow system and shadow map size."),
     ("EXTRA EFFECTS:", "video_settings/extra_effects",
      "Visual modifiers the stock game does not\nhave, such as the shield glow."),
+]
+SCREENS["video_settings/shadows"] = {
+    "screen": "shadow_settings_screen", "header": _video["header"], "title": "SHADOWS", "spacing": 30,
+    "rows": [
+        ("SHADOW MODE:", "display.modern_shadows",
+         [("CLASSIC", "off"), ("MODERN HARD", "hard"), ("MODERN SOFT", "soft")],
+         "Choose Classic, Hard or Soft shadows.\nApplies on next map load.", "desktop"),
+        ("SHADOW RESOLUTION:", "display.shadow_resolution",
+         [(str(size), str(size)) for size in (128, 256, 512, 1024, 2048)],
+         "Shadow map size for both systems.\n1024 is recommended for modern shadows.", None),
+        ("SUN SHADOWS:", "display.environment_sun", ON_OFF,
+         "Use the outdoor sky light to cast shadows\nwith the selected Modern shadow mode.", "desktop"),
+        ("DISTANT SUN SHADOWS:", "display.environment_distant_sun", ON_OFF,
+         "Extend Sun Shadows into the distance and\ntoward scoped targets. Applies on next map load.", "desktop"),
+        ("FIXTURE SHADOWS:", "display.environment_fixtures", ON_OFF,
+         "Let nearby indoor lamps cast independent\nshadows with either Modern shadow mode.", "desktop"),
+        ("FLASHLIGHT:", "display.flashlight_shadows", ON_OFF,
+         "Let objects and scenery cast shadows\nin the stock flashlight beam.", "desktop"),
+        ("FLASHLIGHT BUDGET:", "display.flashlight_extra_slot",
+         [("SHARED", "false"), ("EXTRA SLOT", "true")],
+         "Shared uses one of eight slots while lit.\nExtra allows eight other shadowed lights.", "desktop"),
+    ],
+}
+SCREENS["video_settings/dynamic_lighting"] = {
+    "screen": "dynamic_lighting_settings_screen", "header": _video["header"], "spacing": 26,
+    "help_top": 370, "help_height": 40,
+    "rows": [
+        ("PROJECTILE LIGHTS:", "display.plasma_lighting", ON_OFF,
+         "Plasma, grenades, rockets and flame streams cast\nsoft light on nearby surfaces and models.", None),
+        ("MUZZLE FLASH LIGHTS:", "display.muzzle_lighting", ON_OFF,
+         "Weapon flashes light nearby surfaces, including\nWarthog and Scorpion guns. Stock effects remain.", None),
+        ("WEAPON GLOW:", "lighting.weapon_glow", ON_OFF,
+         "Swords, plasma charge, fuel rods, Needler and AR\nscreens cast light on nearby surfaces.", None),
+        ("SHIELD EMITTERS:", "lighting.shield_emitters", ON_OFF,
+         "Jackal and stationary shields cast light\non nearby surfaces.", None),
+        ("VEHICLE LIGHTS:", "display.vehicle_lighting", ON_OFF,
+         "Engine glow and directional headlights illuminate\nvehicles and nearby surfaces.", None),
+        ("WORLD EMITTERS:", "display.world_lighting", ON_OFF,
+         "Visible powerups and teleporters cast soft light.\nStock effects and gameplay remain unchanged.", None),
+        ("LIGHT OCCLUSION:", "display.plasma_occlusion", ON_OFF,
+         "Block projectile and emitter light behind walls.\nMuzzle and vehicle lights always use blocking.", None),
+    ] + _shield_rows,
+}
+# Android builds omit this renderer. Keep both the entry and its controls
+# unavailable; existing configuration values cannot activate its inert hooks.
+SCREENS["video_settings/dynamic_lighting"]["rows"] = [
+    (*row[:4], row[4] or "desktop web") for row in SCREENS["video_settings/dynamic_lighting"]["rows"]
 ]
 SCREENS["video_settings/fov_viewmodels"] = {
     "screen": "fov_viewmodel_settings_screen", "header": _video["header"], "spacing": 30,
