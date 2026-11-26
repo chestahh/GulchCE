@@ -1,6 +1,6 @@
 # Modern dynamic shadows
 
-## Phase 2 roadmap to 1.0
+## Phase 2 1.0
 
 Phase 2 adds shadows from authored sunlight, identifiable map fixtures and
 the flashlight. The effects are opt-in on desktop and follow host visual
@@ -10,7 +10,7 @@ an active flashlight one of the eight local slots. Extra Slot allows eight
 local shadows plus the flashlight.
 
 E5 closed on 25 November 2026 with fixed Hard and Soft 1024 as the sustained
-240 FPS baseline. E9 qualifies fixed shadow resolution and all eight local slots. E6 distant sunlight, E7 map authoring and E8 adaptive quality are deferred.
+240 FPS baseline. E9 closed on 26 November 2026 with fixed shadow resolution and all eight local slots. E6 distant sunlight, E7 map authoring and E8 adaptive quality are deferred.
 
 ### Established on modern-dynamic-shadows
 
@@ -143,7 +143,7 @@ still cast the hull's silhouette.
 
 ### E8 — Deferred
 
-The release candidate uses the selected resolution and a fixed eight-slot local budget.
+Phase 2 1.0 uses the selected resolution and a fixed eight-slot local budget.
 Adaptive resolution, adaptive slot counts and their frame-time target remain an experiment
 in the earlier RC1 revision.
 
@@ -153,29 +153,19 @@ The Windows two-player pass covers mixed modes, shield policy, late join,
 reconnect, respawns and map changes. After the 4096 fix, the fixed Hard host
 and adaptive Soft client also passed the Xbox Rat Race → CE Death Island →
 MCC Albatross → Xbox Blood Gulch rotation (`e8-hitch-cycle`). E8 exercised
-save and restart in all four Windows menu styles. Carry that evidence forward
-and repeat affected cases if the release candidate changes those paths.
+save and restart in all four Windows menu styles. The project owner signed off E9 on 26 November 2026 at
+`82fa25809`, tagged `phase2-1.0`.
 
-Remaining release-candidate checks, in order:
+The final Windows playtest used the same frozen Two Betrayals Grunt and camera
+for Hard and Soft 1024. Matching the flashlight caster to the visible mesh
+cleared the false shadow on the armour and preserved the silhouette on the
+floor. The final revision passed 62 focused checks, built for Windows, Android
+and web, and reached gameplay on CE Death Island and MCC Digsite on Windows.
 
-1. Review the combined branch changes, commit the intended local work and
-   identify the exact revision for qualification. Check shadow resource
-   ownership through map load, failed load, unload and the next map.
-2. Replay the fixed snowy Two Betrayals encounter at Hard and Soft 1024
-   at fixed resolution with eight local slots available. Record
-   average FPS, seconds below 240 and the longest dip. The latest Hard run
-   had one second at 235 FPS, so reproduce that case first. Use fixed 2048
-   as a regression comparison. Sustained 240 at fixed 2048 and sustained
-   360 remain deferred.
-3. Check visuals at 30/60/120 FPS with matched captures of the Rat Race lamps
-   and flashlight, the Sidewinder sunlight transition, and the Mercury Rising
-   II fade and player silhouette. Verify Classic/off behaviour, the next-map
-   application of shadow-mode changes, and loading and first-use frame times.
-4. Refresh the supported platform builds and regression checks, including
-   Android and web exclusion. Record NVIDIA results and the physical AMD
-   hardware gap. Package a Windows playtest from the qualified revision with
-   captures and timings for final sign-off. After release approval, promote
-   through testing and main and monitor CI on both.
+The last two-minute snowy combat runs preceded the flashlight mesh fix. With
+eight local slots available, Hard 1024 averaged 269.7 FPS with one second
+below 240. Soft 1024 averaged 268.7 FPS with zero seconds below 240. Sustained
+240 FPS on the exact tagged revision and physical AMD behavior are unverified.
 
 #### Two-player Windows compatibility
 
