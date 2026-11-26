@@ -484,10 +484,10 @@ def test_labels_and_values_fit_narrow_layout():
             continue  # Multiplayer contract and geometry have their own tests.
         if w.get('setting') or '/label_' in w.get('name'):
             assert w.get('font') == 'ui\\large_ui'
-        if '/label_' in w.get('name') and int(w.get('width')) == 152:
+        if '/label_' in w.get('name') and int(w.get('width')) in (152, 168):
             caption = strings[w.get('string_list')][int(w.get('string_index'))]
             size = 10  # The entire narrow viewport uses the same option face.
-            assert frontend_menu.text_width(caption, size) <= 152, caption
+            assert frontend_menu.text_width(caption, size) <= int(w.get('width')), caption
         if w.get('setting'):
             size = 10  # The entire narrow viewport uses the same option face.
             for caption in w.get('strings').split('|'):
@@ -506,7 +506,8 @@ def test_modern_lighting_and_shadows_live_under_advanced_graphics_in_shell_and_p
         shell = widgets[f'modern/{page}settings'].findall('child')
         pause = widgets[f'modern/paused/{page}settings'].findall('child')
         assert shell and [c.attrib for c in pause] == [c.attrib for c in shell]
-    for setting in ('display.shadow_resolution', 'display.modern_shadows', 'display.environment_sun', 'display.environment_fixtures', 'display.flashlight_shadows', 'display.flashlight_extra_slot'):
+    for setting in ('display.shadow_resolution', 'display.modern_shadows', 'display.environment_sun',
+                    'display.environment_distant_sun', 'display.environment_fixtures', 'display.flashlight_shadows', 'display.flashlight_extra_slot'):
         matches = [name for name, widget in widgets.items() if widget.get('setting') == setting
                    and name.startswith('modern/')]
         assert len(matches) == 1 and matches[0].startswith('modern/shadows/')

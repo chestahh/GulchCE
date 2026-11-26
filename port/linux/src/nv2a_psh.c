@@ -610,7 +610,7 @@ static void model_lighting(struct xgpu_text *text, BOOL point_lights, BOOL plasm
 		modern_shadow ? " * modern_environment_visibility(0,xWorldPosition)" : "",
 		modern_shadow ? " * modern_environment_visibility(1,xWorldPosition)" : "");
 	if (modern_shadow == 5) xgpu_text_append(text,"\tlight *= fixture_visibility(xWorldPosition,n,false);\n");
-	if (modern_shadow) xgpu_text_append(text,"\tlight += sun_light(xWorldPosition,n,false).rgb;\n");
+	if (modern_shadow) xgpu_text_append(text,"\tlight += sun_light(xWorldPosition,n,false,0.).rgb;\n");
 	/* each point light: its position and 1 / radius squared, its cone's axis
 	and falloff scale, its color and falloff offset */
 	for (light = 0; point_lights && light < 2; light++)

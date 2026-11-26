@@ -460,12 +460,17 @@ static const struct config_setting config_settings[] =
 		"Audio lists it, or \"default\" for the system's (also if it is not found)." },
 
 	{ "input.touch_controls", _config_string, "\"auto\"", "HALO_TOUCH_CONTROLS", _environment_value, _platform_android | _platform_web,
+#ifdef HALO_ANDROID
+		"The on-screen touch controls in a game: \"auto\" hides them for\n"
+		"controller input and brings them back on touch. \"on\" keeps the\n"
+		"gameplay touch buttons visible with a controller. \"off\" turns off\n"
+		"the overlay and its device gyro and vibration. Menus still take taps." },
+#else
 		"The on-screen touch controls in a game: \"auto\" shows them on a\n"
 		"touchscreen while no controller is connected, \"on\" also with a\n"
 		"controller, \"off\" never. A device without a touchscreen never shows\n"
-		"them. The menus take taps in any case. On Android, the carnage\n"
-		"report's CONTINUE and LEAVE buttons follow the same rule (otherwise\n"
-		"it shows its A and B prompt)." },
+		"them. The menus take taps in any case." },
+#endif
 	{ "input.touch_aim_assist", _config_boolean, "true", "HALO_TOUCH_AIM_ASSIST", _environment_value, _platform_android | _platform_web,
 		"The touch controls' swipe aiming gets a controller's aim assist: the\n"
 		"aim slows over a target and follows a moving one. false: none, as a\n"
@@ -696,6 +701,8 @@ static const struct config_setting config_settings[] =
 		"Give an active shadowed flashlight an extra slot alongside all eight other local lights." },
 	{ "display.environment_sun", _config_boolean, "false", "HALO_ENVIRONMENT_SUN", _environment_value, _platform_desktop,
 		"Directional sun shadows on eligible nearby map geometry and objects in Modern Hard and Soft." },
+	{ "display.environment_distant_sun", _config_boolean, "false", "HALO_ENVIRONMENT_DISTANT_SUN", _environment_value, _platform_desktop,
+		"Extend Sun Shadows into the distance and toward scoped targets. Applies on the next map load." },
 	{ "display.modern_shadows", _config_string, "\"off\"", "HALO_MODERN_SHADOWS", _environment_value, _platform_desktop,
 		"Rendered shadows for up to eight enabled dynamic lights: \"off\",\n"
 		"\"hard\" or \"soft\". Changes apply on the next map load. Desktop only." },
@@ -882,6 +889,13 @@ static const struct config_setting config_settings[] =
 		"Hosting: let the players vote to end the game (\"!endgame\" in the chat;\n"
 		"F1 votes yes, F2 no), counted as a vote to kick. The game ends with its\n"
 		"scores, as sv_end_game ends it." },
+	{ "network.one_team_ends_game", _config_boolean, "true", "HALO_NET_ONE_TEAM_ENDS_GAME", _environment_value,
+		_platform_all,
+		"Hosting: a team game ends as soon as only one team's players are in it\n"
+		"(the Xbox game's rule): one that starts before the other team's players\n"
+		"have loaded, or that they leave. false: it goes on to its score or time\n"
+		"limit; a team out of lives still ends it. A dedicated server goes by\n"
+		"server.one_team_ends_game." },
 	{ "network.votekick_minutes", _config_integer, "5", "HALO_NET_VOTEKICK_MINUTES", _environment_value,
 		_platform_all,
 		"Hosting: the minutes a player must have played on this server to start\n"
@@ -1103,6 +1117,12 @@ static const struct config_setting config_settings[] =
 		"A team game: \"one\" starts with one team's players (the next joiners\n"
 		"balance), \"both\" waits for a player on each team, \"skip\" skips team\n"
 		"games while one player waits." },
+	{ "server.one_team_ends_game", _config_boolean, "false", "HALO_SERVER_ONE_TEAM_ENDS_GAME", _environment_value,
+		_platform_server,
+		"true: a team game ends as soon as only one team's players are in it, as\n"
+		"the Xbox game's does: one that starts while the other team's players\n"
+		"still load the map, or that they leave. false: it goes on to its score\n"
+		"or time limit; a team out of lives still ends it." },
 	{ "server.team_switch", _config_boolean, "true", "HALO_SERVER_TEAM_SWITCH", _environment_value,
 		_platform_server,
 		"A player in a team game may say \"!switch\" (or \"!team\") in the chat to\n"

@@ -22,7 +22,7 @@ def main():
     settings = parser.add_mutually_exclusive_group()
     settings.add_argument('--cpu-scheduling', action='store_true', help='Exercise the hybrid Windows startup setting from Video Setup')
     settings.add_argument('--flashlight-setting', choices=['shadows', 'extra_slot'])
-    settings.add_argument('--environment-setting', choices=['sun', 'fixtures'])
+    settings.add_argument('--environment-setting', choices=['sun', 'distant_sun', 'fixtures'])
     parser.add_argument('--frontend', choices=['off', 'pc', 'xbox', 'modern'], default='off')
     args = parser.parse_args()
     assert re.fullmatch(r'[A-Za-z0-9_-]+', args.label)

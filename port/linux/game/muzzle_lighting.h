@@ -12,6 +12,7 @@ int muzzle_lighting_selected(long rasterizer_index);
 float muzzle_lighting_radius(long light_index, float radius);
 
 int muzzle_lighting_vehicle_occlusion(long light);
-long muzzle_lighting_shadow_caster(long light, long emitter_object, long *collision_owner);
+long muzzle_lighting_shadow_caster(long light, long emitter_object, long first_person_unit,
+	long *excluded_shooter, long *collision_owner);
 
 #endif

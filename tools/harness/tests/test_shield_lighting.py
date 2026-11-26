@@ -42,6 +42,7 @@ def test_menu_ownership_and_generated_layout():
     shadows = port_settings.SCREENS['video_settings/shadows']['rows']
     assert [row[1] for row in shadows] == [
         'display.modern_shadows', 'display.shadow_resolution', 'display.environment_sun',
+        'display.environment_distant_sun',
         'display.environment_fixtures', 'display.flashlight_shadows', 'display.flashlight_extra_slot']
     assert [value for _, value in shadows[0][2]] == ['off', 'hard', 'soft']
     assert [int(value) for _, value in shadows[1][2]] == [128, 256, 512, 1024, 2048, 4096]

@@ -279,7 +279,7 @@ Local evidence is under `build/m4a-closeout/`. The `reference-complete/` sheets 
 
 ## Handheld firing lights and final combat replay
 
-In the matched Sidewinder wall scene, omitting the shooter alone left the tall rifle silhouette. Omitting the firing rifle alone removed it and preserved the shooter's helmet and shoulder. Both modes use the latter rule for players and NPCs. The gun and shooter still receive light. Independent lights still project both. The first-person gun follows the same caster rule while the arms continue casting. Weapon-owned attachments and glows use the weapon's firing or venting state. A lit projectile uses its exact launching gun while it overlaps that gun at launch.
+In the matched Sidewinder wall scene, omitting the shooter alone left the tall rifle silhouette. Omitting the firing rifle alone removed it and preserved the shooter's helmet and shoulder. Hard and Soft retain this silhouette in third person and for other shooters. The viewer's own muzzle flash now skips their body and arms in first person. A held charge glow skips its wielder in both views. The gun and shooter still receive light, and independent lights still project both. A lit projectile uses its exact launching gun while it overlaps that gun at launch. The [current caster rules](modern_dynamic_shadows.md) cover weapon attachments and glows.
 
 The retained Windows build ran the first snowy exterior encounter on Two Betrayals at 2560×1440, uncapped, with 1024 shadows and eight slots. Each recording measured 120 seconds after 25 seconds of warmup. FPS below is frames divided by elapsed frame time.
 

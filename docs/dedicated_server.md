@@ -248,7 +248,8 @@ these settings, which `sv_settings` and `GET /api/settings` list:
 `server.name`, `server.max_players`, `server.min_players`,
 `server.password`, `server.public`, `server.rotation_fallback`,
 `server.lobby_seconds`, `server.postgame_seconds`, `server.empty_seconds`,
-`server.idle_minutes`, `server.team_start`, `server.team_switch`,
+`server.idle_minutes`, `server.team_start`, `server.one_team_ends_game`,
+`server.team_switch`,
 `server.team_switch_cooldown_seconds`, `server.motd`,
 `server.frame_rate`, `server.web_password`,
 `server.web_moderator_password`, `server.log_format`,
@@ -511,13 +512,8 @@ event. An older game is told the game is closed.
 
 A dedicated server's text chat is its `network.text_chat`'s, listed or
 not: `on` by default (lines with links refused), `links`, or `off`, live
-(`sv_set network.text_chat off`). A game a player hosts has no text chat
-while it is listed in the server browser; a dedicated server is the
-exception, and the players who join it from the browser's dedicated servers
-have the chat as it says, as long as a master server lists it (the
-masters' word that it is an approved operator's; a listing's own flag is
-not enough, so a dedicated server listed by the brokers alone, before its
-operator is approved, has none for them).
+(`sv_set network.text_chat off`). A game a player hosts follows its own
+host's `network.text_chat` the same way, listed or not.
 
 The settings `sv_set` does not change (`server.web_viewer_password`,
 `server.web_owner_password`, `server.web_port`, `server.web_bind`, `server.web_trusted_proxy`, the
@@ -943,6 +939,13 @@ teams instead (if it has one); it is checked when the lobby opens and
 again when its countdown would begin. With no entry left, the server
 stops with exit code 3 (2 when no rotation map is there), or plays
 `bloodgulch:slayer` with `server.rotation_fallback`.
+
+A team game goes on while only one team's players are in it: one that
+starts while the other team's players still load the map, or that they
+leave. It ends at its score or time limit, or when a team's players are
+all out of lives. `server.one_team_ends_game = true` ends it as soon as
+only one team's players are in it, as the Xbox game's does (and a game a
+player hosts, by `network.one_team_ends_game`).
 
 ## Gametype files
 

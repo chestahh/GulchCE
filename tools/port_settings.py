@@ -412,6 +412,8 @@ SCREENS["video_settings/shadows"] = {
          "Shadow map size for both systems.\n1024 is recommended for modern shadows.", None),
         ("SUN SHADOWS:", "display.environment_sun", ON_OFF,
          "Use the outdoor sky light to cast shadows\nwith the selected Modern shadow mode.", "desktop"),
+        ("DISTANT SUN SHADOWS:", "display.environment_distant_sun", ON_OFF,
+         "Extend Sun Shadows into the distance and\ntoward scoped targets. Applies on next map load.", "desktop"),
         ("FIXTURE SHADOWS:", "display.environment_fixtures", ON_OFF,
          "Let nearby indoor lamps cast independent\nshadows with either Modern shadow mode.", "desktop"),
         ("FLASHLIGHT:", "display.flashlight_shadows", ON_OFF,
@@ -770,8 +772,8 @@ TEAMPLAY_ROWS = [
     # (network_chat.c: one row for the chat and its links, as Teamplay
     # Options has room for one more)
     ("text_chat", "TEXT CHAT:", ["ON", "WITH LINKS", "OFF"], [
-        "Players can type to each other; lines with links\\nare refused. Off in a public internet game.",
-        "Players can type to each other, links too. Off\\nin a public internet game.",
+        "Players can type to each other; lines with links\\nare refused.",
+        "Players can type to each other, links too.",
         "No text chat in the game.",
     ]),
 ]

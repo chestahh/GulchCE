@@ -59,7 +59,8 @@ void muzzle_lighting_submitted(long light, long rasterizer) {}
 int muzzle_lighting_selected(long rasterizer) { return FALSE; }
 float muzzle_lighting_radius(long light, float radius) { return radius; }
 int muzzle_lighting_vehicle_occlusion(long light) { return FALSE; }
-long muzzle_lighting_shadow_caster(long light, long emitter_object, long *collision_owner) { *collision_owner = NONE; return NONE; }
+long muzzle_lighting_shadow_caster(long light, long emitter_object, long first_person_unit,
+	long *excluded_shooter, long *collision_owner) { *excluded_shooter = *collision_owner = NONE; return NONE; }
 
 void covenant_lighting_update(void) {}
 void covenant_lighting_forget(void) {}

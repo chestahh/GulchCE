@@ -4,6 +4,8 @@
 struct environment_receiver_uniforms
 {
     GLint frame, camera, projection, radius, reversed_depth, viewport, soft, color;
+    GLint reach_min, reach_max;
+    GLint sun_multisampled;
     GLint clip_offset, sun_frame, sun_color_radius, sun_soft, sun_detail, sun_region, sun_eye, sun_close;
 };
 
@@ -15,7 +17,7 @@ static struct
     GLint caster_frame, caster_radius, caster_alpha_map, caster_bones, caster_uv, caster_alpha;
     struct environment_receiver_uniforms uniforms;
     GLuint destination, verified_copy_source, checked_handoff_target;
-    int viewport[4];
+    int viewport[4], multisampled_depth;
     float frame[16], radius, pixel_center[2];
 } environment;
 static struct
@@ -31,13 +33,17 @@ static struct
 {
     GLuint static_depth, object_depth, object_fbo, receiver, static_caster, checked_receiver_target;
     const unsigned char *surface_sky[SHADOW_DRAWS];
+    unsigned char surface_tiles[SHADOW_DRAWS];
     struct environment_receiver_uniforms uniforms;
+    GLuint far_bsp, far_objects, far_fbo;
+    int far_available, drawing_far;
+    float far_frame[16];
     float tint[3];
     int ready, model, soft, partial;
     int writing, sky;
     int size, valid, projecting, object_checked;
     float frame[16], radius;
-    float detail_frame[16], detail_radius, detail[4], region[8], eye[4];
+    float detail_frame[16], detail_radius, detail[4], region[16], eye[4];
     float close_frame[16], close_radius, close[4];
     int atlas_tiles, drawing_detail, detail_drawn;
 } sun;
@@ -74,12 +80,23 @@ void modern_environment_window(void)
     environment_model.enabled = environment_model.valid = environment_model.count = 0;
 }
 
+static void sun_release_far(void)
+{
+    if (sun.far_fbo) glDeleteFramebuffers(1,&sun.far_fbo);
+    if (sun.far_bsp) glDeleteTextures(1,&sun.far_bsp);
+    if (sun.far_objects) glDeleteTextures(1,&sun.far_objects);
+    sun.far_fbo = sun.far_bsp = sun.far_objects = 0;
+    sun.far_available = 0;
+    sun.valid &= ~SUN_TILE_FAR;
+}
+
 void modern_environment_dispose(void)
 {
     if (spots.depth) glDeleteTextures(1, &spots.depth);
     if (spots.fbo) glDeleteFramebuffers(1, &spots.fbo);
     if (spots.receiver) glDeleteProgram(spots.receiver);
     memset(&spots, 0, sizeof(spots));
+    sun_release_far();
     if (sun.object_fbo) glDeleteFramebuffers(1,&sun.object_fbo);
     if (sun.object_depth) glDeleteTextures(1,&sun.object_depth);
     if (sun.static_depth) glDeleteTextures(1, &sun.static_depth);
@@ -164,12 +181,15 @@ static void environment_receiver_locations(GLuint program, struct environment_re
     {
         glUniform1i(glGetUniformLocation(program, "sun_objects"), 8);
         glUniform1i(glGetUniformLocation(program, "sun_bsp"), 9);
-        glUniform4fv(glGetUniformLocation(program, "reach_min"), 1, (const float[4]){-1,-1,-1,0});
-        glUniform4fv(glGetUniformLocation(program, "reach_max"), 1, (const float[4]){1,1,1,0});
+        glUniform1i(glGetUniformLocation(program,"sun_far_bsp"),4);
+        glUniform1i(glGetUniformLocation(program,"sun_far_objects"),5);
+        u->reach_min = glGetUniformLocation(program,"reach_min");
+        u->reach_max = glGetUniformLocation(program,"reach_max");
         u->clip_offset = glGetUniformLocation(program, "clip_offset");
         u->sun_frame = glGetUniformLocation(program, "sun_frame");
         u->sun_color_radius = glGetUniformLocation(program, "sun_color_radius");
         u->sun_soft = glGetUniformLocation(program, "sun_soft");
+        u->sun_multisampled = glGetUniformLocation(program, "sun_multisampled");
         u->sun_close = glGetUniformLocation(program,"sun_close");
         u->sun_eye = glGetUniformLocation(program, "sun_eye");
         u->sun_detail = glGetUniformLocation(program, "sun_detail");
@@ -220,11 +240,24 @@ static int environment_resources_for(int projector)
         "gl_Position=projection*vec4(transpose(mat3(camera))*(world-camera[3].xyz),1);\n"
         "gl_Position.xy+=clip_offset*gl_Position.w;\n"
         "if(reversed_depth!=0)gl_Position.z=gl_Position.w-gl_Position.z;}\n";
+    /* A multisample depth resolve can pick a sample anywhere within the pixel.
+       Bound the resulting plane-depth error by projecting half a screen pixel
+       onto the receiver plane. Only BSP self-comparisons need this tolerance. */
     static const char receiver_fragment[] =
         "#version 330 core\n"
         "uniform sampler2D scene_depth, shadow_depth; uniform mat4 camera, projection, frame;\n"
         "uniform vec4 viewport; uniform vec4 color; uniform float radius; uniform int reversed_depth, soft;\n"
         "out vec4 result;\n"
+        "#ifdef SUN\n"
+        "uniform int sun_multisampled;\n"
+        "float sun_resolve_bias(vec2 gradient,float view_depth) {\n"
+        "    if(sun_multisampled==0) return 0.;\n"
+        "    vec3 plane=sun_frame[2].xyz+gradient.x*sun_frame[0].xyz+gradient.y*sun_frame[1].xyz;\n"
+        "    vec2 slope=vec2(dot(plane,camera[0].xyz),dot(plane,camera[1].xyz));\n"
+        "    vec2 spread=abs(slope/(viewport.zw*vec2(projection[0][0],projection[1][1])));\n"
+        "    return (.5*view_depth/sun_color_radius.w)*(spread.x+spread.y);\n"
+        "}\n"
+        "#endif\n"
         "float compare_at(vec2 uv,float z,vec2 gradient){\n"
         "vec2 size=vec2(textureSize(shadow_depth,0)); vec2 center=(floor(uv*size)+0.5)/size;\n"
         "if(any(lessThan(center,vec2(0)))||any(greaterThan(center,vec2(1)))) return 0;\n"
@@ -244,7 +277,7 @@ static int environment_resources_for(int projector)
         "if(any(greaterThan(abs(q.xy),vec2(1)))||q.z< -1||q.z>4||nl<1.e-12) discard;\n"
         "if(dot(n,camera[3].xyz-world)<0.) n=-n;\n"
         "#ifdef SUN\n"
-        "result=sun_light(world,n/nl,true);\n"
+        "result=sun_light(world,n/nl,true,-z);\n"
         "#else\n"
         "float shadow=compare_at(uv,depth,gradient);\n"
         "if(soft!=0){vec2 size=vec2(textureSize(shadow_depth,0)), f=fract(uv*size-0.5), base=uv-f/size;\n"
@@ -332,6 +365,7 @@ static int environment_snapshot(void)
     GLenum format;
     GLuint source;
     if (!xgpu_gl_scene_target(&environment.destination, size, &format, &source, environment.viewport, environment.pixel_center)) return 0;
+    environment.multisampled_depth = source == 0;
     if (size[0] != environment.scene_size[0] || size[1] != environment.scene_size[1] || format != environment.scene_format)
     {
         if (environment.scene_depth) glDeleteTextures(1, &environment.scene_depth);
@@ -480,14 +514,16 @@ static int environment_draw_depth(GLuint target)
             if (!sun.partial) { glClearColor(0,0,0,0); glClear(GL_COLOR_BUFFER_BIT); }
         }
         glUseProgram(p); glBindVertexArray(vao);
-        glUniformMatrix4fv(frame,1,GL_FALSE,sun.drawing_detail==2 ? sun.close_frame : sun.drawing_detail ? sun.detail_frame : environment.frame);
-        glUniform1f(radius,sun.drawing_detail==2 ? sun.close_radius : sun.drawing_detail ? sun.detail_radius : environment.radius);
+        glUniformMatrix4fv(frame,1,GL_FALSE,sun.drawing_far ? sun.far_frame : sun.drawing_detail==2 ? sun.close_frame : sun.drawing_detail ? sun.detail_frame : environment.frame);
+        glUniform1f(radius,sun.drawing_far ? environment.radius*3.f : sun.drawing_detail==2 ? sun.close_radius : sun.drawing_detail ? sun.detail_radius : environment.radius);
         glUniform1i(alpha_map,9);
         glActiveTexture(GL_TEXTURE9); glBindSampler(9,alpha_sampler);
         for (draw=0;draw<draw_count;draw++)
         {
             int mesh=draws[draw].mesh;
+            if (sun.writing && !(sun.surface_tiles[draw] & (sun.drawing_far ? SUN_TILE_FAR : SUN_TILE_NEAR))) continue;
             if (sun.drawing_detail && !(draws[draw].sun_detail & sun.drawing_detail)) continue;
+            if (sun.projecting && !sun.writing && !sun.drawing_far && (draws[draw].sun_detail & 4)) continue;
             bind_caster_draw(draw, &previous, bones, uv, alpha);
             if (sun.writing)
             {
@@ -596,10 +632,21 @@ int modern_environment_end(int complete, const float camera[16], const float pro
             glDepthFunc(xgpu_reversed_depth ? GL_LEQUAL : GL_GEQUAL);
             glUniform2f(u->clip_offset,2.f*environment.pixel_center[0]/environment.viewport[2],
                 -2.f*environment.pixel_center[1]/environment.viewport[3]);
+            /* Bound the union of both depth tiles in the projector frame. */
+            float lo[4]={-1,-1,-1,0}, hi[4]={1,1,1,0};
+            if (sun.far_available) for (int i=0;i<2;i++)
+            {
+                float scale=sun.region[10], center=(1.f-2.f*sun.region[8+i])*scale;
+                if (center-scale<lo[i]) lo[i]=center-scale;
+                if (center+scale>hi[i]) hi[i]=center+scale;
+            }
+            glUniform4fv(u->reach_min,1,lo);
+            glUniform4fv(u->reach_max,1,hi);
             glBindTextures(9,1,&sun.static_depth); glBindSampler(9,0);
             glUniformMatrix4fv(u->sun_frame,1,GL_FALSE,sun.frame);
             glUniform4fv(u->sun_color_radius,1,(const float[4]){color[0],color[1],color[2],sun.radius});
             glUniform1i(u->sun_soft,sun.soft);
+            glUniform1i(u->sun_multisampled,environment.multisampled_depth);
             glUniform4fv(u->sun_close,1,sun.close);
             glUniform4fv(u->sun_eye,1,sun.eye);
             glUniform4fv(u->sun_detail,1,sun.detail);
@@ -609,7 +656,7 @@ int modern_environment_end(int complete, const float camera[16], const float pro
             glUniform1i(u->soft,environment.soft);
             glUniform4fv(u->color,1,rgba);
         }
-        if (sun.projecting || handoff) glUniform4fv(u->sun_region,2,sun.region);
+        if (sun.projecting || handoff) glUniform4fv(u->sun_region,4,sun.region);
         glUniform1i(u->reversed_depth,xgpu_reversed_depth);
         for (draw=0;draw<4;draw++) viewport[draw]=(float)environment.viewport[draw];
         viewport[0] += environment.pixel_center[0]; viewport[1] += environment.pixel_center[1];
@@ -631,6 +678,7 @@ static int sun_depth_resources(void)
 {
     if (sun.size != environment.size || !sun.static_depth || !sun.object_depth)
     {
+        sun_release_far();
         if (!environment_resize_texture(&sun.static_depth, &environment.depth_fbo, environment.size, environment.size, 1)) return 0;
         sun.valid = sun.object_checked = 0;
         sun.checked_receiver_target = environment.checked_handoff_target = 0;
@@ -641,6 +689,23 @@ static int sun_depth_resources(void)
         sun.size = environment.size;
     }
     return 1;
+}
+
+/* Only map preparation calls this. Gameplay can keep using near sunlight
+   even when the second allocation fails after the first has succeeded. */
+static void sun_prepare_far(void)
+{
+    if (environment_resize_texture(&sun.far_bsp,&environment.depth_fbo,sun.size,sun.size,1) &&
+        environment_resize_texture(&sun.far_objects,&sun.far_fbo,sun.size,sun.size,0))
+    {
+        sun.far_available = 1;
+        platform_log("GPU: distant sun shadows prepared at %d x %d",sun.size,sun.size);
+    }
+    else
+    {
+        sun_release_far();
+        platform_log("GPU: distant sun maps unavailable; using near sun shadows");
+    }
 }
 
 static void sun_fit_tile(float tile_frame[16], float tile[4], const float frame[16], float radius,
@@ -656,8 +721,13 @@ static void sun_fit_tile(float tile_frame[16], float tile[4], const float frame[
     tile[2] = radius/tile_radius;
 }
 
-/* Returns 2 on a static cache hit, 1 when the caller must submit BSP depth. */
-int modern_environment_sun_begin(const float frame[16], float radius, const float region[8], const float detail[2], float detail_radius, const float eye[3], const float close[4], int cache_static, int sky, int soft)
+float modern_environment_sun_outer_radius(float near_radius)
+{
+    return sun.far_available ? 3.f*near_radius : near_radius;
+}
+
+/* Return the dirty BSP tiles, SUN_TILES_CACHED on a hit, or zero on failure. */
+int modern_environment_sun_begin(const float frame[16], const float far_origin[3], float radius, const float region[16], const float detail[2], float detail_radius, const float eye[3], const float close[4], int reusable, int sky, int soft)
 {
     if (drawing || !xgpu_gl_ready()) return 0;
     sun.projecting = 1;
@@ -676,6 +746,26 @@ int modern_environment_sun_begin(const float frame[16], float radius, const floa
     /* Leave a texel border for snapped centres and the Soft filter. */
     detail_radius *= 1.02f;
     memcpy(sun.region,region,sizeof(sun.region));
+    int required = SUN_TILE_NEAR;
+    if (sky != sun.sky || radius != sun.radius) sun.valid = 0;
+    sun.valid &= reusable;
+    if (memcmp(sun.frame,frame,sizeof(sun.frame))) sun.valid &= ~SUN_TILE_NEAR;
+    sun.region[10] = 1.f;
+    if (sun.far_available)
+    {
+        /* Reconstructing this translation from the near origin makes it
+           depend on rounding in a different grid cell during a scoped pan. */
+        float far_frame[16];
+        memcpy(far_frame,frame,sizeof(far_frame));
+        memcpy(far_frame+12,far_origin,3*sizeof(float));
+        for (int i=0; i<3; i++) far_frame[8+i] *= 3.f;
+        sun.region[8] = .5f+.5f*region[8]/radius;
+        sun.region[9] = .5f+.5f*region[9]/radius;
+        sun.region[10] = 1.f/3.f;
+        required |= SUN_TILE_FAR;
+        if (memcmp(far_frame,sun.far_frame,sizeof(far_frame))) sun.valid &= ~SUN_TILE_FAR;
+        memcpy(sun.far_frame,far_frame,sizeof(far_frame));
+    }
     sun.detail_radius = detail_radius;
     sun.close_radius = close[2];
     sun_fit_tile(sun.detail_frame,sun.detail,frame,radius,detail,detail_radius);
@@ -684,22 +774,25 @@ int modern_environment_sun_begin(const float frame[16], float radius, const floa
     if (close[2] > 0.f && sun.atlas_tiles==3)
         sun_fit_tile(sun.close_frame,sun.close,frame,radius,close,close[2]);
     sun.detail[3] = 1.f/(float)sun.atlas_tiles;
-    if (cache_static && sun.valid && sky==sun.sky && radius==sun.radius && !memcmp(sun.frame,frame,sizeof(sun.frame))) return 2;
-    sun.writing=1;
+    sun.writing = required & ~sun.valid;
+    if (!sun.writing) return SUN_TILES_CACHED;
     sun.sky=sky;
     memcpy(sun.frame,frame,sizeof(sun.frame));
     sun.radius = radius;
-    sun.valid = 0;
-    return 1;
+    return sun.writing;
 fail:
     sun.projecting = 0;
     xgpu_gl_end_external_pass();
     return 0;
 }
 
-void modern_environment_sun_surfaces(const unsigned char *owners)
+void modern_environment_sun_surfaces(const unsigned char *owners, int tiles)
 {
-    if (draw_count>0) sun.surface_sky[draw_count-1]=owners;
+    if (draw_count>0)
+    {
+        sun.surface_sky[draw_count-1]=owners;
+        sun.surface_tiles[draw_count-1]=(unsigned char)tiles;
+    }
 }
 
 /* Flush in bounded batches so dense BSPs and large scenery collections share
@@ -707,14 +800,35 @@ void modern_environment_sun_surfaces(const unsigned char *owners)
 static int sun_draw_batch(void)
 {
     if (!sun.projecting || !environment_drawing) return 0;
-    if (sun.writing)
+    if (sun.writing & SUN_TILE_NEAR)
     {
         glBindFramebuffer(GL_FRAMEBUFFER,environment.depth_fbo);
         glFramebufferTexture2D(GL_FRAMEBUFFER,GL_COLOR_ATTACHMENT0,GL_TEXTURE_2D,sun.static_depth,0);
         GLenum target=GL_COLOR_ATTACHMENT0;
         glDrawBuffers(1,&target);
     }
-    int ok = environment_draw_depth(sun.writing ? environment.depth_fbo : sun.object_fbo);
+    int ok = 1;
+    if (!sun.writing || (sun.writing & SUN_TILE_NEAR))
+        ok = environment_draw_depth(sun.writing ? environment.depth_fbo : sun.object_fbo);
+    if (ok && sun.far_available && (!sun.writing || (sun.writing & SUN_TILE_FAR)))
+    {
+        sun.drawing_far = 1;
+        if (sun.writing)
+        {
+            GLenum target = GL_COLOR_ATTACHMENT0;
+            glBindFramebuffer(GL_FRAMEBUFFER,sun.far_fbo);
+            glFramebufferTexture2D(GL_FRAMEBUFFER,GL_COLOR_ATTACHMENT0,GL_TEXTURE_2D,sun.far_bsp,0);
+            glDrawBuffers(1,&target);
+        }
+        ok = environment_draw_depth(sun.far_fbo);
+        if (sun.writing)
+        {
+            GLenum target = GL_NONE;
+            glFramebufferTexture2D(GL_FRAMEBUFFER,GL_COLOR_ATTACHMENT0,GL_TEXTURE_2D,0,0);
+            glDrawBuffers(1,&target);
+        }
+        sun.drawing_far = 0;
+    }
     /* The wide clear covers the entire atlas once. Each extra draw reuses
        this batch's poses and only visits casters overlapping its light rays. */
     if (!sun.writing) for (int tile=1; ok && tile<sun.atlas_tiles; tile++)
@@ -733,18 +847,20 @@ static int sun_draw_batch(void)
 
 int modern_environment_sun_static(int complete)
 {
-    sun.valid = complete && sun_draw_batch() && glGetError()==GL_NO_ERROR;
+    int ok = complete && sun_draw_batch() && glGetError()==GL_NO_ERROR;
+    if (ok) sun.valid |= sun.writing;
     glBindFramebuffer(GL_FRAMEBUFFER,environment.depth_fbo);
     glFramebufferTexture2D(GL_FRAMEBUFFER,GL_COLOR_ATTACHMENT0,GL_TEXTURE_2D,0,0);
     GLenum none=GL_NONE;
     glDrawBuffers(1,&none);
     sun.partial = sun.writing = draw_count = 0;
-    return sun.valid;
+    return ok;
 }
 
 int modern_environment_sun_finish(int complete, const float color[3])
 {
-    sun.ready = complete && sun.valid && sun_draw_batch();
+    int required = SUN_TILE_NEAR | (sun.far_available ? SUN_TILE_FAR : 0);
+    sun.ready = complete && sun.valid == required && sun_draw_batch();
     /* Validate the first posed draw on each new target. Later draws use the
        same checked framebuffer and program. Polling the GL worker for an
        error every frame serializes unrelated lighting work ahead of this pass. */
@@ -760,6 +876,11 @@ int modern_environment_sun_finish(int complete, const float color[3])
     /* Units 14 and 15 belong exclusively to sunlight through this view. */
     if (sun.ready)
     {
+        if (sun.far_available)
+        {
+            glBindTextures(4,1,&sun.far_bsp); glBindSampler(4,0);
+            glBindTextures(5,1,&sun.far_objects); glBindSampler(5,0);
+        }
         glBindTextures(14,1,&sun.static_depth); glBindSampler(14,0);
         glBindTextures(15,1,&sun.object_depth); glBindSampler(15,0);
     }
@@ -771,8 +892,8 @@ int modern_environment_sun_project(const float camera[16], const float projectio
     if (drawing || !sun.ready) return 0;
     sun.projecting = drawing = environment_drawing = 1;
     failed = draw_count = 0;
-    memcpy(environment.frame,sun.frame,sizeof(sun.frame));
-    environment.radius = sun.radius;
+    memcpy(environment.frame,sun.far_available ? sun.far_frame : sun.frame,sizeof(sun.frame));
+    environment.radius = modern_environment_sun_outer_radius(sun.radius);
     int ok = modern_environment_end(environment_snapshot(),camera,projection,sun.tint,0);
     sun.projecting = 0;
     return ok;
@@ -783,11 +904,12 @@ int modern_environment_sun_project(const float camera[16], const float projectio
    four radii down its axis, so every corner is within sqrt(18) radii. */
 int modern_environment_sun_interior(const float frame[16], float radius)
 {
-    float limit = .60f - 4.25f*radius/sun.radius;
+    float limit = .60f/sun.region[10] - 4.25f*radius/sun.radius;
     for (int i=0;i<2;i++)
     {
         const float *axis = sun.region + 4*i;
         float distance = axis[3]+axis[0]*frame[12]+axis[1]*frame[13]+axis[2]*frame[14];
+        distance += sun.region[12+i];
         if (distance < -limit || distance > limit) return 0;
     }
     return 1;

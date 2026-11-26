@@ -524,7 +524,7 @@ void modern_shadow_clear_draws(void)
 #include "modern_environment_gl.inl"
 #include "modern_spots_gl.inl"
 
-void modern_shadow_preload(int sunlight, int fixtures, int beam)
+void modern_shadow_preload(int sunlight, int distant_sun, int fixtures, int beam)
 {
 	GLint read_fbo, draw_fbo;
 	if (!xgpu_gl_ready()) return;
@@ -543,7 +543,7 @@ void modern_shadow_preload(int sunlight, int fixtures, int beam)
 	if (environment_resources_for(0))
 	{
 		if (shadow_size <= 1024) environment_model_resources();
-		if (sunlight) sun_depth_resources();
+		if (sunlight && sun_depth_resources() && distant_sun) sun_prepare_far();
 		if (fixtures || beam) spot_depth_resources(shadow_size, fixtures ? SPOT_LAYERS : 1);
 		if (fixtures) spot_receiver_prepare();
 	}
@@ -707,6 +707,8 @@ void modern_shadow_uniforms_initialize(unsigned long linked, struct modern_shado
     uniforms->sun_eye = glGetUniformLocation(linked,"sun_eye");
     uniforms->sun_detail = glGetUniformLocation(linked,"sun_detail");
     uniforms->sun_region = glGetUniformLocation(linked,"sun_region[0]");
+    glUniform1i(glGetUniformLocation(linked,"sun_far_bsp"),4);
+    glUniform1i(glGetUniformLocation(linked,"sun_far_objects"),5);
     glUniform1i(glGetUniformLocation(linked,"sun_bsp"),14);
     glUniform1i(glGetUniformLocation(linked,"sun_objects"),15);
     uniforms->environment_frames = glGetUniformLocation(linked, "modern_environment_frames");
@@ -741,7 +743,7 @@ void modern_shadow_bind(struct modern_shadow_uniforms *uniforms)
             glUniform4fv(uniforms->sun_close,1,sun.close);
             glUniform4fv(uniforms->sun_eye,1,sun.eye);
             glUniform4fv(uniforms->sun_detail,1,sun.detail);
-            glUniform4fv(uniforms->sun_region,2,sun.region);
+            glUniform4fv(uniforms->sun_region,4,sun.region);
         }
         glUniform4fv(uniforms->sun_color_radius,1,(const float[4]){sun.tint[0],sun.tint[1],sun.tint[2],sun.model ? sun.radius : 0});
     }
@@ -786,7 +788,7 @@ void modern_shadow_bind(struct modern_shadow_uniforms *uniforms)
 }
 
 #else
-void modern_shadow_preload(int sunlight, int fixtures, int beam) { (void)sunlight; (void)fixtures; (void)beam; }
+void modern_shadow_preload(int sunlight, int distant_sun, int fixtures, int beam) { (void)sunlight; (void)distant_sun; (void)fixtures; (void)beam; }
 int modern_spot_mask(void) { return 0; }
 void modern_environment_model_clear(void) {}
 int modern_environment_model_active(void) { return 0; }

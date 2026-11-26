@@ -5,7 +5,8 @@ static void sun_prepare(void) {}
 static int patches_ready, sun_count;
 static void prepare_spots(int mode) { (void)mode; }
 static unsigned char *sun_surface_sky;
-static int sun_cutout_count;
+static struct { int count; } sun_cutouts[2];
+static struct { long unit, tick; float previous, distance; } sun_scope_views[1];
 static void modern_environment_window(void) {}
 #define MIN(a,b) ((a)<(b)?(a):(b))
 #define MAX(a,b) ((a)>(b)?(a):(b))
@@ -19,7 +20,11 @@ static int rebound_stage, failed_slot = -1;
 static long rebound_light;
 static float captured_radius;
 static const char *mode = "off";
-static struct { struct { real_point3d position; } camera; } render;
+static struct { struct { real_point3d position; int mirrored; } camera; short local_player_index; } render;
+enum { _director_perspective_first_person, _director_perspective_third_person };
+static short perspective = _director_perspective_third_person;
+static short director_get_perspective(short player) { return perspective; }
+static long player_control_get_unit_index(short player) { return 0x10001; }
 static struct { float game_time_sec; } global_frame_parameters;
 struct rasterizer_light_submit_parameters {
  real_point3d position; float radius;
@@ -60,11 +65,13 @@ static void plasma_falloff_begin(long light) { rebound_stage=2; rebound_light=li
 static void plasma_falloff_specular_begin(long light) { rebound_stage=1; rebound_light=light; }
 static int modern_shadow_end(void) { return !failed; }
 static int world_casters(const struct structure_bsp *b,const real_point3d *p,float r) { return complete; }
-static int viewmodel_casters(long owners[2],long stuck_host,long unshadowed_owner) { skipped_view[collecting_slot]=stuck_host; owners[0]=NONE; owners[1]=0x10001; return complete; }
-static int object_casters(const real_point3d *p,float r,const long owners[2],long unshadowed_owner, long excluded_caster, long emitter) { skipped_emitter[collecting_slot]=emitter; skipped_world[collecting_slot]=excluded_caster; return complete; }
+static long view_owner[MODERN_SHADOW_LIGHTS], world_owner[MODERN_SHADOW_LIGHTS];
+static int viewmodel_casters(long owners[2],long stuck_host,long unshadowed_owner) { view_owner[collecting_slot]=unshadowed_owner; skipped_view[collecting_slot]=stuck_host; owners[0]=NONE; owners[1]=0x10001; return complete; }
+static int object_casters(const real_point3d *p,float r,const long owners[2],long unshadowed_owner, long excluded_caster, long emitter) { world_owner[collecting_slot]=unshadowed_owner; skipped_emitter[collecting_slot]=emitter; skipped_world[collecting_slot]=excluded_caster; return complete; }
 static long chassis_light=NONE, chassis_owner=NONE;
 static long muzzle_light=NONE, firing_weapon=NONE;
-static long muzzle_lighting_shadow_caster(long light,long emitter_object,long *collision_owner) {
+static long muzzle_lighting_shadow_caster(long light,long emitter_object,long first_person_unit,long *excluded_shooter,long *collision_owner) {
+ *excluded_shooter=light==muzzle_light ? first_person_unit : NONE;
  *collision_owner=light==chassis_light ? chassis_owner : NONE;
  return light==muzzle_light ? firing_weapon : *collision_owner;
 }
@@ -84,7 +91,9 @@ static int selection_stability(void)
 {
  int fps, frame, switches, map_zero, map_one;
  for (fps=30; fps<=120; fps*=2) {
+  sun_scope_views[0].distance=36.f;
   modern_shadows_reset(); modern_shadows_window();
+  CHECK(!sun_scope_views[0].distance,"map reset clears the scoped aim distance");
   modern_shadows_submitted(100,0); modern_shadows_submitted(101,1); modern_shadows_submitted(102,2);
   allowed=7; mode="hard"; modern_shadows_map_loaded(1);
   rasterizer_lights.lights[0].color.red=2;
@@ -92,7 +101,7 @@ static int selection_stability(void)
   rasterizer_lights.lights[2].color.red=.7f;
   global_frame_parameters.game_time_sec=0;
   sun_count=1;modern_shadows_prepare(1);
-  CHECK(!sun_count && !sun_cutout_count,"new view clears previous ownership and map reset clears cutouts");
+  CHECK(!sun_count && !sun_cutouts[0].count && !sun_cutouts[1].count,"new view clears previous ownership and map reset clears both cutout lists");
   map_zero=map_for(0);map_one=map_for(1);switches=0;
   CHECK(map_zero!=NONE && map_one!=NONE && map_zero!=map_one,"two strongest lights receive independent maps");
   for(frame=1;frame<=fps;frame++) {
@@ -224,6 +233,13 @@ int main(int argc,char **argv)
        "only the handheld flash omits its firing weapon, without chassis blocking");
  modern_shadows_model_slot(1,0);modern_shadows_receiver(0,firing_weapon);
  CHECK(modern_shadows_map(0)!=NONE,"the firing weapon samples shadows from the biped and other geometry");
+ perspective=_director_perspective_first_person;modern_shadows_prepare(1);
+ CHECK(view_owner[map_for(1)]==0x10001 && world_owner[map_for(1)]==0x10001 && world_owner[map_for(0)]==NONE,
+       "only the viewer's flash omits their arms and world body");
+ modern_shadows_receiver(1,NONE);
+ CHECK(modern_shadows_map(0)!=NONE,"other blockers can still shadow the viewer's hands");
+ perspective=_director_perspective_third_person;modern_shadows_prepare(1);
+ CHECK(view_owner[map_for(1)]==NONE && world_owner[map_for(1)]==NONE,"switching views restores the shooter's silhouette");
  muzzle_light=NONE;chassis_light=101;chassis_owner=0x10002;modern_shadows_prepare(1);
  CHECK(modern_shadows_collision_owner(1)==chassis_owner && modern_shadows_collision_owner(0)==NONE,
        "collision supplement belongs only to its own muzzle light");

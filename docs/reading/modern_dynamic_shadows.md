@@ -10,7 +10,10 @@ an active flashlight one of the eight local slots. Extra Slot allows eight
 local shadows plus the flashlight.
 
 E5 closed on 25 November 2026 with fixed Hard and Soft 1024 as the sustained
-240 FPS baseline. E9 closed on 26 November 2026 with fixed shadow resolution and all eight local slots. E6 distant sunlight, E7 map authoring and E8 adaptive quality are deferred.
+240 FPS baseline. E9 closed on 26 November 2026 with fixed shadow resolution
+and all eight local slots. E6 reopened after 1.0 and closed on 26 November
+2026 with approval of the opt-in Distant Sun Shadows Windows playtest.
+E7 map authoring and E8 adaptive quality remain deferred.
 
 ### Established on modern-dynamic-shadows
 
@@ -105,27 +108,95 @@ The following procedure records the E5 reference setup for future regressions.
 
 ### E6 — Distant sunlight and smooth transitions
 
-**Deferred.** Phase 2 uses the signed-off near-camera sun fade. Revisit
-extended coverage when a gameplay capture shows a missing distant shadow
-that is noticeable during normal play. Use that scene to judge the benefit
-of the outer tile.
+**Signed off on 26 November 2026.** The final Windows playtest resolved the
+reported Blood Gulch terrain flicker. Visual checks covered Hard and Soft at
+1024 and 2048. Sign-off used the existing Two Betrayals timings without a
+further combat run. [Accepted build and evidence](distant_sun_qualification.md#e6-sign-off)
+
+**E6.1 complete.** Xbox Blood Gulch reproduces the reported loss of distant
+vehicle shadows at Hard 1024. From a fixed camera, the driven Warthog had a
+clear directional shadow at 8.4 world units and a weak one at 13.2. At 17.7
+it was still in view and the directional silhouette was gone. A control
+omitting only that vehicle from the sun pass isolated its contribution.
+On a second route, driving towards and then reversing away from a parked
+Warthog brought the sun coverage at its centre to full strength at 10.4
+units and back to zero at 14.4. These are camera distances on these routes.
+The fade itself is measured in the sun's projection plane.
+
+Both stages use the same routes. The lane is centred at (82, -126) and runs towards
+negative Y. The fixed camera is at (75, -120, 1.928). On the driving route,
+the parked target settles at (84.107, -135.579, 0.851). The Windows release
+capture used a 960 × 540 view, a 30 Hz simulation and the near sun renderer
+from Phase 2 1.0. The local E6.1 evidence includes both normal-speed clips,
+full-resolution reference frames and per-tick camera and vehicle positions.
+
+**E6.2 prototype complete.** On Xbox Blood Gulch at Hard and Soft 1024,
+the moving Warthog kept its near silhouette at 8.4 world units and cast a
+visible shadow at 17.7 units. Omitting only the Warthog from the sun pass
+removed that shadow. The approach and reverse runs matched camera and
+vehicle positions at the precision of the per-tick trace. An extended
+camera route crossed the outer fade in both directions. Synthetic GPU
+checks also isolated the two transitions with different blockers in the
+two maps and checked that coincident blockers attenuate the light once.
+
+The desktop playtest exposes **Distant Sun Shadows** beside **Sun Shadows**
+under Shadows. Choose Modern Hard or Soft, enable Sun Shadows and Distant
+Sun Shadows, save and load a map. Modern places Shadows under Advanced
+Graphics. The distant option defaults to off. The outer map has a 36-world-unit half-width.
+Near-to-outer blending spans 7.2–11.1 units and outer-to-stock fading spans
+21.6–33.3 units, measured in the sun's projection plane. At 1024 the two
+extra 32-bit textures use 8 MiB. The sun draws from its own resources and
+leaves all eight local shadow slots available.
+
+The renderer shares object traversal and animated poses between ranges.
+`sun_prepare` snaps each static BSP tile to its own world-space grid.
+`modern_environment_sun_begin` checks each projection and its tracked cutout
+materials. When either tile needs new depth, `world_casters_clipped` walks the
+BSP once and marks the meshes that intersect each dirty tile. A changed
+breakable surface or a new BSP invalidates both tiles.
+
+**E6.2a scoped sunlight.** A first-person
+weapon zoom moves the near sun projection and its four-world-unit detail
+region towards the first surface hit by the camera's aim ray. The outer
+projection stays with the camera. Each range admits casters whose shadows
+can reach the view, including casters outside the scope. Models and BSP
+receivers blend the two projections and return to stock lighting outside
+both. The scope reuses the existing sun textures and leaves all eight local
+shadow slots available.
+
+Read `sun_scope_distance` in [the sun caster pass](../../port/linux/game/modern_sun.inl)
+for the per-view focus and `sun_weights` in [the sun shader](../../port/linux/src/modern_sun_shader.inl)
+for the receiver fade.
+The aim ray runs at most once per simulation tick per scoped view. Its limit
+is 36 world units times the weapon's authored magnification, capped at 96.
+A miss or unzoom brings focus back towards the camera. The focus depth can
+move by up to four units per tick, interpolated between ticks. This prevents
+a ridge-to-background depth change from moving the tile in a single frame.
+
+On Xbox Blood Gulch, both native sniper zoom levels exercised the terrain
+and parked-Warthog comparison at Hard and Soft 1024. The vehicle was 41.4
+world units from the camera. Omitting it from the sun pass removed its cast
+shadow. CE Death Island and MCC Mercury Rising 2 received Windows map-load
+checks.
+
+**E6.3 playtest qualification.** The independent static tile caches eliminated
+redundant far BSP draws during the scoped Blood Gulch pan. The renderer retains
+the dedicated visibility fence. In the final two runs per mode on the RTX 5070 Ti,
+Hard reached 240 FPS in all 240 measured seconds and Soft in 233. These are
+prototype measurements. [Combat timings and scoped checks](distant_sun_qualification.md#sharing-the-frame-pacing-fence)
+
+At map preparation, `modern_shadows_prepare_loaded_map` passes the saved
+setting to [the shadow renderer](../../port/linux/src/modern_shadows_gl.c).
+After near sunlight is ready, `sun_prepare_far` allocates the two outer maps.
+Failure releases any partial allocation and keeps near sunlight available.
+Leaving the map releases the outer textures and framebuffer. Changing the
+setting takes effect at the next map load.
 
 The near sun map has a 12-world-unit half-width. Its visible strength already
 fades continuously between 7.2 and 11.1 units in the sun's projection plane,
 including the handoff to existing object shadows and baked BSP lighting.
-If E6 resumes, compare a cached outer tile starting at 36 units half-width against the
-accepted near-only build. The earlier prototype showed extra vehicle shadow
-on Sidewinder and added submission time. Use those captures and timings as
-the starting comparison. [Near coverage and outer-tile experiment](environment_shadow_e4.md#outdoor-coverage)
-
-Keep eligible BSP and object geometry, including off-camera casters whose
-shadows reach the view. Reuse valid static depth, refresh moving casters and
-invalidate on relevant sky, BSP, geometry or map changes. Blend overlapping
-tiles once per sun contribution and fade the outer coverage back to the
-authored scene. Check Sidewinder drives, turns and strafes in both directions
-and repeat the Mercury Rising II approach and retreat. Accept extended reach
-when it adds visible distant shadows, preserves near detail and continuous
-transitions, and meets the fixed-quality E5 performance target.
+The earlier Sidewinder prototype demonstrated the extra vehicle shadow and
+its submission cost. [Near coverage and outer-tile experiment](environment_shadow_e4.md#outdoor-coverage)
 
 ### E7 — Optional map authoring
 
@@ -355,8 +426,12 @@ model triangles block its illumination. The translucent shield surface is
 not turned into an opaque wall. Other lighting and baked illumination remain
 unchanged. A muzzle flash participates through the same selection interface.
 For a handheld muzzle flash, Hard and Soft omit the firing weapon from its own
-light's caster list in first and third person. The shooter and first-person arms
-still cast. For weapon-mounted lights, the exclusion also covers charge buildup,
+light's caster list in first and third person. In first person, the viewer's own
+flash also skips their body and arms. In third person, and when watching someone
+else fire, the shooter's body casts normally. A weapon-mounted charge glow,
+including the plasma pistol's held overcharge, skips its wielder in both views.
+The released muzzle flash and projectile are separate lights. Other objects can
+still block any of these lights. For the firing weapon itself, the exclusion covers charge buildup,
 a held full charge, overload, automatic fire between rounds, shot recovery and overheating.
 Either trigger can activate it, even with muzzle flashes disabled. A newly fired
 projectile also identifies its launching weapon while their render bounds overlap.

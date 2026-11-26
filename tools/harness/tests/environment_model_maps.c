@@ -7,12 +7,14 @@ enum { GL_TEXTURE9, GL_TEXTURE_2D, GL_DEPTH_COMPONENT32F, GL_DEPTH_COMPONENT,
  GL_FLOAT, GL_TEXTURE_MIN_FILTER, GL_TEXTURE_MAG_FILTER, GL_NEAREST,
  GL_TEXTURE_WRAP_S, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE, GL_FRAMEBUFFER,
  GL_COLOR_ATTACHMENT0, GL_DEPTH_ATTACHMENT, GL_NONE, GL_FRAMEBUFFER_COMPLETE, GL_NO_ERROR,
- GL_UPPER_LEFT, GL_ZERO_TO_ONE };
+ GL_UPPER_LEFT, GL_ZERO_TO_ONE, GL_TEXTURE8, GL_R32F, GL_RED };
 static int sun_detail_caster, sun_detail_in_batch;
 static int drawing, environment_drawing, draw_count, failed, ready=1, scale=8;
 static int deletion_calls, error_queries, next_error = GL_NO_ERROR;
 static int allocations, deletions, checks, attachments, depth_calls, handoffs, fail_fbo, fail_draw;
 static unsigned program=1, next_id=10;
+static int fail_at_check;
+#define platform_log(...) ((void)0)
 static GLuint targets[2];
 static int xgpu_gl_ready(void) { return ready; }
 static float halo_shadow_resolution_scale(void) { return (float)scale; }
@@ -32,10 +34,11 @@ static void glBindFramebuffer(GLenum t,GLuint v) {}
 static void glFramebufferTexture2D(GLenum t,GLenum a,GLenum d,GLuint v,int l) { attachments++; }
 static void glDrawBuffers(int n,const GLenum *p) {}
 static void glReadBuffer(GLenum b) {}
-static int glCheckFramebufferStatus(GLenum t) { checks++;return fail_fbo?-1:GL_FRAMEBUFFER_COMPLETE; }
+static int glCheckFramebufferStatus(GLenum t) { checks++;return fail_fbo || checks==fail_at_check ? -1:GL_FRAMEBUFFER_COMPLETE; }
 static int glGetError(void) { int error=next_error; next_error=GL_NO_ERROR; error_queries++; return error; }
 static void glClipControl(GLenum a,GLenum b) {}
 static int environment_resources(void);
+static int sun_depth_resources(void) { return 1; }
 static int environment_draw_depth(GLuint target) { targets[depth_calls++%2]=target;return !fail_draw; }
 static struct { unsigned alpha; } draws[256];
 #include "under_test.inc"
@@ -97,5 +100,45 @@ int main(int argc,char **argv)
  spots.rendering=drawing=environment_drawing=1;spots.layer=2;draw_count=256;
  CHECK(flush_spot_batch() && spots.spot_partial,"crowded static BSP continues in the same fixture layer");
  CHECK(modern_spot_end(1) && !(spots.valid_static & 1),"a partial static batch cannot certify the entire layer as opaque");
+ /* Both tiles use the same fixed sky and depth extent. Move their two
+    origins independently, then invalidate a cutout in just the far tile. */
+ {
+  float near_frame[16]={1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1};
+  float far_origin[3]={0},region[16]={0},close[4]={0};
+  int both=SUN_TILE_NEAR|SUN_TILE_FAR;
+  sun.valid=0; sun.far_available=1; sun.far_fbo=45;
+  for(int phase=0;phase<7;phase++){
+   int reusable=phase==4 ? SUN_TILE_NEAR : both;
+   int want[]={3,4,1,2,2,3,3};
+   if(phase==2) near_frame[12]+=1.5f;
+   if(phase==3) far_origin[1]+=4.5f;
+   int dirty=modern_environment_sun_begin(near_frame,far_origin,12,region,close,4,far_origin,close,reusable,phase>=5,0);
+   CHECK(dirty==want[phase],"cache key, retry or per-tile dependency incorrect");
+   if(dirty!=SUN_TILES_CACHED){
+    before=depth_calls;fail_draw=phase==5;
+    CHECK(modern_environment_sun_static(1)==!fail_draw,"failed draw cannot publish a static tile");
+    if(!fail_draw){
+     CHECK(depth_calls-before==((dirty&SUN_TILE_NEAR)!=0)+((dirty&SUN_TILE_FAR)!=0),"clean tile redrawn");
+     CHECK(targets[(depth_calls-1)%2]==((dirty&SUN_TILE_FAR)?45u:43u),"wrong static framebuffer");
+    }
+    fail_draw=0;
+   }
+   CHECK(modern_environment_sun_finish(phase!=5,tint)==(phase!=5),"incomplete sunlight sampled");
+  }
+ }
+ modern_environment_dispose();
+ for (int stage=1;stage<=3;stage++)
+ {
+    environment.depth_fbo=1;sun.size=1024;sun.valid=SUN_TILE_NEAR;
+    fail_at_check=stage<=2 ? checks+stage : 0;
+    int old_allocations=allocations,old_deletions=deletions;
+    CHECK(modern_environment_sun_outer_radius(12)==12,"near-only by default");
+    sun_prepare_far();
+    CHECK(modern_environment_sun_outer_radius(12)==(stage==3?36:12),"incomplete outer pair falls back to near");
+    CHECK(sun.valid==SUN_TILE_NEAR && environment.depth_fbo==1,"far preparation preserves near cache");
+    sun_release_far();
+    CHECK(!sun.far_fbo && !sun.far_objects && !sun.far_bsp && !sun.far_available,"no far resources survive cleanup");
+    CHECK(allocations-old_allocations==deletions-old_deletions,"release partial and complete allocations exactly once");
+ }
  return 0;
 }

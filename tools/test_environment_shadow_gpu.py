@@ -44,11 +44,12 @@ def test_directional_receiver_depth_and_empty_rays(reverse,soft,depth_stencil,su
         projection[3,2]=-1
         camera=np.eye(4,dtype=np.float32);camera[2,3]=3
         frame=np.diag([1,-1,-1,1]).astype(np.float32)
-        textures=[r.new('Textures') for _ in range(3 if sun else 2)]
+        textures=[r.new('Textures') for _ in range(5 if sun else 2)]
         for unit,tex in enumerate(textures):
             g('ActiveTexture',None,U)(0x84C0+unit);g('BindTexture',None,U,U)(0x0DE1,tex)
             for param in (0x2801,0x2800):g('TexParameteri',None,U,U,I)(0x0DE1,param,0x2600)
-        def draw(z,empty=False,roof=False,detail=False,region=None,close_strength=None):
+        def draw(z,empty=False,roof=False,detail=False,region=None,close_strength=None,far_blocked=None,
+                 sample_offset=None,multisampled=0):
             world_z=z;view_z=(world_z-camera[2,3])*camera[2,2]
             clip=projection@np.array([0,0,view_z,1]);d=clip[2]/clip[3]
             data=np.full((64,64),1-d if reverse else d,np.float32)
@@ -60,7 +61,21 @@ def test_directional_receiver_depth_and_empty_rays(reverse,soft,depth_stencil,su
             if close_strength is not None:
                 # The close tile blocks this receiver. Its radial neighbour is clear.
                 arrays[1]=np.concatenate((shadow,np.zeros_like(shadow),np.full_like(shadow,.5)),axis=1)
-            if sun: arrays.append(np.full_like(data, .9 if roof else .5+.5*z))
+            if sun:
+                ground=np.full_like(data, .9 if roof else .5+.5*z)
+                arrays.extend((ground,ground,np.full_like(data,.5 if far_blocked else 0.)))
+            if sample_offset is not None:
+                # The resolved depth on z = slope*x comes from a point within
+                # the pixel. The shadow map samples that same plane at texel centres.
+                slope=.27
+                ndc=2*(np.arange(64)+.5)/64-1
+                distance=3/(1+slope*(ndc+2*sample_offset/64))
+                scene=-projection[2,2]+projection[2,3]/distance
+                arrays[0][:]=1-scene if reverse else scene
+                ground[:]=.5+.5*slope*ndc
+                arrays[1][:]=0.
+                arrays[1][:,40:48]=ground[:,40:48]+.003
+                ground[:,16:24]+=.1
             for unit,array in enumerate(arrays):
                 g('ActiveTexture',None,U)(0x84C0+unit);g('BindTexture',None,U,U)(0x0DE1,textures[unit])
                 if depth_stencil:
@@ -73,16 +88,20 @@ def test_directional_receiver_depth_and_empty_rays(reverse,soft,depth_stencil,su
             for name,value in {'scene_depth':0,'shadow_depth':1,'camera':camera,'projection':projection,
                                'frame':frame,'viewport':[0,0,64,64],'color':[.5,.5,.5,1],
                                'reversed_depth':reverse,'soft':soft}.items():r.uniform(p,name,value)
+            r.uniform(p,'sun_region[2]',[.5,.5,1. if far_blocked is None else 1/3,0.])
             if region is not None:
                 r.uniform(p,'sun_region[0]',[1,0,0,region])
                 r.uniform(p,'sun_region[1]',[0,1,0,0])
                 if not sun:r.uniform(p,'color',[.5,.5,.5,0])
             if sun:
+                r.uniform(p,'sun_far_bsp',3)
+                r.uniform(p,'sun_far_objects',4)
                 r.uniform(p,'sun_bsp',2)
                 r.uniform(p,'sun_objects',1)
                 r.uniform(p,'sun_frame',frame)
                 r.uniform(p,'sun_color_radius',[.5,.5,.5,1])
                 r.uniform(p,'sun_soft',soft)
+                r.uniform(p,'sun_multisampled',multisampled)
                 r.uniform(p,'sun_detail',[.5,.5,4,.5] if detail else [0,0,0,1])
                 r.uniform(p,'sun_close',[.5,.5,8,close_strength] if close_strength is not None else [0,0,0,0])
                 if close_strength is not None:
@@ -105,6 +124,16 @@ def test_directional_receiver_depth_and_empty_rays(reverse,soft,depth_stencil,su
             g('BindVertexArray',None,U)(r.vao);g('DrawArrays',None,U,I,I)(4,0,36 if volume and p==volume else 3)
             return r.read()
         behind=draw(-.5)
+        if sun:
+            # Pixels on either side of two real blockers remain sunlit even
+            # when the depth sample moves toward the low side of the slope.
+            for offset in (0.,-.375):
+                hillside=draw(0.,sample_offset=offset,multisampled=1)[32,:,0]
+                assert hillside[30:34].min()>.58
+                assert np.isclose(hillside[28],.4,atol=.005)  # raised map geometry
+                assert hillside[35]<.25  # thin object-to-ground contact
+            alias=draw(0.,sample_offset=-.375,multisampled=0)[32,:,0]
+            assert alias[30:34].max()<.41  # reproduce the pixel-centre assumption
         if reference:
             p=reference
             assert np.allclose(draw(-.5),behind,atol=1e-5), 'Gathered Soft taps must match individual depth reads'
@@ -123,6 +152,29 @@ def test_directional_receiver_depth_and_empty_rays(reverse,soft,depth_stencil,su
         values=np.array([draw(-.5,region=float(x))[32,32,0] for x in np.linspace(.45,1.,25)])
         steps=np.diff(values if sun else -values)
         assert steps.min()>=-.002 and steps.max()<.065 and np.count_nonzero(steps>.001)>=10
+        if sun:
+            # Distinct near/far blockers isolate the inner handoff. Identical
+            # blockers across both maps must darken the receiver exactly once.
+            positions=np.linspace(.4,1.15,41)
+            def sweep(positions, blocked):
+                return np.array([draw(-.5,region=float(x),far_blocked=blocked)[32,32,0] for x in positions])
+            handoff=sweep(positions,False)
+            assert np.allclose(handoff[[0,-1]],[.2,.6],atol=.003)
+            assert np.all(np.diff(handoff)>=-.001) and np.max(np.diff(handoff))<.05
+            assert np.allclose(sweep(positions,True),.2,atol=.003)
+            rim=sweep(np.linspace(1.6,3.1,41),True)
+            assert np.allclose(rim[[0,-1]],[.2,.4],atol=.003)
+            assert np.all(np.diff(rim)>=-.001) and np.max(np.diff(rim))<.025
+            # Keep the outer map over the camera while the near tile looks
+            # beyond its coverage. Either map may be the only valid sample.
+            r.uniform(p,'sun_region[3]',[4,0,0,0])
+            assert np.allclose(draw(-.5,region=0.,far_blocked=False)[32,32,0],.2,atol=.003)
+            assert np.allclose(draw(-.5,region=-4.,far_blocked=False)[32,32,0],.6,atol=.003)
+            assert np.allclose(draw(-.5,region=4.,far_blocked=True)[32,32,0],.4,atol=.003)
+            outer_absent=sweep(positions,False)
+            assert np.allclose(outer_absent[[0,-1]],[.2,.4],atol=.003)
+            assert np.all(np.diff(outer_absent)>=-.001) and np.max(np.diff(outer_absent))<.025
+            r.uniform(p,'sun_region[3]',[0,0,0,0])
         r.uniform(p,'sun_region[0]',[0,0,0,0])
         r.uniform(p,'sun_region[1]',[0,0,0,0])
         assert np.allclose(behind[31:33,31:33,:3],.2 if sun else .5625,atol=.002)
@@ -175,6 +227,52 @@ def test_directional_receiver_depth_and_empty_rays(reverse,soft,depth_stencil,su
     finally:
         if r:r.close()
         c.close()
+
+
+def test_soft_sun_gathers_the_predicted_texels():
+    """Cross a texel boundary by less than a hardware interpolation step."""
+    context=Context()
+    replay=None
+    try:
+        replay=Replay(context,32,32)
+        gl=context.gl
+        fragment='#version 400 core\n'+''.join(shader(name,'modern_sun_shader.inl')
+            for name in ('shadow_filter','sun_coverage','sun_lighting'))+'''
+uniform float offset;
+out vec4 result;
+void main(){
+    vec2 uv=(gl_FragCoord.xy+offset)/32.;
+    vec2 slope=vec2(.3,.1);
+    float depth=.5+dot(uv-.5,slope);
+    float terrain=sun_visibility(sun_bsp,sun_objects,1.,uv,depth,slope,.0001,true,vec2(0.)).x;
+    float detail=sun_tile_visibility(uv,1.,0,depth,slope,ivec2(32),true);
+    result=vec4(terrain,detail,0,1);
+}'''
+        program=replay.program(shader('receiver_vertex'),fragment)
+        y,x=np.indices((32,32),dtype=np.float32)
+        depth=.5+.3*((x+.5)/32-.5)+.1*((y+.5)/32-.5)
+        depth[:,8:12]+=.1
+        gl('ActiveTexture',None,U)(0x84c0)
+        gl('BindTexture',None,U,U)(0x0de1,replay.new('Textures'))
+        gl('TexImage2D',None,U,I,I,I,I,I,U,U,P)(0x0de1,0,0x822e,32,32,0,0x1903,0x1406,depth.ctypes.data)
+        for param in (0x2800,0x2801):
+            gl('TexParameteri',None,U,U,I)(0x0de1,param,0x2600)
+        replay.begin()
+        gl('Disable',None,U)(0x0b71)
+        gl('UseProgram',None,U)(program)
+        replay.uniform(program,'sun_soft',1)
+        replay.uniform(program,'sun_detail',[0,0,0,1])
+        gl('BindVertexArray',None,U)(replay.vao)
+        for offset in (-1/1024,0.,1/1024):
+            location=gl('GetUniformLocation',I,U,C.c_char_p)(program,b'offset')
+            gl('Uniform1f',None,I,F)(location,offset)
+            gl('DrawArrays',None,U,I,I)(4,0,3)
+            visibility=replay.read()[2:-2,:,:2]
+            assert np.allclose(visibility[:,15:29],1,atol=.002)
+            assert np.allclose(visibility[:,9:11],0,atol=.002)
+    finally:
+        if replay: replay.close()
+        context.close()
 
 
 @pytest.mark.parametrize('soft', [0, 1])

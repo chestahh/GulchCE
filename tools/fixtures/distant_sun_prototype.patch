@@ -1,0 +1,959 @@
+--- a/port/linux/game/modern_shadows.c
++++ b/port/linux/game/modern_shadows.c
+@@ -93,13 +93,17 @@
+ static int sun_count;
+ static short prepared_sky = NONE;
+ enum { SUN_CUTOUTS = 64 };
+-static struct
++struct sun_cutout
+ {
+     struct structure_material const *material;
+     const void *texture;
+     float uv[8];
+-} sun_cutouts[SUN_CUTOUTS];
+-static int sun_cutout_count;
++};
++static struct sun_cutout_list
++{
++    struct sun_cutout items[SUN_CUTOUTS];
++    int count;
++} sun_cutouts[2];
+ static int part_count;
+ static int map_mode, prepare_pending;
+ static struct structure_bsp const *cached_bsp;
+@@ -146,7 +150,7 @@
+ 	if (sun_surface_sky) free(sun_surface_sky);
+ 	sun_surface_sky = NULL;
+ 	patches_ready = 0;
+-	sun_cutout_count = sun_count = 0;
++	sun_cutouts[0].count = sun_cutouts[1].count = sun_count = 0;
+ 	prepared_sky = NONE;
+ 	memset(parts, 0, sizeof(parts));
+ 	memset(mesh_index, 0, sizeof(mesh_index));
+@@ -531,7 +535,38 @@
+     return 1;
+ }
+ 
+-static int world_casters_clipped(struct structure_bsp const *bsp, real_point3d const *origin, real radius, const float *sun_frame)
++struct sun_bsp_clip
++{
++	const float *frame;
++	const float *far_origin;
++	float far_radius;
++	int tiles;
++};
++
++/* Test the mesh bounds in each dirty light-space square. Retain the full
++   BSP depth along the sun ray, including casters outside the camera view. */
++static int sun_mesh_tiles(int part, const struct sun_bsp_clip *clip, float near_radius)
++{
++	int axis, k, tiles = clip->tiles;
++	for (axis = 0; tiles && axis < 2; axis++)
++	{
++		const float *direction = clip->frame + 4 * axis;
++		float near_offset = 0.f, far_offset = 0.f, extent = 0.f;
++		for (k = 0; k < 3; k++)
++		{
++			float lo = parts[part].minimum[k], hi = parts[part].maximum[k];
++			float center = (lo + hi) * .5f;
++			if (tiles & SUN_TILE_NEAR) near_offset += direction[k] * (center - clip->frame[12+k]);
++			if (tiles & SUN_TILE_FAR) far_offset += direction[k] * (center - clip->far_origin[k]);
++			extent += fabsf(direction[k]) * (hi-lo) * .5f;
++		}
++		if (fabsf(near_offset) > near_radius + extent) tiles &= ~SUN_TILE_NEAR;
++		if (fabsf(far_offset) > clip->far_radius + extent) tiles &= ~SUN_TILE_FAR;
++	}
++	return tiles;
++}
++
++static int world_casters_clipped(struct structure_bsp const *bsp, real_point3d const *origin, real radius, const struct sun_bsp_clip *sun_clip)
+ {
+ 	int lightmap, index;
+ 	for (lightmap = 0; lightmap < bsp->lightmaps.count; lightmap++)
+@@ -543,7 +578,7 @@
+ 			struct structure_surface const *surfaces;
+ 			void const *alpha;
+ 			float scale[2] = {1,1}, uv[8], distance = 0;
+-			int part, axis, type;
++			int part, axis, type, tiles = 0;
+ 			if (m->surface_count == 0 || m->shader.index == NONE) continue;
+ 			if (m->breakable_surface_index != NONE && !breakable_surface_extant(m->breakable_surface_index)) continue;
+ 			type = material(shader_definition_get(m->shader.index), m->permutation_index, &alpha, scale, NULL, uv);
+@@ -553,42 +588,40 @@
+ 			surfaces = (struct structure_surface const *)bsp->surfaces.address + m->first_surface_index;
+ 			part = mesh_get(&m->vertices, m, NULL, surfaces->vertex_indices, m->surface_count * 3, 1);
+ 			if (part == NONE) return 0;
+-			for (axis = 0; axis < 3; axis++)
++			if (sun_clip)
+ 			{
+-				float p = ((float const *)origin)[axis];
+-				float d = MAX(parts[part].minimum[axis] - p, MAX(p - parts[part].maximum[axis], 0.f));
+-				distance += d * d;
++				tiles = sun_mesh_tiles(part, sun_clip, radius);
++				if (!tiles) continue;
+ 			}
+-			if (sun_frame)
++			else
+ 			{
+-				int outside = 0;
+-				for (axis = 0; axis < 2; axis++)
++				for (axis = 0; axis < 3; axis++)
+ 				{
+-					const float *basis = sun_frame + 4 * axis;
+-					float offset = 0.f, extent = 0.f;
+-					for (int k = 0; k < 3; k++)
+-					{
+-						float lo = parts[part].minimum[k], hi = parts[part].maximum[k];
+-						offset += basis[k] * ((lo + hi) * .5f - sun_frame[12+k]);
+-						extent += fabsf(basis[k]) * (hi-lo) * .5f;
+-					}
+-					if (fabsf(offset) > radius + extent) outside = 1;
++					float p = ((float const *)origin)[axis];
++					float d = MAX(parts[part].minimum[axis] - p, MAX(p - parts[part].maximum[axis], 0.f));
++					distance += d * d;
+ 				}
+-				if (outside) continue;
++				if (distance > radius * radius) continue;
+ 			}
+-			else if (distance > radius * radius) continue;
+ 			if (clipping_spot && !spot_box_visible(parts[part].minimum,parts[part].maximum)) continue;
+ 			if (!modern_shadow_draw(parts[part].mesh, identity, 1, alpha, uv, MODERN_SHADOW_BOTH)) return 0;
+-			if (sun_frame)
++			if (sun_clip)
+ 			{
+-				modern_environment_sun_surfaces(sun_surface_sky + m->first_surface_index);
+-				if (alpha && sun_cutout_count < SUN_CUTOUTS)
++				int tile;
++				modern_environment_sun_surfaces(sun_surface_sky + m->first_surface_index, tiles);
++				for (tile = 0; alpha && tile < 2; tile++)
+ 				{
+-					sun_cutouts[sun_cutout_count].material = m;
+-					sun_cutouts[sun_cutout_count].texture = alpha;
+-					memcpy(sun_cutouts[sun_cutout_count++].uv,uv,sizeof(uv));
++					struct sun_cutout_list *list = &sun_cutouts[tile];
++					if (!(tiles & (1 << tile))) continue;
++					if (list->count < SUN_CUTOUTS)
++					{
++						struct sun_cutout *item = &list->items[list->count++];
++						item->material = m;
++						item->texture = alpha;
++						memcpy(item->uv, uv, sizeof(uv));
++					}
++					else list->count = SUN_CUTOUTS + 1;
+ 				}
+-				else if (alpha) sun_cutout_count = SUN_CUTOUTS + 1;
+ 			}
+ 		}
+ 	}
+--- a/port/linux/game/modern_sun.inl
++++ b/port/linux/game/modern_sun.inl
+@@ -33,17 +33,18 @@
+ 
+ /* A fixed grate stays in the cached visibility map. A change to its evaluated
+    UV transform or texture invalidates it before any receiver can use it. */
+-static int sun_static_unchanged(void)
++static int sun_static_unchanged(const struct sun_cutout_list *list)
+ {
+     int i;
+-    if (sun_cutout_count > SUN_CUTOUTS) return 0;
+-    for (i=0; i<sun_cutout_count; i++)
+-    {
+-        const struct structure_material *m = sun_cutouts[i].material;
++    if (list->count > SUN_CUTOUTS) return 0;
++    for (i=0; i<list->count; i++)
++    {
++        const struct sun_cutout *item = &list->items[i];
++        const struct structure_material *m = item->material;
+         const void *alpha;
+         float scale[2]={1,1}, uv[8];
+         if (material(shader_definition_get(m->shader.index),m->permutation_index,&alpha,scale,NULL,uv)!=1 ||
+-            alpha!=sun_cutouts[i].texture || memcmp(uv,sun_cutouts[i].uv,sizeof(uv))) return 0;
++            alpha!=item->texture || memcmp(uv,item->uv,sizeof(uv))) return 0;
+     }
+     return 1;
+ }
+@@ -81,6 +82,62 @@
+         }
+     }
+     return 1;
++}
++
++/* A scope changes the receiver footprint in this view only. Keep the wide
++   map centred on the camera, even while the two finer projections follow aim. */
++#include "physics/collisions.h"
++#include "game/game.h"
++#include "cutscene/cinematics.h"
++struct sun_scope_view { long unit, tick; float previous, distance; };
++static struct sun_scope_view sun_scope_views[MAXIMUM_LOCAL_PLAYERS];
++
++static float sun_scope_distance(void)
++{
++    short player = render.local_player_index;
++    long tick = game_time_get(), unit;
++    float target = 0.f, magnification;
++    struct sun_scope_view *state;
++    if (!VALID_INDEX(player,MAXIMUM_LOCAL_PLAYERS)) return 0.f;
++    state = &sun_scope_views[player];
++    unit = player_control_get_unit_index(player);
++    if (unit == NONE || !object_try_and_get(unit) || cinematic_in_progress() ||
++        director_get_perspective(player) != _director_perspective_first_person)
++    {
++        state->unit = NONE;
++        return 0.f;
++    }
++    if (state->unit != unit || tick < state->tick || tick-state->tick > TICKS_PER_SECOND)
++    {
++        state->unit = unit;
++        state->tick = tick-1;
++        state->previous = state->distance = 0.f;
++    }
++    if (state->tick != tick)
++    {
++        long elapsed = tick-state->tick;
++        short zoom = unit_get_zoom_level(unit);
++        magnification = zoom >= 0 ? unit_get_zoom_magnification(unit,zoom) : 1.f;
++        if (magnification > 1.f)
++        {
++            struct collision_result hit;
++            real_vector3d ray;
++            float limit = MIN(96.f,36.f*magnification);
++            unsigned long flags = FLAG(_collision_test_front_facing_surfaces_bit) |
++                FLAG(_collision_test_ignore_invisible_surfaces_bit) | FLAG(_collision_test_structure_bit) |
++                FLAG(_collision_test_objects_bit) | _collision_test_objects_all_types_flags;
++            scale_vector3d(&render.camera.forward,limit,&ray);
++            if (collision_test_vector(flags,&render.camera.position,&ray,unit,&hit))
++                target = PIN(hit.t,0.f,1.f)*limit;
++        }
++        float catchup = 4.f*(elapsed-1);
++        state->previous = state->distance + PIN(target-state->distance,-catchup,catchup);
++        /* Bound a sudden change of depth when the reticle crosses a ridge.
++           Interpolate between simulation ticks independently of render FPS. */
++        state->distance = state->previous + PIN(target-state->previous,-4.f,4.f);
++        state->tick = tick;
++    }
++    return state->previous+(state->distance-state->previous)*render_interpolation_fraction();
+ }
+ 
+ static float sun_detail_focus(real_point3d *focus, float radius, float *strength)
+@@ -107,15 +164,16 @@
+ {
+     const float radius = 12.f;
+     const float detail_radius = 4.f;
+-    float detail[2], close[4]={0}, region[8];
++    float detail[2], close[4]={0}, region[16]={0};
++    float reach, aim_distance = 0.f;
+     real_matrix4x3 basis;
+     real_vector3d toward;
+     real_rgb_color tint;
+-    real_point3d focus, player_focus;
++    real_point3d focus, wide_focus, detail_focus, player_focus, far_origin;
+     struct object_iterator it;
+     struct object_datum *obj;
+     float frame[16], color[3], depth_extent = 1.f;
+-    int ok = 1, reuse, i;
++    int ok = 1, reuse, reusable, i;
+     short sky;
+     prepared_families = 0;
+     prepared_sky = NONE;
+@@ -132,11 +190,17 @@
+     cross_product3d(&basis.up,&basis.forward,&basis.left);
+     /* Keep the camera and close peripheral receivers inside both full-strength
+        regions. Quantization and the outer handoff still use the same grids. */
+-    point_from_line3d(&render.camera.position,&render.camera.forward,radius*.25f,&focus);
++    if (!sun_surface_sky) memset(sun_scope_views,0,sizeof(sun_scope_views));
++    reach = modern_environment_sun_outer_radius(radius);
++    if (reach>radius) aim_distance = sun_scope_distance();
++    point_from_line3d(&render.camera.position,&render.camera.forward,radius*.25f,&wide_focus);
++    point_from_line3d(&render.camera.position,&render.camera.forward,aim_distance,&detail_focus);
++    point_from_line3d(&render.camera.position,&render.camera.forward,MAX(radius*.25f,aim_distance),&focus);
+     point_from_line3d(&render.camera.position,&render.camera.forward,4.f,&player_focus);
+     close[2] = sun_detail_focus(&player_focus,3.f,&close[3]);
+     if (close[2] >= 3.f) close[2] = 0.f;
+     basis.position = *global_origin3d;
++    far_origin = *global_origin3d;
+     /* World-anchored tile steps are integral texels at all supported tiers.
+        Quantize translation in the shadow plane only. Depth stays BSP-fixed. */
+     for (i = 0; i < 2; i++)
+@@ -144,9 +208,14 @@
+         real_vector3d const *axis = i ? &basis.left : &basis.forward;
+         float along = dot_product3d(axis,(real_vector3d const *)&focus);
+         float snapped = floorf(along / 1.5f + .5f) * 1.5f;
+-        float near_along = dot_product3d(axis,(real_vector3d const *)&render.camera.position);
++        float wide_along = dot_product3d(axis,(real_vector3d const *)&wide_focus);
++        float near_along = dot_product3d(axis,(real_vector3d const *)&detail_focus);
+         /* Express the finer tile in the wide tile's light plane. Both share
+            the same BSP-fixed depth, including blockers far above the camera. */
++        float wide_snapped = floorf(wide_along / 4.5f + .5f) * 4.5f;
++        region[8+i] = wide_snapped - snapped;
++        point_from_line3d(&far_origin,axis,wide_snapped,&far_origin);
++        region[12+i] = (along-wide_along)/radius;
+         float detail_step = detail_radius/64.f;
+         detail[i] = floorf(near_along/detail_step+.5f)*detail_step - snapped;
+         if (close[2] > 0.f)
+@@ -169,15 +238,20 @@
+         depth_extent += fabsf(basis.up.n[i]) * (bounds->n[2*i+1]-bounds->n[2*i])*.5f;
+     }
+     point_from_line3d(&basis.position,&basis.up,mid,&basis.position);
++    point_from_line3d(&far_origin,&basis.up,mid,&far_origin);
+     matrix_to_gl(&basis,frame);
+     for (i = 0; i < 3; i++) frame[8+i] *= radius/depth_extent;
+     if (!sun_classify_surfaces()) return;
+-    reuse = modern_environment_sun_begin(frame,radius,region,detail,detail_radius,render.camera.position.n,close,sun_static_unchanged(),sky,mode == 2);
++    reusable = sun_static_unchanged(&sun_cutouts[0]) ? SUN_TILE_NEAR : 0;
++    if (sun_static_unchanged(&sun_cutouts[1])) reusable |= SUN_TILE_FAR;
++    reuse = modern_environment_sun_begin(frame,far_origin.n,radius,region,detail,detail_radius,detail_focus.n,close,reusable,sky,mode == 2);
+     if (!reuse) return;
+-    if (reuse == 1)
+-    {
+-        sun_cutout_count=0;
+-        ok = modern_environment_sun_static(world_casters_clipped(cached_bsp,&basis.position,radius,frame));
++    reach = modern_environment_sun_outer_radius(radius);
++    if (reuse != SUN_TILES_CACHED)
++    {
++        struct sun_bsp_clip clip = {frame, far_origin.n, reach, reuse};
++        for (i=0; i<2; i++) if (reuse & (1<<i)) sun_cutouts[i].count = 0;
++        ok = modern_environment_sun_static(world_casters_clipped(cached_bsp,&basis.position,radius,&clip));
+     }
+     /* Intersect the caster with the tile. A large or offscreen mesh may
+        shadow a visible receiver even when its origin lies outside the tile. */
+@@ -200,16 +274,19 @@
+         float x = dot_product3d(&basis.forward,&delta);
+         float y = dot_product3d(&basis.left,&delta);
+         float z = fabsf(dot_product3d(&basis.up,&delta));
+-        if (fabsf(x) > radius+extent || fabsf(y) > radius+extent || z > depth_extent+extent ||
++        float outer_x = x - (reach>radius ? region[8] : 0.f);
++        float outer_y = y - (reach>radius ? region[9] : 0.f);
++        int outside_near = fabsf(x)>radius+extent || fabsf(y)>radius+extent;
++        if ((outside_near && (fabsf(outer_x)>reach+extent || fabsf(outer_y)>reach+extent)) || z>depth_extent+extent ||
+             !sun_reaches_view(&center,extent,&toward)) continue;
+         remaining = 128;
+         /* Projected distance is a lower bound along the entire shadow ray.
+            A distant caster behind the view may still overlap the near disk. */
+         float dx=x-detail[0], dy=y-detail[1];
+-        float reach=detail_radius+extent+detail_radius/64.f;
+-        int radial = dx*dx+dy*dy <= reach*reach;
++        float radial_reach=detail_radius+extent+detail_radius/64.f;
++        int radial = dx*dx+dy*dy <= radial_reach*radial_reach;
+         int player = close[2]>0.f && fabsf(x-close[0])<=close[2]+extent && fabsf(y-close[1])<=close[2]+extent;
+-        modern_environment_sun_detail_caster(radial | (player<<1));
++        modern_environment_sun_detail_caster(radial | (player<<1) | (outside_near ? 4 : 0));
+         ok = environmental_casters(it.index,&remaining);
+         if (z+extent < depth_extent &&
+             sun_cluster_sky(obj->object.location.cluster_index) == sky)
+--- a/port/linux/include/modern_shadows.h
++++ b/port/linux/include/modern_shadows.h
+@@ -27,10 +27,12 @@
+ struct xgpu_text;
+ void modern_spot_emit(struct xgpu_text *text);
+ int modern_shadows_sun_casters(void);
+-int modern_environment_sun_begin(const float frame[16], float radius, const float region[8], const float detail[2], float detail_radius, const float eye[3], const float close[4], int cache_static, int sky, int soft);
++enum { SUN_TILE_NEAR = 1, SUN_TILE_FAR = 2, SUN_TILES_CACHED = 4 };
++int modern_environment_sun_begin(const float frame[16], const float far_origin[3], float radius, const float region[16], const float detail[2], float detail_radius, const float eye[3], const float close[4], int reusable, int sky, int soft);
++float modern_environment_sun_outer_radius(float near_radius);
+ void modern_environment_sun_detail_caster(int eligible);
+ int modern_environment_sun_interior(const float frame[16], float radius);
+-void modern_environment_sun_surfaces(const unsigned char *owners);
++void modern_environment_sun_surfaces(const unsigned char *owners, int tiles);
+ int modern_environment_sun_static(int complete);
+ int modern_environment_sun_finish(int complete, const float color[3]);
+ int modern_environment_sun_project(const float camera[16], const float projection[16]);
+--- a/port/linux/src/modern_environment_gl.inl
++++ b/port/linux/src/modern_environment_gl.inl
+@@ -4,6 +4,7 @@
+ struct environment_receiver_uniforms
+ {
+     GLint frame, camera, projection, radius, reversed_depth, viewport, soft, color;
++    GLint reach_min, reach_max;
+     GLint clip_offset, sun_frame, sun_color_radius, sun_soft, sun_detail, sun_region, sun_eye, sun_close;
+ };
+ 
+@@ -31,13 +32,17 @@
+ {
+     GLuint static_depth, object_depth, object_fbo, receiver, static_caster, checked_receiver_target;
+     const unsigned char *surface_sky[SHADOW_DRAWS];
++    unsigned char surface_tiles[SHADOW_DRAWS];
+     struct environment_receiver_uniforms uniforms;
++    GLuint far_bsp, far_objects, far_fbo;
++    int far_attempt, far_available, drawing_far;
++    float far_frame[16];
+     float tint[3];
+     int ready, model, soft, partial;
+     int writing, sky;
+     int size, valid, projecting, object_checked;
+     float frame[16], radius;
+-    float detail_frame[16], detail_radius, detail[4], region[8], eye[4];
++    float detail_frame[16], detail_radius, detail[4], region[16], eye[4];
+     float close_frame[16], close_radius, close[4];
+     int atlas_tiles, drawing_detail, detail_drawn;
+ } sun;
+@@ -80,6 +85,9 @@
+     if (spots.fbo) glDeleteFramebuffers(1, &spots.fbo);
+     if (spots.receiver) glDeleteProgram(spots.receiver);
+     memset(&spots, 0, sizeof(spots));
++    if (sun.far_fbo) glDeleteFramebuffers(1,&sun.far_fbo);
++    if (sun.far_bsp) glDeleteTextures(1,&sun.far_bsp);
++    if (sun.far_objects) glDeleteTextures(1,&sun.far_objects);
+     if (sun.object_fbo) glDeleteFramebuffers(1,&sun.object_fbo);
+     if (sun.object_depth) glDeleteTextures(1,&sun.object_depth);
+     if (sun.static_depth) glDeleteTextures(1, &sun.static_depth);
+@@ -164,8 +172,10 @@
+     {
+         glUniform1i(glGetUniformLocation(program, "sun_objects"), 8);
+         glUniform1i(glGetUniformLocation(program, "sun_bsp"), 9);
+-        glUniform4fv(glGetUniformLocation(program, "reach_min"), 1, (const float[4]){-1,-1,-1,0});
+-        glUniform4fv(glGetUniformLocation(program, "reach_max"), 1, (const float[4]){1,1,1,0});
++        glUniform1i(glGetUniformLocation(program,"sun_far_bsp"),4);
++        glUniform1i(glGetUniformLocation(program,"sun_far_objects"),5);
++        u->reach_min = glGetUniformLocation(program,"reach_min");
++        u->reach_max = glGetUniformLocation(program,"reach_max");
+         u->clip_offset = glGetUniformLocation(program, "clip_offset");
+         u->sun_frame = glGetUniformLocation(program, "sun_frame");
+         u->sun_color_radius = glGetUniformLocation(program, "sun_color_radius");
+@@ -480,14 +490,16 @@
+             if (!sun.partial) { glClearColor(0,0,0,0); glClear(GL_COLOR_BUFFER_BIT); }
+         }
+         glUseProgram(p); glBindVertexArray(vao);
+-        glUniformMatrix4fv(frame,1,GL_FALSE,sun.drawing_detail==2 ? sun.close_frame : sun.drawing_detail ? sun.detail_frame : environment.frame);
+-        glUniform1f(radius,sun.drawing_detail==2 ? sun.close_radius : sun.drawing_detail ? sun.detail_radius : environment.radius);
++        glUniformMatrix4fv(frame,1,GL_FALSE,sun.drawing_far ? sun.far_frame : sun.drawing_detail==2 ? sun.close_frame : sun.drawing_detail ? sun.detail_frame : environment.frame);
++        glUniform1f(radius,sun.drawing_far ? environment.radius*3.f : sun.drawing_detail==2 ? sun.close_radius : sun.drawing_detail ? sun.detail_radius : environment.radius);
+         glUniform1i(alpha_map,9);
+         glActiveTexture(GL_TEXTURE9); glBindSampler(9,alpha_sampler);
+         for (draw=0;draw<draw_count;draw++)
+         {
+             int mesh=draws[draw].mesh;
++            if (sun.writing && !(sun.surface_tiles[draw] & (sun.drawing_far ? SUN_TILE_FAR : SUN_TILE_NEAR))) continue;
+             if (sun.drawing_detail && !(draws[draw].sun_detail & sun.drawing_detail)) continue;
++            if (sun.projecting && !sun.writing && !sun.drawing_far && (draws[draw].sun_detail & 4)) continue;
+             bind_caster_draw(draw, &previous, bones, uv, alpha);
+             if (sun.writing)
+             {
+@@ -596,6 +608,16 @@
+             glDepthFunc(xgpu_reversed_depth ? GL_LEQUAL : GL_GEQUAL);
+             glUniform2f(u->clip_offset,2.f*environment.pixel_center[0]/environment.viewport[2],
+                 -2.f*environment.pixel_center[1]/environment.viewport[3]);
++            /* Bound the union of both depth tiles in the projector frame. */
++            float lo[4]={-1,-1,-1,0}, hi[4]={1,1,1,0};
++            if (sun.far_available) for (int i=0;i<2;i++)
++            {
++                float scale=sun.region[10], center=(1.f-2.f*sun.region[8+i])*scale;
++                if (center-scale<lo[i]) lo[i]=center-scale;
++                if (center+scale>hi[i]) hi[i]=center+scale;
++            }
++            glUniform4fv(u->reach_min,1,lo);
++            glUniform4fv(u->reach_max,1,hi);
+             glBindTextures(9,1,&sun.static_depth); glBindSampler(9,0);
+             glUniformMatrix4fv(u->sun_frame,1,GL_FALSE,sun.frame);
+             glUniform4fv(u->sun_color_radius,1,(const float[4]){color[0],color[1],color[2],sun.radius});
+@@ -609,7 +631,7 @@
+             glUniform1i(u->soft,environment.soft);
+             glUniform4fv(u->color,1,rgba);
+         }
+-        if (sun.projecting || handoff) glUniform4fv(u->sun_region,2,sun.region);
++        if (sun.projecting || handoff) glUniform4fv(u->sun_region,4,sun.region);
+         glUniform1i(u->reversed_depth,xgpu_reversed_depth);
+         for (draw=0;draw<4;draw++) viewport[draw]=(float)environment.viewport[draw];
+         viewport[0] += environment.pixel_center[0]; viewport[1] += environment.pixel_center[1];
+@@ -640,6 +662,15 @@
+         if (!sun.atlas_tiles) return 0;
+         sun.size = environment.size;
+     }
++    if (sun.far_attempt != environment.size)
++    {
++        const char *option = getenv("HALO_E6_DISTANT_SUN");
++        sun.far_attempt = environment.size;
++        sun.far_available = option && !strcmp(option,"1") &&
++            environment_resize_texture(&sun.far_bsp,&environment.depth_fbo,environment.size,environment.size,1) &&
++            environment_resize_texture(&sun.far_objects,&sun.far_fbo,environment.size,environment.size,0);
++        sun.valid = 0;
++    }
+     return 1;
+ }
+ 
+@@ -656,8 +687,13 @@
+     tile[2] = radius/tile_radius;
+ }
+ 
+-/* Returns 2 on a static cache hit, 1 when the caller must submit BSP depth. */
+-int modern_environment_sun_begin(const float frame[16], float radius, const float region[8], const float detail[2], float detail_radius, const float eye[3], const float close[4], int cache_static, int sky, int soft)
++float modern_environment_sun_outer_radius(float near_radius)
++{
++    return sun.far_available ? 3.f*near_radius : near_radius;
++}
++
++/* Return the dirty BSP tiles, SUN_TILES_CACHED on a hit, or zero on failure. */
++int modern_environment_sun_begin(const float frame[16], const float far_origin[3], float radius, const float region[16], const float detail[2], float detail_radius, const float eye[3], const float close[4], int reusable, int sky, int soft)
+ {
+     if (drawing || !xgpu_gl_ready()) return 0;
+     sun.projecting = 1;
+@@ -676,6 +712,26 @@
+     /* Leave a texel border for snapped centres and the Soft filter. */
+     detail_radius *= 1.02f;
+     memcpy(sun.region,region,sizeof(sun.region));
++    int required = SUN_TILE_NEAR;
++    if (sky != sun.sky || radius != sun.radius) sun.valid = 0;
++    sun.valid &= reusable;
++    if (memcmp(sun.frame,frame,sizeof(sun.frame))) sun.valid &= ~SUN_TILE_NEAR;
++    sun.region[10] = 1.f;
++    if (sun.far_available)
++    {
++        /* Reconstructing this translation from the near origin makes it
++           depend on rounding in a different grid cell during a scoped pan. */
++        float far_frame[16];
++        memcpy(far_frame,frame,sizeof(far_frame));
++        memcpy(far_frame+12,far_origin,3*sizeof(float));
++        for (int i=0; i<3; i++) far_frame[8+i] *= 3.f;
++        sun.region[8] = .5f+.5f*region[8]/radius;
++        sun.region[9] = .5f+.5f*region[9]/radius;
++        sun.region[10] = 1.f/3.f;
++        required |= SUN_TILE_FAR;
++        if (memcmp(far_frame,sun.far_frame,sizeof(far_frame))) sun.valid &= ~SUN_TILE_FAR;
++        memcpy(sun.far_frame,far_frame,sizeof(far_frame));
++    }
+     sun.detail_radius = detail_radius;
+     sun.close_radius = close[2];
+     sun_fit_tile(sun.detail_frame,sun.detail,frame,radius,detail,detail_radius);
+@@ -684,22 +740,25 @@
+     if (close[2] > 0.f && sun.atlas_tiles==3)
+         sun_fit_tile(sun.close_frame,sun.close,frame,radius,close,close[2]);
+     sun.detail[3] = 1.f/(float)sun.atlas_tiles;
+-    if (cache_static && sun.valid && sky==sun.sky && radius==sun.radius && !memcmp(sun.frame,frame,sizeof(sun.frame))) return 2;
+-    sun.writing=1;
++    sun.writing = required & ~sun.valid;
++    if (!sun.writing) return SUN_TILES_CACHED;
+     sun.sky=sky;
+     memcpy(sun.frame,frame,sizeof(sun.frame));
+     sun.radius = radius;
+-    sun.valid = 0;
+-    return 1;
++    return sun.writing;
+ fail:
+     sun.projecting = 0;
+     xgpu_gl_end_external_pass();
+     return 0;
+ }
+ 
+-void modern_environment_sun_surfaces(const unsigned char *owners)
+-{
+-    if (draw_count>0) sun.surface_sky[draw_count-1]=owners;
++void modern_environment_sun_surfaces(const unsigned char *owners, int tiles)
++{
++    if (draw_count>0)
++    {
++        sun.surface_sky[draw_count-1]=owners;
++        sun.surface_tiles[draw_count-1]=(unsigned char)tiles;
++    }
+ }
+ 
+ /* Flush in bounded batches so dense BSPs and large scenery collections share
+@@ -707,14 +766,35 @@
+ static int sun_draw_batch(void)
+ {
+     if (!sun.projecting || !environment_drawing) return 0;
+-    if (sun.writing)
++    if (sun.writing & SUN_TILE_NEAR)
+     {
+         glBindFramebuffer(GL_FRAMEBUFFER,environment.depth_fbo);
+         glFramebufferTexture2D(GL_FRAMEBUFFER,GL_COLOR_ATTACHMENT0,GL_TEXTURE_2D,sun.static_depth,0);
+         GLenum target=GL_COLOR_ATTACHMENT0;
+         glDrawBuffers(1,&target);
+     }
+-    int ok = environment_draw_depth(sun.writing ? environment.depth_fbo : sun.object_fbo);
++    int ok = 1;
++    if (!sun.writing || (sun.writing & SUN_TILE_NEAR))
++        ok = environment_draw_depth(sun.writing ? environment.depth_fbo : sun.object_fbo);
++    if (ok && sun.far_available && (!sun.writing || (sun.writing & SUN_TILE_FAR)))
++    {
++        sun.drawing_far = 1;
++        if (sun.writing)
++        {
++            GLenum target = GL_COLOR_ATTACHMENT0;
++            glBindFramebuffer(GL_FRAMEBUFFER,sun.far_fbo);
++            glFramebufferTexture2D(GL_FRAMEBUFFER,GL_COLOR_ATTACHMENT0,GL_TEXTURE_2D,sun.far_bsp,0);
++            glDrawBuffers(1,&target);
++        }
++        ok = environment_draw_depth(sun.far_fbo);
++        if (sun.writing)
++        {
++            GLenum target = GL_NONE;
++            glFramebufferTexture2D(GL_FRAMEBUFFER,GL_COLOR_ATTACHMENT0,GL_TEXTURE_2D,0,0);
++            glDrawBuffers(1,&target);
++        }
++        sun.drawing_far = 0;
++    }
+     /* The wide clear covers the entire atlas once. Each extra draw reuses
+        this batch's poses and only visits casters overlapping its light rays. */
+     if (!sun.writing) for (int tile=1; ok && tile<sun.atlas_tiles; tile++)
+@@ -733,18 +813,20 @@
+ 
+ int modern_environment_sun_static(int complete)
+ {
+-    sun.valid = complete && sun_draw_batch() && glGetError()==GL_NO_ERROR;
++    int ok = complete && sun_draw_batch() && glGetError()==GL_NO_ERROR;
++    if (ok) sun.valid |= sun.writing;
+     glBindFramebuffer(GL_FRAMEBUFFER,environment.depth_fbo);
+     glFramebufferTexture2D(GL_FRAMEBUFFER,GL_COLOR_ATTACHMENT0,GL_TEXTURE_2D,0,0);
+     GLenum none=GL_NONE;
+     glDrawBuffers(1,&none);
+     sun.partial = sun.writing = draw_count = 0;
+-    return sun.valid;
++    return ok;
+ }
+ 
+ int modern_environment_sun_finish(int complete, const float color[3])
+ {
+-    sun.ready = complete && sun.valid && sun_draw_batch();
++    int required = SUN_TILE_NEAR | (sun.far_available ? SUN_TILE_FAR : 0);
++    sun.ready = complete && sun.valid == required && sun_draw_batch();
+     /* Validate the first posed draw on each new target. Later draws use the
+        same checked framebuffer and program. Polling the GL worker for an
+        error every frame serializes unrelated lighting work ahead of this pass. */
+@@ -760,6 +842,11 @@
+     /* Units 14 and 15 belong exclusively to sunlight through this view. */
+     if (sun.ready)
+     {
++        if (sun.far_available)
++        {
++            glBindTextures(4,1,&sun.far_bsp); glBindSampler(4,0);
++            glBindTextures(5,1,&sun.far_objects); glBindSampler(5,0);
++        }
+         glBindTextures(14,1,&sun.static_depth); glBindSampler(14,0);
+         glBindTextures(15,1,&sun.object_depth); glBindSampler(15,0);
+     }
+@@ -771,8 +858,8 @@
+     if (drawing || !sun.ready) return 0;
+     sun.projecting = drawing = environment_drawing = 1;
+     failed = draw_count = 0;
+-    memcpy(environment.frame,sun.frame,sizeof(sun.frame));
+-    environment.radius = sun.radius;
++    memcpy(environment.frame,sun.far_available ? sun.far_frame : sun.frame,sizeof(sun.frame));
++    environment.radius = modern_environment_sun_outer_radius(sun.radius);
+     int ok = modern_environment_end(environment_snapshot(),camera,projection,sun.tint,0);
+     sun.projecting = 0;
+     return ok;
+@@ -783,11 +870,12 @@
+    four radii down its axis, so every corner is within sqrt(18) radii. */
+ int modern_environment_sun_interior(const float frame[16], float radius)
+ {
+-    float limit = .60f - 4.25f*radius/sun.radius;
++    float limit = .60f/sun.region[10] - 4.25f*radius/sun.radius;
+     for (int i=0;i<2;i++)
+     {
+         const float *axis = sun.region + 4*i;
+         float distance = axis[3]+axis[0]*frame[12]+axis[1]*frame[13]+axis[2]*frame[14];
++        distance += sun.region[12+i];
+         if (distance < -limit || distance > limit) return 0;
+     }
+     return 1;
+--- a/port/linux/src/modern_shadows_gl.c
++++ b/port/linux/src/modern_shadows_gl.c
+@@ -3,6 +3,7 @@
+ #include "modern_shadows.h"
+ #include "xgpu.h"
+ #include <stddef.h>
++#include <stdlib.h>
+ #include <string.h>
+ 
+ #ifndef HALO_GLES
+@@ -707,6 +708,8 @@
+     uniforms->sun_eye = glGetUniformLocation(linked,"sun_eye");
+     uniforms->sun_detail = glGetUniformLocation(linked,"sun_detail");
+     uniforms->sun_region = glGetUniformLocation(linked,"sun_region[0]");
++    glUniform1i(glGetUniformLocation(linked,"sun_far_bsp"),4);
++    glUniform1i(glGetUniformLocation(linked,"sun_far_objects"),5);
+     glUniform1i(glGetUniformLocation(linked,"sun_bsp"),14);
+     glUniform1i(glGetUniformLocation(linked,"sun_objects"),15);
+     uniforms->environment_frames = glGetUniformLocation(linked, "modern_environment_frames");
+@@ -741,7 +744,7 @@
+             glUniform4fv(uniforms->sun_close,1,sun.close);
+             glUniform4fv(uniforms->sun_eye,1,sun.eye);
+             glUniform4fv(uniforms->sun_detail,1,sun.detail);
+-            glUniform4fv(uniforms->sun_region,2,sun.region);
++            glUniform4fv(uniforms->sun_region,4,sun.region);
+         }
+         glUniform4fv(uniforms->sun_color_radius,1,(const float[4]){sun.tint[0],sun.tint[1],sun.tint[2],sun.model ? sun.radius : 0});
+     }
+--- a/port/linux/src/modern_sun_shader.inl
++++ b/port/linux/src/modern_sun_shader.inl
+@@ -9,11 +9,17 @@
+ /* Both projections evaluate the same continuous light-space distance at the
+    receiver. The outer edge leaves room for half a cache-grid step. */
+ static const char sun_coverage[] =
+-    "uniform vec4 sun_region[2];\n"
+-    "float sun_fallback(vec3 world) {\n"
++    "uniform vec4 sun_region[4];\n"
++    "vec2 sun_weights(vec3 world) {\n"
+     "    vec4 p=vec4(world,1);\n"
+-    "    return smoothstep(.60,.925,max(abs(dot(p,sun_region[0])),abs(dot(p,sun_region[1]))));\n"
+-    "}\n";
++    "    vec2 near_xy=vec2(dot(p,sun_region[0]),dot(p,sun_region[1]));\n"
++    "    float near_w=1.-smoothstep(.60,.925,max(abs(near_xy.x),abs(near_xy.y)));\n"
++    "    if(sun_region[2].z>=1.)return vec2(near_w,0.);\n"
++    "    vec2 far_xy=abs(near_xy+sun_region[3].xy)*sun_region[2].z;\n"
++    "    float far_w=1.-smoothstep(.60,.925,max(far_xy.x,far_xy.y));\n"
++    "    return vec2(near_w,(1.-near_w)*far_w);\n"
++    "}\n"
++    "float sun_fallback(vec3 world) { return 1.-dot(sun_weights(world),vec2(1.)); }\n";
+ 
+ /* RGB adds exposed sunlight. Alpha attenuates baked light only where a posed
+    object blocks a ray that the BSP alone leaves open. Separate object and
+@@ -25,7 +31,7 @@
+     "uniform vec4 sun_color_radius;\n"
+     "uniform int sun_soft;\n"
+     "uniform vec4 sun_detail; uniform vec4 sun_eye, sun_close;\n"
+-    "uniform sampler2D sun_bsp, sun_objects;\n"
++    "uniform sampler2D sun_bsp, sun_objects, sun_far_bsp, sun_far_objects;\n"
+     "float sun_tile_visibility(vec2 local,float scale,int tile,float depth,vec2 gradient,ivec2 size,bool bsp) {\n"
+     "    vec2 pos=local*vec2(size)-.5, slope=gradient/(scale*vec2(size));\n"
+     "    float bias=bsp?2.e-7:.0001; ivec2 offset=ivec2(tile*size.x,0);\n"
+@@ -63,40 +69,27 @@
+     "    object_lit=mix(object_lit,detail.y,detail.x);\n"
+     "    return vec2(static_lit*object_lit,ground>0.?static_lit*(1.-object_lit):0.);\n"
+     "}\n"
+-    "vec2 sun_tap(ivec2 cell, ivec2 size, vec2 uv, float depth, vec2 gradient, bool bsp, vec2 detail) {\n"
++    "vec2 sun_tap(sampler2D ground_map,sampler2D objects_map,ivec2 cell, ivec2 size, vec2 uv, float depth, vec2 gradient, bool bsp, vec2 detail) {\n"
+     "    if (any(lessThan(cell,ivec2(0))) || any(greaterThanEqual(cell,size))) return vec2(0);\n"
+     "    float expected=depth+dot((vec2(cell)+.5)/vec2(size)-uv,gradient);\n"
+-    "    return sun_sample(texelFetch(sun_bsp,cell,0).r,texelFetch(sun_objects,cell,0).r,expected,bsp,detail);\n"
++    "    return sun_sample(texelFetch(ground_map,cell,0).r,texelFetch(objects_map,cell,0).r,expected,bsp,detail);\n"
+     "}\n"
+-    "vec4 sun_light(vec3 world, vec3 normal, bool bsp) {\n"
+-    "    if (sun_color_radius.w <= 0.) return vec4(0);\n"
+-    "    vec3 q = transpose(mat3(sun_frame))*(world-sun_frame[3].xyz)/sun_color_radius.w;\n"
+-    "    vec2 uv = q.xy*.5+.5;\n"
+-    "    float depth = .5-.5*q.z;\n"
+-    "    vec3 dx=dFdx(vec3(uv,depth)), dy=dFdy(vec3(uv,depth));\n"
+-    "    float det=dx.x*dy.y-dx.y*dy.x;\n"
+-    "    vec2 gradient=abs(det)>1.e-12?vec2(dx.z*dy.y-dy.z*dx.y,dx.x*dy.z-dy.x*dx.z)/det:vec2(0);\n"
+-    "    if (any(greaterThanEqual(abs(q),vec3(1)))) return vec4(0);\n"
+-    "    ivec2 size=textureSize(sun_bsp,0), cell=ivec2(floor(uv*vec2(size)));\n"
+-    "    float facing=max(dot(normal,-normalize(sun_frame[2].xyz)),0.);\n"
+-    "    if (facing<=0.) return vec4(0);\n"
+-    "    float edge=1.-sun_fallback(world);\n"
+-    "    if (edge<=0.) return vec4(0);\n"
+-    "    vec2 detail=sun_detail_visibility(world,uv,depth,gradient,size,bsp);\n"
++    "vec2 sun_visibility(sampler2D ground_map,sampler2D objects_map,float atlas_scale,vec2 uv,float depth,vec2 gradient,bool bsp,vec2 detail) {\n"
++    "    ivec2 size=textureSize(ground_map,0), cell=ivec2(floor(uv*vec2(size)));\n"
+     "    vec2 visibility;\n"
+     "    if (sun_soft==0) {\n"
+-    "        float ground=texelFetch(sun_bsp,cell,0).r;\n"
+-    "        if (bsp && ground<=0.) return vec4(0);\n"
++    "        float ground=texelFetch(ground_map,cell,0).r;\n"
++    "        if (bsp && ground<=0.) return vec2(0);\n"
+     "        float expected=depth+dot((vec2(cell)+.5)/vec2(size)-uv,gradient);\n"
+-    "        visibility=sun_sample(ground,texelFetch(sun_objects,cell,0).r,expected,bsp,detail);\n"
++    "        visibility=sun_sample(ground,texelFetch(objects_map,cell,0).r,expected,bsp,detail);\n"
+     "    }\n"
+     "    else {\n"
+     "        vec2 pos=uv*vec2(size)-.5, f=fract(pos);\n"
+     "        ivec2 base=ivec2(floor(pos));\n"
+     "#if __VERSION__ >= 400 || defined(SUN_GATHER)\n"
+-    "        vec4 ground=textureGather(sun_bsp,uv).wzxy;\n"
+-    "        if (bsp && ground[int(f.x>=.5)+2*int(f.y>=.5)]<=0.) return vec4(0);\n"
+-    "        vec4 objects=textureGather(sun_objects,vec2(uv.x*sun_detail.w,uv.y)).wzxy;\n"
++    "        vec4 ground=textureGather(ground_map,uv).wzxy;\n"
++    "        if (bsp && ground[int(f.x>=.5)+2*int(f.y>=.5)]<=0.) return vec2(0);\n"
++    "        vec4 objects=textureGather(objects_map,vec2(uv.x*atlas_scale,uv.y)).wzxy;\n"
+     "        vec2 slope=gradient/vec2(size);\n"
+     "        vec4 expected=(depth-dot(f,slope))+vec4(0,slope.x,slope.y,slope.x+slope.y);\n"
+     "        vec4 static_lit=step(abs(ground),expected+.0001);\n"
+@@ -107,11 +100,35 @@
+     "        visibility=vec2(shadow_filter4(static_lit*object_lit,f),\n"
+     "            shadow_filter4(static_lit*(1.-object_lit)*vec4(greaterThan(ground,vec4(0))),f));\n"
+     "#else\n"
+-    "        if (bsp && texelFetch(sun_bsp,cell,0).r<=0.) return vec4(0);\n"
+-    "        visibility=mix(mix(sun_tap(base,size,uv,depth,gradient,bsp,detail),sun_tap(base+ivec2(1,0),size,uv,depth,gradient,bsp,detail),f.x),\n"
+-    "            mix(sun_tap(base+ivec2(0,1),size,uv,depth,gradient,bsp,detail),sun_tap(base+1,size,uv,depth,gradient,bsp,detail),f.x),f.y);\n"
++    "        if (bsp && texelFetch(ground_map,cell,0).r<=0.) return vec2(0);\n"
++    "        visibility=mix(mix(sun_tap(ground_map,objects_map,base,size,uv,depth,gradient,bsp,detail),sun_tap(ground_map,objects_map,base+ivec2(1,0),size,uv,depth,gradient,bsp,detail),f.x),\n"
++    "            mix(sun_tap(ground_map,objects_map,base+ivec2(0,1),size,uv,depth,gradient,bsp,detail),sun_tap(ground_map,objects_map,base+1,size,uv,depth,gradient,bsp,detail),f.x),f.y);\n"
+     "#endif\n"
+     "    }\n"
+-    "    vec3 direct=sun_color_radius.rgb*(facing*edge);\n"
++    "    return visibility;\n"
++    "}\n"
++    "vec4 sun_light(vec3 world, vec3 normal, bool bsp) {\n"
++    "    if (sun_color_radius.w <= 0.) return vec4(0);\n"
++    "    vec3 q = transpose(mat3(sun_frame))*(world-sun_frame[3].xyz)/sun_color_radius.w;\n"
++    "    vec2 uv = q.xy*.5+.5;\n"
++    "    float depth = .5-.5*q.z;\n"
++    "    vec3 dx=dFdx(vec3(uv,depth)), dy=dFdy(vec3(uv,depth));\n"
++    "    float det=dx.x*dy.y-dx.y*dy.x;\n"
++    "    vec2 gradient=abs(det)>1.e-12?vec2(dx.z*dy.y-dy.z*dx.y,dx.x*dy.z-dy.x*dx.z)/det:vec2(0);\n"
++    "    if (abs(q.z)>=1.) return vec4(0);\n"
++    "    float facing=max(dot(normal,-normalize(sun_frame[2].xyz)),0.);\n"
++    "    vec2 weights=sun_weights(world);\n"
++    "    if ((weights.x+weights.y)<=0. || facing<=0.) return vec4(0);\n"
++    "    vec2 visibility=vec2(0.);\n"
++    "    if (weights.x>0.) {\n"
++    "        vec2 detail=sun_detail_visibility(world,uv,depth,gradient,textureSize(sun_bsp,0),bsp);\n"
++    "        visibility=weights.x*sun_visibility(sun_bsp,sun_objects,sun_detail.w,uv,depth,gradient,bsp,detail);\n"
++    "    }\n"
++    "    if (weights.y>0.) {\n"
++    "        vec2 far_uv=(uv-sun_region[2].xy)*sun_region[2].z+.5;\n"
++    "        vec2 far_lit=sun_visibility(sun_far_bsp,sun_far_objects,1.,far_uv,depth,gradient/sun_region[2].z,bsp,vec2(0.));\n"
++    "        visibility+=weights.y*far_lit;\n"
++    "    }\n"
++    "    vec3 direct=sun_color_radius.rgb*facing;\n"
+     "    return vec4(direct*visibility.x,dot(direct,vec3(.2126,.7152,.0722))*visibility.y);\n"
+     "}\n";
+--- a/tools/harness/tests/environment_model_maps.c
++++ b/tools/harness/tests/environment_model_maps.c
+@@ -36,6 +36,7 @@
+ static int glGetError(void) { int error=next_error; next_error=GL_NO_ERROR; error_queries++; return error; }
+ static void glClipControl(GLenum a,GLenum b) {}
+ static int environment_resources(void);
++static int sun_depth_resources(void) { return 1; }
+ static int environment_draw_depth(GLuint target) { targets[depth_calls++%2]=target;return !fail_draw; }
+ static struct { unsigned alpha; } draws[256];
+ #include "under_test.inc"
+@@ -97,5 +98,31 @@
+  spots.rendering=drawing=environment_drawing=1;spots.layer=2;draw_count=256;
+  CHECK(flush_spot_batch() && spots.spot_partial,"crowded static BSP continues in the same fixture layer");
+  CHECK(modern_spot_end(1) && !(spots.valid_static & 1),"a partial static batch cannot certify the entire layer as opaque");
++ /* Both tiles use the same fixed sky and depth extent. Move their two
++    origins independently, then invalidate a cutout in just the far tile. */
++ {
++  float near_frame[16]={1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1};
++  float far_origin[3]={0},region[16]={0},close[4]={0};
++  int both=SUN_TILE_NEAR|SUN_TILE_FAR;
++  sun.valid=0; sun.far_available=1; sun.far_fbo=45;
++  for(int phase=0;phase<7;phase++){
++   int reusable=phase==4 ? SUN_TILE_NEAR : both;
++   int want[]={3,4,1,2,2,3,3};
++   if(phase==2) near_frame[12]+=1.5f;
++   if(phase==3) far_origin[1]+=4.5f;
++   int dirty=modern_environment_sun_begin(near_frame,far_origin,12,region,close,4,far_origin,close,reusable,phase>=5,0);
++   CHECK(dirty==want[phase],"cache key, retry or per-tile dependency incorrect");
++   if(dirty!=SUN_TILES_CACHED){
++    before=depth_calls;fail_draw=phase==5;
++    CHECK(modern_environment_sun_static(1)==!fail_draw,"failed draw cannot publish a static tile");
++    if(!fail_draw){
++     CHECK(depth_calls-before==((dirty&SUN_TILE_NEAR)!=0)+((dirty&SUN_TILE_FAR)!=0),"clean tile redrawn");
++     CHECK(targets[(depth_calls-1)%2]==((dirty&SUN_TILE_FAR)?45u:43u),"wrong static framebuffer");
++    }
++    fail_draw=0;
++   }
++   CHECK(modern_environment_sun_finish(phase!=5,tint)==(phase!=5),"incomplete sunlight sampled");
++  }
++ }
+  return 0;
+ }
+--- a/tools/harness/tests/modern_shadows.c
++++ b/tools/harness/tests/modern_shadows.c
+@@ -5,7 +5,7 @@
+ static int patches_ready, sun_count;
+ static void prepare_spots(int mode) { (void)mode; }
+ static unsigned char *sun_surface_sky;
+-static int sun_cutout_count;
++static struct { int count; } sun_cutouts[2];
+ static void modern_environment_window(void) {}
+ #define MIN(a,b) ((a)<(b)?(a):(b))
+ #define MAX(a,b) ((a)>(b)?(a):(b))
+@@ -98,7 +98,7 @@
+   rasterizer_lights.lights[2].color.red=.7f;
+   global_frame_parameters.game_time_sec=0;
+   sun_count=1;modern_shadows_prepare(1);
+-  CHECK(!sun_count && !sun_cutout_count,"new view clears previous ownership and map reset clears cutouts");
++  CHECK(!sun_count && !sun_cutouts[0].count && !sun_cutouts[1].count,"new view clears previous ownership and map reset clears both cutout lists");
+   map_zero=map_for(0);map_one=map_for(1);switches=0;
+   CHECK(map_zero!=NONE && map_one!=NONE && map_zero!=map_one,"two strongest lights receive independent maps");
+   for(frame=1;frame<=fps;frame++) {
+--- a/tools/harness/tests/test_environment_shadows.py
++++ b/tools/harness/tests/test_environment_shadows.py
+@@ -1,5 +1,5 @@
+ """Actual environmental owner/attachment and failure policy, independent of GL."""
+-from tools.harness import build, function, read, run
++from tools.harness import build, enum_with, function, read, run
+ 
+ 
+ def test_environmental_replacement_and_fallback():
+@@ -67,12 +67,14 @@
+ 
+ def test_environmental_model_gpu_resource_lifecycle():
+     source = read('port/linux/src/modern_environment_gl.inl')
+-    code = source[source.index('struct environment_receiver_uniforms'):source.index('static GLuint environment_program')]
++    code = enum_with(read('port/linux/include/modern_shadows.h'), 'SUN_TILE_NEAR') + '\n'
++    code += source[source.index('struct environment_receiver_uniforms'):source.index('static GLuint environment_program')]
+     code += '\n'.join(function(source, n) for n in (
+         'modern_environment_window', 'modern_environment_dispose',
+         'modern_environment_model_clear', 'modern_environment_model_active',
+         'modern_environment_model_reuse', 'environment_model_resources', 'modern_environment_model_begin',
+-        'modern_environment_model_end', 'sun_draw_batch', 'modern_environment_sun_static',
++        'modern_environment_model_end', 'sun_fit_tile', 'modern_environment_sun_begin',
++        'sun_draw_batch', 'modern_environment_sun_static',
+         'modern_environment_sun_finish', 'modern_environment_sun_model'))
+     spots = read('port/linux/src/modern_spots_gl.inl')
+     code += function(spots, 'flush_spot_batch') + function(spots, 'modern_spot_end')
+--- a/tools/test_environment_shadow_gpu.py
++++ b/tools/test_environment_shadow_gpu.py
+@@ -44,11 +44,11 @@
+         projection[3,2]=-1
+         camera=np.eye(4,dtype=np.float32);camera[2,3]=3
+         frame=np.diag([1,-1,-1,1]).astype(np.float32)
+-        textures=[r.new('Textures') for _ in range(3 if sun else 2)]
++        textures=[r.new('Textures') for _ in range(5 if sun else 2)]
+         for unit,tex in enumerate(textures):
+             g('ActiveTexture',None,U)(0x84C0+unit);g('BindTexture',None,U,U)(0x0DE1,tex)
+             for param in (0x2801,0x2800):g('TexParameteri',None,U,U,I)(0x0DE1,param,0x2600)
+-        def draw(z,empty=False,roof=False,detail=False,region=None,close_strength=None):
++        def draw(z,empty=False,roof=False,detail=False,region=None,close_strength=None,far_blocked=None):
+             world_z=z;view_z=(world_z-camera[2,3])*camera[2,2]
+             clip=projection@np.array([0,0,view_z,1]);d=clip[2]/clip[3]
+             data=np.full((64,64),1-d if reverse else d,np.float32)
+@@ -60,7 +60,9 @@
+             if close_strength is not None:
+                 # The close tile blocks this receiver. Its radial neighbour is clear.
+                 arrays[1]=np.concatenate((shadow,np.zeros_like(shadow),np.full_like(shadow,.5)),axis=1)
+-            if sun: arrays.append(np.full_like(data, .9 if roof else .5+.5*z))
++            if sun:
++                ground=np.full_like(data, .9 if roof else .5+.5*z)
++                arrays.extend((ground,ground,np.full_like(data,.5 if far_blocked else 0.)))
+             for unit,array in enumerate(arrays):
+                 g('ActiveTexture',None,U)(0x84C0+unit);g('BindTexture',None,U,U)(0x0DE1,textures[unit])
+                 if depth_stencil:
+@@ -73,11 +75,14 @@
+             for name,value in {'scene_depth':0,'shadow_depth':1,'camera':camera,'projection':projection,
+                                'frame':frame,'viewport':[0,0,64,64],'color':[.5,.5,.5,1],
+                                'reversed_depth':reverse,'soft':soft}.items():r.uniform(p,name,value)
++            r.uniform(p,'sun_region[2]',[.5,.5,1. if far_blocked is None else 1/3,0.])
+             if region is not None:
+                 r.uniform(p,'sun_region[0]',[1,0,0,region])
+                 r.uniform(p,'sun_region[1]',[0,1,0,0])
+                 if not sun:r.uniform(p,'color',[.5,.5,.5,0])
+             if sun:
++                r.uniform(p,'sun_far_bsp',3)
++                r.uniform(p,'sun_far_objects',4)
+                 r.uniform(p,'sun_bsp',2)
+                 r.uniform(p,'sun_objects',1)
+                 r.uniform(p,'sun_frame',frame)
+@@ -123,6 +128,29 @@
+         values=np.array([draw(-.5,region=float(x))[32,32,0] for x in np.linspace(.45,1.,25)])
+         steps=np.diff(values if sun else -values)
+         assert steps.min()>=-.002 and steps.max()<.065 and np.count_nonzero(steps>.001)>=10
++        if sun:
++            # Distinct near/far blockers isolate the inner handoff. Identical
++            # blockers across both maps must darken the receiver exactly once.
++            positions=np.linspace(.4,1.15,41)
++            def sweep(positions, blocked):
++                return np.array([draw(-.5,region=float(x),far_blocked=blocked)[32,32,0] for x in positions])
++            handoff=sweep(positions,False)
++            assert np.allclose(handoff[[0,-1]],[.2,.6],atol=.003)
++            assert np.all(np.diff(handoff)>=-.001) and np.max(np.diff(handoff))<.05
++            assert np.allclose(sweep(positions,True),.2,atol=.003)
++            rim=sweep(np.linspace(1.6,3.1,41),True)
++            assert np.allclose(rim[[0,-1]],[.2,.4],atol=.003)
++            assert np.all(np.diff(rim)>=-.001) and np.max(np.diff(rim))<.025
++            # Keep the outer map over the camera while the near tile looks
++            # beyond its coverage. Either map may be the only valid sample.
++            r.uniform(p,'sun_region[3]',[4,0,0,0])
++            assert np.allclose(draw(-.5,region=0.,far_blocked=False)[32,32,0],.2,atol=.003)
++            assert np.allclose(draw(-.5,region=-4.,far_blocked=False)[32,32,0],.6,atol=.003)
++            assert np.allclose(draw(-.5,region=4.,far_blocked=True)[32,32,0],.4,atol=.003)
++            outer_absent=sweep(positions,False)
++            assert np.allclose(outer_absent[[0,-1]],[.2,.4],atol=.003)
++            assert np.all(np.diff(outer_absent)>=-.001) and np.max(np.diff(outer_absent))<.025
++            r.uniform(p,'sun_region[3]',[0,0,0,0])
+         r.uniform(p,'sun_region[0]',[0,0,0,0])
+         r.uniform(p,'sun_region[1]',[0,0,0,0])
+         assert np.allclose(behind[31:33,31:33,:3],.2 if sun else .5625,atol=.002)
