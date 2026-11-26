@@ -212,6 +212,8 @@ def main():
     unit += '\n' + (ROOT / 'port/linux/src/xgpu_text.c').read_text()
     unit += '\n' + (ROOT/'port/linux/src/modern_sun_shader.inl').read_text()
     unit += '\n' + function((ROOT / 'port/linux/src/modern_shadows_gl.c').read_text(), 'modern_shadow_emit')
+    spots = (ROOT / 'port/linux/src/modern_spots_gl.inl').read_text()
+    unit += '\n' + spots[spots.index('static const char spot_shader'):spots.index('int modern_spot_mask(')]
     for name in ('mcc_environment_shader_gl.c', 'plasma_model_shader.c', 'nv2a_psh.c'):
         unit += '\n' + (ROOT / 'port/linux/src' / name).read_text()
     compiler = [args.cc, '-std=gnu11', '-O2', '-fuse-ld=lld', '-I' + str(ROOT / 'port/linux/src'), '-I' + str(ROOT / 'port/linux/game'), '-iquote' + str(ROOT / 'port/linux/include')]
