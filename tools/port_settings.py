@@ -322,9 +322,6 @@ _graphics = {"display.widescreen_loading", "display.show_fps", "display.high_res
 _extra_effects = {"display.shield_glow", "display.shield_glow_intensity",
                   "display.overshield_effect", "display.hdr", "display.hdr_output", "display.hdr_tone_mapping", "display.hdr_paper_white",
                   "display.hdr_peak_brightness"}
-_video["rows"].insert(0, ("CPU SCHEDULING:", "display.performance_cores_only", [("AUTO", "false"), ("P-CORES ONLY", "true")],
-    "Restrict scheduling to available performance cores. Applies on restart.", "hybrid"))
-_graphics.add("display.performance_cores_only")
 SCREENS["video_settings/graphics"] = {
     "screen": "graphics_settings_screen", "header": _video["header"], "spacing": 27,
     "same_place": ["anti_aliasing_android"],

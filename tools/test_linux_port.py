@@ -314,9 +314,11 @@ def test_menu_settings_exist():
     profile = set(re.findall(r'\{ "(profile\.[a-z_]+)", \d', functions))
     # (and the actions a row does on OK rather than a setting: DISCORD ACCOUNT's LINK, setting_write's)
     actions = set(re.findall(r'!strcmp\(name, "([a-z_]+\.action)"\)', functions))
+    groups = (root / "port/linux/game/lighting_menu.c").read_text()
+    group_names = set(re.findall(r'\{"(lighting\.[a-z_]+)", \{', groups))
     for path in (MENUS / "ce").glob("*.xml"):
         for setting in re.findall(r'setting="([^"]+)"', path.read_text()):
-            assert setting in known | profile | actions, f"{path.name}: {setting}"
+            assert setting in known | profile | actions | group_names, f"{path.name}: {setting}"
     controls = set(re.findall(r'"(controls\.[a-z_]+)"', (root / "port/linux/src/xinput_sdl.c").read_text()))
     assert controls == {name for name in known if name.startswith("controls.")}
     assert controls == set(re.findall(r'\{ "(controls\.[a-z_]+)", L"', functions))

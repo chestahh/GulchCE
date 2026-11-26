@@ -6,6 +6,7 @@ import shutil
 import subprocess
 import pytest
 from harness import function
+from test_palette_hash_recent import recent_palettes
 ROOT = Path(__file__).resolve().parents[1]
 
 def run_c(tmp_path, code):
@@ -40,8 +41,10 @@ typedef unsigned long long Uint64;
 #define PLATFORM_PHYSICAL_TO_VIRTUAL(x) ((void *)(uintptr_t)(x))
 struct xgpu_texture_description {
  unsigned long width, height, depth, levels, format;
- BOOL cube_map;
+ BOOL cube_map, hires, ce_meter_channels, direct, base_opaque;
 };
+static unsigned long texture_lookup_serial = 1;
+static void xgpu_texture_lookups_changed(void) {texture_lookup_serial++;}
 static BOOL xgpu_mcc_texture_get(const DWORD *r,const D3DCOLOR *p,GLuint *t,GLenum *g,struct xgpu_texture_description *d) { return FALSE; }
 static int android_texture_fixes=1;
 static unsigned long serial=1, generation=1, uploads, next_texture;
@@ -58,14 +61,17 @@ static BOOL texture_size_supported(const struct xgpu_texture_description *d) { r
 static unsigned long xgpu_texture_face_size(const struct xgpu_texture_description *d) { return 1024; }
 static unsigned long xgpu_texture_level_offset(const struct xgpu_texture_description *d,int l) { return 1024; }
 static void glGenTextures(int n,GLuint *t) { *t=++next_texture; }
+static GLuint xgpu_texture_name_new(void) { GLuint texture;glGenTextures(1,&texture);return texture; }
 static void glDeleteTextures(int n,GLuint *t) {}
 static void xgpu_gl_state_invalidate(void) {}
 static long hud_hires_override_find(unsigned long a,unsigned long w,unsigned long h,unsigned long b) { return -1; }
 static GLuint hud_hires_override_texture(long i,unsigned long *l) { return 0; }
+static void hud_hires_upscale_release(unsigned int t) {}
 static BOOL platform_is_contiguous(void *p) { return TRUE; }
 static unsigned char custom_edition_texels_order(unsigned long a) { return 0; }
 static void xgpu_statistics_texture_upload(unsigned long s) {}
-static void upload(GLuint t,GLenum g,const struct xgpu_texture_description *d,const unsigned char *b,const D3DCOLOR *p,unsigned char c) { uploads++; }
+static int next_opaque;
+static void upload(GLuint t,GLenum g,struct xgpu_texture_description *d,const unsigned char *b,const D3DCOLOR *p,unsigned char c) { uploads++;d->base_opaque=next_opaque; }
 '''
 
 def storage_program():
@@ -92,8 +98,9 @@ void android_ce_texture_unbind(const void *r) { unbinds++; }
     code += re.sub(r'^#include .*$', '', storage, flags=re.M)
     code += '#undef calloc\n'
     code += gpu[gpu.index('struct texture_entry\n'):gpu.index('/* (every bit of the three mixed')]
-    for name in ('bucket_index', 'palette_hash', 'android_ce_texture_gpu_forget', 'texture_entry_pixels_valid'):
+    for name in ('bucket_index', 'android_ce_texture_gpu_forget', 'texture_entry_pixels_valid'):
         code += function(gpu, name) + '\n'
+    code += recent_palettes(gpu)
     code += r'''
 static GLuint texture_entry_result(struct texture_entry *e,GLenum *t,struct xgpu_texture_description *d) {
  *t=e->target;*d=e->description;return e->texture;
@@ -109,7 +116,7 @@ static void read_pixels(struct bitmap_data *b,void *h) {
 
 def gpu_lookup(source):
     # Exercise the complete lookup with MCC ownership inactive.
-    return function(source, 'xgpu_texture_get')
+    return function(source, 'texture_entry_given') + '\n' + function(source, 'xgpu_texture_get')
 
 
 
@@ -174,6 +181,8 @@ headers[0]=android_ce_texture_get(&bitmaps[0],1024,1,read_pixels);CHECK(headers[
 xgpu_texture_get(headers[0],palette,&target,&description);CHECK(uploads==1);
 palette[5]=42;xgpu_texture_get(headers[0],palette,&target,&description);CHECK(uploads==2);
 palette[5]=0;xgpu_texture_get(headers[0],palette,&target,&description);CHECK(uploads==2);
+/* (a palette is not watched: never remembered for a draw's stage) */
+CHECK(!description.direct);
 android_ce_texture_reset();
 for(i=0;i<TEXTURE_BUCKET_COUNT;i++)CHECK(texture_buckets[i]==NULL);''',
         'oom': r'''
@@ -247,8 +256,9 @@ def test_normal_gpu_cache_keeps_write_tracking(tmp_path, platform):
             '#define HALO_WEB 1\n' if platform == 'web' else '') + GPU_FIXTURE
     code += 'static int ce_queries;static const void *android_ce_texture_pixels(const void *r,unsigned long *b) { ce_queries++;*b=0;return NULL; }\n'
     code += gpu[gpu.index('struct texture_entry\n'):gpu.index('/* (every bit of the three mixed')]
-    for name in ('bucket_index', 'palette_hash', 'texture_entry_pixels_valid'):
+    for name in ('bucket_index', 'texture_entry_pixels_valid'):
         code += function(gpu,name) + '\n'
+    code += recent_palettes(gpu)
     code += r'''
 static GLuint texture_entry_result(struct texture_entry *e,GLenum *t,struct xgpu_texture_description *d) {
  *t=e->target;*d=e->description;return e->texture;
@@ -257,13 +267,17 @@ static GLuint texture_entry_result(struct texture_entry *e,GLenum *t,struct xgpu
     code += gpu_lookup(gpu) + r'''
 int main(void) {
  DWORD header[5]={0};GLenum target;struct xgpu_texture_description description;
+ next_opaque=1;
  xgpu_texture_get(header,NULL,&target,&description);
  if(uploads!=1)return 1;
  xgpu_texture_get(header,NULL,&target,&description);
  if(uploads!=1)return 2;
- serial++;generation++;
+ /* (its own pixels, found again: as remembered for a draw's stage) */
+ if(!description.direct || !description.base_opaque)return 4;
+ next_opaque=0;serial++;generation++;
  xgpu_texture_get(header,NULL,&target,&description);
  if(uploads!=2)return 3;
+ if(description.base_opaque || texture_lookup_serial==1)return 5;
  return 0;
 }
 '''

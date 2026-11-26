@@ -28,7 +28,6 @@ and the debug keyboard that the game's console reads.
 #include <string.h>
 #include <time.h>
 #ifdef HALO_WINDOWS
-#include "win32_cpu_scheduling.h"
 /* port/windows/src/win32_window.c, compiled with the Windows SDK */
 void win32_window_borderless_apply(SDL_Window *window);
 #endif
@@ -289,10 +288,6 @@ BOOL platform_sdl_initialize(void)
 		return FALSE;
 	}
 	platform_sdl_started = TRUE;
-#ifdef HALO_WINDOWS
-	if (!halo_server_mode())
-		win32_cpu_scheduling_start(config_boolean("display.performance_cores_only"));
-#endif
 #ifndef HALO_ANDROID
 	/* found (or offered to the player, platform_offer_game_data) before the
 	game's window opens, and checked to be the Xbox maps (a dedicated

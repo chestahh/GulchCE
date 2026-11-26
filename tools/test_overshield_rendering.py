@@ -251,7 +251,9 @@ int main(void) {
     compile_case(tmp_path, code)
     lights = (ROOT / "source/objects/object_lights.c").read_text()
     for name in ("lights_initialize_for_new_map", "lights_dispose_from_old_map", "lights_dispose"):
-        assert "overshield_effect_reset();" in function(lights, name)
+        assert "shield_glow_reset();" in function(lights, name)
+    for renderer in ("port/linux/game/shield_glow.c", "port/android/guest/dynamic_lighting_disabled.c"):
+        assert "overshield_effect_reset();" in function((ROOT / renderer).read_text(), "shield_glow_reset")
 
 
 def test_existing_shield_glow_sampling(tmp_path):
@@ -270,11 +272,25 @@ typedef struct {real red,green,blue;} real_rgb_color;
 #define MAX(a,b) ((a) > (b) ? (a) : (b))
 #define MIN(a,b) ((a) < (b) ? (a) : (b))
 #define PIN(a,l,h) MIN(MAX(a,l),h)
-struct object_datum {long definition_index; struct {unsigned flags; real outgoing_function_values[4];} object;};
+#define FALSE 0
+#define TRUE 1
+#define _object_dead_bit 0
+#define SHIELD_GLOW_RANGE 12.f
+typedef struct {real x,y,z;} real_point3d;
+typedef struct {real_point3d position;} real_matrix4x3;
+static real_rgb_color white={1,1,1}, *global_real_rgb_white=&white;
+static real shield_glow_scale=1.f;
+struct object_datum {long definition_index; struct {unsigned flags,damage_flags; real_point3d bounding_sphere_center;
+    struct {unsigned size;} node_matrices; real_rgb_color outgoing_change_colors[4]; real outgoing_function_values[4];} object;};
+static real_matrix4x3 nodes[2];
+static real_matrix4x3 *object_get_node_matrices(long index) {return nodes;}
+static real shield_glow_camera_distance(real_point3d *point) {return 0.f;}
+static int valid_real(real value) {return isfinite(value);}
+
 struct object_definition {struct {struct {long index;} modifier_shader;} object;};
 struct shader {struct {long type;} base;};
 '''
-    code += structure(text, "shield_glow_plasma")
+    code += structure(text, "shield_glow_plasma") + "\n" + structure(text, "shield_glow_sample")
     code += r'''
 static struct object_datum object;
 static struct object_definition definition;
@@ -293,10 +309,11 @@ static boolean overshield_effect_light_sample(long index, real_rgb_color *color,
 }
 static int near(real a, real b) {return fabsf(a-b) < .00001f;}
 '''
-    code += function(text, "shield_glow_flare")
+    code += function(text, "shield_glow_sample")
     code += r'''
 int main(void) {
-    real_rgb_color color;
+    struct shield_glow_sample sample;
+    object.object.node_matrices.size = sizeof(nodes);
     shader.shader.base.type = 10;
     shader.plasma.intensity_exponent_source = 1;
     shader.plasma.intensity_exponent = 2.f;
@@ -304,21 +321,21 @@ int main(void) {
     shader.plasma.perpendicular_color.green = .8f;
     shader.plasma.perpendicular_color.blue = .4f;
     object.object.outgoing_function_values[0] = .5f;
-    assert(near(shield_glow_flare(7,&color),.25f));
-    assert(near(color.red,.25f) && near(color.green,1.f));
-    overshield = 2; assert(near(shield_glow_flare(7,&color),.64f));
-    assert(color.green == 1.f && color.red == .25f);
-    overshield = 1; assert(near(shield_glow_flare(7,&color),.64f));
-    assert(color.red == 1.f && color.green == .25f);
-    unit.unit.active_camouflage = .5f; assert(near(shield_glow_flare(7,&color),.32f));
-    object.object.flags = 1; assert(shield_glow_flare(7,&color) == 0.f);
+    assert(shield_glow_sample(7,&sample) && near(sample.strength,.25f));
+    assert(near(sample.color.red,.2f) && near(sample.color.green,.8f));
+    overshield = 2; assert(shield_glow_sample(7,&sample) && near(sample.strength,.8f));
+    assert(near(sample.color.green,.8f) && near(sample.color.red,.2f));
+    overshield = 1; assert(shield_glow_sample(7,&sample) && near(sample.strength,.8f));
+    assert(near(sample.color.red,.8f) && near(sample.color.green,.2f));
+    unit.unit.active_camouflage = .5f; assert(shield_glow_sample(7,&sample) && near(sample.strength,.4f));
+    object.object.flags = 1; assert(!shield_glow_sample(7,&sample));
     object.object.flags = 0; definition.object.modifier_shader.index = NONE;
-    assert(shield_glow_flare(7,&color) == 0.f);
-    definition.object.modifier_shader.index = 0; shader.plasma.intensity_exponent_source = 0;
-    assert(shield_glow_flare(7,&color) == 0.f);
-    shader.plasma.intensity_exponent_source = 1; unit.unit.active_camouflage = 0.f; overshield = 0;
-    assert(near(shield_glow_flare(7,&color),.25f));
-    assert(near(color.red,.25f) && near(color.green,1.f));
+    assert(!shield_glow_sample(7,&sample));
+    definition.object.modifier_shader.index = 0; object.object.damage_flags = 1;
+    assert(!shield_glow_sample(7,&sample));
+    object.object.damage_flags = 0; unit.unit.active_camouflage = 0.f; overshield = 0;
+    assert(shield_glow_sample(7,&sample) && near(sample.strength,.25f));
+    assert(near(sample.color.red,.2f) && near(sample.color.green,.8f));
     return 0;
 }
 '''
