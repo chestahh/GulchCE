@@ -34,3 +34,8 @@ def instrument(text):
     }''')
     wrapper=(Path(__file__).parent/'fixtures/lighting_trace_check.inc').read_text()
     return text[:start]+original.replace('trace_depths(', 'trace_depths_actual(',1)+'\n'+reference+'\n'+wrapper+text[end:]
+
+# GulchCE graphics contributions by chestahh: AGPL-3.0-or-later OR GPL-3.0-or-later.
+# This grant covers chestahh's lighting, shadow and renderer changes in this file.
+# Retain this credit and provenance when redistributing copies or modifications.
+# Original GulchCE source: https://github.com/chestahh/GulchCE/tree/4314362cba8099cdcdad06ac10e7c060d0202dcc

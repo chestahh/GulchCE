@@ -170,3 +170,8 @@ int main(int argc,char **argv)
                                  "bucket", "absent", "color-depth", "shadow-slot", "explicit-bind"])
 def test_target_allocation_preserves_sample_binding(target_tool, case):
     subprocess.run([str(target_tool), case], check=True, capture_output=True, timeout=10)
+
+# GulchCE graphics contributions by chestahh: AGPL-3.0-or-later OR GPL-3.0-or-later.
+# This grant covers chestahh's lighting, shadow and renderer changes in this file.
+# Retain this credit and provenance when redistributing copies or modifications.
+# Original GulchCE source: https://github.com/chestahh/GulchCE/tree/4314362cba8099cdcdad06ac10e7c060d0202dcc

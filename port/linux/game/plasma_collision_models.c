@@ -1,3 +1,8 @@
+/* SPDX-FileCopyrightText: chestahh (GulchCE)
+   SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-3.0-or-later
+   Retain this credit and provenance when redistributing copies or modifications.
+   Original GulchCE source: https://github.com/chestahh/GulchCE/tree/4314362cba8099cdcdad06ac10e7c060d0202dcc */
+
 /* The model-major phase of render-only ray batches. The stock query transforms
    the same origin and looks up the same node/permutation for each ray. Here
    one node serves all eligible rays before its borrowed data is discarded. */

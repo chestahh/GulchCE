@@ -644,3 +644,8 @@ if args.shadow_view_switch:
     intervals = re.split(r'SHADOW CAMERA tick \d+ third [01]', logs)
     assert all(re.search(r'SHADOW selected[^\r\n]+ view_weapon (?!-1\b)-?\d+', intervals[i]) for i in (0,2))
     assert re.search(r'SHADOW selected[^\r\n]+ view_weapon -1 view_hands -1', intervals[1])
+
+# GulchCE graphics contributions by chestahh: AGPL-3.0-or-later OR GPL-3.0-or-later.
+# This grant covers chestahh's lighting, shadow and renderer changes in this file.
+# Retain this credit and provenance when redistributing copies or modifications.
+# Original GulchCE source: https://github.com/chestahh/GulchCE/tree/4314362cba8099cdcdad06ac10e7c060d0202dcc

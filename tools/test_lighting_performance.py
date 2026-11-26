@@ -258,3 +258,8 @@ def test_combat_core_requires_the_saved_fight(tmp_path, acknowledged, occupancy,
     else:
         with pytest.raises(ValueError):
             verify(tmp_path, log, 25, 30, (0, 899))
+
+# GulchCE graphics contributions by chestahh: AGPL-3.0-or-later OR GPL-3.0-or-later.
+# This grant covers chestahh's lighting, shadow and renderer changes in this file.
+# Retain this credit and provenance when redistributing copies or modifications.
+# Original GulchCE source: https://github.com/chestahh/GulchCE/tree/4314362cba8099cdcdad06ac10e7c060d0202dcc

@@ -72,3 +72,8 @@ void lighting_stall_frame(double seconds, double frame_ms)
 	stall_shader_ms[0] = stall_shader_ms[1] = 0;
 	stall_shader_calls[0] = stall_shader_calls[1] = 0;
 }
+
+/* GulchCE graphics contributions by chestahh: AGPL-3.0-or-later OR GPL-3.0-or-later.
+   This grant covers chestahh's lighting, shadow and renderer changes in this file.
+   Retain this credit and provenance when redistributing copies or modifications.
+   Original GulchCE source: https://github.com/chestahh/GulchCE/tree/4314362cba8099cdcdad06ac10e7c060d0202dcc */

@@ -1,3 +1,8 @@
+/* SPDX-FileCopyrightText: chestahh (GulchCE)
+   SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-3.0-or-later
+   Retain this credit and provenance when redistributing copies or modifications.
+   Original GulchCE source: https://github.com/chestahh/GulchCE/tree/4314362cba8099cdcdad06ac10e7c060d0202dcc */
+
 /* A radiosity patch has a source location only where connected triangles
    have one emitting plane. Curved glow cones do not qualify. Discover once
    per active BSP. The texture, map name and cache family are irrelevant. */

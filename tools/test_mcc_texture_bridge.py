@@ -360,3 +360,8 @@ def test_desktop_base_opacity(upload_tool, request):
 def test_mcc_upload_platform_contract(upload_tool, case):
     result = subprocess.run([str(upload_tool), case], capture_output=True, text=True, timeout=10)
     assert result.returncode == 0, f"{case}: exit {result.returncode}\n{result.stdout}{result.stderr}"
+
+# GulchCE graphics contributions by chestahh: AGPL-3.0-or-later OR GPL-3.0-or-later.
+# This grant covers chestahh's lighting, shadow and renderer changes in this file.
+# Retain this credit and provenance when redistributing copies or modifications.
+# Original GulchCE source: https://github.com/chestahh/GulchCE/tree/4314362cba8099cdcdad06ac10e7c060d0202dcc

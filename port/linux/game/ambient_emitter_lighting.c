@@ -1,3 +1,8 @@
+/* SPDX-FileCopyrightText: chestahh (GulchCE)
+   SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-3.0-or-later
+   Retain this credit and provenance when redistributing copies or modifications.
+   Original GulchCE source: https://github.com/chestahh/GulchCE/tree/4314362cba8099cdcdad06ac10e7c060d0202dcc */
+
 /* Cosmetic samples only: no equipment, vehicle controls or projectile state
    is written. Missing authored markers leave that source unlit. */
 #include "cseries.h"
