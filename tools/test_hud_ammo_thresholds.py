@@ -210,6 +210,7 @@ def main():
     unit += HARNESS.replace('METER_SETUP', setup).replace('HEALTH_RECTS', ','.join('{' + ','.join(map(str, r)) + '}' for r in rects))
     # Compile the production translator and string builder with only platform/config stubs.
     unit += '\n' + (ROOT / 'port/linux/src/xgpu_text.c').read_text()
+    unit += '\n' + (ROOT/'port/linux/src/modern_sun_shader.inl').read_text()
     unit += '\n' + function((ROOT / 'port/linux/src/modern_shadows_gl.c').read_text(), 'modern_shadow_emit')
     for name in ('mcc_environment_shader_gl.c', 'plasma_model_shader.c', 'nv2a_psh.c'):
         unit += '\n' + (ROOT / 'port/linux/src' / name).read_text()

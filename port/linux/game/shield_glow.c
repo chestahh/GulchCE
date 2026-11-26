@@ -340,6 +340,17 @@ boolean shield_glow_selected(long rasterizer)
 	return FALSE;
 }
 
+/* Hits and animated overshields use the same render-owned light. Match the
+   live datum so a released slot cannot exempt someone else's shield. */
+long shield_glow_shadow_owner(long light)
+{
+	short i;
+	for (i = 0; i < SHIELD_GLOW_MAXIMUM; i++)
+		if (shield_glows[i].connected && shield_glows[i].light_index == light)
+			return shield_glows[i].unit_index;
+	return NONE;
+}
+
 float shield_glow_radius(long light, float radius)
 {
 	short i;

@@ -279,7 +279,13 @@ static void modern_capture_tick(const char *scene)
 
 static struct observer_result const *modern_capture_view(struct observer_result const *source)
 {
-	return shadow_ready && strcmp(getenv("HALO_SHADOW_CAPTURE_SCENE"), "first-person") ? &shadow_camera : source;
+	static struct observer_result hidden;
+	if (!shadow_ready || !strcmp(getenv("HALO_SHADOW_CAPTURE_SCENE"), "first-person")) return source;
+	if (!getenv("HALO_CAPTURE_GHOST_REVEAL") || capture_ticks >= 120) return &shadow_camera;
+	hidden = shadow_camera;
+	scale_vector3d(&shadow_camera.forward, -1.f, &hidden.forward);
+	observer_up_from_forward(&hidden.forward, &hidden.up);
+	return &hidden;
 }
 
 /* The ordinary shoulder camera runs after observer interpolation. Override
@@ -287,10 +293,12 @@ static struct observer_result const *modern_capture_view(struct observer_result 
 void modern_capture_camera(struct render_camera *camera)
 {
 	const char *scene = getenv("HALO_SHADOW_CAPTURE_SCENE");
+	const struct observer_result *view;
 	if (!scene || !shadow_ready || !strcmp(scene, "first-person")) return;
-	camera->position = shadow_camera.position;
-	camera->forward = shadow_camera.forward;
-	camera->up = shadow_camera.up;
+	view = modern_capture_view(&shadow_camera);
+	camera->position = view->position;
+	camera->forward = view->forward;
+	camera->up = view->up;
 }
 
 void modern_capture_receiver(long object)

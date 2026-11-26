@@ -34,7 +34,11 @@ def test_shared_vector_entry_preserves_stock_contract():
 @pytest.mark.parametrize('fault', [None, 'budget', 'bounds', 'eviction'])
 def test_vector_cache_preserves_traversal_results(fault):
     source=read('source/physics/collision_bsp.c')
-    traversal=function(source,'collision_bsp_test_vector_recursive')
+    recursive = function(source, 'collision_bsp_test_vector_recursive')
+    traversal = '\n'.join((structure(source, 'collision_vector_branch'),
+                           recursive[:recursive.index('{')] + ';',
+                           function(source, 'collision_bsp_test_vector_walk').replace('__forceinline', 'static inline'),
+                           recursive, function(source, 'collision_bsp_test_vector_batch')))
     prepare='\n'.join(function(read('port/linux/game/plasma_collision.c'),name) for name in ('trace_side','trace_prepare'))
     if fault == 'budget':
         traversal=traversal.replace('data->nodes_left -= data->cache->nodes[cache_slot].skip_count - 1;', '')
@@ -47,3 +51,15 @@ def test_vector_cache_preserves_traversal_results(fault):
               ('prepare.inc',prepare), ('under_test.inc',traversal))
     status,output=run(build('collision_vector_cache',includes),'cache')
     assert status==(CHECK_FAILED if fault else 0),output
+
+
+def test_leaf_reference_preserves_surface_order():
+    cache = structure(read('source/physics/collision_bsp.h'), 'collision_bsp_vector_cache')
+    leaf = function(read('source/physics/collision_bsp.c'), 'collision_leaf_test_vector')
+    status, output = run(build('collision_leaf_reference', (('cache.inc', cache), ('under_test.inc', leaf))), 'surface')
+    assert status == 0, output
+
+def test_exact_ray_survey_separates_world_and_object_changes():
+    source = read('tools/fixtures/lighting_ray_reuse.inc')
+    status, output = run(build('lighting_ray_reuse', (('survey.inc', source),)), 'moving')
+    assert status == 0, output

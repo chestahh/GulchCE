@@ -10,7 +10,7 @@
 #include "under_test.inc"
 int main(int argc,char **argv)
 {
- real depths[6][256],xs[16],values[16];
+ real depths[6][256],xs[16],values[16 * 16 * 16];
  int trial,face,cell,y,z,x,resolution,mismatches=0;
  for(trial=0;trial<512;trial++)
  {
@@ -19,14 +19,15 @@ int main(int argc,char **argv)
   resolution=trial&1?4:16;
   for(face=0;face<6;face++)for(cell=0;cell<256;cell++)depths[face][cell]=(cell+trial)%4?((cell*17+face*13+trial*7)%257)/256.f:2.f;
   for(x=0;x<16;x++)xs[x]=(2.f*(x+.5f)/16-1)*extent+dx;
+  reconstruct_visibility(depths,extent,resolution,dx,dy,dz,values);
   for(z=0;z<16;z++)for(y=0;y<16;y++)
   {
    real py=(2.f*(y+.5f)/16-1)*extent+dy,pz=(2.f*(z+.5f)/16-1)*extent+dz;
-   depth_visibility_row(depths,xs,py,pz,extent,resolution,values);
    for(x=0;x<16;x++)
    {
     real_vector3d ray={xs[x],py,pz};real expected=depth_visibility(depths,&ray,extent,resolution);
-    if(memcmp(&values[x], &expected, sizeof(real))){mismatches++;if(mismatches<10)printf("mismatch %d %d %d %d %.9g %.9g\n",trial,x,y,z,values[x],expected);}
+    real actual = values[(z * 16 + y) * 16 + x];
+    if(memcmp(&actual, &expected, sizeof(real))){mismatches++;if(mismatches<10)printf("mismatch %d %d %d %d %.9g %.9g\n",trial,x,y,z,actual,expected);}
    }
   }
  }

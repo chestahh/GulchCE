@@ -21,8 +21,9 @@ static void check_reset(const char *text)
     CHECK(changed != NULL, "migration produced text");
     result = toml_parse(changed, (int)strlen(changed));
     CHECK(result.ok, "migrated TOML valid: %s", result.errmsg);
-    for (i = 0; i < 13; i++)
+    for (i = 0; i < LIGHTING_RESET_COUNT; i++)
     {
+        if (!strcmp(lighting_reset_keys[i], "display.shield_glow_intensity")) continue;
         toml_datum_t value = toml_seek(result.toptab, lighting_reset_keys[i]);
         CHECK(value.type == TOML_UNKNOWN || (value.type == TOML_BOOLEAN && !value.u.boolean), "lighting off");
     }
@@ -40,8 +41,11 @@ int main(int argc, char **argv)
     const char completed[] = "[display]\ndynamic_lighting_reset=true\nweapon_glow=true\n";
     size_t i;
     (void)argc;(void)argv;
-    for (i = 0; i < 13; i++)
-    { strcat(text, lighting_reset_keys[i] + 8);strcat(text, " = true\n"); }
+    for (i = 0; i < LIGHTING_RESET_COUNT; i++)
+    {
+        if (!strcmp(lighting_reset_keys[i], "display.shield_glow_intensity")) continue;
+        strcat(text, lighting_reset_keys[i] + 8);strcat(text, " = true\n");
+    }
     strcat(text, "shield_glow_intensity = 'light_show'\n");
     check_reset(text);
     check_reset("# keep comment\r\n[display]\r\nvsync = true\r\n\"weapon_glow\" = true # light\r\nshield_glow_intensity = \"light_show\"\r\n");

@@ -25,6 +25,10 @@ enum
 	_model_detail_rules_inside,
 };
 
+short model_detail_level(struct model const *model, real pixel_diameter);
+/* The same view, object bounds and detail settings as the visible object draw. */
+void render_object_model_detail(long object_index, struct model const *model, short *level, short *rules);
+
 /* the rules for a model drawn this frame, its bounding sphere in the world */
 short model_detail_rules(struct model const *model, real_point3d const *centroid, real radius);
 /* whether the camera is inside a model that has levels of its inside only:

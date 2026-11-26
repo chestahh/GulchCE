@@ -112,6 +112,7 @@ symbols in this file:
 #include "tag_files/tag_files.h"
 #include "saved games/game_state.h"
 #include "rasterizer/rasterizer_console_vars.h"
+#include "model_detail.h" /* port: shared visible-model detail for the flashlight */
 #include "rasterizer/rasterizer_model_types.h"
 #include "first_person_legs.h" /* port: port/linux/game/first_person_legs.c */
 
@@ -581,6 +582,8 @@ void render_object_shadows(
 	{
 		struct object_render_data data;
 
+		modern_shadows_sun_project();
+		modern_spots_project();
 		rasterizer_environment_shadows_begin();
 
 		data.shadow = TRUE;
@@ -679,6 +682,14 @@ static real object_get_level_of_detail_pixels(
 	object_get_bounding_sphere(object_index, &center, &radius);
 
 	return render_frustum_sphere_diameter_in_pixels(&render.frustum, &center, radius);
+}
+
+/* port: project exactly the mesh the object draws into its flashlight shadow. */
+void render_object_model_detail(long object_index, struct model const *model, short *level, short *rules)
+{
+	struct object_datum const *object = object_get(object_index);
+	*level = model_detail_level(model, object_get_level_of_detail_pixels(object_index));
+	*rules = model_detail_rules(model, &object->object.bounding_sphere_center, object->object.bounding_sphere_radius);
 }
 
 static void render_object_list(

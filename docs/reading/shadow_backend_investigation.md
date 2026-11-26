@@ -115,6 +115,9 @@ counts are in the worktree under build/shadow-stability-m5.
 
 ### M5 Save/Apply and first appearance
 
+This records the earlier live-switch experiment. [E5](environment_shadow_e5.md)
+now applies the saved mode on the next gameplay map load.
+
 The desktop in-game settings handler applies changes before the ordinary world
 draw behind the menu. An experimental one-time GPU wait after that draw was
 compared with the existing behaviour on an RTX 5070 Ti at 1280x720, capped at

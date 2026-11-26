@@ -33,14 +33,16 @@ def test_menu_ownership_and_generated_layout():
     import port_settings
     spec = port_settings.SCREENS['video_settings/dynamic_lighting']
     rows = spec['rows']
-    assert len(rows) == 10
-    assert [row[1] for row in rows[2:7]] == [
-        'lighting.weapon_glow', 'display.plasma_prong_lighting', 'lighting.shield_emitters',
+    assert len(rows) == 9
+    assert [row[1] for row in rows[2:6]] == [
+        'lighting.weapon_glow', 'lighting.shield_emitters',
         'display.vehicle_lighting', 'display.world_lighting']
     assert rows[-2][1] == 'display.shield_glow'
     assert rows[-1][1] == 'display.shield_glow_intensity'
     shadows = port_settings.SCREENS['video_settings/shadows']['rows']
-    assert [row[1] for row in shadows] == ['display.modern_shadows', 'display.shadow_resolution']
+    assert [row[1] for row in shadows] == [
+        'display.modern_shadows', 'display.shadow_resolution', 'display.environment_sun',
+        'display.environment_fixtures', 'display.flashlight_shadows', 'display.flashlight_extra_slot']
     assert [value for _, value in shadows[0][2]] == ['off', 'hard', 'soft']
     assert [int(value) for _, value in shadows[1][2]] == [128, 256, 512, 1024, 2048, 4096]
     for row in shadows:

@@ -506,7 +506,7 @@ def test_modern_lighting_and_shadows_live_under_advanced_graphics_in_shell_and_p
         shell = widgets[f'modern/{page}settings'].findall('child')
         pause = widgets[f'modern/paused/{page}settings'].findall('child')
         assert shell and [c.attrib for c in pause] == [c.attrib for c in shell]
-    for setting in ('display.shadow_resolution', 'display.modern_shadows'):
+    for setting in ('display.shadow_resolution', 'display.modern_shadows', 'display.environment_sun', 'display.environment_fixtures', 'display.flashlight_shadows', 'display.flashlight_extra_slot'):
         matches = [name for name, widget in widgets.items() if widget.get('setting') == setting
                    and name.startswith('modern/')]
         assert len(matches) == 1 and matches[0].startswith('modern/shadows/')
@@ -546,7 +546,10 @@ def reachable_menu_widgets(widgets, start, platform):
     editors = dict(re.findall(r'!strcmp\(key, "([^"]+)"\)\) target = "([^"]+)"',
                               function(runtime, 'frontend_editor')))
     pending, reached = [start], set()
-    visible = lambda node: platform in node.get('platform', 'desktop android web').split()
+    names = {platform}
+    if platform in ('ordinary', 'hybrid'):
+        names.add('desktop')
+    visible = lambda node: bool(names.intersection(node.get('platform', 'desktop android web').split()))
     while pending:
         name = pending.pop()
         if name in reached or name not in widgets or not visible(widgets[name]):
@@ -585,7 +588,7 @@ def test_modern_network_menu_reaches_sharing(platform):
     assert 'network.mcc_map_share' not in settings
 
 
-@pytest.mark.parametrize('platform', ['desktop', 'android', 'web'])
+@pytest.mark.parametrize('platform', ['ordinary', 'hybrid', 'android', 'web'])
 def test_modern_settings_match_stock_functionality(platform):
     stock = {w.get('name'): w for file in (ROOT / 'port/assets/menus/ce').glob('*.xml')
              for w in ET.parse(file).getroot().findall('widget')}
@@ -595,6 +598,15 @@ def test_modern_settings_match_stock_functionality(platform):
     modern_route = reachable_menu_widgets(modern, 'modern/settings', platform)
     settings = lambda widgets, route: {widgets[n].get('setting') for n in route if widgets[n].get('setting')}
     assert settings(stock, stock_route) == settings(modern, modern_route)
+    assert ("display.performance_cores_only" in settings(modern, modern_route)) == (platform == "hybrid")
+    screen = 'main_menu/settings_select/player_setup/player_profile_edit/video_settings/'
+    for row in stock[screen + 'options_menu'].findall('child'):
+        platforms = row.get('platform', 'desktop android web').split()
+        visible = platform in platforms or ('desktop' in platforms and platform in ('ordinary', 'hybrid'))
+        if visible and '/op_' in row.get('widget', ''):
+            bottom = int(row.get('y', 0)) + int(stock[row.get('widget')].get('height'))
+            assert bottom <= int(stock[screen + 'help'].get('top')), row.attrib
+
 
 
 def test_stock_editors_preserve_pending_modern_settings(tmp_path):

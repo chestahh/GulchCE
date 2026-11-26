@@ -27,6 +27,7 @@ def main():
     parser.add_argument('--label', help='Unique evidence folder')
     parser.add_argument('--build-dir', type=Path, default=ROOT/'build/lighting-compatibility-build')
     parser.add_argument('--modern-shadows', choices=('off', 'hard', 'soft'), default='off')
+    parser.add_argument('--environment-shadows', action='store_true', help='Exercise sunlight, fixtures and the flashlight across map loads')
     parser.add_argument('--mcc-package', type=Path, help='Workshop Digsite package containing maps/1.map')
     args = parser.parse_args()
     enabled = args.enabled
@@ -70,6 +71,8 @@ def main():
         settings = {key: bool(enabled) for key in LIGHTS}
         settings.update(overshield_effect=bool(enabled), per_pixel_lighting=True, shield_glow_intensity='default', dynamic_lighting_reset=True)
         settings['modern_shadows'] = args.modern_shadows
+        if args.environment_shadows:
+            settings.update(environment_sun=True, environment_fixtures=True, flashlight_shadows=True)
         (out/'config.toml').write_text('[display]\n'+''.join(f'{k} = {json.dumps(v)}\n' for k, v in settings.items()))
         (out/'init.txt').write_text('map_name levels\\c40\\c40\n')
         port = 24041+enabled
@@ -123,11 +126,14 @@ def main():
     mode = {'off': 0, 'hard': 1, 'soft': 2}[args.modern_shadows]
     report['shadow_mode_correct'] = bool(shadows) and all(int(r['mode']) == mode and (mode or int(r['maps']) == 0) for r in shadows)
     report['shadow_active_samples'] = sum(int(r['maps']) != 0 for r in shadows)
+    report['sun_samples'] = sum(int(r.get('sun', 0)) != 0 for r in shadows)
+    report['spot_samples'] = sum(int(r.get('spots', 0)) != 0 for r in shadows)
     report['lighting_preferences_correct'] = bool(rows) and all(r['local_plasma'] == enabled and r['local_needler'] == enabled for r in rows)
     report['passed'] = (report['exit'] == 0 and not forced and len(sent) == 3 and
                         report['mcc_loads'] == 1 and report['ce_loads'] == 1 and
                         report['tick_resets'] >= 3 and report['shield_values'] == [enabled] and not report['exceptions'] and
                         report['shadow_mode_correct'] and report['lighting_preferences_correct'] and
+                        (not args.environment_shadows or not mode or report['sun_samples'] > 0) and
                         (not mode or not enabled or report['shadow_active_samples'] > 0))
     (out/'report.json').write_text(json.dumps(report, indent=2))
     print(json.dumps(report), flush=True)

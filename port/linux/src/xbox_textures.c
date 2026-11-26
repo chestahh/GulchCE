@@ -21,6 +21,7 @@ memory_watch.c detects that by write-protecting the pages.
 #include "menu_files.h"
 #include "text_hires.h"
 #include "port_config.h"
+#include "modern_shadows.h"
 #include "../game/cache_file_formats.h"
 
 #include <SDL3/SDL.h>
@@ -977,7 +978,63 @@ void halo_custom_edition_texels_forget(void)
 }
 
 
-static void upload(GLuint texture, GLenum target, const struct xgpu_texture_description *description,
+#ifndef HALO_GLES
+/* The shadow sampler uses linear filtering at level zero. Full alpha at every
+   texel also proves full alpha between texels. Padding in partial DXT blocks
+   may conservatively keep a texture on the sampled path. */
+static BOOL base_level_opaque(unsigned char kind, const unsigned char *source,
+	const unsigned long *converted, unsigned long width, unsigned long height)
+{
+	unsigned long i, count;
+	if (converted)
+	{
+		count = width * height;
+		for (i = 0; i < count; i++)
+			if ((converted[i] >> 24) != 255) return FALSE;
+		return count != 0;
+	}
+	count = ((width + 3) / 4) * ((height + 3) / 4);
+	for (i = 0; i < count; i++)
+	{
+		unsigned int j;
+		if (kind == _texel_dxt1)
+		{
+			unsigned int c0 = source[0] | (source[1] << 8);
+			unsigned int c1 = source[2] | (source[3] << 8);
+			if (c0 <= c1)
+				for (j = 4; j < 8; j++)
+					if (source[j] & (source[j] >> 1) & 0x55) return FALSE;
+			source += 8;
+		}
+		else if (kind == _texel_dxt3)
+		{
+			for (j = 0; j < 8; j++)
+				if (source[j] != 255) return FALSE;
+			source += 16;
+		}
+		else if (kind == _texel_dxt5)
+		{
+			/* With equal white endpoints the interpolants are white too.
+			   In six-alpha mode index 6 is black and index 7 is white. */
+			unsigned int white = (source[0] == 255) | ((source[1] == 255) << 1);
+			if (white == 3) white |= 0x3c;
+			if (source[0] <= source[1]) white |= 0x80;
+			for (j = 2; j < 8; j += 3)
+			{
+				unsigned int k, bits = source[j] | (source[j+1] << 8) | (source[j+2] << 16);
+				for (k = 0; k < 8; k++, bits >>= 3)
+					if (!(white & (1u << (bits & 7)))) return FALSE;
+			}
+			source += 16;
+		}
+		else return FALSE;
+	}
+	return count != 0;
+}
+
+#endif
+
+static void upload(GLuint texture, GLenum target, struct xgpu_texture_description *description,
 	const unsigned char *base, const D3DCOLOR *palette, unsigned char channel_order)
 {
 	struct format_information information = format_information(description->format);
@@ -985,6 +1042,9 @@ static void upload(GLuint texture, GLenum target, const struct xgpu_texture_desc
 	unsigned long face_size = xgpu_texture_face_size(description);
 	unsigned long largest = description->width * description->height * description->depth;
 	BOOL decode_compressed = FALSE;
+#ifndef HALO_GLES
+	BOOL base_opaque = FALSE;
+#endif
 	unsigned long *converted;
 	unsigned char *astc = NULL;
 	unsigned long face, level;
@@ -1138,16 +1198,28 @@ static void upload(GLuint texture, GLenum target, const struct xgpu_texture_desc
 				else
 					glTexImage2D(image_target, (GLint)level, GL_RGBA8, width, height, 0, GL_BGRA, GL_UNSIGNED_BYTE, converted);
 			}
+#ifndef HALO_GLES
+			if (level == 0 && target == GL_TEXTURE_2D && modern_shadows_enabled() && custom_edition_channel_sources[channel_order][3] == 3 && information.kind != _texel_p8)
+				base_opaque = base_level_opaque(information.kind, source, converted, width, height);
+#endif
 		}
 	}
 	free(converted);
 	free(astc);
+#ifndef HALO_GLES
+	if (base_opaque)
+	{
+		GLenum error = glGetError();
+		if (error == GL_NO_ERROR) description->base_opaque = TRUE;
+		else platform_log("textures: opacity unknown after GL error %lx", (unsigned long)error);
+	}
+#endif
 	texture_dump(target, description);
 }
 
 /* MCC bounded immutable upload. The original guest-memory uploader above
  * remains unchanged; native format decoding is shared, ownership is separate. */
-BOOL xgpu_mcc_texture_upload(GLuint texture, GLenum target, const struct xgpu_texture_description *description,
+BOOL xgpu_mcc_texture_upload(GLuint texture, GLenum target, struct xgpu_texture_description *description,
 	void const *pixels, unsigned long bytes, const D3DCOLOR *palette)
 {
 	const unsigned char *base = pixels;
@@ -1156,10 +1228,14 @@ BOOL xgpu_mcc_texture_upload(GLuint texture, GLenum target, const struct xgpu_te
 	unsigned long face_size = xgpu_texture_face_size(description);
 	unsigned long largest = description->width * description->height * description->depth;
 	BOOL decode_compressed = FALSE;
+#ifndef HALO_GLES
+	BOOL base_opaque = FALSE;
+#endif
 	unsigned long *converted;
 	unsigned long face, level;
 	GLenum gl_error;
 	GLint maximum;
+	description->base_opaque = FALSE;
 	/* MCC effects can use a 15360-pixel strip. Keep the legacy texture cache's
 	 * size policy unchanged; this entry point owns only checked MCC pixels. */
 	if (!base || !description->width || !description->height || !description->depth ||
@@ -1275,6 +1351,10 @@ BOOL xgpu_mcc_texture_upload(GLuint texture, GLenum target, const struct xgpu_te
 				else
 					glTexImage2D(image_target, (GLint)level, GL_RGBA8, width, height, 0, GL_BGRA, GL_UNSIGNED_BYTE, converted);
 			}
+#ifndef HALO_GLES
+			if (level == 0 && target == GL_TEXTURE_2D && modern_shadows_enabled() && information.kind != _texel_p8)
+				base_opaque = base_level_opaque(information.kind, source, converted, width, height);
+#endif
 		}
 	}
 	free(converted);
@@ -1283,6 +1363,9 @@ BOOL xgpu_mcc_texture_upload(GLuint texture, GLenum target, const struct xgpu_te
 		platform_log("mcc textures: upload failed, GL error %lx", (unsigned long)gl_error);
 		return FALSE;
 	}
+#ifndef HALO_GLES
+	description->base_opaque = base_opaque;
+#endif
 	texture_dump(target, description);
 	return TRUE;
 }
@@ -1566,6 +1649,7 @@ static GLuint texture_entry_given(struct texture_entry *entry, BOOL palettized, 
 
 	description->direct = texture == entry->texture && !palettized && !no_cache && !description->hires &&
 		!description->ce_meter_channels;
+	description->base_opaque &= description->direct;
 	return texture;
 }
 
@@ -1741,6 +1825,11 @@ GLuint xgpu_texture_get(const DWORD *resource, const D3DCOLOR *palette, GLenum *
 			if (entry->override >= 0 && !hud_hires_override_texture(entry->override, &levels))
 				entry->override = -1;
 		}
+		if (entry->description.base_opaque)
+		{
+			entry->description.base_opaque = FALSE;
+			xgpu_texture_lookups_changed(); /* invalidate proofs on already queued draws */
+		}
 		if (entry->override < 0 && entry->size && texture_entry_pixels_valid(entry))
 		{
 			if (config_boolean("debug.texture_log"))
@@ -1760,6 +1849,9 @@ GLuint xgpu_texture_get(const DWORD *resource, const D3DCOLOR *palette, GLenum *
 			}
 			upload(entry->texture, entry->target, &entry->description, (const unsigned char *)entry->address, palette,
 				custom_edition_texels_order(entry->address));
+			/* A guest write during transfer makes the classification uncertain. */
+			if (entry->description.base_opaque && watch_serial != memory_watch_serial())
+				entry->description.base_opaque = FALSE;
 			xgpu_statistics_texture_upload(entry->size);
 		}
 	}

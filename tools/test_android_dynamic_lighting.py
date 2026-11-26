@@ -119,7 +119,7 @@ int main(void)
         muzzle_lighting_projectile_created(17, 42);
         if (muzzle_lighting_shadow_caster(17, 42, &collision_owner) != NONE || collision_owner != NONE) return 6;
         grenade.grounded = 1; grenade.emitter_object = grenade.casing = grenade.stuck_host = 42;
-        if (muzzle_lighting_vehicle_occlusion(17) || plasma_lighting_vehicle_occlusion(17) ||
+        if (muzzle_lighting_vehicle_occlusion(17) || plasma_lighting_vehicle_occlusion(17, NULL) ||
             covenant_emitter_lighting_vehicle_occlusion(17) ||
             covenant_emitter_lighting_occlusion_ignore(17) != NONE ||
             covenant_emitter_lighting_shadow_owner(17, &grenade.emitter_object) != NONE ||
@@ -171,4 +171,4 @@ def test_android_menu_and_default_config_exclude_dynamic_lighting():
                 if child.get('widget', '').endswith('/op_dynamic_lighting'):
                     visible_on.update(child.get('platform', '').split())
             if name.endswith('video_settings.xml'):
-                assert visible_on == {'desktop', 'web'}
+                assert visible_on == {'ordinary', 'hybrid', 'web'}

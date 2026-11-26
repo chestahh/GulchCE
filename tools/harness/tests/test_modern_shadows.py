@@ -2,12 +2,25 @@
 from tools.harness import CHECK_FAILED, build, constant, function, read, run, structure
 
 
+def test_native_map_light_selection():
+    source = function(read('source/objects/object_lights.c'), 'light_port_authored_dynamic')
+    status, output = run(build('authored_shadow_light', (('under_test.inc', source),)), 'sources')
+    assert status == 0, output
+
+
 def test_shared_resolution_bounds():
     source = read('port/linux/src/d3d8_gl.c')
     code = ''.join(f'#define {name} {constant(source, name)}\n' for name in
                    ('SHADOW_MAP_SIZE', 'SHADOW_MAP_MAXIMUM_SCALE'))
     code += function(source, 'shadow_scale_choose')
     status, output = run(build('shadow_resolution', (('under_test.inc', code),)), 'sizes')
+    assert status == 0, output
+
+
+def test_mesh_cache_preserves_vertex_and_triangle_identity():
+    source = read('port/linux/game/modern_shadows.c')
+    code = function(source, 'mesh_bucket')
+    status, output = run(build('modern_mesh_index', (('under_test.inc', code),)), 'all')
     assert status == 0, output
 
 
@@ -20,7 +33,7 @@ def check_selection(budget, fault=False):
     source = read('port/linux/game/modern_shadows.c')
     code = source[source.index('static int part_count;'):source.index('static int setting(void)')]
     code += function(read('port/linux/game/plasma_lighting.c'), 'plasma_lighting_selected')
-    for name in ('setting', 'modern_shadows_reset', 'modern_shadows_window',
+    for name in ('setting', 'modern_shadows_map_loaded', 'forget_shadow_geometry', 'modern_shadows_reset', 'modern_shadows_window',
                  'modern_shadows_submitted', 'modern_shadows_model_slot',
                  'map_for', 'model_map', 'modern_shadows_map', 'modern_shadows_model_mask', 'modern_shadows_selected',
                  'modern_shadows_receiver', 'modern_shadows_view_receiver', 'modern_shadows_collision_owner',
@@ -57,6 +70,12 @@ def test_viewmodel_pose_and_visibility():
     assert status == 0, output
 
 
+def test_shadow_draw_keeps_pose_and_cutout_state():
+    code = function(read('port/linux/src/modern_shadows_gl.c'), 'bind_caster_draw')
+    status, output = run(build('modern_draw_state', (('under_test.inc', code),)), 'all')
+    assert status == 0, output
+
+
 def test_receiver_specific_depth_maps():
     import re
     source = read('port/linux/src/modern_shadows_gl.c')
@@ -68,7 +87,7 @@ def test_receiver_specific_depth_maps():
     code = code[:code.index('/* Meshes are immutable')] + re.search(
         r'struct modern_shadow_uniforms\s*\{[^}]+\};', header)[0]
     code += source[source.index('enum { SHADOW_MESHES'):source.index('static void create_depth_cube')]
-    for name in ('modern_shadow_begin', 'modern_shadow_draw', 'modern_shadow_end', 'modern_shadow_clear_draws', 'modern_shadow_dispose', 'modern_shadow_bind'):
+    for name in ('prepare_depth_cube', 'modern_shadow_begin', 'modern_shadow_draw', 'modern_shadow_end', 'modern_shadow_clear_draws', 'dispose_shadow_meshes', 'modern_shadow_dispose', 'modern_shadow_bind'):
         code += function(source, name)
     status, output = run(build('modern_shadow_maps', (('under_test.inc', code),)), 'maps')
     assert status == 0, output
@@ -85,6 +104,7 @@ def test_materials_and_animated_casters():
 def test_player_and_npc_held_objects():
     source = read('port/linux/game/modern_shadows.c')
     code = function(source, 'unshadowed_object') + function(source, 'object_casters')
+    code += function(read('port/linux/game/modern_spots.inl'), 'flashlight_object_casters')
     status, output = run(build('modern_shadow_objects', (('under_test.inc', code),)), 'objects')
     assert status == 0, output
 
@@ -96,6 +116,7 @@ def test_owner_receiver_exemption_is_required():
 def test_owner_caster_exemption_is_required():
     source = read('port/linux/game/modern_shadows.c')
     code = function(source, 'unshadowed_object') + function(source, 'object_casters')
+    code += function(read('port/linux/game/modern_spots.inl'), 'flashlight_object_casters')
     code = code.replace('unshadowed_object(unshadowed_owner, iterator.index)', 'FALSE')
     status, output = run(build('modern_shadow_objects', (('under_test.inc', code),)), 'objects')
     assert status == CHECK_FAILED, output
@@ -104,6 +125,7 @@ def test_owner_caster_exemption_is_required():
 def test_seated_occupant_exemption_is_required():
     source = read('port/linux/game/modern_shadows.c')
     code = function(source, 'unshadowed_object') + function(source, 'object_casters')
+    code += function(read('port/linux/game/modern_spots.inl'), 'flashlight_object_casters')
     code = code.replace('unit->unit.parent_seat_index != NONE', 'unit->unit.parent_seat_index == NONE')
     status, output = run(build('modern_shadow_objects', (('under_test.inc', code),)), 'objects')
     assert status == CHECK_FAILED, output

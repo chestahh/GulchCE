@@ -152,6 +152,7 @@ struct render_lighting *object_get_cached_render_lighting(
 	real level_of_detail_pixels);
 void render_objects(
 	void);
+boolean render_sky_sun(short sky_index, real_vector3d *direction, real_rgb_color *color);
 void render_object_shadows(
 	void);
 

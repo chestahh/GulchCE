@@ -16,6 +16,6 @@ struct plasma_occlusion_uniforms
 	float last_transform[2][4], last_enabled[2];
 };
 void plasma_occlusion_model_initialize(unsigned long program, struct plasma_occlusion_uniforms *uniforms);
-void plasma_occlusion_bind_model(struct plasma_occlusion_uniforms *uniforms);
+void plasma_occlusion_bind_model(struct plasma_occlusion_uniforms *uniforms, unsigned int light_mask);
 float plasma_occlusion_specular_scale(long rasterizer_index);
 #endif

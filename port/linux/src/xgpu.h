@@ -72,7 +72,7 @@ void xgpu_gl_end_external_pass(void);
 /* Current D3D destination, depth attachment and viewport for a feature pass.
    No borrowed depth texture may be sampled while attached: copy it first. */
 int xgpu_gl_scene_target(unsigned int *framebuffer, int size[2],
-    unsigned int *depth_format, int viewport[4], float pixel_center[2]);
+    unsigned int *depth_format, unsigned int *copy_source, int viewport[4], float pixel_center[2]);
 #endif
 /* a texture about to be deleted: the binding shadows forget it, since GL
 may give its name to a new texture (call before glDeleteTextures) */
@@ -248,6 +248,7 @@ struct xgpu_texture_description
 	/* (xgpu_texture_get) the texture's own pixels, as they are: no palette,
 	replacement or channel change, and the cache in use */
 	BOOL direct;
+	BOOL base_opaque; /* uploaded 2D base level has full alpha at every texel */
 };
 
 void xgpu_texture_describe(DWORD format_word, DWORD size_word, struct xgpu_texture_description *description);
@@ -274,7 +275,7 @@ BOOL xgpu_mcc_texture_get(DWORD const *resource, D3DCOLOR const *palette,
 	GLuint *texture, GLenum *target, struct xgpu_texture_description *description);
 BOOL xgpu_mcc_texture_describe(DWORD const *resource, struct xgpu_texture_description *description);
 BOOL xgpu_mcc_texture_upload(GLuint texture, GLenum target,
-	struct xgpu_texture_description const *description, void const *pixels,
+	struct xgpu_texture_description *description, void const *pixels,
 	unsigned long bytes, D3DCOLOR const *palette);
 void xgpu_mcc_texture_unbind(DWORD const *resource);
 

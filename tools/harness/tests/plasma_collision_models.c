@@ -34,9 +34,10 @@ static int collision_bsp_test_vector_from_node(unsigned long flags,const struct 
 static int collision_bsp_test_vector(unsigned long flags,const struct collision_bsp *b,int breaks,const byte *bits,
  const real_point3d *p,const real_vector3d *v,real limit,struct collision_bsp_test_vector_result *r)
 { return collision_bsp_test_vector_from_node(flags,b,breaks,bits,p,v,limit,r,0,0,NULL); }
-/* The synthetic splitting planes have no finite cached bounds. */
+/* Alternate bounded nodes with the unbounded synthetic planes. */
+static int use_bounds;
 static boolean collision_bsp_bounds_cache_sphere(struct collision_bsp const *bsp, real_point3d *center, real *radius)
-{ (void)bsp; (void)center; (void)radius; return FALSE; }
+{ center->x = center->y = center->z = 0; *radius = .5f; return use_bounds; }
 #include "under_test.inc"
 int main(int argc,char **argv)
 {
@@ -58,6 +59,7 @@ int main(int argc,char **argv)
  }
  for(trial=0;trial<64;trial++)
  {
+  use_bounds = (trial & 2) != 0;
   count=trial&1?96:PLASMA_COLLISION_RAYS;
   matrices[1].forward.i=trial%2?.6f:1;matrices[1].forward.j=trial%2?.8f:0;
   matrices[1].left.i=-matrices[1].forward.j;matrices[1].left.j=matrices[1].forward.i;

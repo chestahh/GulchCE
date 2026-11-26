@@ -3,10 +3,38 @@
 #ifndef MODERN_SHADOWS_H
 #define MODERN_SHADOWS_H
 
+void modern_shadows_map_loaded(int gameplay);
+int modern_shadows_prepare_loaded_map(void);
 void modern_shadows_prepare(int primary);
 int modern_shadows_enabled(void);
 int modern_shadows_hard_enabled(void);
 void modern_shadows_environment_receivers(int primary);
+void modern_shadows_sun_project(void);
+void modern_spots_project(void);
+struct rasterizer_light_submit_parameters;
+void modern_flashlight_mount(long wearer, struct rasterizer_light_submit_parameters *light);
+short modern_flashlight_include(short view, long *lights, short count, short capacity);
+int modern_spot_is_flashlight(long index);
+void modern_spot_world_light(long index);
+int modern_spot_model_active(void);
+int modern_spot_flash_slot(int slot);
+int modern_spot_mask(void);
+int modern_spot_begin(int layer, const float frame[16], int cacheable);
+int modern_spot_end(int complete);
+void modern_spot_publish(int slot, const float frame[16], const float origin[3], const float color[4], int soft);
+void modern_spot_camera(const float camera[16], const float projection[16]);
+void modern_spot_bsp(void);
+struct xgpu_text;
+void modern_spot_emit(struct xgpu_text *text);
+int modern_shadows_sun_casters(void);
+int modern_environment_sun_begin(const float frame[16], float radius, const float region[8], const float detail[2], float detail_radius, const float eye[3], const float close[4], int cache_static, int sky, int soft);
+void modern_environment_sun_detail_caster(int eligible);
+int modern_environment_sun_interior(const float frame[16], float radius);
+void modern_environment_sun_surfaces(const unsigned char *owners);
+int modern_environment_sun_static(int complete);
+int modern_environment_sun_finish(int complete, const float color[3]);
+int modern_environment_sun_project(const float camera[16], const float projection[16]);
+void modern_environment_sun_model(int enabled);
 void modern_environment_receivers(int enabled);
 int modern_environment_marking(void);
 void modern_shadows_receiver(int first_person, long object);
@@ -48,7 +76,7 @@ void modern_environment_model_end(int complete, int mask);
 int modern_shadows_environment(long object, const struct real_matrix4x3 *frame,
     const float color[3], float radius);
 int modern_environment_begin(const float frame[16], float radius, int soft);
-int modern_environment_end(int complete, const float camera[16], const float projection[16], const float color[3]);
+int modern_environment_end(int complete, const float camera[16], const float projection[16], const float color[3], int handoff);
 void modern_environment_window(void);
 void modern_environment_dispose(void);
 /* Read the already-interpolated pose through the first-person owner's
@@ -59,11 +87,14 @@ int modern_shadows_viewmodel(int hands, long *model, long *owner,
 /* Meshes are immutable until reset. Matrices are column-major world poses;
    each draw copies them, so no borrowed object state survives the frame. */
 int modern_shadow_mesh_create(const struct modern_shadow_vertex *vertices, int vertex_count,
-	const unsigned short *indices, int index_count);
+	const unsigned short *indices, int index_count, int model);
 int modern_shadow_draw(int mesh, const float *matrices, int node_count,
 	const void *alpha_texture, const float uv_transform[8], int views);
 int modern_shadow_begin(int slot, const float position[3], float radius, int soft, int ground_grenade);
 int modern_shadow_end(void);
+void modern_shadow_preload(int sunlight, int fixtures, int beam);
+void modern_shadow_change_bsp(void);
+void modern_environment_invalidate_static(void);
 void modern_shadow_dispose(void);
 void modern_shadow_clear_draws(void);
 
@@ -71,10 +102,16 @@ struct xgpu_text;
 struct modern_shadow_uniforms
 {
 	int light, other_light, slots, filter, extent;
+	int last_slots, last_filter, last_environment_mask;
+    unsigned long long spot_window, sun_window;
+    int sun_enabled;
+    int last_flash_slots;
+    int spot_frames, spot_origins, spot_colors, spot_mask, spot_flash_slots, spot_camera, spot_projection, spot_viewport, spot_reversed, spot_soft;
+    int sun_frame, sun_color_radius, sun_soft, sun_detail, sun_region, sun_eye, sun_close;
     int environment_frames, environment_radius, environment_mask, environment_filter;
 };
 void modern_shadow_emit(struct xgpu_text *text);
 void modern_shadow_uniforms_initialize(unsigned long program, struct modern_shadow_uniforms *uniforms);
-void modern_shadow_bind(const struct modern_shadow_uniforms *uniforms);
+void modern_shadow_bind(struct modern_shadow_uniforms *uniforms);
 
 #endif

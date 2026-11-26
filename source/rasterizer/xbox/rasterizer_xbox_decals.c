@@ -897,10 +897,49 @@ void _rasterizer_decals_draw(
 	return;
 }
 
-/* port: draws the decals batched (decal_batch) */
+/* port: Only reject a clipped decal when its entire mesh is outside one
+   side of the rasterizer camera. A mark crossing the edge still draws. */
+static boolean decal_outside_window(
+	struct decal_vertex const *vertices,
+	short count)
+{
+	struct render_frustum const *frustum = &global_window_parameters.frustum;
+	short side;
+
+	if (!frustum->projection_valid || global_window_parameters.camera.mirrored)
+		return FALSE;
+	for (side = 0; side < 4; ++side)
+	{
+		real_plane3d const *plane = &frustum->world_planes[side];
+		short i;
+
+		for (i = 0; i < count; ++i)
+			if (!(plane3d_distance_to_point(plane, &vertices[i].position) > 0.01f))
+				break;
+		if (i == count)
+			return TRUE;
+	}
+	return FALSE;
+}
+
+/* port: Register zero commits the position and its preceding attributes. */
+static void rasterizer_decal_set_vertex(
+	struct decal_vertex const *vertex,
+	byte const *color)
+{
+	IDirect3DDevice8_SetVertexData4ub(global_d3d_device, 9, color[0], color[1], color[2], color[3]);
+	IDirect3DDevice8_SetVertexData2f(global_d3d_device, 4,
+		(real)(short)(vertex->texcoord & 0xFFFF) / 32767.0f, (real)(short)(vertex->texcoord >> 16) / 32767.0f);
+	IDirect3DDevice8_SetVertexData4f(global_d3d_device, 0,
+		vertex->position.x, vertex->position.y, vertex->position.z, 1.0f);
+}
+
+/* port: Reduce submissions of off-screen quads while preserving batch state. */
 static void rasterizer_decals_draw_batch(
 	void)
 {
+	struct decal_vertex const *last_skipped = NULL;
+	byte const *last_color = NULL;
 	short batch_index;
 
 	if (!decal_batch_count)
@@ -908,21 +947,28 @@ static void rasterizer_decals_draw_batch(
 	IDirect3DDevice8_Begin(global_d3d_device, D3DPT_QUADLIST);
 	for (batch_index = 0; batch_index < decal_batch_count; batch_index++)
 	{
+		struct decal_vertex const *vertices = decal_batch[batch_index].vertices;
 		byte const *color = decal_batch[batch_index].color;
+		short count = decal_batch[batch_index].vertex_count;
 		short vertex_index;
 
-		for (vertex_index = 0; vertex_index < decal_batch[batch_index].vertex_count; vertex_index++)
+		if (count <= 0)
+			continue;
+		if (decal_outside_window(vertices, count))
 		{
-			struct decal_vertex const *vertex = &decal_batch[batch_index].vertices[vertex_index];
-
-			IDirect3DDevice8_SetVertexData4ub(global_d3d_device, 9, color[0], color[1], color[2], color[3]);
-			IDirect3DDevice8_SetVertexData2f(global_d3d_device, 4,
-				(real)(short)(vertex->texcoord & 0xFFFF) / 32767.0f, (real)(short)(vertex->texcoord >> 16) / 32767.0f);
-			IDirect3DDevice8_SetVertexData4f(global_d3d_device, 0,
-				vertex->position.x, vertex->position.y, vertex->position.z, 1.0f);
+			last_skipped = vertices + count - 1;
+			last_color = color;
+			continue;
 		}
+		last_skipped = NULL;
+		for (vertex_index = 0; vertex_index < count; vertex_index++)
+			rasterizer_decal_set_vertex(vertices + vertex_index, color);
 	}
 	IDirect3DDevice8_End(global_d3d_device);
+	/* The next draw can inherit the last vertex's registers, even when
+	   that vertex was clipped. Outside Begin/End this emits no vertex. */
+	if (last_skipped)
+		rasterizer_decal_set_vertex(last_skipped, last_color);
 	decal_batch_count = 0;
 
 	return;

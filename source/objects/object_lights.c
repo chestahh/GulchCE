@@ -818,6 +818,20 @@ float plasma_occlusion_specular_scale(long rasterizer_index)
 	return scale > 0.0f ? scale : 1.0f;
 }
 
+/* port: expose source ownership for shadow selection. Native effect parts can
+   be transient or unparented. A port-created glow borrows a map definition. */
+boolean light_port_authored_dynamic(long light_index)
+{
+    struct light_datum const *light = light_index != NONE && light_data && light_data->valid ?
+        (struct light_datum const *)datum_try_and_get(light_data, light_index) : NULL;
+    struct point_light_definition const *definition;
+    if (!light || !TEST_FLAG(light->flags, _point_light_dynamic_bit) ||
+        TEST_FLAG(light->flags, _point_light_port_glow_bit)) return FALSE;
+    definition = light_definition_get(light->definition_index);
+    return !TEST_FLAG(definition->flags, _light_definition_is_first_person_flashlight_bit) &&
+        (light->parent_light_index != NONE || TEST_FLAG(definition->flags, _light_definition_dynamic_bit));
+}
+
 long light_port_emitter_object(long light_index)
 {
 	struct light_datum *light = light_index != NONE && light_data && light_data->valid ?
@@ -1145,6 +1159,9 @@ void lights_preprocess_scene(
 		light_unmarked,
 		light_mark);
 	light_marker_end();
+	/* port: the first-person beam uses a viewmodel pose outside the cluster marker test. */
+	lights_globals.scene_point_light_count = modern_flashlight_include(render.local_player_index,
+		lights_globals.scene_point_lights, lights_globals.scene_point_light_count, MAXIMUM_RENDERED_LIGHTS);
 	rasterizer_lights_begin();
 	plasma_lighting_window_begin(); /* port: submitted light indices belong to this view */
 	for (rendered_cluster_index = 0;
@@ -1329,6 +1346,8 @@ void lights_preprocess_scene(
 							(render_interpolation.c): the light's own place is
 							the tick's, so it stepped at 30 a second while the
 							view moved every frame */
+							if (centered)
+								modern_flashlight_mount(light->object_index, &light_parameters); /* port: shadowed projector mount */
 							if (!centered)
 							{
 								struct object_marker markers[1];
@@ -1916,6 +1935,16 @@ static void light_compute_bounding_sphere(
 		light_radius *= definition->specular_radius_multiplier;
 	}
 
+	/* port: cull beam receivers from the same render pose used to shade them.
+	   The attachment datum still owns simulation and cluster membership. */
+	if (!maximum && !lens_flare_only && TEST_FLAG(definition->flags, _light_definition_is_first_person_flashlight_bit) &&
+		modern_spot_is_flashlight(light->rasterizer_light_index) && light->rasterizer_light_index != NONE &&
+		light->rasterizer_light_index < rasterizer_lights.light_count)
+	{
+		*position = rasterizer_lights.lights[light->rasterizer_light_index].position;
+		*radius = light_radius;
+		return;
+	}
 	if (lens_flare_only && light_radius < definition->lens_flare_radius)
 	{
 		*position = light->position;

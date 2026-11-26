@@ -42,6 +42,7 @@ void xgpu_text_append(struct xgpu_text *text, const char *format, ...) {
     code += function(plasma, 'plasma_model_emit_uniform')
     code += function(plasma, 'plasma_model_emit_pixel')
     code += function((ROOT / 'port/linux/src/nv2a_psh.c').read_text(), 'model_lighting')
+    code += (ROOT/'port/linux/src/modern_sun_shader.inl').read_text()
     code += function((ROOT / 'port/linux/src/modern_shadows_gl.c').read_text(), 'modern_shadow_emit')
     code += '''
 int main(void) {
@@ -112,6 +113,7 @@ void main() {
         g('Disable', None, U)(0x0B71)
         g('UseProgram', None, U)(program)
         for name, value in {'modern_depth': 0, 'modern_depth_other': 1,
+                            'sun_bsp': 14, 'sun_objects': 15,
                             'modern_environment_depth0': 11, 'modern_environment_depth1': 12,
                             'modern_environment_mask': 0 if distant_blocked is None else 3,
                             'modern_environment_soft': soft,
@@ -147,6 +149,32 @@ void main() {
         g('Uniform2f', None, I, F, F)(location, 0, 0)
         g('DrawArrays', None, U, I, I)(4, 0, 3)
         assert np.allclose(replay.read()[15:17, 15:17, :3], np.array([.4, .37, .14]) + distant_sum, atol=.0003)
+        # Place a BSP wall across half the model and an opaque model across
+        # the other half. Removing either blocker reveals only the sun term.
+        if distant_blocked is None and not any(blocked):
+            replay.uniform(program, 'sun_frame', np.diag([1,-1,-1,1]).astype(np.float32))
+            replay.uniform(program, 'sun_soft', soft)
+            replay.uniform(program, 'sun_color_radius', [.2,.1,.05,1])
+            maps = [replay.new('Textures') for _ in range(2)]
+            for flags in ((True,True),(True,False),(False,True),(False,False)):
+                for slot,tex in enumerate(maps):
+                    values = np.zeros((16,16),np.float32)
+                    if flags[slot]:
+                        values[:,slice(0,8) if slot==0 else slice(8,16)] = .8
+                    g('ActiveTexture',None,U)(0x84C0+14+slot)
+                    g('BindTexture',None,U,U)(0x0DE1,tex)
+                    g('TexImage2D',None,U,I,I,I,I,I,U,U,P)(0x0DE1,0,0x822E,16,16,0,0x1903,0x1406,values.ctypes.data)
+                    for param in (0x2800,0x2801):
+                        g('TexParameteri',None,U,U,I)(0x0DE1,param,0x2600)
+                g('DrawArrays',None,U,I,I)(4,0,3)
+                rgb = replay.read()
+                replay.uniform(program,'sun_color_radius',[0,0,0,0])
+                g('DrawArrays',None,U,I,I)(4,0,3)
+                base = replay.read()
+                for slot,x in enumerate((11,20)):
+                    expected = [0,0,0] if flags[slot] else [.2,.1,.05]
+                    assert np.allclose(rgb[16,x,:3]-base[16,x,:3],expected,atol=.0003)
+                replay.uniform(program,'sun_color_radius',[.2,.1,.05,1])
     finally:
         if replay:
             replay.close()
