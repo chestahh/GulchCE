@@ -9,7 +9,7 @@ struct nv2a_vertex_lighting;
 struct nv2a_pixel_shader_key;
 struct plasma_occlusion_uniforms { int enabled; };
 struct modern_shadow_uniforms { int light; };
-struct program_entry { GLuint program; int plasma_model_slots; struct plasma_occlusion_uniforms plasma_occlusion; struct modern_shadow_uniforms modern_shadow; };
+struct program_entry { GLuint program; int plasma_model_slots; struct plasma_occlusion_uniforms plasma_occlusion; struct modern_shadow_uniforms modern_shadow; unsigned int uploaded_plasma_mask; };
 static struct { const char *dump_shaders; } debug_settings;
 static int requests, pp = 1, fail_compile, fail_link, last_lit, last_optional;
 static int gpu_calls, bound, looked_up;
@@ -46,11 +46,12 @@ static int glGetUniformLocation(GLuint program, const char *name)
 { gpu_calls++; looked_up++; return 42; }
 static void plasma_occlusion_model_initialize(GLuint program, struct plasma_occlusion_uniforms *uniforms)
 { gpu_calls++; }
-static void plasma_occlusion_bind_model(const struct plasma_occlusion_uniforms *uniforms)
+static void plasma_occlusion_bind_model(const struct plasma_occlusion_uniforms *uniforms, unsigned int light_mask)
 { gpu_calls++; bound++; }
 static void glUniform2f(int location, float a, float b)
 { gpu_calls++; mask0=a; mask1=b; }
 static int environment_active;
+static int modern_spot_model_active(void) { return 0; }
 static int modern_environment_model_active(void) { return environment_active; }
 #include "under_test.inc"
 static GLuint fragment_shader_get(const struct nv2a_pixel_shader_key *key)
@@ -83,8 +84,10 @@ int main(int argc, char **argv)
   CHECK(enhanced && key.modern_shadow==3 && key.per_pixel_lighting==2,"verified transparent receiver uses pixel shadows");
   CHECK(translated_lighting==&program.plasma_lighting,"optional shader gets verified normal and position metadata");
   CHECK(!program.lighting.lights,"shadow reception does not register the stock program");
-  CHECK(draw_program_get(&program,FALSE,&key,0)==stock && !key.modern_shadow,"disabled lighting restores exact stock program despite stale shadow slots");
+  CHECK(draw_program_get(&program,FALSE,&key,0) && key.modern_shadow==3 && !key.plasma_model,
+        "a native light casts even when the model uses stock falloff");
   shadow_mask=0;
+  CHECK(draw_program_get(&program,FALSE,&key,0)==stock && !key.modern_shadow,"clearing receiver shadows restores the exact stock program");
   CHECK(draw_program_get(&program,FALSE,&key,1) && !key.per_pixel_lighting,"lighting alone preserves established vertex behavior");
 #else
   CHECK(enhanced==stock && !key.modern_shadow && !key.per_pixel_lighting,"Android keeps unregistered shaders stock");
@@ -93,7 +96,7 @@ int main(int argc, char **argv)
  }
  if (!strcmp(argv[1], "environment"))
  {
-  pp=0; shadow_mask=3;
+  pp=0; shadow_mask=0;
   for (lit=0;lit<2;lit++)
   {
    memset(&program,0,sizeof(program));
@@ -104,7 +107,7 @@ int main(int argc, char **argv)
    program.lighting.lights=lit*2;
    environment_active=0;
    stock=draw_program_get(&program,FALSE,&key,0);
-   CHECK(stock && !key.modern_shadow && !key.plasma_model,"inactive environment ignores stale local slots");
+   CHECK(stock && !key.modern_shadow && !key.plasma_model,"inactive environment and empty shadow slots use stock shading");
    environment_active=1;
    enhanced=draw_program_get(&program,FALSE,&key,0);
 #ifndef HALO_GLES
@@ -127,6 +130,9 @@ int main(int argc, char **argv)
 #ifndef HALO_ANDROID
   CHECK(looked_up==1 && gpu_calls==2, "enhanced initialization is lazy");
   bind_model(&entry, 2); CHECK(bound==1 && mask0==0 && mask1==1, "selected slots uploaded unchanged");
+  base=gpu_calls; bind_model(&entry, 2);
+  CHECK(bound==2 && gpu_calls==base+1, "same program keeps slots while rebinding current occlusion");
+  bind_model(&entry, 1); CHECK(mask0==1 && mask1==0,"changed slots upload to the program");
 #else
   bind_model(&entry, 2);
   CHECK(!gpu_calls && !looked_up && !bound && !mask0 && !mask1, "Android excludes all optional GPU setup even with a selected mask");

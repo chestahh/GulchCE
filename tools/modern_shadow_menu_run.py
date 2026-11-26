@@ -19,6 +19,10 @@ def main():
     parser.add_argument('--build-dir', type=Path, default=ROOT/'build/modern-shadow-menu-build')
     parser.add_argument('--inspect-modern', action='store_true', help='Capture the modern frontend scrolled to the shadow row')
     parser.add_argument('--resolution-setting', action='store_true', help='Verify the shared resolution control instead of Off/Hard/Soft')
+    settings = parser.add_mutually_exclusive_group()
+    settings.add_argument('--cpu-scheduling', action='store_true', help='Exercise the hybrid Windows startup setting from Video Setup')
+    settings.add_argument('--flashlight-setting', choices=['shadows', 'extra_slot'])
+    settings.add_argument('--environment-setting', choices=['sun', 'fixtures'])
     parser.add_argument('--frontend', choices=['off', 'pc', 'xbox', 'modern'], default='off')
     args = parser.parse_args()
     assert re.fullmatch(r'[A-Za-z0-9_-]+', args.label)
@@ -47,6 +51,13 @@ def main():
         env.update(HALO_MENU_FRONTEND='modern', HALO_MENU_OPEN='modern/settings', HALO_SHADOW_MENU_INSPECT='1')
     if args.resolution_setting:
         env['HALO_SHADOW_MENU_RESOLUTION'] = '1'
+    boolean_key = "performance_cores_only" if args.cpu_scheduling else None
+    if args.flashlight_setting:
+        boolean_key = 'flashlight_' + args.flashlight_setting
+    if args.environment_setting:
+        boolean_key = 'environment_' + args.environment_setting
+    if boolean_key:
+        env['HALO_SHADOW_MENU_BOOLEAN'] = 'display.' + boolean_key
     for label in (('actions',) if args.inspect_modern else ('actions', 'restart')):
         if label == 'restart': env.update(HALO_SHADOW_MENU_VERIFY='1', HALO_SCREENSHOT_EVERY='0')
         with (out/(label+'.log')).open('wb') as log:
@@ -54,14 +65,30 @@ def main():
                                     stderr=subprocess.STDOUT, timeout=55, creationflags=subprocess.CREATE_NO_WINDOW)
         assert result.returncode == 0, label
     log = (out/'actions.log').read_text(errors='replace')
-    assert 'SHADOW MENU entered from video' in log, 'Shadows was not reached from Video Setup'
-    if args.frontend == 'modern' or args.inspect_modern:
+    if not args.cpu_scheduling:
+        assert 'SHADOW MENU entered from video' in log, 'Shadows was not reached from Video Setup'
+    if not args.cpu_scheduling and (args.frontend == 'modern' or args.inspect_modern):
         assert 'SHADOW MENU entered advanced graphics' in log
         assert 'SHADOW MENU visited lighting' in log
     if args.inspect_modern:
         assert re.findall(r'SHADOW MENU inspect (\d+)', log) == [str(i) for i in range(18 if args.resolution_setting else 9)]
         (out/'report.json').write_text(json.dumps(dict(inspected=True, resolution='2560x1440'), indent=2))
         print('Modern frontend shadow-setting captures ready for visual inspection')
+        return
+    if boolean_key:
+        observed = re.findall(r'SHADOW MENU flashlight (\d+) saved (\d+) selected (\d+)', log)
+        expected = [(0,0), (0,1), (0,0), (1,1), (1,0), (1,1), (0,0), (1,1)]
+        # The shared budget orders Shared/Extra, while the stock boolean control orders On/Off.
+        reverse = int(boolean_key not in ('flashlight_extra_slot', 'performance_cores_only'))
+        assert observed == [(str(i),str(saved),str(selected ^ reverse)) for i,(saved,selected) in enumerate(expected)], observed
+        assert f'SHADOW MENU flashlight restart 1 selected {1 ^ reverse}' in (out/'restart.log').read_text(errors='replace')
+        if args.cpu_scheduling:
+            assert 'CPU scheduling: performance cores only' not in log
+            assert 'CPU scheduling: performance cores only' in (out/'restart.log').read_text(errors='replace')
+        config = tomllib.loads((out/'config.toml').read_text())['display']
+        assert config[boolean_key] and config['modern_shadows'] == 'off'
+        (out/'report.json').write_text(json.dumps(dict(passed=True, setting=boolean_key, frontend=args.frontend)))
+        print(boolean_key, 'Save/Cancel/Defaults and restart persistence passed')
         return
     if args.resolution_setting:
         observed = re.findall(r'SHADOW MENU resolution step (\d+) saved (\d+) selected (\d+) modern (\w+)', log)

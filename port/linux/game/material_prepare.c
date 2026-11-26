@@ -14,6 +14,7 @@
 #include "rasterizer/rasterizer_transparent_geometry.h"
 #include "shaders/shader_definitions.h"
 #include "material_prepare.h"
+#include "modern_shadows.h"
 #include "../src/port_config.h"
 #include <xtl.h>
 #include <stdlib.h>
@@ -128,12 +129,16 @@ void material_prepare_map(void)
     long index;
     unsigned count=0,variant;
     short saved_mode;
-    if (!config_boolean("display.shader_prepare") || config_server_mode_enabled() ||
-        config_boolean("debug.null_renderer")) return;
+    int shadows, ordinary;
+    if (config_server_mode_enabled() || config_boolean("debug.null_renderer")) return;
+    shadows = modern_shadows_prepare_loaded_map();
+    ordinary = config_boolean("display.shader_prepare");
+    if (!ordinary && !shadows) return;
     bitmaps=malloc(MATERIAL_BITMAP_LIMIT*sizeof(*bitmaps));
     if (!bitmaps) return;
     memset(bitmaps,0,MATERIAL_BITMAP_LIMIT*sizeof(*bitmaps));
-    if (!render_material_prepare_mode(1)) {free(bitmaps);bitmaps=NULL;return;}
+    if (!render_material_prepare_mode((shadows ? MATERIAL_PREPARE_SHADOWS : 0) |
+        (ordinary ? MATERIAL_PREPARE_STOCK : 0))) {free(bitmaps);bitmaps=NULL;return;}
     bitmap_count=0;
     prepared_draws=0;
     preparing=1;
@@ -184,6 +189,7 @@ void material_prepare_map(void)
         unsigned variants;
         static short const types[]={0,1,4,5,6,7};
         if (!shader || shader->base.type<3 || shader->base.type>6) continue;
+        if (!ordinary && shader->base.type > 4) continue;
         count++;
         variants=shader->base.type<=4 ? 24 : 18;
         for (variant=0;variant<variants && prepared_draws<MATERIAL_DRAW_LIMIT;variant++) {

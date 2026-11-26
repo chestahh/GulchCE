@@ -913,12 +913,16 @@ void plasma_capture_tick(void)
 	}
 }
 
+void plasma_capture_reveal_activity(long tick);
+
 void plasma_capture_frame(void)
 {
 	long index, selected = 0;
 	real_matrix4x3 *matrix;
 	if (!game_in_progress() || game_time_menu_scene() || capture_ticks < 85 || capture_ticks > 240)
 		return;
+	if (capture_ticks >= 115 && capture_ticks <= 125 && getenv("HALO_CAPTURE_GHOST_REVEAL"))
+		plasma_capture_reveal_activity(capture_ticks);
 	platform_log("PLASMA draws model %lu specular %lu", capture_model_draws, capture_specular_draws);
 	capture_model_draws = capture_specular_draws = 0;
 	for (index = 0; index < rasterizer_lights.light_count; index++)

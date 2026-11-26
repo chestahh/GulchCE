@@ -577,7 +577,7 @@ world position the vertex program hands on and the same constants
 terms, clamped where the programs clamp them. The diffuse alpha, which the
 programs write apart (0, or planar fog's), is kept. */
 
-static void model_lighting(struct xgpu_text *text, BOOL point_lights, BOOL plasma_model, BOOL modern_shadow)
+static void model_lighting(struct xgpu_text *text, BOOL point_lights, BOOL plasma_model, int modern_shadow)
 {
 	int light;
 #ifdef HALO_GLES
@@ -609,6 +609,8 @@ static void model_lighting(struct xgpu_text *text, BOOL point_lights, BOOL plasm
 		XGPU_MODEL_LIGHT_COUNT, point_lights ? "in vec3 xWorldPosition;\n" : "",
 		modern_shadow ? " * modern_environment_visibility(0,xWorldPosition)" : "",
 		modern_shadow ? " * modern_environment_visibility(1,xWorldPosition)" : "");
+	if (modern_shadow == 5) xgpu_text_append(text,"\tlight *= fixture_visibility(xWorldPosition,n,false);\n");
+	if (modern_shadow) xgpu_text_append(text,"\tlight += sun_light(xWorldPosition,n,false).rgb;\n");
 	/* each point light: its position and 1 / radius squared, its cone's axis
 	and falloff scale, its color and falloff offset */
 	for (light = 0; point_lights && light < 2; light++)
@@ -629,6 +631,7 @@ static void model_lighting(struct xgpu_text *text, BOOL point_lights, BOOL plasm
 #endif
 			xgpu_text_append(text,
 				"\t\tlight += max(1.0 - distance_squared * model_lights[%d].w, 0.0) * clamp(dot(l, n), 0.0, 1.0) *\n", first);
+		if (modern_shadow == 5) xgpu_text_append(text,"\t\t\t((spot_flash_slots & %d)!=0 ? beam_visibility(xWorldPosition) : 1.0) *\n",1<<light);
 		if (modern_shadow)
 			xgpu_text_append(text, "\t\t\tmodern_model(%d,xWorldPosition) *\n", light);
 		xgpu_text_append(text,
@@ -744,10 +747,12 @@ char *nv2a_pixel_shader_to_glsl(const struct nv2a_pixel_shader_key *key)
 	if (key->source_blend)
 		xgpu_text_append(&text, "uniform vec4 blend_constant;\n");
 #ifndef HALO_GLES
-	if (key->modern_shadow) modern_shadow_emit(&text);
+	if (key->modern_shadow && key->modern_shadow != 4) modern_shadow_emit(&text);
+	if (key->modern_shadow == 4 || key->modern_shadow == 5) modern_spot_emit(&text);
+	if (key->modern_shadow == 4) xgpu_text_append(&text,"in vec3 beamWorldPosition;\n");
 #endif
 	if (key->per_pixel_lighting)
-		model_lighting(&text, key->per_pixel_lighting == 2, key->plasma_model, key->modern_shadow == 3);
+		model_lighting(&text, key->per_pixel_lighting == 2, key->plasma_model, (key->modern_shadow == 3 || key->modern_shadow == 5) ? key->modern_shadow : 0);
 	xgpu_text_append(&text,
 		"float signed_byte(float x)\n"
 		"{\n"
@@ -840,6 +845,7 @@ char *nv2a_pixel_shader_to_glsl(const struct nv2a_pixel_shader_key *key)
 		xgpu_text_append(&text, ";\n\tvec4 result = vec4(fA * fB + (1.0 - fA) * fC + fD, fG);\n");
 	}
 
+	if (key->modern_shadow == 4) xgpu_text_append(&text,"\tresult.rgb *= beam_visibility(beamWorldPosition);\n");
 	if (key->shield_honeycomb)
 		xgpu_text_append(&text, "\tresult = shield_honeycomb_surface(result);\n");
 	if (key->coverage_alpha)

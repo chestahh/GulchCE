@@ -25,7 +25,7 @@ def receiver_experiment(source):
     sample = replace_once(sample, 'vec3 normal) {', 'vec3 normal, bool offset_tap) {')
     sample = replace_once(sample, 'if(dot(normal,normal)>0.5', 'if(!offset_tap && dot(normal,normal)>0.5')
     sample = replace_once(sample, 'return 1.0;', 'return vec2(1.0, radius);')
-    sample = replace_once(sample, 'return step(z,stored);', '''
+    sample = replace_once(sample, 'return shadow_visible(z,stored);', '''
  if(offset_tap) return grenade_offset_sample(stored*radius, receiver, q, normal, numerator);
  return vec2(step(z,stored),stored*radius);''')
     wrapper = compare.split('{', 1)[0] + '{ return grenade_depth_sample(depth,radius,sample_direction,receiver,normal,false).x; }\n'

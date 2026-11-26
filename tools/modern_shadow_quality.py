@@ -79,6 +79,7 @@ def main():
     reversed_depth = 'glDepthFunc(GL_GREATER)' in source
     body = source.split('void modern_shadow_emit(struct xgpu_text *text)', 1)[1].split('\nvoid modern_shadow_uniforms_initialize', 1)[0]
     body = re.sub(r'/\*.*?\*/', '', body, flags=re.S)
+    body = (ROOT/'port/linux/src/modern_sun_shader.inl').read_text() + body
     receiver = ''.join(ast.literal_eval(s) for s in re.findall(r'"(?:\\.|[^"\\])*"', body))
     vertex = '''#version 450 core
     out vec2 uv; void main() {

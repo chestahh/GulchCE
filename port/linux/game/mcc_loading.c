@@ -25,9 +25,6 @@ static real const mcc_loading_limits[] = {0.001f, 0.12f, 0.16f, 0.22f,
 void mcc_loading_pulse(void)
 {
     DWORD now;
-    D3DVIEWPORT8 viewport;
-    IDirect3DSurface8 *surface;
-    D3DSURFACE_DESC description;
     if (mcc_loading.drawing) return;
     mcc_load_network_pulse();
     if (!mcc_loading.active) return;
@@ -38,34 +35,8 @@ void mcc_loading_pulse(void)
     /* No frame/window setup, widgets, console commands or network dispatch.
      * The MCC work pulse above only writes a bounded transport message.
      * Present pumps platform window events through the existing device API. */
-    surface = NULL;
-    if (IDirect3DDevice8_GetBackBuffer(global_d3d_device, 0, 0, &surface) < 0 || !surface) {
-        mcc_loading.drawing = 0;
-        return;
-    }
-    if (IDirect3DSurface8_GetDesc(surface, &description) < 0) {
-        IDirect3DSurface8_Release(surface);
-        mcc_loading.drawing = 0;
-        return;
-    }
-    /* A standalone draw can inherit a prior scene's offscreen/depth targets.
-     * The effect needs only the backbuffer; its capture must not pair that
-     * buffer with an unrelated depth surface. The next game window installs
-     * its own color/depth targets through the ordinary rasterizer setup. */
-    IDirect3DDevice8_SetRenderTarget(global_d3d_device, surface, NULL);
-    IDirect3DSurface8_Release(surface);
-    memset(&viewport, 0, sizeof(viewport));
-    viewport.Width = description.Width;
-    viewport.Height = description.Height;
-    viewport.MaxZ = 1.f;
-    IDirect3DDevice8_SetViewport(global_d3d_device, &viewport);
-    IDirect3DDevice8_BeginScene(global_d3d_device);
-    progress_bar_display(mcc_loading.progress);
-    IDirect3DDevice8_EndScene(global_d3d_device);
-    IDirect3DDevice8_Present(global_d3d_device, NULL, NULL, NULL, NULL);
-    /* The next game window installs its own viewport. The loading renderer
-     * already invalidates the rasterizer's cached device states. */
-    mcc_loading.last_frame = GetTickCount();
+    if (progress_bar_present_standalone(mcc_loading.progress))
+        mcc_loading.last_frame = GetTickCount();
     mcc_loading.drawing = 0;
 }
 

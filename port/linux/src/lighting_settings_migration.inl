@@ -4,7 +4,7 @@
 static const char *const lighting_reset_keys[] = {
     "display.plasma_lighting", "display.muzzle_lighting", "display.plasma_occlusion",
     "display.weapon_glow", "display.fuel_rod_lighting", "display.ammo_counter_lighting",
-    "display.needler_lighting", "display.plasma_prong_lighting", "display.vehicle_lighting",
+    "display.needler_lighting", "display.vehicle_lighting",
     "display.world_lighting", "display.jackal_shield_lighting", "display.covenant_shield_lighting",
     "display.shield_glow", "display.shield_glow_intensity"
 };

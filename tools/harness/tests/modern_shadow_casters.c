@@ -40,7 +40,9 @@ static void shader_texture_animation_evaluate(const struct shader_texture_animat
 static void shader_environment_texture_animation_evaluate(const struct shader *s,float t,float *u,float *v) { *u=t;*v=-t; }
 static void matrix4x3_multiply(const real_matrix4x3 *a,const real_matrix4x3 *b,real_matrix4x3 *out) { out->offset=a->offset+b->offset; }
 static void matrix_to_gl(const real_matrix4x3 *in,float *out) { memset(out,0,64);out[12]=in->offset; }
-static int model_detail_geometry_index(const struct model *m,const struct model_region_permutation *p,int l,int r) { return p->geometry; }
+static int test_level, test_rules;
+static void render_object_model_detail(long i, const struct model *m, short *l, short *r) { CHECK(i==7,"beam caster datum");*l=2;*r=0; }
+static int model_detail_geometry_index(const struct model *m,const struct model_region_permutation *p,int l,int r) { test_level=l;test_rules=r;return p->geometry; }
 static int mesh_get(const struct vertex_buffer *v,const void *key,const struct triangle_buffer *t,const word *w,int c,int n) { return 0; }
 static int modern_shadow_draw(int mesh,const float *matrices,int nodes,const void *alpha,const float uv[8],int views) {
  submissions++;submitted_views=views;submitted_mesh=mesh;memcpy(submitted_uv,uv,32);memcpy(submitted_bones,matrices,nodes*64);return 1;
@@ -71,13 +73,14 @@ int main(int argc,char **argv) {
  model.geometries.count=1;model.geometries.address=&geometry;geometry.parts.count=1;geometry.parts.address=&part;
  model.shaders.count=1;model.shaders.address=&reference;reference.shader.index=1;reference.permutation=1;
  model.base_map_scale.i=2;model.base_map_scale.j=3;part.triangle_buffer.count=1;
- CHECK(model_caster(&model,pose,selected,3,values,MODERN_SHADOW_VIEW),"animated model collected");
+ CHECK(model_caster(&model,pose,selected,3,values,MODERN_SHADOW_VIEW,7),"animated model collected");
+ CHECK(test_level==2 && test_rules==0,"beam depth uses the visible permutation geometry");
  CHECK(submitted_bones[12]==9 && submitted_bones[28]==18,"each animated bone uses the original inverse bind pose");
  CHECK(bitmap_slot==3 && submitted_mesh==17 && submitted_views==MODERN_SHADOW_VIEW && submitted_uv[7]==3,"forced material permutation and receiver mask survive submission");
  before=submissions;selected[0]=255;
- CHECK(model_caster(&model,pose,selected,0,values,3) && submissions==before,"removed/damaged region NONE is not an invalid unsigned index");
+ CHECK(model_caster(&model,pose,selected,0,values,3,NONE) && submissions==before,"removed/damaged region NONE is not an invalid unsigned index");
  selected[0]=1;
- CHECK(!model_caster(&model,pose,selected,0,values,3),"invalid region falls back instead of an incomplete shadow");
- CHECK(model_caster(&model,pose,NULL,0,values,2),"viewmodel selects the visible default region permutation");
+ CHECK(!model_caster(&model,pose,selected,0,values,3,NONE),"invalid region falls back instead of an incomplete shadow");
+ CHECK(model_caster(&model,pose,NULL,0,values,2,NONE),"viewmodel selects the visible default region permutation");
  return 0;
 }

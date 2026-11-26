@@ -1,7 +1,8 @@
 """Check that benchmark reports retain real stalls and separate capture overhead."""
+import re
 import pytest
-from lighting_performance_run import distribution, summarize, memory_window_mib, runtime_errors
-from lighting_performance_build import ROOT, instrument_shader_stalls, instrument_renderer_profile
+from lighting_performance_run import distribution, summarize, sustained_pacing, memory_window_mib, runtime_errors
+from lighting_performance_build import ROOT, instrument_present_stalls, instrument_shader_stalls, instrument_renderer_profile, instrument_bsp_lights
 from harness import function
 
 
@@ -13,6 +14,21 @@ def test_renderer_timers_preserve_the_production_body(name):
     wrapper = function(timed, name)
     assert wrapper.count('lighting_profile_begin(') == wrapper.count('lighting_profile_end(') == 1
     assert wrapper.index('lighting_profile_begin(') < wrapper.index('lighting_timed_'+name+'(') < wrapper.index('lighting_profile_end(')
+
+
+@pytest.mark.parametrize('cluster_lists,path', [
+    (True, 'source/objects/object_lights.c'),
+    (False, 'source/structures/structure_render.c'),
+])
+def test_bsp_timers_preserve_light_geometry_and_draw_order(cluster_lists, path):
+    source = (ROOT/path).read_text()
+    timed = instrument_bsp_lights(source, cluster_lists)
+    phases = (28, 32) if cluster_lists else (29, 30, 31, 33, 34, 35)
+    for phase in phases:
+        begin, end = (f'lighting_profile_{op}({phase});' for op in ('begin', 'end'))
+        assert timed.count(begin) == timed.count(end) == 1
+        assert timed.index(begin) < timed.index(end)
+    assert re.sub(r'^[\t ]*lighting_profile_(?:begin|end)\(\d+\);\n', '', timed, flags=re.M) == source
 
 
 @pytest.mark.parametrize('name,kind', [('xgpu_compile_shader', 0),
@@ -27,6 +43,35 @@ def test_shader_stall_clocks_cover_real_compile_and_link_paths(name, kind):
     assert begin < operation < status < end
     assert body.count('lighting_stall_shader_begin(') == 1
     assert body.count('lighting_stall_shader_end(') == 1
+
+
+@pytest.mark.parametrize('name,operation,phase', [
+    ('visibility_send_batch', 'glGetQueryBufferObjectuiv', 0),
+    ('D3DDevice_Present', 'platform_video_swap', 1),
+    ('frame_pacing_wait', 'glClientWaitSync', 2),
+    ('D3DDevice_Present', 'visibility_read_batch', 3),
+])
+def test_present_stall_clocks_preserve_driver_operations(name, operation, phase):
+    source = (ROOT/'port/linux/src/d3d8_gl.c').read_text()
+    original = function(source, name)
+    measured = function(instrument_present_stalls(source), name)
+    assert measured.count(operation + '(') == original.count(operation + '(') == 1
+    end = measured.index(f'lighting_stall_present_end({phase});')
+    start = measured.rindex('lighting_stall_present_begin();', 0, end)
+    assert start < measured.index(operation + '(') < end
+    if phase == 0:
+        assert start < measured.index('for (', start) < measured.index(operation + '(')
+
+
+def test_present_stall_instrumentation_only_adds_clock_calls():
+    original = (ROOT/'port/linux/src/d3d8_gl.c').read_text()
+    timed = instrument_present_stalls(original)
+    driver, replacements = re.subn(
+        r'^(?:void lighting_stall_present_(?:begin\(void\)|end\(int\))|'
+        r'\t\tlighting_stall_present_(?:begin\(\)|end\([0-3]\)));\n',
+        '', timed, flags=re.M)
+    assert replacements == 10
+    assert driver == original
 
 
 def test_binary_cache_status_does_not_end_a_link_timer():
@@ -85,6 +130,44 @@ def test_disabled_capture_keeps_stalls_even_with_old_fixture_markers():
     assert result['pacing']['worst_ms']==200
     assert result['excluded_capture_frames']==0
     assert result['minutes'][0]['worst_ms']==200
+
+
+def test_sustained_report_distinguishes_repeated_and_continuous_dips():
+    def report(counts, captures=False, complete=True):
+        rows = []
+        for second, count in enumerate([1, *counts, 1]):
+            for i in range(count):
+                rows.append(dict(seconds=second+i/count, frame_ms=4, selected=0,
+                                 scene_lights=0, occlusion_updates=0, capture_excluded=0))
+        return summarize(rows if complete else rows[:-1], 1, len(counts), 240, captures)
+
+    # Identical totals and frame-time distributions can hide different pacing.
+    clustered = [240, 230, 230, 0, 250, 250]
+    dispersed = [230, 240, 230, 250, 0, 250]
+    a, b = report(clustered), report(dispersed)
+    assert a['raw'] == b['raw']
+    assert a['sustained']['fps_per_second'] == clustered
+    assert a['sustained']['targets']['240'] == dict(seconds_below=3, episodes=1, longest_below_seconds=3)
+    assert b['sustained']['targets']['240'] == dict(seconds_below=3, episodes=3, longest_below_seconds=1)
+    assert a['sustained']['targets']['360']['longest_below_seconds'] == len(clustered)
+    assert 'sustained' not in report(clustered, captures=True)
+    assert 'sustained' not in report(clustered, complete=False)
+
+
+def test_tick_times_follow_completion_windows_and_skip_resets():
+    rows = [dict(seconds=t, tick=tick, frame_ms=ms) for t, tick, ms in [
+        (2.1, 8, 4), (2.5, 8, 3), (2.8, 9, 5), (3.1, 9, 7),
+        (4.1, 1, 9), (4.3, 1, 2), (4.6, 3, 11),
+    ]]
+    result = sustained_pacing(rows, 2, 3, [3])
+    assert result['tick_frame_times']['3'] == {
+        'at_or_above': {'same_tick': dict(frames=2, mean_ms=2.5),
+                        'tick_advanced': dict(frames=2, mean_ms=8)},
+        'below': {'same_tick': dict(frames=1, mean_ms=7)},
+    }
+    for row in rows:
+        del row['tick']
+    assert 'tick_frame_times' not in sustained_pacing(rows, 2, 3, [3])
 
 
 def test_early_exit_keeps_missing_memory_windows_distinct_from_zero():
@@ -157,3 +240,21 @@ int main(void) {
 def test_shadow_resource_fallback_fails_acceptance(message):
     assert runtime_errors('halo-linux: '+message+'\n')
     assert not runtime_errors('halo-linux: shadow maps: 1024x1024\n')
+
+
+@pytest.mark.parametrize('acknowledged,occupancy,camera,accepted', [
+    (True, 19, '327.8 -649.3 74.5', True),
+    (False, 19, '327.8 -649.3 74.5', False),
+    (True, 0, '327.8 -649.3 74.5', False),
+    (True, 19, '0.0 0.0 0.0', False),
+])
+def test_combat_core_requires_the_saved_fight(tmp_path, acknowledged, occupancy, camera, accepted):
+    from lighting_combat_core import verify
+    reply = "loaded 'canyon.bin'\n" if acknowledged else 'load failed\n'
+    (tmp_path/'stage.log').write_text(reply + f'(ai_living_count c3_base_tier_2)\n{occupancy}\n' * 4)
+    log = ''.join(f'network test: tick {tick} player 0: local 0 camera ({camera})\n' for tick in range(0, 900, 30))
+    if accepted:
+        assert verify(tmp_path, log, 25, 30, (0, 899)) == [19] * 4
+    else:
+        with pytest.raises(ValueError):
+            verify(tmp_path, log, 25, 30, (0, 899))

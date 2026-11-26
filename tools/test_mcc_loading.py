@@ -14,6 +14,9 @@ def loading_tool(tmp_path_factory):
     work = tmp_path_factory.mktemp("mcc-loading")
     implementation = (ROOT / "port/linux/game/mcc_loading.c").read_text()
     implementation = re.sub(r'^#include [<"][^\n]+[>"]\s*$', '', implementation, flags=re.M)
+    progress = (ROOT / "source/interface/progress_bar.c").read_text()
+    start = progress.index("int progress_bar_present_standalone(")
+    implementation = progress[start:progress.index("\n}", start) + 2] + "\n" + implementation
     source = r'''
 #include <stdint.h>
 #include <stdio.h>

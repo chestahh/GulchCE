@@ -145,6 +145,7 @@ symbols in this file:
 #include "cseries/errors.h"
 #include "effects/decals.h"
 #include "game/game_globals.h"
+#include "modern_shadows.h"
 #include "plasma_lighting.h" /* port: port/linux/game/plasma_falloff.c */
 #include "interface/hud_draw.h"
 #include "bitmaps/bitmaps_inlines.h"
@@ -1247,6 +1248,7 @@ void _rasterizer_environment_diffuse_light_begin(
 			D3DRS_PSCONSTANT0_0,
 			real_rgb_color_to_pixel32(&light->color));
 		plasma_falloff_begin(light_index); /* port: scoped to this selected plasma light */
+		modern_spot_world_light(light_index);
 	}
 	return;
 }
@@ -1847,6 +1849,7 @@ void _rasterizer_environment_specular_light_begin(
 			rasterizer_environment_globals.specular_light_brightness =
 				real_rgb_color_brightness(&light->color);
 			rasterizer_environment_specular_spot_light_begin(light_index);
+			modern_spot_world_light(light_index);
 		}
 		else
 		{
@@ -1924,6 +1927,7 @@ void _rasterizer_environment_specular_light_begin(
 			pixel_shader.final_combiner_inputs_efg = 0x1D200D00;
 			rasterizer_set_pixel_shader(&pixel_shader);
 			plasma_falloff_specular_begin(light_index); /* port: selected omni plasma attenuation */
+			modern_spot_world_light(light_index);
 		}
 	}
 	return;

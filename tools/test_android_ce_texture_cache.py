@@ -41,9 +41,10 @@ typedef unsigned long long Uint64;
 #define PLATFORM_PHYSICAL_TO_VIRTUAL(x) ((void *)(uintptr_t)(x))
 struct xgpu_texture_description {
  unsigned long width, height, depth, levels, format;
- BOOL cube_map, hires, ce_meter_channels, direct;
+ BOOL cube_map, hires, ce_meter_channels, direct, base_opaque;
 };
 static unsigned long texture_lookup_serial = 1;
+static void xgpu_texture_lookups_changed(void) {texture_lookup_serial++;}
 static BOOL xgpu_mcc_texture_get(const DWORD *r,const D3DCOLOR *p,GLuint *t,GLenum *g,struct xgpu_texture_description *d) { return FALSE; }
 static int android_texture_fixes=1;
 static unsigned long serial=1, generation=1, uploads, next_texture;
@@ -69,7 +70,8 @@ static void hud_hires_upscale_release(unsigned int t) {}
 static BOOL platform_is_contiguous(void *p) { return TRUE; }
 static unsigned char custom_edition_texels_order(unsigned long a) { return 0; }
 static void xgpu_statistics_texture_upload(unsigned long s) {}
-static void upload(GLuint t,GLenum g,const struct xgpu_texture_description *d,const unsigned char *b,const D3DCOLOR *p,unsigned char c) { uploads++; }
+static int next_opaque;
+static void upload(GLuint t,GLenum g,struct xgpu_texture_description *d,const unsigned char *b,const D3DCOLOR *p,unsigned char c) { uploads++;d->base_opaque=next_opaque; }
 '''
 
 def storage_program():
@@ -265,15 +267,17 @@ static GLuint texture_entry_result(struct texture_entry *e,GLenum *t,struct xgpu
     code += gpu_lookup(gpu) + r'''
 int main(void) {
  DWORD header[5]={0};GLenum target;struct xgpu_texture_description description;
+ next_opaque=1;
  xgpu_texture_get(header,NULL,&target,&description);
  if(uploads!=1)return 1;
  xgpu_texture_get(header,NULL,&target,&description);
  if(uploads!=1)return 2;
  /* (its own pixels, found again: as remembered for a draw's stage) */
- if(!description.direct)return 4;
- serial++;generation++;
+ if(!description.direct || !description.base_opaque)return 4;
+ next_opaque=0;serial++;generation++;
  xgpu_texture_get(header,NULL,&target,&description);
  if(uploads!=2)return 3;
+ if(description.base_opaque || texture_lookup_serial==1)return 5;
  return 0;
 }
 '''

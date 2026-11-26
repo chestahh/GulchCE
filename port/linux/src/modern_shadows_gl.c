@@ -10,14 +10,17 @@ enum { SHADOW_MESHES = 2048, SHADOW_DRAWS = 256,
 	SHADOW_BYTES = 32 * 1024 * 1024, SHADOW_NODES = 64 };
 static struct shadow_mesh
 {
-	GLuint vertices, indices;
-	int count, bounded;
+	GLuint vertices, indices, array;
+	int count, bounded, model;
+	int handoff_nodes;
+	GLuint handoff_alpha;
 	unsigned int nodes[2];
 	float minimum[3], maximum[3];
 } meshes[SHADOW_MESHES];
 static struct
 {
-	int mesh, nodes, views, faces;
+	int mesh, nodes, views, faces, sun_detail;
+	unsigned long opacity_serial;
 	float matrices[SHADOW_NODES * 16], uv_transform[8];
 	GLuint alpha;
 } draws[SHADOW_DRAWS];
@@ -27,10 +30,14 @@ static struct shadow_map
 	GLuint depth_cube[2];
 	float light[4];
 	int valid, view_map;
+	/* Only confirmed clear faces survive between uses of this cube. */
+	unsigned int clear_faces, view_clear_faces;
 } maps[MODERN_SHADOW_LIGHTS];
 static struct shadow_map *map = &maps[0];
 static GLuint framebuffer, program, vao, alpha_sampler;
 static GLint light_uniform, face_uniform, bones_uniform, alpha_uniform, uv_uniform;
+static GLuint opaque_program;
+static GLint opaque_light, opaque_face, opaque_bones;
 static int drawing;
 static int environment_drawing;
 static int shadow_size;
@@ -140,6 +147,29 @@ static void resize_maps(int size)
 	resource_failed = 0;
 }
 
+/* Each immutable mesh owns its vertex layout. Adjacent parts often share the
+   same pose; avoid uploading identical bones or cutout state across draws. */
+static void bind_caster_draw(int draw, int *previous, GLint bones, GLint uv, GLint alpha)
+{
+	int last = *previous;
+	if (last < 0 || draws[last].mesh != draws[draw].mesh)
+		glBindVertexArray(meshes[draws[draw].mesh].array);
+	if (last < 0 || draws[last].nodes != draws[draw].nodes ||
+		memcmp(draws[last].matrices, draws[draw].matrices, draws[draw].nodes * 16 * sizeof(float)))
+		glUniformMatrix4fv(bones, draws[draw].nodes, GL_FALSE, draws[draw].matrices);
+	if (alpha >= 0 && (last < 0 || !draws[last].alpha != !draws[draw].alpha))
+		glUniform1i(alpha, draws[draw].alpha != 0);
+	if (alpha >= 0 && draws[draw].alpha)
+	{
+		if (last < 0 || draws[last].alpha != draws[draw].alpha)
+			glBindTexture(GL_TEXTURE_2D, draws[draw].alpha);
+		if (last < 0 || !draws[last].alpha ||
+			memcmp(draws[last].uv_transform, draws[draw].uv_transform, sizeof(draws[draw].uv_transform)))
+			glUniform4fv(uv, 2, draws[draw].uv_transform);
+	}
+	*previous = draw;
+}
+
 static void create_depth_cube(GLuint *texture)
 {
 	int face;
@@ -196,6 +226,22 @@ static int create_resources(void)
 	vs = xgpu_compile_shader(GL_VERTEX_SHADER, vertex, "modern shadow caster");
 	fs = xgpu_compile_shader(GL_FRAGMENT_SHADER, fragment, "modern shadow depth");
 	program = vs && fs ? xgpu_link_program(vs, fs, "modern shadow depth") : 0;
+	if (program)
+	{
+		GLuint depth = xgpu_compile_shader(GL_FRAGMENT_SHADER, "#version 330 core\nvoid main(){}",
+			"modern opaque shadow depth");
+		if (depth)
+		{
+			opaque_program = xgpu_link_program(vs, depth, "modern opaque shadow depth");
+			glDeleteShader(depth);
+		}
+		if (opaque_program)
+		{
+			opaque_light = glGetUniformLocation(opaque_program, "light");
+			opaque_face = glGetUniformLocation(opaque_program, "face");
+			opaque_bones = glGetUniformLocation(opaque_program, "bones");
+		}
+	}
 	if (vs) glDeleteShader(vs);
 	if (fs) glDeleteShader(fs);
 	if (!program) return 0;
@@ -223,6 +269,23 @@ static int create_resources(void)
 	return 1;
 }
 
+/* Keep the same lazy and load-time validation for a complete depth cube. */
+static int prepare_depth_cube(GLuint *cube)
+{
+	GLenum status, error;
+	if (*cube) return 1;
+	create_depth_cube(cube);
+	glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_CUBE_MAP_POSITIVE_X, *cube, 0);
+	status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+	error = glGetError();
+	if (status == GL_FRAMEBUFFER_COMPLETE && error == GL_NO_ERROR)
+		return 1;
+	glDeleteTextures(1, cube);
+	*cube = 0;
+	return 0;
+}
+
 int modern_shadow_begin(int slot, const float position[3], float radius, int soft, int ground_grenade)
 {
 	if (slot < 0 || slot >= MODERN_SHADOW_LIGHTS || drawing) return 0;
@@ -233,14 +296,7 @@ int modern_shadow_begin(int slot, const float position[3], float radius, int sof
 	draw_count = 0;
 	if (resource_failed) return 0;
 	drawing = 1;
-	failed = !create_resources();
-	if (!failed && !map->depth_cube[0])
-	{
-		create_depth_cube(&map->depth_cube[0]);
-		glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
-		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_CUBE_MAP_POSITIVE_X, map->depth_cube[0], 0);
-		failed = glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE || glGetError() != GL_NO_ERROR;
-	}
+	failed = !create_resources() || !prepare_depth_cube(&map->depth_cube[0]);
 	memcpy(map->light, position, 3 * sizeof(float));
 	map->light[3] = radius;
 	soft_filter = soft;
@@ -257,7 +313,7 @@ int modern_shadow_begin(int slot, const float position[3], float radius, int sof
 }
 
 int modern_shadow_mesh_create(const struct modern_shadow_vertex *vertices, int vertex_count,
-	const unsigned short *indices, int index_count)
+	const unsigned short *indices, int index_count, int model)
 {
 	int size, index;
 	if (!drawing || vertex_count < 1 || vertex_count > 65536 || index_count < 1 || index_count > 196608 ||
@@ -265,16 +321,26 @@ int modern_shadow_mesh_create(const struct modern_shadow_vertex *vertices, int v
 	size = vertex_count * sizeof(*vertices) + index_count * sizeof(*indices);
 	if (size > SHADOW_BYTES - mesh_bytes) return 0;
 	for (index = 0; index < index_count; index++) if (indices[index] >= vertex_count) return 0;
+	meshes[mesh_count].model = model;
+	meshes[mesh_count].handoff_nodes = 0;
 	mesh_bounds(&meshes[mesh_count], vertices, vertex_count);
-	glBindVertexArray(vao);
+	glGenVertexArrays(1, &meshes[mesh_count].array);
+	glBindVertexArray(meshes[mesh_count].array);
 	glGenBuffers(1, &meshes[mesh_count].vertices);
 	glBindBuffer(GL_ARRAY_BUFFER, meshes[mesh_count].vertices);
 	glBufferData(GL_ARRAY_BUFFER, vertex_count * sizeof(*vertices), vertices, GL_STATIC_DRAW);
 	glGenBuffers(1, &meshes[mesh_count].indices);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, meshes[mesh_count].indices);
 	glBufferData(GL_ELEMENT_ARRAY_BUFFER, index_count * sizeof(*indices), indices, GL_STATIC_DRAW);
+	glEnableVertexAttribArray(0); glEnableVertexAttribArray(1);
+	glEnableVertexAttribArray(2); glEnableVertexAttribArray(3);
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(struct modern_shadow_vertex), (void *)offsetof(struct modern_shadow_vertex, position));
+	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(struct modern_shadow_vertex), (void *)offsetof(struct modern_shadow_vertex, nodes));
+	glVertexAttribPointer(2, 1, GL_FLOAT, GL_FALSE, sizeof(struct modern_shadow_vertex), (void *)offsetof(struct modern_shadow_vertex, weight));
+	glVertexAttribPointer(3, 2, GL_FLOAT, GL_FALSE, sizeof(struct modern_shadow_vertex), (void *)offsetof(struct modern_shadow_vertex, uv));
 	if (glGetError() != GL_NO_ERROR)
 	{
+		glDeleteVertexArrays(1, &meshes[mesh_count].array);
 		glDeleteBuffers(1, &meshes[mesh_count].vertices);
 		glDeleteBuffers(1, &meshes[mesh_count].indices);
 		memset(&meshes[mesh_count], 0, sizeof(meshes[mesh_count]));
@@ -287,13 +353,19 @@ int modern_shadow_mesh_create(const struct modern_shadow_vertex *vertices, int v
 	return ++mesh_count;
 }
 
+static int sun_detail_caster, sun_detail_in_batch;
+void modern_environment_sun_detail_caster(int eligible) { sun_detail_caster = eligible; }
+static int sun_draw_batch(void);
+static int flush_spot_batch(void);
+
 int modern_shadow_draw(int mesh, const float *matrices, int node_count,
 	const void *alpha_texture, const float uv_transform[8], int views)
 {
 	GLuint alpha = 0;
 	GLenum target;
 	struct xgpu_texture_description description;
-	int faces;
+	int faces, opaque;
+	if (draw_count == SHADOW_DRAWS && environment_drawing && !flush_spot_batch()) sun_draw_batch();
 	if (mesh < 1 || mesh > mesh_count || node_count < 1 || node_count > SHADOW_NODES ||
 		draw_count == SHADOW_DRAWS || !drawing || views < 1 || views > MODERN_SHADOW_BOTH) { failed = 1; return 0; }
 	faces = environment_drawing ? 63 : mesh_faces(&meshes[mesh - 1], matrices, node_count, map->light);
@@ -304,6 +376,12 @@ int modern_shadow_draw(int mesh, const float *matrices, int node_count,
 		alpha = xgpu_texture_get(alpha_texture, NULL, &target, &description);
 		if (!alpha || target != GL_TEXTURE_2D) { failed = 1; return 0; }
 	}
+	/* World geometry without a cutout has no texture to sample. Models
+	   qualify through the uploaded base texture's opacity classification. */
+	opaque = meshes[mesh - 1].model ? alpha && description.base_opaque : !alpha_texture;
+	draws[draw_count].opacity_serial = opaque && !environment_drawing && opaque_program ? xgpu_texture_lookup_serial() : 0;
+	draws[draw_count].sun_detail = sun_detail_caster;
+	sun_detail_in_batch |= sun_detail_caster;
 	draws[draw_count].mesh = mesh - 1;
 	draws[draw_count].nodes = node_count;
 	draws[draw_count].views = views;
@@ -317,7 +395,9 @@ int modern_shadow_draw(int mesh, const float *matrices, int node_count,
 
 int modern_shadow_end(void)
 {
-	int face, draw, pass, shared, unique_faces[2] = {0, 0};
+	int previous = -1, using_opaque = 0, opaque_light_set = 0;
+	unsigned long serial = xgpu_texture_lookup_serial();
+	int face, draw, pass, shared, common_faces = 0, unique_faces[2] = {0, 0};
 	if (!drawing) return 0;
 	map->view_map = 0;
 	for (draw = 0; draw < draw_count; draw++)
@@ -325,18 +405,13 @@ int modern_shadow_end(void)
 		if (draws[draw].views == MODERN_SHADOW_VIEW) map->view_map = 1;
 		if (draws[draw].views != MODERN_SHADOW_BOTH)
 			unique_faces[draws[draw].views - 1] |= draws[draw].faces;
+		else common_faces |= draws[draw].faces;
 	}
 	shared = map->view_map;
-	if (!failed && map->view_map && !map->depth_cube[1])
+	if (!failed && map->view_map && !prepare_depth_cube(&map->depth_cube[1]))
 	{
-		glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
-		create_depth_cube(&map->depth_cube[1]);
-		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_CUBE_MAP_POSITIVE_X, map->depth_cube[1], 0);
-		if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE || glGetError() != GL_NO_ERROR)
-		{
-			failed = resource_failed = 1;
-			platform_log("GPU: viewmodel shadow map unavailable; retaining existing lighting until reset");
-		}
+		failed = resource_failed = 1;
+		platform_log("GPU: viewmodel shadow map unavailable; retaining existing lighting until reset");
 	}
 	if (!failed)
 	{
@@ -373,38 +448,57 @@ int modern_shadow_end(void)
 		for (pass = 0; pass < (shared ? 3 : 1 + map->view_map); pass++)
 		{
 			if (shared && pass == 1)
-				glCopyImageSubData(map->depth_cube[0], GL_TEXTURE_CUBE_MAP, 0, 0, 0, 0,
-					map->depth_cube[1], GL_TEXTURE_CUBE_MAP, 0, 0, 0, 0, shadow_size, shadow_size, 6);
+			{
+				/* Empty on both sides already has the right depth. Keep a single
+				   contiguous copy, including any empty faces between its ends. */
+				unsigned int copy = common_faces | (63 & ~map->view_clear_faces);
+				if (copy)
+				{
+					int first = 0, last = 5;
+					while (!(copy & (1U << first))) first++;
+					while (!(copy & (1U << last))) last--;
+					glCopyImageSubData(map->depth_cube[0], GL_TEXTURE_CUBE_MAP, 0, 0, 0, first,
+						map->depth_cube[1], GL_TEXTURE_CUBE_MAP, 0, 0, 0, first, shadow_size, shadow_size, last-first+1);
+				}
+			}
 			for (face = 0; face < 6; face++)
 			{
-				if (shared && pass && !(unique_faces[pass - 1] & (1 << face))) continue;
+				int bit = 1 << face;
+				if (shared && pass && !(unique_faces[pass - 1] & bit)) continue;
+				if (!pass && (map->clear_faces & bit) &&
+					!((common_faces | (shared ? 0 : unique_faces[0])) & bit)) continue;
 				glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_CUBE_MAP_POSITIVE_X + face,
 					map->depth_cube[shared ? pass == 2 : pass], 0);
-				if (!shared || !pass) glClear(GL_DEPTH_BUFFER_BIT);
-				glUniform1i(face_uniform, face);
+				if ((!pass && !(map->clear_faces & bit)) || (pass && !shared)) glClear(GL_DEPTH_BUFFER_BIT);
+				glUniform1i(using_opaque ? opaque_face : face_uniform, face);
 				for (draw = 0; draw < draw_count; draw++)
 				{
 					int mesh = draws[draw].mesh;
+					int opaque = draws[draw].opacity_serial && draws[draw].opacity_serial == serial;
 					if (shared ? draws[draw].views != (pass ? pass : MODERN_SHADOW_BOTH) :
 						!(draws[draw].views & (1 << pass))) continue;
 					if (!(draws[draw].faces & (1 << face))) continue;
-					glBindBuffer(GL_ARRAY_BUFFER, meshes[mesh].vertices);
-					glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, meshes[mesh].indices);
-					glEnableVertexAttribArray(0); glEnableVertexAttribArray(1);
-					glEnableVertexAttribArray(2); glEnableVertexAttribArray(3);
-					glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(struct modern_shadow_vertex), (void *)offsetof(struct modern_shadow_vertex, position));
-					glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(struct modern_shadow_vertex), (void *)offsetof(struct modern_shadow_vertex, nodes));
-					glVertexAttribPointer(2, 1, GL_FLOAT, GL_FALSE, sizeof(struct modern_shadow_vertex), (void *)offsetof(struct modern_shadow_vertex, weight));
-					glVertexAttribPointer(3, 2, GL_FLOAT, GL_FALSE, sizeof(struct modern_shadow_vertex), (void *)offsetof(struct modern_shadow_vertex, uv));
-					glUniformMatrix4fv(bones_uniform, draws[draw].nodes, GL_FALSE, draws[draw].matrices);
-					glUniform4fv(uv_uniform, 2, draws[draw].uv_transform);
-					glUniform1i(alpha_uniform, draws[draw].alpha != 0);
-					glBindTexture(GL_TEXTURE_2D, draws[draw].alpha);
+					if (opaque != using_opaque)
+					{
+						using_opaque = opaque;
+						previous = -1;
+						glUseProgram(opaque ? opaque_program : program);
+						glUniform1i(opaque ? opaque_face : face_uniform, face);
+						if (opaque && !opaque_light_set)
+						{
+							glUniform4fv(opaque_light, 1, map->light);
+							opaque_light_set = 1;
+						}
+					}
+					if (opaque) bind_caster_draw(draw, &previous, opaque_bones, -1, -1);
+					else bind_caster_draw(draw, &previous, bones_uniform, uv_uniform, alpha_uniform);
 					glDrawElements(GL_TRIANGLES, meshes[mesh].count, GL_UNSIGNED_SHORT, NULL);
 				}
 			}
 		}
 		if (correct_ground_depth) glDisable(GL_POLYGON_OFFSET_FILL);
+		map->clear_faces = 63 & ~(common_faces | unique_faces[0]);
+		if (map->view_map) map->view_clear_faces = 63 & ~(common_faces | unique_faces[1]);
 		map->valid = 1;
 	}
 	/* Do not retain a partially allocated high-resolution set after a
@@ -428,29 +522,87 @@ void modern_shadow_clear_draws(void)
 }
 
 #include "modern_environment_gl.inl"
+#include "modern_spots_gl.inl"
 
-void modern_shadow_dispose(void)
+void modern_shadow_preload(int sunlight, int fixtures, int beam)
+{
+	GLint read_fbo, draw_fbo;
+	if (!xgpu_gl_ready()) return;
+	glGetIntegerv(GL_READ_FRAMEBUFFER_BINDING, &read_fbo);
+	glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &draw_fbo);
+	resize_maps(128 * (int)halo_shadow_resolution_scale());
+	/* A full set at 1024 consumes 192 MiB. Keep larger cubes and
+	   first-person copies demand-allocated so sparse maps can still run. */
+	if (shadow_size <= 1024 && create_resources())
+	{
+		int slot;
+		for (slot = 0; slot < MODERN_SHADOW_LIGHTS; slot++)
+			if (!prepare_depth_cube(&maps[slot].depth_cube[0])) break;
+	}
+	sun.projecting = sunlight;
+	if (environment_resources_for(0))
+	{
+		if (shadow_size <= 1024) environment_model_resources();
+		if (sunlight) sun_depth_resources();
+		if (fixtures || beam) spot_depth_resources(shadow_size, fixtures ? SPOT_LAYERS : 1);
+		if (fixtures) spot_receiver_prepare();
+	}
+	sun.projecting = 0;
+	glBindFramebuffer(GL_READ_FRAMEBUFFER, read_fbo);
+	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, draw_fbo);
+	xgpu_gl_end_external_pass();
+}
+
+static void dispose_shadow_meshes(void)
 {
 	int i;
-	modern_environment_dispose();
-	if (drawing) { failed = 1; modern_shadow_end(); }
 	for (i = 0; i < mesh_count; i++)
 	{
 		glDeleteBuffers(1, &meshes[i].vertices);
 		glDeleteBuffers(1, &meshes[i].indices);
+		glDeleteVertexArrays(1, &meshes[i].array);
 	}
+	mesh_count = mesh_bytes = draw_count = 0;
+}
+
+void modern_environment_invalidate_static(void)
+{
+	sun.valid = spots.valid_static = 0;
+}
+
+void modern_shadow_change_bsp(void)
+{
+	/* This hook runs between windows. The images may be reused, but no
+	   visibility, cutout pointers or immutable mesh belongs to the next BSP. */
+	dispose_shadow_meshes();
+	modern_shadow_clear_draws();
+	modern_environment_window();
+	memset(sun.surface_sky, 0, sizeof(sun.surface_sky));
+	modern_environment_invalidate_static();
+	environment_model.unavailable = environment.failed_size = resource_failed = 0;
+}
+
+void modern_shadow_dispose(void)
+{
+	modern_environment_dispose();
+	if (drawing) { failed = 1; modern_shadow_end(); }
+	dispose_shadow_meshes();
 	release_maps();
 	map = &maps[0];
 	if (framebuffer) glDeleteFramebuffers(1, &framebuffer);
+	if (opaque_program) glDeleteProgram(opaque_program);
 	if (program) glDeleteProgram(program);
 	if (vao) glDeleteVertexArrays(1, &vao);
 	if (alpha_sampler) glDeleteSamplers(1, &alpha_sampler);
-	mesh_count = mesh_bytes = draw_count = resource_failed = 0;
-	framebuffer = program = vao = alpha_sampler = 0;
+	resource_failed = 0;
+	framebuffer = program = opaque_program = vao = alpha_sampler = 0;
 }
 
 void modern_shadow_emit(struct xgpu_text *text)
 {
+	xgpu_text_append(text,shadow_filter);
+	xgpu_text_append(text,sun_coverage);
+	xgpu_text_append(text,sun_lighting);
 	xgpu_text_append(text,
 		"uniform sampler2D modern_environment_depth0, modern_environment_depth1;\n"
 		"uniform mat4 modern_environment_frames[2];\n"
@@ -507,7 +659,7 @@ void modern_shadow_emit(struct xgpu_text *text)
 		/* Recover radial distance / radius from hardware perspective depth.
 		   Clear depth zero remains an empty ray (distance at least radius). */
 		" float stored=min(0.00001*length(q)/(0.00001+textureLod(depth,q,0.0).r*(radius-0.00001)),1.0);\n"
-		" return step(z,stored);\n}\n"
+		" return shadow_visible(z,stored);\n}\n"
 		"float modern_visibility_map(samplerCube depth, vec4 light, vec3 d, bool contributes, bool model) {\n"
 		/* Viewmodels and high-resolution receivers have very small screen
 		   derivatives. Test only degeneracy, not world-space triangle size.
@@ -528,14 +680,14 @@ void modern_shadow_emit(struct xgpu_text *text)
 		" }\n"
 		/* World lighting covers the screen once per light. Keep its four
 		   samples independent so the GPU can issue their lookups together. */
-		" if(!model) return mix(mix(modern_compare(depth,light.w,direction,d,n),modern_compare(depth,light.w,direction+u,d,n),f.x),\n"
-		"  mix(modern_compare(depth,light.w,direction+v,d,n),modern_compare(depth,light.w,direction+u+v,d,n),f.x),f.y);\n"
+		" if(!model) return shadow_filter4(vec4(modern_compare(depth,light.w,direction,d,n),modern_compare(depth,light.w,direction+u,d,n),\n"
+		"  modern_compare(depth,light.w,direction+v,d,n),modern_compare(depth,light.w,direction+u+v,d,n)),f);\n"
 		" vec4 samples=vec4(0);\n"
 		" for(int tap=0;tap<=3*modern_soft;tap++) {\n"
 		"  vec3 ray=direction; if((tap&1)!=0) ray+=u; if(tap>=2) ray+=v;\n"
 		"  samples[tap]=modern_compare(depth,light.w,ray,d,n);\n"
 		" }\n"
-		" return mix(mix(samples.x,samples.y,f.x),mix(samples.z,samples.w,f.x),f.y);\n}\n"
+		" return shadow_filter4(samples,f);\n}\n"
 		"float modern_visibility(vec3 d) { return modern_visibility_map(modern_depth,modern_light,d,true,true); }\n"
 		"float modern_world(vec3 d,vec4 attenuation) { return modern_visibility_map(modern_depth,modern_light,d,any(notEqual(attenuation,vec4(0))),false); }\n"
 		"float modern_model(int slot,vec3 p) { if(modern_slots[slot]<0.5) return 1.0;\n"
@@ -544,6 +696,19 @@ void modern_shadow_emit(struct xgpu_text *text)
 
 void modern_shadow_uniforms_initialize(unsigned long linked, struct modern_shadow_uniforms *uniforms)
 {
+    spot_locations(linked,uniforms);
+    uniforms->last_slots = uniforms->last_filter = uniforms->last_environment_mask = -1;
+    uniforms->sun_window = 0;
+    uniforms->sun_enabled = 0;
+    uniforms->sun_frame = glGetUniformLocation(linked,"sun_frame");
+    uniforms->sun_color_radius = glGetUniformLocation(linked,"sun_color_radius");
+    uniforms->sun_soft = glGetUniformLocation(linked,"sun_soft");
+    uniforms->sun_close = glGetUniformLocation(linked,"sun_close");
+    uniforms->sun_eye = glGetUniformLocation(linked,"sun_eye");
+    uniforms->sun_detail = glGetUniformLocation(linked,"sun_detail");
+    uniforms->sun_region = glGetUniformLocation(linked,"sun_region[0]");
+    glUniform1i(glGetUniformLocation(linked,"sun_bsp"),14);
+    glUniform1i(glGetUniformLocation(linked,"sun_objects"),15);
     uniforms->environment_frames = glGetUniformLocation(linked, "modern_environment_frames");
     uniforms->environment_radius = glGetUniformLocation(linked, "modern_environment_radius");
     uniforms->environment_mask = glGetUniformLocation(linked, "modern_environment_mask");
@@ -559,11 +724,32 @@ void modern_shadow_uniforms_initialize(unsigned long linked, struct modern_shado
 	if (uniforms->other_light >= 0) glUniform1i(glGetUniformLocation(linked, "modern_depth_other"), 10);
 }
 
-void modern_shadow_bind(const struct modern_shadow_uniforms *uniforms)
+void modern_shadow_bind(struct modern_shadow_uniforms *uniforms)
 {
-	float enabled[2] = {0,0};
+	int enabled = 0;
 	int slot;
-    glUniform1i(uniforms->environment_mask, environment_model.enabled);
+    spot_bind(uniforms);
+    if (uniforms->sun_color_radius >= 0 &&
+        (uniforms->sun_enabled != sun.model || (sun.model && uniforms->sun_window != spot_window)))
+    {
+        uniforms->sun_enabled = sun.model;
+        if (sun.model && uniforms->sun_window != spot_window)
+        {
+            uniforms->sun_window = spot_window;
+            glUniformMatrix4fv(uniforms->sun_frame,1,GL_FALSE,sun.frame);
+            glUniform1i(uniforms->sun_soft,sun.soft);
+            glUniform4fv(uniforms->sun_close,1,sun.close);
+            glUniform4fv(uniforms->sun_eye,1,sun.eye);
+            glUniform4fv(uniforms->sun_detail,1,sun.detail);
+            glUniform4fv(uniforms->sun_region,2,sun.region);
+        }
+        glUniform4fv(uniforms->sun_color_radius,1,(const float[4]){sun.tint[0],sun.tint[1],sun.tint[2],sun.model ? sun.radius : 0});
+    }
+    if (uniforms->last_environment_mask != environment_model.enabled)
+    {
+        glUniform1i(uniforms->environment_mask, environment_model.enabled);
+        uniforms->last_environment_mask = environment_model.enabled;
+    }
     if (environment_model.enabled)
     {
         glBindTextures(11, 2, environment_model.depth);
@@ -579,17 +765,29 @@ void modern_shadow_bind(const struct modern_shadow_uniforms *uniforms)
 		struct shadow_map const *receiver;
 		if (index < 0 || index >= MODERN_SHADOW_LIGHTS || !maps[index].valid) continue;
 		receiver = &maps[index];
-		enabled[slot] = 1;
+		enabled |= 1 << slot;
 		glBindTextures(slot ? 10 : 8, 1, &receiver->depth_cube[receiver->view_map && modern_shadows_view_receiver() ? 1 : 0]);
 		glBindSampler(slot ? 10 : 8, 0);
 		glUniform4fv(slot ? uniforms->other_light : uniforms->light, 1, receiver->light);
 	}
-	glUniform2f(uniforms->slots, enabled[0], enabled[1]);
-	glUniform1i(uniforms->filter, soft_filter);
+	/* Uniform values belong to each linked program. Texture bindings above
+	   still follow the receiver, including first-person and external draws. */
+	if (uniforms->last_slots != enabled)
+	{
+		glUniform2f(uniforms->slots, (enabled & 1) != 0, (enabled & 2) != 0);
+		uniforms->last_slots = enabled;
+	}
+	if (uniforms->last_filter != soft_filter)
+	{
+		glUniform1i(uniforms->filter, soft_filter);
+		uniforms->last_filter = soft_filter;
+	}
 	glUniform1f(uniforms->extent, modern_shadows_world_extent());
 }
 
 #else
+void modern_shadow_preload(int sunlight, int fixtures, int beam) { (void)sunlight; (void)fixtures; (void)beam; }
+int modern_spot_mask(void) { return 0; }
 void modern_environment_model_clear(void) {}
 int modern_environment_model_active(void) { return 0; }
 int modern_environment_model_reuse(void) { return 0; }
@@ -600,14 +798,16 @@ int modern_environment_marking(void) { return 0; }
 void modern_environment_window(void) {}
 void modern_environment_dispose(void) {}
 int modern_environment_begin(const float f[16], float r, int s) { return 0; }
-int modern_environment_end(int c, const float v[16], const float p[16], const float rgb[3]) { return 0; }
-int modern_shadow_mesh_create(const struct modern_shadow_vertex *v, int nv, const unsigned short *i, int ni) { return 0; }
+int modern_environment_end(int c, const float v[16], const float p[16], const float rgb[3], int handoff) { return 0; }
+int modern_shadow_mesh_create(const struct modern_shadow_vertex *v, int nv, const unsigned short *i, int ni, int model) { return 0; }
 int modern_shadow_draw(int mesh, const float *m, int n, const void *a, const float uv[8], int views) { return 0; }
 int modern_shadow_begin(int slot, const float p[3], float r, int soft, int ground_grenade) { return 0; }
 int modern_shadow_end(void) { return 0; }
 void modern_shadow_clear_draws(void) {}
+void modern_shadow_change_bsp(void) {}
+void modern_environment_invalidate_static(void) {}
 void modern_shadow_dispose(void) {}
 void modern_shadow_emit(struct xgpu_text *text) {}
 void modern_shadow_uniforms_initialize(unsigned long p, struct modern_shadow_uniforms *u) { u->light = -1; }
-void modern_shadow_bind(const struct modern_shadow_uniforms *u) {}
+void modern_shadow_bind(struct modern_shadow_uniforms *u) {}
 #endif

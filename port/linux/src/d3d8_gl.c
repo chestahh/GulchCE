@@ -23,8 +23,12 @@ Conventions carried over from the Xbox:
 
 #include "xgpu.h"
 #include "shader_prepare.h"
+#include "../game/material_prepare.h"
 #include "plasma_model_shader.h"
 #include "modern_shadows.h"
+#ifdef HALO_WINDOWS
+#include "bsp_light_index_batch.h"
+#endif
 #include "plasma_occlusion.h"
 #include "mcc_environment_shader.h"
 #include "sdl_platform.h"
@@ -762,6 +766,9 @@ struct program_entry
 	/* port: the last map it was drawn with, counting maps loaded
 	(program_map_drawn) */
 	unsigned long map_drawn;
+#ifndef HALO_GLES
+	BOOL shadow_draw_prepared;
+#endif
 	GLuint program;
 	GLint constants;
 	GLint viewport_scale;
@@ -783,6 +790,7 @@ struct program_entry
 	GLint model_lights;
 #ifndef HALO_ANDROID
 	GLint plasma_model_slots;
+	unsigned int uploaded_plasma_mask;
 	struct plasma_occlusion_uniforms plasma_occlusion;
 #endif
 #ifndef HALO_GLES
@@ -1623,6 +1631,9 @@ struct gl_device
 #endif
 	unsigned long stream_offset;
 	GLuint index_buffer;
+#ifndef HALO_GLES
+	GLuint sequential_quad_buffer;
+#endif
 	unsigned long index_offset;
 #ifdef HALO_GLES
 	/* (web_chunk_get) the room in the stream and index buffers, the draws
@@ -1717,7 +1728,14 @@ struct gl_device
 };
 
 static struct gl_device device;
-static BOOL material_preparing;
+static int material_preparing;
+#ifndef HALO_GLES
+/* Owned only by the loading pass. Gameplay targets and vertex streams are
+   never used for preparatory draws. */
+static GLuint prepare_fbo, prepare_color, prepare_array;
+static BOOL prepare_spot_models;
+static GLint prepare_draw_target;
+#endif
 
 int render_prepare_texture(void const *header)
 {
@@ -1735,8 +1753,40 @@ int render_material_prepare_mode(int enabled)
 {
 #ifndef HALO_GLES
 	if (!device.gl_ready) return 0;
-	material_preparing = enabled != 0;
-	if (!enabled) memset(device.textures, 0, sizeof(device.textures));
+	material_preparing = enabled;
+	if (enabled & MATERIAL_PREPARE_SHADOWS)
+	{
+		GLint previous;
+		glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &prepare_draw_target);
+		glGetIntegerv(GL_RENDERBUFFER_BINDING, &previous);
+		glGenRenderbuffers(1, &prepare_color);
+		glGenFramebuffers(1, &prepare_fbo);
+		if (prepare_color && prepare_fbo)
+		{
+			glBindRenderbuffer(GL_RENDERBUFFER, prepare_color);
+			glRenderbufferStorageMultisample(GL_RENDERBUFFER, 0, GL_RGBA8, 1, 1);
+			glBindFramebuffer(GL_DRAW_FRAMEBUFFER, prepare_fbo);
+			glFramebufferRenderbuffer(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, prepare_color);
+			if (glCheckFramebufferStatus(GL_DRAW_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE)
+				glGenVertexArrays(1, &prepare_array);
+		}
+		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, prepare_draw_target);
+		glBindRenderbuffer(GL_RENDERBUFFER, previous);
+		prepare_spot_models = config_boolean("display.environment_fixtures") || config_boolean("display.flashlight_shadows");
+	}
+	if (!enabled)
+	{
+		if (prepare_array) glDeleteVertexArrays(1, &prepare_array);
+		if (prepare_fbo)
+		{
+			glBindFramebuffer(GL_DRAW_FRAMEBUFFER, prepare_draw_target);
+			glDeleteFramebuffers(1, &prepare_fbo);
+			xgpu_gl_end_external_pass();
+		}
+		if (prepare_color) glDeleteRenderbuffers(1, &prepare_color);
+		prepare_array = prepare_fbo = prepare_color = 0;
+		memset(device.textures, 0, sizeof(device.textures));
+	}
 	return 1;
 #else
 	(void)enabled;
@@ -2862,7 +2912,7 @@ static BOOL bind_targets(BOOL *has_depth)
 
 #ifndef HALO_GLES
 int xgpu_gl_scene_target(unsigned int *framebuffer, int size[2],
-    unsigned int *depth_format, int viewport[4], float pixel_center[2])
+    unsigned int *depth_format, unsigned int *copy_source, int viewport[4], float pixel_center[2])
 {
     BOOL has_depth;
     struct render_target_entry *depth;
@@ -2873,6 +2923,7 @@ int xgpu_gl_scene_target(unsigned int *framebuffer, int size[2],
     size[0] = depth->target.gl_width;
     size[1] = depth->target.gl_height;
     *depth_format = depth->target.format;
+    *copy_source = target_samples == 1 ? depth->target.texture : 0;
     pixel_center[0] = target_scale[0] * (0.5f + UI_OFFSET);
     pixel_center[1] = target_scale[1] * 0.5f;
     viewport[0] = target_pixel((float)device.viewport.X, 0);
@@ -3102,6 +3153,10 @@ static void visibility_results_initialize(void);
 static BOOL visibility_readback_gl_ok(const char *phase);
 #endif
 
+#ifndef HALO_GLES
+static GLuint create_sequential_quad_buffer(void);
+#endif
+
 static void gl_initialize(void)
 {
 	GLint major = 0, minor = 0;
@@ -3214,6 +3269,7 @@ static void gl_initialize(void)
 	glGenBuffers(1, &device.index_buffer);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, device.index_buffer);
 	glBufferData(GL_ELEMENT_ARRAY_BUFFER, INDEX_BUFFER_SIZE, NULL, GL_STREAM_DRAW);
+	device.sequential_quad_buffer = create_sequential_quad_buffer();
 #endif
 	glGenSamplers(D3DTSS_MAXSTAGES, device.samplers);
 #ifdef HALO_GLES
@@ -4826,6 +4882,7 @@ static struct program_entry *program_get(GLuint vertex_shader, GLuint fragment_s
 #endif
 #ifndef HALO_ANDROID
 	entry->plasma_model_slots = -1;
+	entry->uploaded_plasma_mask = 0;
 	if (plasma_model)
 	{
 		entry->plasma_model_slots = glGetUniformLocation(entry->program, "plasma_model_slots");
@@ -4857,6 +4914,34 @@ static struct program_entry *program_get(GLuint vertex_shader, GLuint fragment_s
 
 /* Select both stages together. Only actual selected feature lights need the
    optional variant; the mask already respects local settings and host policy. */
+#ifndef HALO_GLES
+static void prepare_shadow_models(struct vertex_shader_object *program,
+	struct nv2a_pixel_shader_key key)
+{
+	int variant, plasma;
+	if (!prepare_array || !(program->plasma_model || program->lighting.lights == 2)) return;
+	key.per_pixel_lighting = 2;
+	for (variant = 3; variant <= (prepare_spot_models ? 5 : 3); variant += 2)
+	{
+		key.modern_shadow = (unsigned char)variant;
+		for (plasma = 0; plasma <= (program->plasma_model != 0); plasma++)
+		{
+			struct program_entry *entry;
+			key.plasma_model = (unsigned char)plasma;
+			entry = program_get(vertex_shader_get(program, FALSE, TRUE, plasma),
+				fragment_shader_get(&key), plasma, TRUE);
+			if (!entry || entry->shadow_draw_prepared) continue;
+			state_program(entry->program);
+			glBindFramebuffer(GL_DRAW_FRAMEBUFFER, prepare_fbo);
+			glBindVertexArray(prepare_array);
+			glDrawArrays(GL_TRIANGLES, 0, 3);
+			xgpu_gl_end_external_pass();
+			entry->shadow_draw_prepared = TRUE;
+		}
+	}
+}
+#endif
+
 static BOOL per_pixel_lighting(void);
 static struct program_entry *draw_program_get(struct vertex_shader_object *program, BOOL immediate,
 	struct nv2a_pixel_shader_key *key, unsigned int plasma_mask)
@@ -4876,12 +4961,18 @@ static struct program_entry *draw_program_get(struct vertex_shader_object *progr
 	key->modern_shadow = 0;
 #ifndef HALO_GLES
 	key->modern_shadow = (unsigned char)modern_shadows_world_stage();
-	if (plasma_model && modern_shadows_model_mask()) key->modern_shadow = 3;
-	if (modern_environment_model_active() && (program->plasma_model || program->lighting.lights == 2)) key->modern_shadow = 3;
+	if ((program->plasma_model || program->lighting.lights == 2) &&
+		(modern_shadows_model_mask() || modern_environment_model_active())) key->modern_shadow = 3;
+	/* A driver can reject one combined material. Retry its established
+	   shadow variant without disabling the local lights or the sun. */
+	unsigned char fallback_shadow = key->modern_shadow == 4 ? 0 : key->modern_shadow;
+	if ((program->plasma_model || program->lighting.lights == 2) && modern_spot_model_active()) key->modern_shadow = 5;
+try_shadow_program:
 	if (key->modern_shadow && !(program->modern_shadow_failed & (1U << key->modern_shadow)))
 	{
-		int lights = key->modern_shadow == 3 ? 2 : program->lighting.lights;
-		BOOL lit = lights && !*failed && (per_pixel_lighting() || key->modern_shadow == 3);
+		BOOL model_shadow = key->modern_shadow == 3 || key->modern_shadow == 5;
+		int lights = model_shadow ? 2 : program->lighting.lights;
+		BOOL lit = lights && !*failed && (per_pixel_lighting() || model_shadow);
 		key->per_pixel_lighting = lit ? (unsigned char)lights : 0;
 		key->plasma_model = lit ? (unsigned char)plasma_model : 0;
 		entry = program_get(vertex_shader_get(program, immediate, lit, plasma_model), fragment_shader_get(key), plasma_model, TRUE);
@@ -4891,6 +4982,11 @@ static struct program_entry *draw_program_get(struct vertex_shader_object *progr
 		program->modern_shadow_failed |= 1U << key->modern_shadow;
 		platform_log("GPU: modern shadow variant %u failed for vertex shader %lu; retaining existing lighting",
 			key->modern_shadow, program->id);
+	}
+	if (key->modern_shadow == 4 || key->modern_shadow == 5)
+	{
+		key->modern_shadow = fallback_shadow;
+		goto try_shadow_program;
 	}
 	if (key->modern_shadow) modern_shadows_cancel();
 	key->modern_shadow = 0;
@@ -5657,6 +5753,61 @@ static GLenum blend_equation(DWORD operation)
 	}
 }
 
+static void apply_stencil_state(BOOL has_depth)
+{
+	DWORD const *rs = D3D__RenderState;
+	GLenum function, operations[3];
+	GLint reference;
+	GLuint value_mask, write_mask;
+
+#ifndef HALO_GLES
+	/* Mark world receivers in bit 7. Apply the effective values directly so
+	   consecutive world draws can share the same cached GL stencil state. */
+	if (modern_environment_marking())
+	{
+		state_enable(&gl_state.stencil_test, GL_STENCIL_TEST, TRUE);
+		function = rs[D3DRS_STENCILENABLE] ? rs[D3DRS_STENCILFUNC] : GL_ALWAYS;
+		reference = (rs[D3DRS_STENCILREF] & 127) | 128;
+		value_mask = rs[D3DRS_STENCILENABLE] ? rs[D3DRS_STENCILMASK] & 127 : 0;
+		write_mask = 128;
+		operations[0] = operations[1] = GL_KEEP;
+		operations[2] = GL_REPLACE;
+	}
+	else
+#endif
+	{
+		BOOL enabled = has_depth && rs[D3DRS_STENCILENABLE];
+		state_enable(&gl_state.stencil_test, GL_STENCIL_TEST, enabled);
+		if (!enabled)
+			return;
+		function = rs[D3DRS_STENCILFUNC] ? (GLenum)rs[D3DRS_STENCILFUNC] : GL_NEVER;
+		reference = (GLint)rs[D3DRS_STENCILREF];
+		value_mask = rs[D3DRS_STENCILMASK];
+		write_mask = rs[D3DRS_STENCILWRITEMASK];
+		operations[0] = stencil_operation(rs[D3DRS_STENCILFAIL]);
+		operations[1] = stencil_operation(rs[D3DRS_STENCILZFAIL]);
+		operations[2] = stencil_operation(rs[D3DRS_STENCILPASS]);
+	}
+	if (gl_state.stencil_function != function || gl_state.stencil_reference != reference ||
+		gl_state.stencil_value_mask != value_mask)
+	{
+		gl_state.stencil_function = function;
+		gl_state.stencil_reference = reference;
+		gl_state.stencil_value_mask = value_mask;
+		glStencilFunc(function, reference, value_mask);
+	}
+	if (memcmp(gl_state.stencil_operations, operations, sizeof(operations)))
+	{
+		memcpy(gl_state.stencil_operations, operations, sizeof(operations));
+		glStencilOp(operations[0], operations[1], operations[2]);
+	}
+	if (gl_state.stencil_write_mask != write_mask)
+	{
+		gl_state.stencil_write_mask = write_mask;
+		glStencilMask(write_mask);
+	}
+}
+
 static void apply_raster_state(BOOL has_depth)
 {
 	DWORD *rs = D3D__RenderState;
@@ -5724,54 +5875,7 @@ static void apply_raster_state(BOOL has_depth)
 		}
 	}
 
-	state_enable(&gl_state.stencil_test, GL_STENCIL_TEST, has_depth && rs[D3DRS_STENCILENABLE]);
-	if (has_depth && rs[D3DRS_STENCILENABLE])
-	{
-		GLenum function = rs[D3DRS_STENCILFUNC] ? (GLenum)rs[D3DRS_STENCILFUNC] : GL_NEVER;
-		GLenum operations[3];
-
-		if (gl_state.stencil_function != function || gl_state.stencil_reference != (GLint)rs[D3DRS_STENCILREF] ||
-			gl_state.stencil_value_mask != rs[D3DRS_STENCILMASK])
-		{
-			gl_state.stencil_function = function;
-			gl_state.stencil_reference = (GLint)rs[D3DRS_STENCILREF];
-			gl_state.stencil_value_mask = rs[D3DRS_STENCILMASK];
-			glStencilFunc(function, (GLint)rs[D3DRS_STENCILREF], rs[D3DRS_STENCILMASK]);
-		}
-		operations[0] = stencil_operation(rs[D3DRS_STENCILFAIL]);
-		operations[1] = stencil_operation(rs[D3DRS_STENCILZFAIL]);
-		operations[2] = stencil_operation(rs[D3DRS_STENCILPASS]);
-		if (memcmp(gl_state.stencil_operations, operations, sizeof(operations)))
-		{
-			memcpy(gl_state.stencil_operations, operations, sizeof(operations));
-			glStencilOp(operations[0], operations[1], operations[2]);
-		}
-		if (gl_state.stencil_write_mask != rs[D3DRS_STENCILWRITEMASK])
-		{
-			gl_state.stencil_write_mask = rs[D3DRS_STENCILWRITEMASK];
-			glStencilMask(rs[D3DRS_STENCILWRITEMASK]);
-		}
-	}
-
-#ifndef HALO_GLES
-    /* Feature-owned world receiver coverage. The stock stencil uses bits 0/1;
-       retain its comparison and leave those bits untouched. Cached state is
-       updated so the next ordinary draw restores the unmodified D3D state. */
-    if (modern_environment_marking())
-    {
-        state_enable(&gl_state.stencil_test, GL_STENCIL_TEST, TRUE);
-        gl_state.stencil_function = rs[D3DRS_STENCILENABLE] ? rs[D3DRS_STENCILFUNC] : GL_ALWAYS;
-        gl_state.stencil_reference = (rs[D3DRS_STENCILREF] & 127) | 128;
-        gl_state.stencil_value_mask = rs[D3DRS_STENCILENABLE] ? rs[D3DRS_STENCILMASK] & 127 : 0;
-        gl_state.stencil_write_mask = 128;
-        gl_state.stencil_operations[0] = GL_KEEP;
-        gl_state.stencil_operations[1] = GL_KEEP;
-        gl_state.stencil_operations[2] = GL_REPLACE;
-        glStencilFunc(gl_state.stencil_function, gl_state.stencil_reference, gl_state.stencil_value_mask);
-        glStencilMask(128);
-        glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
-    }
-#endif
+	apply_stencil_state(has_depth);
 
 	state_enable(&gl_state.blend, GL_BLEND, rs[D3DRS_ALPHABLENDENABLE] != 0);
 	if (rs[D3DRS_ALPHABLENDENABLE])
@@ -6090,6 +6194,11 @@ static struct program_entry *prepare_draw(BOOL immediate)
 #endif
 #ifndef HALO_GLES
 	shadow_world = modern_shadows_world_stage();
+	if (material_preparing & MATERIAL_PREPARE_SHADOWS)
+	{
+		prepare_shadow_models(program, key);
+		if (!(material_preparing & MATERIAL_PREPARE_STOCK)) return NULL;
+	}
 #endif
 	entry = draw_program_get(program, immediate, &key, plasma_mask);
 #ifndef HALO_GLES
@@ -6188,8 +6297,12 @@ static struct program_entry *prepare_draw(BOOL immediate)
 #ifndef HALO_ANDROID
 	if (plasma_mask && entry->plasma_model_slots >= 0)
 	{
-		plasma_occlusion_bind_model(&entry->plasma_occlusion);
-		glUniform2f(entry->plasma_model_slots, (plasma_mask & 1) ? 1.0f : 0.0f, (plasma_mask & 2) ? 1.0f : 0.0f);
+		plasma_occlusion_bind_model(&entry->plasma_occlusion, plasma_mask);
+		if (plasma_mask != entry->uploaded_plasma_mask)
+		{
+			glUniform2f(entry->plasma_model_slots, (plasma_mask & 1) ? 1.0f : 0.0f, (plasma_mask & 2) ? 1.0f : 0.0f);
+			entry->uploaded_plasma_mask = plasma_mask;
+		}
 	}
 #endif
 #ifndef HALO_GLES
@@ -7204,6 +7317,27 @@ static unsigned long stream_upload_swizzled(const struct vertex_shader_object *d
 }
 #endif
 
+#ifdef HALO_WINDOWS
+struct bsp_light_indices
+{
+	const void *base;
+	unsigned long size, offset, first, end, last_end, run_bytes, run_count;
+	BOOL uploaded;
+};
+
+static struct bsp_light_indices bsp_index_batch;
+
+void bsp_light_index_batch_set(const void *base, unsigned long size)
+{
+	bsp_index_batch.last_end = 0;
+	bsp_index_batch.run_bytes = 0;
+	bsp_index_batch.run_count = 0;
+	bsp_index_batch.base = base;
+	bsp_index_batch.size = size < INDEX_BUFFER_SIZE ? size : 0;
+	bsp_index_batch.uploaded = FALSE;
+}
+#endif
+
 static unsigned long index_upload(const void *data, unsigned long size)
 {
 	unsigned long offset;
@@ -7231,6 +7365,10 @@ static unsigned long index_upload(const void *data, unsigned long size)
 		state_element_array_buffer(device.index_buffer);
 		if (device.index_offset + size > INDEX_BUFFER_SIZE)
 		{
+#ifdef HALO_WINDOWS
+			/* Orphaning the ring also discards the current light's uploaded range. */
+			bsp_index_batch.uploaded = FALSE;
+#endif
 			glBufferData(GL_ELEMENT_ARRAY_BUFFER, INDEX_BUFFER_SIZE, NULL, GL_STREAM_DRAW);
 			device.index_offset = 0;
 		}
@@ -7253,6 +7391,46 @@ static unsigned long index_upload(const void *data, unsigned long size)
 	device.index_offset += size;
 	return offset;
 }
+
+#ifdef HALO_WINDOWS
+static unsigned long bsp_light_index_upload(const void *source, unsigned long size)
+{
+	unsigned long relative = (unsigned long)source - (unsigned long)bsp_index_batch.base;
+	unsigned long bytes = size;
+	if (!bsp_index_batch.base || relative > bsp_index_batch.size || size > bsp_index_batch.size - relative)
+		return index_upload(source, size);
+
+	if (relative != bsp_index_batch.last_end)
+	{
+		bsp_index_batch.run_count = 0;
+		bsp_index_batch.run_bytes = 0;
+	}
+	bsp_index_batch.last_end = relative + size;
+	bsp_index_batch.run_bytes += size;
+	bsp_index_batch.run_count++;
+	if (bsp_index_batch.uploaded && relative >= bsp_index_batch.first &&
+		relative + size <= bsp_index_batch.end)
+	{
+		/* DrawIndexedVertices counted this material before checking the ring. */
+		stats.streamed_bytes -= size;
+		state_element_array_buffer(device.index_buffer);
+		return bsp_index_batch.offset + (relative - bsp_index_batch.first);
+	}
+	/* Sparse or unrelated slices upload exactly their original bytes. After three
+	   adjacent draws, look ahead by at most the bytes already used in this run. */
+	if (bsp_index_batch.run_count >= 3)
+	{
+		unsigned long remaining = bsp_index_batch.size - (relative + size);
+		bytes += remaining < bsp_index_batch.run_bytes ? remaining : bsp_index_batch.run_bytes;
+	}
+	bsp_index_batch.first = relative;
+	bsp_index_batch.end = relative + bytes;
+	stats.streamed_bytes += bytes - size;
+	bsp_index_batch.offset = index_upload(source, bytes);
+	bsp_index_batch.uploaded = TRUE;
+	return bsp_index_batch.offset;
+}
+#endif
 
 static void attribute_format(const struct vertex_element *element, GLint *size, GLenum *type, GLboolean *normalized)
 {
@@ -7691,6 +7869,60 @@ static WORD *quad_indices(const WORD *indices, unsigned long count, unsigned lon
 	return result;
 }
 
+#ifndef HALO_GLES
+/* Every unindexed quad uses the same two triangles. A 16-bit index can
+   address 65,536 vertices, so one device-lifetime buffer covers them all. */
+#define SEQUENTIAL_QUAD_VERTICES 65536u
+
+static GLuint create_sequential_quad_buffer(void)
+{
+	unsigned long count;
+	WORD *indices = quad_indices(NULL, SEQUENTIAL_QUAD_VERTICES, &count);
+	GLuint buffer = 0;
+	GLint bytes = 0;
+
+	if (!indices)
+		return 0;
+	glGenBuffers(1, &buffer);
+	if (buffer)
+	{
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, buffer);
+		glBufferData(GL_ELEMENT_ARRAY_BUFFER, count * sizeof(WORD), indices, GL_STATIC_DRAW);
+		glGetBufferParameteriv(GL_ELEMENT_ARRAY_BUFFER, GL_BUFFER_SIZE, &bytes);
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, device.index_buffer);
+		if (bytes != (GLint)(count * sizeof(WORD)))
+		{
+			glDeleteBuffers(1, &buffer);
+			buffer = 0;
+		}
+	}
+	free(indices);
+	return buffer;
+}
+#endif
+
+static void draw_sequential_quads(unsigned long vertices)
+{
+	unsigned long count;
+	WORD *indices;
+
+#ifndef HALO_GLES
+	if (device.sequential_quad_buffer && vertices <= SEQUENTIAL_QUAD_VERTICES)
+	{
+		state_element_array_buffer(device.sequential_quad_buffer);
+		glDrawElements(GL_TRIANGLES, (GLsizei)(vertices / 4 * 6), GL_UNSIGNED_SHORT, NULL);
+		return;
+	}
+#endif
+	indices = quad_indices(NULL, vertices, &count);
+	if (indices)
+	{
+		glDrawElements(GL_TRIANGLES, (GLsizei)count, GL_UNSIGNED_SHORT,
+			(const void *)index_upload(indices, count * sizeof(WORD)));
+		free(indices);
+	}
+}
+
 void WINAPI D3DDevice_SetStreamSource(UINT stream_number, D3DVertexBuffer *stream_data, UINT stride)
 {
 	if (stream_number >= 16)
@@ -7713,15 +7945,7 @@ void WINAPI D3DDevice_DrawVertices(D3DPRIMITIVETYPE primitive_type, UINT start_v
 	setup_streams(start_vertex, vertex_count);
 	if (primitive_type == D3DPT_QUADLIST)
 	{
-		unsigned long count;
-		WORD *indices = quad_indices(NULL, vertex_count, &count);
-
-		if (indices)
-		{
-			glDrawElements(GL_TRIANGLES, (GLsizei)count, GL_UNSIGNED_SHORT,
-				(const void *)index_upload(indices, count * sizeof(WORD)));
-			free(indices);
-		}
+		draw_sequential_quads(vertex_count);
 	}
 	else
 	{
@@ -7987,8 +8211,13 @@ void WINAPI D3DDevice_DrawIndexedVertices(D3DPRIMITIVETYPE primitive_type, UINT 
 	}
 #endif
 	(void)index;
+#ifdef HALO_WINDOWS
+	index_offset = bsp_light_index_upload(source, count * sizeof(WORD));
+#else
+	index_offset = index_upload(source, count * sizeof(WORD));
+#endif
 	glDrawElementsBaseVertex(primitive_mode(primitive_type), (GLsizei)count, GL_UNSIGNED_SHORT,
-		(const void *)index_upload(source, count * sizeof(WORD)), -(GLint)minimum);
+		(const void *)index_offset, -(GLint)minimum);
 	free(indices);
 }
 
@@ -8211,31 +8440,26 @@ void WINAPI D3DDevice_End(void)
 #endif
 		}
 	}
-	if (type == D3DPT_QUADLIST)
+	if (type == D3DPT_QUADLIST && first_vertex)
 	{
+		/* (the indices from the first vertex on, past what 16 bits hold) */
 		unsigned long index_count;
 		WORD *indices = quad_indices(NULL, count, &index_count);
+		GLuint *placed = indices ? malloc(index_count * sizeof(GLuint)) : NULL;
 
-		if (first_vertex)
+		if (placed)
 		{
-			/* (the indices from the first vertex on, past what 16 bits hold) */
-			GLuint *placed = indices ? malloc(index_count * sizeof(GLuint)) : NULL;
-
-			if (placed)
-			{
-				for (index = 0; index < index_count; index++)
-					placed[index] = (GLuint)(first_vertex + indices[index]);
-				glDrawElements(GL_TRIANGLES, (GLsizei)index_count, GL_UNSIGNED_INT,
-					(const void *)index_upload(placed, index_count * sizeof(GLuint)));
-				free(placed);
-			}
-		}
-		else if (indices)
-		{
-			glDrawElements(GL_TRIANGLES, (GLsizei)index_count, GL_UNSIGNED_SHORT,
-				(const void *)index_upload(indices, index_count * sizeof(WORD)));
+			for (index = 0; index < index_count; index++)
+				placed[index] = (GLuint)(first_vertex + indices[index]);
+			glDrawElements(GL_TRIANGLES, (GLsizei)index_count, GL_UNSIGNED_INT,
+				(const void *)index_upload(placed, index_count * sizeof(GLuint)));
+			free(placed);
 		}
 		free(indices);
+	}
+	else if (type == D3DPT_QUADLIST)
+	{
+		draw_sequential_quads(count);
 	}
 	else
 	{

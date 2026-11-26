@@ -4,10 +4,11 @@ static struct widget_instance *shadow_menu_spinner(struct widget_instance *widge
 {
 	struct widget_instance *child, *found;
 	struct pc_menu_setting *setting;
+	char const *key = getenv("HALO_SHADOW_MENU_BOOLEAN");
+	if (!key) key = getenv("HALO_SHADOW_MENU_RESOLUTION") ? "display.shadow_resolution" : "display.modern_shadows";
 	if (!widget) return NULL;
 	setting = pc_menu_setting_get(widget->definition_tag_index);
-	if (setting && !strcmp(setting->setting, getenv("HALO_SHADOW_MENU_RESOLUTION") ?
-		"display.shadow_resolution" : "display.modern_shadows")) return widget;
+	if (setting && !strcmp(setting->setting, key)) return widget;
 	for (child = widget->child; child; child = child->next)
 		if ((found = shadow_menu_spinner(child)) != NULL) return found;
 	return NULL;
@@ -31,7 +32,7 @@ void modern_shadow_menu_accept(struct widget_instance *root)
 {
 	static unsigned long next;
 	static int step;
-	static int visited_lighting;
+	static int visited_lighting, alternate_index;
 	struct widget_instance *spinner;
 	struct widget_instance *child;
 	unsigned long now;
@@ -69,6 +70,40 @@ void modern_shadow_menu_accept(struct widget_instance *root)
 	now = system_milliseconds();
 	if (now < next) return;
 	next = now + 750;
+	if (getenv("HALO_SHADOW_MENU_BOOLEAN"))
+	{
+		char const *key = getenv("HALO_SHADOW_MENU_BOOLEAN");
+		/* Measure the only additional per-view CPU operation in Shared. A batch
+		   makes this visible to the millisecond clock in the isolated menu run. */
+		if (step == 0 && !getenv("HALO_SHADOW_MENU_VERIFY") && !strcmp(key, "display.flashlight_extra_slot"))
+		{
+			unsigned long start = system_milliseconds();
+			int total = 0;
+			for (int i = 0; i < 100000; i++) total += config_boolean(key);
+			platform_log("SHADOW MENU budget: 100000 reads in %lu ms (sum %d)", system_milliseconds() - start, total);
+		}
+		for (child = spinner; child->parent; child = child->parent)
+			child->parent->focused_child = child;
+		if (getenv("HALO_SHADOW_MENU_VERIFY"))
+		{
+			platform_log("SHADOW MENU flashlight restart %d selected %d", config_boolean(key), spinner->parameters.list.selected_index);
+			platform_request_quit();
+			return;
+		}
+		if (step == 0) alternate_index = 1 - spinner->parameters.list.selected_index;
+		if (step == 1 || step == 3 || step == 7) spinner->parameters.list.selected_index = alternate_index;
+		if (step == 4 || step == 6) shadow_menu_action(spinner, "port settings defaults");
+		if (step == 3 || step == 6 || step == 7) shadow_menu_action(spinner, "port settings save");
+		platform_log("SHADOW MENU flashlight %d saved %d selected %d", step, config_boolean(key), spinner->parameters.list.selected_index);
+		if (step == 1 || step == 4)
+		{
+			snprintf(name, sizeof(name), "%s", tag_get_name(root->definition_tag_index));
+			ui_widgets_close_all();
+			ui_widget_load_by_name_or_tag(name, NONE, NULL, NONE, NONE, NONE, NONE);
+		}
+		if (step++ == 7) platform_request_quit();
+		return;
+	}
 	if (getenv("HALO_SHADOW_MENU_INSPECT"))
 	{
 		/* Follow the normal focus chain so the frontend scrolls the new row

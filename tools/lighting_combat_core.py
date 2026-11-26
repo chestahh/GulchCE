@@ -1,0 +1,75 @@
+"""Stage the fixed E5 snowy combat camera and verify the engine loaded its core save."""
+import hashlib
+import re
+import shutil
+import socket
+import time
+
+CAMERA = '327.8 -649.3 74.5\n-0.99 -0.1 -0.06\n-0.06 0 0.9982\n1.22173\n'
+
+
+def prepare(out, env, core):
+    with socket.socket() as listener:
+        listener.bind(('127.0.0.1', 0))
+        port = listener.getsockname()[1]
+    env.pop('HALO_MENU_OPEN', None)
+    env.pop('HALO_TEST_INPUT', None)
+    env.update(HALO_TELNET_CONSOLE='1', HALO_TELNET_CONSOLE_PORT=str(port), HALO_NETWORK_TEST='log')
+    (out / 'camera.txt').write_text(CAMERA)
+    (out / 'init.txt').write_text('map_name levels\\c40\\c40\n')
+    dest = out / 'core' / 'canyon.bin'
+    dest.parent.mkdir()
+    shutil.copyfile(core, dest)
+    return port, hashlib.sha256(dest.read_bytes()).hexdigest()
+
+
+def play(out, process, port):
+    deadline = time.monotonic() + 35
+    while process.poll() is None and time.monotonic() < deadline:
+        try:
+            console = socket.create_connection(('127.0.0.1', port), .3)
+            break
+        except OSError:
+            time.sleep(.2)
+    else:
+        raise RuntimeError('Combat staging console did not open')
+
+    with console, (out / 'stage.log').open('wb', buffering=0) as log:
+        console.settimeout(.1)
+        while not (out / 'frames.csv').exists():
+            if process.poll() is not None or time.monotonic() > deadline:
+                raise RuntimeError('No gameplay clock for combat staging')
+            time.sleep(.1)
+        start = time.monotonic()
+        commands = [(2, '(core_load_name canyon.bin)'), (4, '(debug_camera_load)')]
+        next_count = 14
+        while process.poll() is None:
+            elapsed = time.monotonic() - start
+            if commands and elapsed >= commands[0][0]:
+                _, command = commands.pop(0)
+                console.sendall((command + '\r\n').encode())
+            if elapsed >= next_count:
+                console.sendall(b'(ai_living_count c3_base_tier_2)\r\n')
+                next_count += 12
+            try:
+                data = console.recv(8192)
+            except socket.timeout:
+                continue
+            except ConnectionResetError:
+                break
+            if not data:
+                break
+            log.write(data)
+
+
+def verify(out, engine_log, warmup, seconds, tick_range):
+    console = (out / 'stage.log').read_text(errors='replace')
+    counts = [int(value) for value in re.findall(r'(?m)^\s*(\d+)\s*$', console)]
+    if "loaded 'canyon.bin'" not in console or len(counts) < (warmup + seconds - 14) // 12:
+        raise ValueError('Missing checkpoint acknowledgement or combat telemetry')
+    first, last = tick_range
+    poses = [pose for tick, pose in re.findall(r'network test: tick (\d+) player 0:[^\n]*?local 0 camera \(([^)]+)\)', engine_log)
+             if first <= int(tick) <= last]
+    if counts[0] != 19 or len(poses) < seconds - 2 or any(p != '327.8 -649.3 74.5' for p in poses):
+        raise ValueError('Combat squad or fixed exterior camera differs from the reference')
+    return counts

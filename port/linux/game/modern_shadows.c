@@ -6,10 +6,12 @@
 
 #ifndef HALO_GLES
 #include <xtl.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include "models/model_definitions.h"
 #include "objects/objects.h"
+#include "objects/object_lights.h"
 #include "objects/object_definitions.h"
 #include "objects/object_types.h"
 #include "units/units.h"
@@ -31,6 +33,9 @@
 #include "physics/breakable_surfaces.h"
 #include "objects/light_definitions.h"
 #include "render/render.h"
+#include "game/game_engine.h"
+#include "game/players.h"
+#include "interface/progress_bar.h"
 #include "rasterizer/rasterizer_console_vars.h"
 
 extern char const *config_string(char const *name);
@@ -79,7 +84,23 @@ static struct
 	int mesh;
 	float minimum[3], maximum[3];
 } parts[SHADOW_PARTS];
+/* Zero means empty. The map-lifetime cache holds at most half the buckets. */
+enum { MESH_BUCKETS = 2 * SHADOW_PARTS };
+static unsigned short mesh_index[MESH_BUCKETS];
+static int patches_ready;
+static unsigned char *sun_surface_sky;
+static int sun_count;
+static short prepared_sky = NONE;
+enum { SUN_CUTOUTS = 64 };
+static struct
+{
+    struct structure_material const *material;
+    const void *texture;
+    float uv[8];
+} sun_cutouts[SUN_CUTOUTS];
+static int sun_cutout_count;
 static int part_count;
+static int map_mode, prepare_pending;
 static struct structure_bsp const *cached_bsp;
 static long identities[SHADOW_LIGHTS];
 static struct shadow_selection
@@ -87,18 +108,28 @@ static struct shadow_selection
 	long identity, rasterizer, challenger, unshadowed_owner, collision_owner;
 	float since, time;
 } selections[MODERN_SHADOW_LIGHTS];
+static long flashlight_index = NONE;
+static int flash_world;
 static int world_map;
 static long slots[2] = {NONE, NONE};
 static int active, world_stage, receiver_failed;
 static int view_receiver;
 static long receiver_object = NONE;
+/* First-person draw identifiers are not object datums. Use the view pose owner. */
+static long view_unit = NONE;
 static float world_extent;
 static const float identity[16] = {1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1};
 
 static int setting(void)
 {
-	char const *value = config_string("display.modern_shadows");
-	return !strcmp(value, "hard") ? 1 : !strcmp(value, "soft") ? 2 : 0;
+	return map_mode;
+}
+
+void modern_shadows_map_loaded(int gameplay)
+{
+	char const *value = gameplay ? config_string("display.modern_shadows") : "off";
+	map_mode = !strcmp(value, "hard") ? 1 : !strcmp(value, "soft") ? 2 : 0;
+	prepare_pending = map_mode != 0;
 }
 
 int modern_shadows_enabled(void) { return setting() != 0; }
@@ -108,14 +139,19 @@ void modern_shadows_environment_receivers(int primary)
     modern_environment_receivers(primary && setting() != 0 && cached_bsp != NULL);
 }
 
-void modern_shadows_reset(void)
+static void forget_shadow_geometry(void)
 {
 	int i;
-	modern_shadow_dispose();
+	if (sun_surface_sky) free(sun_surface_sky);
+	sun_surface_sky = NULL;
+	patches_ready = 0;
+	sun_cutout_count = sun_count = 0;
+	prepared_sky = NONE;
 	memset(parts, 0, sizeof(parts));
+	memset(mesh_index, 0, sizeof(mesh_index));
 	part_count = active = world_stage = receiver_failed = 0;
 	view_receiver = 0;
-	receiver_object = NONE;
+	receiver_object = view_unit = NONE;
 	cached_bsp = NULL;
 	slots[0] = slots[1] = NONE;
 	memset(selections, 0, sizeof(selections));
@@ -123,12 +159,34 @@ void modern_shadows_reset(void)
 		selections[i].identity = selections[i].rasterizer = selections[i].challenger = selections[i].unshadowed_owner = NONE;
 }
 
+/* Sun and fixture depth include the current breakable surfaces. A map can
+   contain glass without changing it on every frame. Invalidate all three
+   static images together, even when a fixture is temporarily out of view. */
+static void check_static_breakables(struct structure_bsp const *bsp)
+{
+	static byte previous[MAXIMUM_BREAKABLE_SURFACES_PER_MAP / 8];
+	const byte *flags;
+	if (!bsp->breakable_surfaces.count) return;
+	flags = breakable_surface_flags_get();
+	if (memcmp(previous, flags, sizeof(previous)))
+	{
+		modern_environment_invalidate_static();
+		memcpy(previous, flags, sizeof(previous));
+	}
+}
+
+void modern_shadows_reset(void)
+{
+	modern_shadow_dispose();
+	forget_shadow_geometry();
+}
+
 void modern_shadows_window(void)
 {
 	int i;
 	active = world_stage = 0;
 	view_receiver = 0;
-	receiver_object = NONE;
+	receiver_object = view_unit = NONE;
 	slots[0] = slots[1] = NONE;
 	for (i = 0; i < MODERN_SHADOW_LIGHTS; i++) selections[i].rasterizer = selections[i].unshadowed_owner = NONE;
 	for (i = 0; i < SHADOW_LIGHTS; i++) identities[i] = NONE;
@@ -155,7 +213,7 @@ static int map_for(long rasterizer)
 	return NONE;
 }
 
-/* An exempt biped is the owner of a Jackal shield light. Include only its
+/* A shield light exempts its emitting biped. Include only its
    equipped weapon. Ghost engine lights include seated occupants and their gear. */
 static int unshadowed_object(long owner, long object)
 {
@@ -214,7 +272,7 @@ int modern_shadows_map(int slot)
 void modern_shadows_receiver(int first_person, long object)
 {
 	view_receiver = active && first_person;
-	receiver_object = active && !first_person ? object : NONE;
+	receiver_object = active ? (first_person ? view_unit : object) : NONE;
 }
 int modern_shadows_view_receiver(void) { return view_receiver && !world_stage; }
 int modern_shadows_selected(long rasterizer_index) { return map_for(rasterizer_index) != NONE; }
@@ -229,6 +287,7 @@ long modern_shadows_collision_owner(long rasterizer_index)
 void modern_shadows_cancel(void)
 {
 	int stage = world_stage;
+	flash_world = 0;
 	long rasterizer = stage ? selections[world_map].rasterizer : NONE;
 	active = world_stage = 0;
 	receiver_failed = 1;
@@ -249,8 +308,8 @@ void modern_shadows_world_begin(long rasterizer_index, int stage)
 	if (stage == 1)
 		world_extent *= plasma_occlusion_specular_scale(rasterizer_index);
 }
-void modern_shadows_world_end(void) { world_stage = 0; }
-int modern_shadows_world_stage(void) { return world_stage; }
+void modern_shadows_world_end(void) { flash_world = world_stage = 0; }
+int modern_shadows_world_stage(void) { return flash_world ? 4 : world_stage; }
 float modern_shadows_world_extent(void) { return world_extent; }
 
 static void matrix_to_gl(real_matrix4x3 const *m, float output[16])
@@ -265,6 +324,19 @@ static void matrix_to_gl(real_matrix4x3 const *m, float output[16])
 
 /* Convert once per immutable map buffer. Skinning stays on the GPU and uses
    the same interpolated pose and CE/MCC palettes as the visible model. */
+static unsigned mesh_bucket(struct vertex_buffer const *vertices, void const *triangles)
+{
+	unsigned hash = (unsigned)((uintptr_t)vertices >> 2) * 2654435761u + (unsigned)((uintptr_t)triangles >> 2);
+	unsigned bucket = (hash ^ (hash >> 16)) & (MESH_BUCKETS - 1);
+	while (mesh_index[bucket])
+	{
+		const int part = mesh_index[bucket] - 1;
+		if (parts[part].vertices == vertices && parts[part].triangles == triangles) break;
+		bucket = (bucket + 1) & (MESH_BUCKETS - 1);
+	}
+	return bucket;
+}
+
 static int mesh_get(struct vertex_buffer const *vertices, void const *key,
 	struct triangle_buffer const *triangles, word const *world_indices, int world_count, int node_count)
 {
@@ -274,9 +346,9 @@ static int mesh_get(struct vertex_buffer const *vertices, void const *key,
 	word *list = NULL;
 	byte const *palette = NULL, *mcc_palette = NULL;
 	short palette_count = 0, mcc_count;
-	int i, j, count, size, mesh = 0, part, model;
-	for (part = 0; part < part_count; part++)
-		if (parts[part].vertices == vertices && parts[part].triangles == key) return part;
+	int i, j, count, size, mesh = 0, model;
+	unsigned bucket = mesh_bucket(vertices, key);
+	if (mesh_index[bucket]) return mesh_index[bucket] - 1;
 	if (part_count == SHADOW_PARTS || vertices->count < 1 || vertices->count > 65535 || !vertices->hardware_format) return NONE;
 	model = vertices->type == _rasterizer_vertex_type_model_compressed;
 	if (!model && vertices->type != _rasterizer_vertex_type_environment_compressed &&
@@ -356,7 +428,7 @@ static int mesh_get(struct vertex_buffer const *vertices, void const *key,
 		}
 	}
 	else memcpy(list, indices, count * sizeof(word));
-	mesh = modern_shadow_mesh_create(converted, vertices->count, list, count);
+	mesh = modern_shadow_mesh_create(converted, vertices->count, list, count, triangles != NULL);
 done:
 	if (source) IDirect3DVertexBuffer8_Unlock(vertices->hardware_format);
 	if (triangles && indices) IDirect3DIndexBuffer8_Unlock(triangles->hardware_format);
@@ -366,6 +438,7 @@ done:
 	parts[part_count].vertices = vertices;
 	parts[part_count].triangles = key;
 	parts[part_count].mesh = mesh;
+	mesh_index[bucket] = (unsigned short)(part_count + 1);
 	return part_count++;
 }
 
@@ -417,7 +490,47 @@ static int material(struct shader const *shader, short permutation, void const *
 	return 1;
 }
 
-static int world_casters(struct structure_bsp const *bsp, real_point3d const *origin, real radius)
+/* Unit normals point into the spotlight frustum. Use a box's support
+   vertex to reject a complete BSP batch before submitting its triangles. */
+static float spot_planes[6][4];
+static int clipping_spot;
+static void spot_clip_planes(const float frame[16])
+{
+    for (int i=0;i<6;i++)
+    {
+        float *p=spot_planes[i];
+        for (int j=0;j<4;j++)
+        {
+            const float *col=frame+4*j;
+            if (i<4) p[j]=col[3]+(i&1 ? -col[i/2] : col[i/2]);
+            else p[j]=i==4 ? col[2] : col[3]-col[2];
+        }
+        float inv=1.f/sqrtf(p[0]*p[0]+p[1]*p[1]+p[2]*p[2]);
+        for (int k=0;k<4;k++) p[k]*=inv;
+    }
+}
+static int spot_box_visible(const float low[3],const float high[3])
+{
+    for (int i=0;i<6;i++)
+    {
+        const float *p=spot_planes[i];
+        float d=p[3];
+        for (int j=0;j<3;j++) d+=p[j]*(p[j]>=0.f?high[j]:low[j]);
+        if (d<-.001f) return 0;
+    }
+    return 1;
+}
+static int spot_sphere_visible(real_point3d const *c,float radius)
+{
+    for (int i=0;i<6;i++)
+    {
+        const float *p=spot_planes[i];
+        if (p[0]*c->x+p[1]*c->y+p[2]*c->z+p[3] < -radius-.001f) return 0;
+    }
+    return 1;
+}
+
+static int world_casters_clipped(struct structure_bsp const *bsp, real_point3d const *origin, real radius, const float *sun_frame)
 {
 	int lightmap, index;
 	for (lightmap = 0; lightmap < bsp->lightmaps.count; lightmap++)
@@ -445,21 +558,57 @@ static int world_casters(struct structure_bsp const *bsp, real_point3d const *or
 				float d = MAX(parts[part].minimum[axis] - p, MAX(p - parts[part].maximum[axis], 0.f));
 				distance += d * d;
 			}
-			if (distance > radius * radius) continue;
+			if (sun_frame)
+			{
+				int outside = 0;
+				for (axis = 0; axis < 2; axis++)
+				{
+					const float *basis = sun_frame + 4 * axis;
+					float offset = 0.f, extent = 0.f;
+					for (int k = 0; k < 3; k++)
+					{
+						float lo = parts[part].minimum[k], hi = parts[part].maximum[k];
+						offset += basis[k] * ((lo + hi) * .5f - sun_frame[12+k]);
+						extent += fabsf(basis[k]) * (hi-lo) * .5f;
+					}
+					if (fabsf(offset) > radius + extent) outside = 1;
+				}
+				if (outside) continue;
+			}
+			else if (distance > radius * radius) continue;
+			if (clipping_spot && !spot_box_visible(parts[part].minimum,parts[part].maximum)) continue;
 			if (!modern_shadow_draw(parts[part].mesh, identity, 1, alpha, uv, MODERN_SHADOW_BOTH)) return 0;
+			if (sun_frame)
+			{
+				modern_environment_sun_surfaces(sun_surface_sky + m->first_surface_index);
+				if (alpha && sun_cutout_count < SUN_CUTOUTS)
+				{
+					sun_cutouts[sun_cutout_count].material = m;
+					sun_cutouts[sun_cutout_count].texture = alpha;
+					memcpy(sun_cutouts[sun_cutout_count++].uv,uv,sizeof(uv));
+				}
+				else if (alpha) sun_cutout_count = SUN_CUTOUTS + 1;
+			}
 		}
 	}
 	return 1;
 }
 
+static int world_casters(struct structure_bsp const *bsp, real_point3d const *origin, real radius)
+{
+	return world_casters_clipped(bsp, origin, radius, NULL);
+}
+
 /* Both model sources share conversion, skinning and material evaluation. */
 static int model_caster(struct model const *model, real_matrix4x3 const *nodes,
-	byte const *permutations, short forced_permutation, real const *values, int views)
+	byte const *permutations, short forced_permutation, real const *values, int views, long flashlight_object)
 {
+	short level = 4, rules = _model_detail_rules_outside;
 	float matrices[64 * 16];
 	int node, region;
 	if (model->nodes.count < 1) return 1;
 	if (model->nodes.count > 64 || !nodes) return 0;
+	if (flashlight_object != NONE) render_object_model_detail(flashlight_object, model, &level, &rules);
 	for (node = 0; node < model->nodes.count; node++)
 	{
 		struct model_node const *n = TAG_BLOCK_GET_ELEMENT(&model->nodes, node, struct model_node);
@@ -476,7 +625,7 @@ static int model_caster(struct model const *model, real_matrix4x3 const *nodes,
 		if (index == NONE) continue;
 		if (!VALID_INDEX(index, r->permutations.count)) return 0;
 		permutation = TAG_BLOCK_GET_ELEMENT(&r->permutations, index, struct model_region_permutation);
-		geometry_index = model_detail_geometry_index(model, permutation, 4, _model_detail_rules_outside);
+		geometry_index = model_detail_geometry_index(model, permutation, level, rules);
 		if (geometry_index == NONE) continue;
 		if (!VALID_INDEX(geometry_index, model->geometries.count)) return 0;
 		geometry = TAG_BLOCK_GET_ELEMENT(&model->geometries, geometry_index, struct shadow_geometry);
@@ -501,7 +650,7 @@ static int model_caster(struct model const *model, real_matrix4x3 const *nodes,
 	return 1;
 }
 
-static int viewmodel_casters(long owners[2], long excluded_caster)
+static int viewmodel_casters(long owners[2], long excluded_caster, long unshadowed_owner)
 {
 	int hands;
 	owners[0] = owners[1] = NONE;
@@ -513,9 +662,9 @@ static int viewmodel_casters(long owners[2], long excluded_caster)
 		int result = modern_shadows_viewmodel(hands, &model_index, &owner, nodes);
 		if (result < 0) return 0;
 		owners[hands] = owner;
-		if (!result || owner == excluded_caster) continue;
+		if (!result || owner == excluded_caster || unshadowed_object(unshadowed_owner, owner)) continue;
 		object_function_values_for_render(owner, values);
-		if (!model_caster(model_definition_get(model_index), nodes, NULL, 0, values, MODERN_SHADOW_VIEW)) return 0;
+		if (!model_caster(model_definition_get(model_index), nodes, NULL, 0, values, MODERN_SHADOW_VIEW, NONE)) return 0;
 	}
 	return 1;
 }
@@ -534,8 +683,13 @@ static int object_casters(real_point3d const *origin, real radius, long const ow
 		int views;
 		if ((object->object.flags & FLAG(_object_invisible_bit)) || iterator.index == excluded_caster || iterator.index == emitter ||
 			unshadowed_object(unshadowed_owner, iterator.index)) continue;
-		range = radius + object->object.bounding_sphere_radius;
-		if (distance_squared3d(origin, &object->object.bounding_sphere_center) > range * range) continue;
+        real_point3d center;
+        real extent;
+        object_get_render_bounding_sphere(iterator.index,&center,&extent);
+        render_interpolation_object_point(iterator.index,&center);
+        range = radius + MAX(extent,object->object.bounding_sphere_radius);
+        if (distance_squared3d(origin,&center) > range*range) continue;
+        if (clipping_spot && !spot_sphere_visible(&center,extent)) continue;
 		definition = object_definition_get(object->definition_index);
 		if (definition->object.model.index == NONE) continue;
 		model = model_definition_get(definition->object.model.index);
@@ -545,7 +699,7 @@ static int object_casters(real_point3d const *origin, real radius, long const ow
 		views = iterator.index == owners[0] || iterator.index == owners[1] ? MODERN_SHADOW_WORLD : MODERN_SHADOW_BOTH;
 		object_function_values_for_render(iterator.index, values);
 		if (!model_caster(model, object_get_node_matrices(iterator.index), object->object.region_permutations,
-			object->object.forced_shader_permutation_index, values, views)) return 0;
+			object->object.forced_shader_permutation_index, values, views, clipping_spot ? iterator.index : NONE)) return 0;
 	}
 	return 1;
 }
@@ -583,12 +737,14 @@ static void select_lights(void)
 	float scores[SHADOW_LIGHTS] = {0}, retained[MODERN_SHADOW_LIGHTS] = {0};
 	long index;
 	int i, order, ordered[MODERN_SHADOW_LIGHTS];
+	int authored = config_boolean("display.environment_fixtures") && game_engine_allow_dynamic_lighting();
 	for (i = 0; i < MODERN_SHADOW_LIGHTS; i++) selections[i].rasterizer = selections[i].unshadowed_owner = NONE;
 	for (index = 0; index < MIN(rasterizer_lights.light_count, SHADOW_LIGHTS); index++)
 	{
 		struct rasterizer_light_submit_parameters const *light = &rasterizer_lights.lights[index];
 		float brightness, score;
-		if (identities[index] == NONE || !plasma_lighting_selected(index)) continue;
+		if (identities[index] == NONE || (!plasma_lighting_selected(index) &&
+			!(authored && light_port_authored_dynamic(identities[index])))) continue;
 		if (!(light->radius > 0.01f && light->radius < 1000.f)) continue;
 		brightness = MAX(light->color.red, MAX(light->color.green, light->color.blue));
 		score = brightness * light->radius * light->radius / (1.f + distance_squared3d(&render.camera.position, &light->position));
@@ -627,6 +783,19 @@ static void select_lights(void)
 		selections[slot].rasterizer = best_index;
 		selections[slot].identity = best_index != NONE ? identities[best_index] : NONE;
 	}
+	/* A published flashlight uses a single projector inside the local budget.
+	   Keep the displaced light's identity for the next view and its lighting
+	   contribution in the stock renderer. */
+	if ((modern_spot_mask() & 4) && !config_boolean("display.flashlight_extra_slot"))
+	{
+		int weakest = 0;
+		for (i = 0; i < MODERN_SHADOW_LIGHTS; i++)
+		{
+			if (selections[i].rasterizer == NONE) return;
+			if (scores[selections[i].rasterizer] < scores[selections[weakest].rasterizer]) weakest = i;
+		}
+		selections[weakest].rasterizer = NONE;
+	}
 }
 
 /* Environmental maps reuse the validated caster conversion, never local-light
@@ -646,7 +815,7 @@ static int environmental_casters(long object_index, int *remaining)
         if (model->nodes.count < 0 || model->nodes.count > (int)(object->object.node_matrices.size / sizeof(real_matrix4x3))) return 0;
         object_function_values_for_render(object_index, values);
         if (!model_caster(model, object_get_node_matrices(object_index),
-            object->object.region_permutations, object->object.forced_shader_permutation_index, values, MODERN_SHADOW_WORLD)) return 0;
+            object->object.region_permutations, object->object.forced_shader_permutation_index, values, MODERN_SHADOW_WORLD, NONE)) return 0;
     }
     child = object->object.first_child_object_index;
     while (child != NONE)
@@ -659,7 +828,7 @@ static int environmental_casters(long object_index, int *remaining)
 
 /* Collision spheres need not enclose rendered hulls or held weapons. Use the
    render owner's bounds for every member of the same bounded caster family. */
-static int environmental_family_bounds(long index, const real_point3d *center, real *radius, int *remaining)
+static int environmental_family_bounds(long index, const real_point3d *center, real *radius, int *remaining, int casters_only)
 {
     struct object_datum *object;
     real_point3d point;
@@ -667,24 +836,60 @@ static int environmental_family_bounds(long index, const real_point3d *center, r
     long child;
     if (*remaining <= 0 || !(object = object_try_and_get(index))) return 0;
     (*remaining)--;
-    object_get_render_bounding_sphere(index, &point, &extent);
-    render_interpolation_object_point(index, &point);
-    if (!(extent >= 0 && extent < REAL_MAX)) return 0;
-    extent += distance3d(center, &point);
-    if (!(extent < REAL_MAX)) return 0;
-    if (extent > *radius) *radius = extent;
+    /* Logical attachments such as the Warthog gun have no caster geometry.
+       Their cached centre may be in attachment space. Visit their children. */
+    if (!casters_only || (!(object->object.flags & FLAG(_object_invisible_bit)) &&
+        object_definition_get(object->definition_index)->object.model.index != NONE))
+    {
+        object_get_render_bounding_sphere(index, &point, &extent);
+        render_interpolation_object_point(index, &point);
+        if (!(extent >= 0 && extent < REAL_MAX)) return 0;
+        extent += distance3d(center, &point);
+        if (!(extent < REAL_MAX)) return 0;
+        if (extent > *radius) *radius = extent;
+    }
     child = object->object.first_child_object_index;
     while (child != NONE)
     {
-        if (!environmental_family_bounds(child, center, radius, remaining)) return 0;
+        if (!environmental_family_bounds(child, center, radius, remaining, casters_only)) return 0;
         child = object_get(child)->object.next_object_index;
     }
     return 1;
 }
 
+#include "modern_sun.inl"
+#include "modern_spots.inl"
+
+/* Object placement has finished. A restart or BSP switch can initialise
+   game state again, but must never start a second material preparation. */
+int modern_shadows_prepare_loaded_map(void)
+{
+    int sunlight, fixtures;
+    if (!prepare_pending) return FALSE;
+    prepare_pending = FALSE;
+    if (!game_engine_allow_dynamic_lighting()) return FALSE;
+    cached_bsp = global_structure_bsp_get();
+    if (!cached_bsp) return FALSE;
+    /* A cached map can bypass the copy progress loop entirely. Leave the
+       stock loading frame on screen during GPU setup and material draws. */
+    if (!progress_bar_is_active())
+    {
+        progress_bar_eachframe();
+        progress_bar_begin(TRUE);
+        progress_bar_present_standalone(.95f);
+        progress_bar_end();
+    }
+    sunlight = config_boolean("display.environment_sun");
+    fixtures = config_boolean("display.environment_fixtures");
+    if (sunlight) sun_classify_surfaces();
+    if (fixtures) prepare_fixture_patches();
+    modern_shadow_preload(sunlight, fixtures, config_boolean("display.flashlight_shadows"));
+    return TRUE;
+}
+
 /* Draw-packet lighting is authoritative, including queued material passes.
    Shadow only the two distant terms; ambient/local illumination is untouched. */
-void modern_shadows_environment_model(const struct rasterizer_model_begin_parameters *parameters, int first_person)
+static void environment_model_family(const struct rasterizer_model_begin_parameters *parameters, int first_person)
 {
     static long previous = NONE;
     static float previous_frames[32], previous_radius;
@@ -709,7 +914,7 @@ void modern_shadows_environment_model(const struct rasterizer_model_begin_parame
     object_get_bounding_sphere(root, &center, &radius);
     render_interpolation_object_point(root, &center);
     if (!(radius > 0.001f && radius < REAL_MAX)) goto unavailable;
-    if (!environmental_family_bounds(root, &center, &radius, &remaining)) goto unavailable;
+    if (!environmental_family_bounds(root, &center, &radius, &remaining, 0)) goto unavailable;
     remaining = 128;
     memset(frames, 0, sizeof(frames));
     for (i = 0; i < MIN(parameters->lighting.distant_light_count, 2); i++)
@@ -739,17 +944,29 @@ unavailable:
     modern_environment_model_clear();
 }
 
+void modern_shadows_environment_model(const struct rasterizer_model_begin_parameters *parameters, int first_person)
+{
+    environment_model_family(parameters,first_person);
+    if (cached_bsp && prepared_sky != NONE && parameters && !first_person)
+    {
+        struct object_datum *object = object_try_and_get(parameters->unique_identifier);
+        modern_environment_sun_model(object && sun_cluster_sky(object->object.location.cluster_index) == prepared_sky);
+    }
+}
+
 int modern_shadows_environment(long object, const real_matrix4x3 *frame, const float color[3], float radius)
 {
     float basis[16], camera[16];
-    int remaining = 128, complete, mode = setting();
+    int remaining = 128, complete, handoff, mode = setting();
     if (!mode || !cached_bsp || global_window_parameters.rasterizer_target != 0 /* primary, as in the stock shadow pass */ ||
         !rasterizer_debug_options.draw_environment_shadows || !(radius > 0.001f && radius < REAL_MAX)) return 0;
     matrix_to_gl(frame, basis);
+    handoff = sun_owns(object);
+    if (handoff && modern_environment_sun_interior(basis,radius)) return 1;
     matrix_to_gl(&global_window_parameters.frustum.view_to_world, camera);
     if (!modern_environment_begin(basis, radius, mode == 2)) return 0;
     complete = environmental_casters(object, &remaining);
-    return modern_environment_end(complete, camera, (float const *)global_window_parameters.frustum.projection_matrix, color);
+    return modern_environment_end(complete, camera, (float const *)global_window_parameters.frustum.projection_matrix, color, handoff);
 }
 
 void modern_shadows_prepare(int primary)
@@ -758,12 +975,24 @@ void modern_shadows_prepare(int primary)
 	int mode = setting(), complete, slot;
 	long owners[2];
 	active = world_stage = 0;
+	prepared_sky = NONE;
+	sun_count = flash_world = 0;
+	flashlight_index = NONE;
 	modern_environment_window();
 	if (!mode) { if (cached_bsp) modern_shadows_reset(); return; }
 	if (!primary) return;
 	bsp = global_structure_bsp_get();
-	if (bsp != cached_bsp) { modern_shadows_reset(); cached_bsp = bsp; }
+	if (bsp != cached_bsp)
+	{
+		modern_shadow_change_bsp();
+		forget_shadow_geometry();
+		cached_bsp = bsp;
+	}
 	if (!bsp || receiver_failed) return;
+	check_static_breakables(bsp);
+	extern boolean render_shadows;
+	if (render_shadows) sun_prepare();
+	prepare_spots(mode);
 	select_lights();
 	for (slot = 0; slot < MODERN_SHADOW_LIGHTS; slot++)
 	{
@@ -781,21 +1010,34 @@ void modern_shadows_prepare(int primary)
 		if (!modern_shadow_begin(slot, (float const *)&light->position, radius, mode == 2, grenade.grounded)) continue;
 		/* Caster exclusions leave both the shooter and the weapon as receivers. */
 		if (grenade.stuck_host != NONE) excluded_caster = grenade.stuck_host;
-		complete = viewmodel_casters(owners, excluded_caster) && world_casters(bsp, &light->position, radius) &&
+		complete = viewmodel_casters(owners, excluded_caster, selections[slot].unshadowed_owner) && world_casters(bsp, &light->position, radius) &&
 			object_casters(&light->position, radius, owners, selections[slot].unshadowed_owner, excluded_caster, grenade.casing);
-		if (modern_shadow_end() && complete) active |= 1 << slot;
+		if (modern_shadow_end() && complete)
+		{
+			view_unit = owners[1];
+			active |= 1 << slot;
+		}
 	}
 }
 
 #else
 int modern_shadows_enabled(void) { return 0; }
 int modern_shadows_hard_enabled(void) { return 0; }
+void modern_shadows_sun_project(void) {}
+void modern_spots_project(void) {}
+void modern_flashlight_mount(long wearer, struct rasterizer_light_submit_parameters *light) {}
+short modern_flashlight_include(short view, long *lights, short count, short capacity) { return count; }
+int modern_spot_is_flashlight(long index) { return 0; }
+void modern_spot_world_light(long index) {}
+int modern_shadows_sun_casters(void) { return 0; }
 void modern_shadows_environment_model(const struct rasterizer_model_begin_parameters *p, int f) {}
 void modern_shadows_environment_receivers(int primary) {}
 int modern_shadows_environment(long o, const struct real_matrix4x3 *f, const float c[3], float r) { return 0; }
 void modern_shadows_receiver(int first_person, long object) {}
 int modern_shadows_view_receiver(void) { return 0; }
 int modern_shadows_map(int slot) { return -1; }
+void modern_shadows_map_loaded(int gameplay) {}
+int modern_shadows_prepare_loaded_map(void) { return 0; }
 void modern_shadows_prepare(int primary) {}
 void modern_shadows_reset(void) {}
 void modern_shadows_window(void) {}

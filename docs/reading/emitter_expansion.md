@@ -14,7 +14,6 @@ Video Setup > Dynamic Lighting groups related sources:
 | Projectile Lights | Existing projectiles, armed plasma grenades and flamethrower streams |
 | Muzzle Flash Lights | Existing handheld, Warthog and Scorpion flashes |
 | Weapon Glow | Energy sword, plasma charge, fuel rods, AR counter and Needler crystals |
-| Plasma Prong Lighting | Independent short, soft outward spill from Plasma Rifle/Pistol prongs; off by default |
 | Shield Emitters | Jackal shields and Covenant stationary shields |
 | Vehicle Lights | Supported Covenant running/engine lights and Warthog/Scorpion headlights |
 | World Emitters | Overshield/active-camouflage pickups and the green teleporter surface |
@@ -199,13 +198,7 @@ invalid model regions retain the original diagnostics and model queries.
 No model pointers or matrices survive the batch. The shared model query is
 unchanged, and Android excludes this feature module.
 
-Plasma Prong Lighting is independent of Weapon Glow, including saved preferences.
-Its Plasma Rifle/Pistol profiles reach 0.3 world units in the stock maps, with a
-broad forward angular fade. Spill radius eases away between three and six world
-units from the nearest local camera; stock flares remain visible. The short
-prong volume uses a 4-by-4 ray grid per cube face (96 rays), retaining the 16-cubed
-filtered output. Other emitters retain their 16-by-16 face grids (1536 rays).
-Prongs still share the eight-field budget; this setting does not reserve slots.
+Plasma weapon prongs retain their stock flares. They consume no dynamic lighting or shadow slots.
 
 [plasma_occlusion_gl.c](../../port/linux/src/plasma_occlusion_gl.c) resolves each
 immutable model-mask texture once per view and skips identical per-program
@@ -238,8 +231,7 @@ together on SSE2 CPUs for half/unit-scale radial masks and angular model masks.
 It retains interpolation, admission, directional and radial multiplication
 order, exact division and square roots. Other architectures use the scalar row;
 arbitrary radial scales retain the general calculation. Tests compare every
-specialized output pixel against that calculation, including AR, Needler and
-prong profiles. Fade history below `1e-20` settles
+specialized output pixel against that calculation, including AR and Needler profiles. Fade history below `1e-20` settles
 to zero before it can persist as subnormal floating-point values (values below
 the normal float range). This is far below an 8-bit mask step; visible fades,
 ray cadence and the simulation's floating-point mode are unchanged. The tests

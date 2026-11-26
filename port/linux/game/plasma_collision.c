@@ -36,6 +36,10 @@ void plasma_collision_object_depths(long owner, real_point3d const *point,
 	plasma_collision_model_depths(&model, point, vectors, count, pending, depths);
 }
 
+/* The stock collision query uses these same cluster and root bounds. */
+long const *object_bounds_cache_cluster_objects(short cluster, unsigned long flags, long *count);
+boolean object_bounds_cache_missed_by_vector(long object, unsigned long flags, real_point3d const *point, real_vector3d const *vector);
+
 enum { TRACE_OBJECTS = 512, TRACE_REFERENCES = 4096 };
 struct trace_object
 {
@@ -48,14 +52,25 @@ struct trace_object
 	struct collision_model_instance model;
 	unsigned int pending[PLASMA_COLLISION_WORDS];
 };
+struct trace_start_node
+{
+	long index;
+	short depth;
+};
+
 static struct
 {
+	struct trace_start_node origin_nodes[MAXIMUM_BSP3D_TRAVERSAL_DEPTH + 1];
+	unsigned short starts[PLASMA_COLLISION_RAYS];
+	long validated_node, origin_leaf;
+	int starts_ready, origin_leaf_ready;
 	int active, failed, count, references, defer_models;
 	unsigned long flags, ray;
 	long ignore;
 	real_point3d const *point;
 	struct structure_bsp const *structure;
 	struct collision_bsp const *bsp;
+	byte const *breakable_flags;
 	real extent;
 	real vector_squared;
 	struct { int ready; long node; short depth; } prefixes[8];
@@ -165,6 +180,59 @@ static void trace_start(int octant)
 	batch.prefixes[octant].depth = depth;
 }
 
+/* All rays start in the same leaf. Along the path to that leaf, the first
+   plane separating a ray's endpoints is exactly where ordinary traversal
+   first forks. Classify the endpoints in batches, retaining the original
+   node depth and the engine's ordered traversal below that fork. */
+static void trace_batch_starts(real_vector3d const *vectors, int count, real extent)
+{
+	struct { real_vector3d normal; real distance; } planes[MAXIMUM_BSP3D_TRAVERSAL_DEPTH];
+	int n = 0, depth = 0, ray;
+	long index = 0;
+	if (debug_collision_skip_vectors || !batch.bsp || !(extent > 0 && extent < 1000)) return;
+	while (!(index & LONG_MIN))
+	{
+		struct bsp3d_node const *node;
+		real_plane3d const *plane;
+		real distance, reach, margin;
+		if (index >= batch.bsp->bsp3d.nodes.count || depth >= batch.bsp->bsp3d.nodes.count ||
+			depth >= MAXIMUM_BSP3D_TRAVERSAL_DEPTH) return;
+		node = TAG_BLOCK_GET_ELEMENT(&batch.bsp->bsp3d.nodes, index, struct bsp3d_node);
+		if (node->plane_designator < 0 || node->plane_designator >= batch.bsp->bsp3d.planes.count) return;
+		plane = TAG_BLOCK_GET_ELEMENT(&batch.bsp->bsp3d.planes, node->plane_designator, real_plane3d);
+		distance = plane3d_distance_to_point(plane, batch.point);
+		reach = extent * (fabsf(plane->n.i) + fabsf(plane->n.j) + fabsf(plane->n.k));
+		if (!(fabsf(distance) + reach < REAL_MAX)) return;
+		margin = 0.0001f * (1 + reach + fabsf(distance));
+		if (!(fabsf(distance) > reach + margin))
+		{
+			planes[n].normal = plane->n;
+			planes[n].distance = distance;
+			batch.origin_nodes[n].index = index;
+			batch.origin_nodes[n++].depth = (short)depth;
+		}
+		index = node->children[distance >= 0];
+		depth++;
+	}
+	batch.origin_nodes[n].index = index;
+	batch.origin_nodes[n].depth = (short)depth;
+	for (ray = 0; ray < count; ray++) batch.starts[ray] = (unsigned short)n;
+	/* Apply earlier forks last. This loop has independent rays and keeps
+	   the scalar BSP's multiply/add order and front-side rule at zero. */
+	while (n-- > 0)
+	{
+		real_vector3d normal = planes[n].normal;
+		real distance = planes[n].distance;
+		for (ray = 0; ray < count; ray++)
+		{
+			real dot = vectors[ray].i * normal.i + vectors[ray].j * normal.j + vectors[ray].k * normal.k;
+			if ((dot + distance >= 0) != (distance >= 0))
+				batch.starts[ray] = (unsigned short)n;
+		}
+	}
+	batch.starts_ready = TRUE;
+}
+
 static struct trace_object *trace_object(long index)
 {
 	unsigned long slot = DATUM_INDEX_TO_ABSOLUTE_INDEX(index);
@@ -263,10 +331,11 @@ static void trace_cluster(long cluster, real_vector3d const *vector, real *depth
 	batch.clusters[cluster].visited = batch.ray;
 	if (!batch.clusters[cluster].ready)
 	{
-		long reference, index;
+		long reference, index, cursor = 0, count = 0;
+		long const *roots = object_bounds_cache_cluster_objects((short)cluster, batch.flags, &count);
 		batch.clusters[cluster].first = batch.references;
-		for (index = cluster_get_first_collideable_object(&reference, (short)cluster); index != NONE;
-			index = cluster_get_next_collideable_object(&reference))
+		for (index = roots ? (count ? roots[0] : NONE) : cluster_get_first_collideable_object(&reference, (short)cluster);
+			index != NONE; index = roots ? (++cursor < count ? roots[cursor] : NONE) : cluster_get_next_collideable_object(&reference))
 		{
 			struct trace_object *object = trace_object(index);
 			if (!object) return;
@@ -284,7 +353,8 @@ static void trace_cluster(long cluster, real_vector3d const *vector, real *depth
 		if (batch.visited[slot] != batch.ray)
 		{
 			batch.visited[slot] = batch.ray;
-			trace_objects(index, vector, depth, 0);
+			if (!object_bounds_cache_missed_by_vector(index, batch.flags, batch.point, vector))
+				trace_objects(index, vector, depth, 0);
 		}
 	}
 }
@@ -294,7 +364,16 @@ void plasma_collision_begin(unsigned long flags, real_point3d const *point, long
 	unsigned long supported = FLAG(_collision_test_structure_bit) | FLAG(_collision_test_objects_bit) |
 		FLAG(_collision_test_front_facing_surfaces_bit) | FLAG(_collision_test_back_facing_surfaces_bit) |
 		FLAG(_collision_test_objects_scenery_bit) | FLAG(_collision_test_objects_machines_bit);
-	memset(&batch, 0, sizeof(batch));
+	if (batch.active) plasma_collision_end();
+	/* The previous batch released every borrowed tree and model pointer. */
+	batch.failed = batch.count = batch.references = batch.defer_models = 0;
+	batch.ray = 0;
+	batch.starts_ready = batch.origin_leaf_ready = FALSE;
+	batch.extent = 0;
+	memset(batch.prefixes, 0, sizeof(batch.prefixes));
+	memset(batch.lookup, 0, sizeof(batch.lookup));
+	memset(batch.visited, 0, sizeof(batch.visited));
+	memset(batch.clusters, 0, sizeof(batch.clusters));
 	batch.active = flags == supported || flags == (supported | FLAG(_collision_test_objects_vehicles_bit));
 	batch.flags = flags;
 	batch.point = point;
@@ -312,6 +391,7 @@ float plasma_collision_depth(unsigned long flags, real_point3d const *point, rea
 	struct collision_bsp_test_vector_result result;
 	real depth = 1.0f;
 	int i, hit, use_start, octant;
+	struct trace_start_node start;
 	if (!batch.active || batch.failed || flags != batch.flags || point != batch.point || ignore != batch.ignore)
 		goto stock;
 	if (debug_collision_skip_vectors) return 2.0f;
@@ -321,7 +401,10 @@ float plasma_collision_depth(unsigned long flags, real_point3d const *point, rea
 	/* Cached object rejection applies only inside the original cube. */
 	if (!use_start) goto stock;
 	octant = (vector->i >= 0) | ((vector->j >= 0) << 1) | ((vector->k >= 0) << 2);
-	if (!batch.prefixes[octant].ready)
+	start.index = 0;
+	start.depth = 0;
+	if (batch.starts_ready) start = batch.origin_nodes[batch.starts[batch.ray]];
+	if (!(start.index & LONG_MIN) && !batch.prefixes[octant].ready)
 	{
 		long target;
 		short skipped;
@@ -333,10 +416,34 @@ float plasma_collision_depth(unsigned long flags, real_point3d const *point, rea
 	}
 	batch.ray++;
 	batch.vector_squared = vector->i * vector->i + vector->j * vector->j + vector->k * vector->k;
-	hit = collision_bsp_test_vector_from_node(FLAG(_collision_test_front_facing_surfaces_bit) |
-		FLAG(_collision_test_back_facing_surfaces_bit), batch.bsp,
-		MAXIMUM_BREAKABLE_SURFACES_PER_MAP, breakable_surface_flags_get(), point, vector, REAL_MAX, &result,
-		batch.prefixes[octant].node, batch.prefixes[octant].depth, &batch.cache[octant]);
+	/* A proven prefix ending in a leaf has no intervening surface. Reuse
+	   the engine's validated leaf result, but still test its objects for
+	   each ray, including siblings and the cached root bounds. */
+	if (!batch.starts_ready)
+	{
+		start.index = batch.prefixes[octant].node;
+		start.depth = batch.prefixes[octant].depth;
+	}
+	if ((start.index & LONG_MIN) && batch.origin_leaf_ready && batch.validated_node == start.index)
+	{
+		hit = FALSE;
+		result.leaf_indices[0] = batch.origin_leaf;
+		result.leaf_count = result.leaf_indices[0] != NONE;
+	}
+	else
+	{
+		if (!batch.breakable_flags) batch.breakable_flags = breakable_surface_flags_get();
+		hit = collision_bsp_test_vector_from_node(FLAG(_collision_test_front_facing_surfaces_bit) |
+			FLAG(_collision_test_back_facing_surfaces_bit), batch.bsp,
+			MAXIMUM_BREAKABLE_SURFACES_PER_MAP, batch.breakable_flags, point, vector, REAL_MAX, &result,
+			start.index, start.depth, &batch.cache[octant]);
+		if ((start.index & LONG_MIN) && !hit && result.leaf_count <= 1)
+		{
+			batch.origin_leaf_ready = TRUE;
+			batch.validated_node = start.index;
+			batch.origin_leaf = result.leaf_count ? result.leaf_indices[0] : NONE;
+		}
+	}
 	if (hit) depth = result.t;
 	if (!debug_collision_skip_objects)
 		for (i = 0; i < result.leaf_count && !batch.failed; i++)
@@ -363,6 +470,7 @@ void plasma_collision_depths(unsigned long flags, real_point3d const *point,
 	batch.defer_models = count > 0 && count <= PLASMA_COLLISION_RAYS;
 	if (batch.active && batch.defer_models)
 	{
+		trace_batch_starts(vectors, count, MAX(fabsf(vectors[0].i), MAX(fabsf(vectors[0].j), fabsf(vectors[0].k))));
 		/* Preserve cluster, sphere and parent/child gates for every ray. Only
 		   defer the expensive model queries; a bitset deduplicates identical
 		   queries reached through more than one object/cluster reference. */
@@ -397,5 +505,6 @@ void plasma_collision_end(void)
 	batch.point = NULL;
 	batch.structure = NULL;
 	batch.bsp = NULL;
+	batch.breakable_flags = NULL;
 	memset(&batch.cache, 0, sizeof(batch.cache));
 }

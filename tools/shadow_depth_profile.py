@@ -16,7 +16,7 @@ def replace_once(text, before, after):
 def install(root):
     path = root / 'port/linux/game/modern_shadows.c'
     text = path.read_text()
-    for name, world in [('lighting_timed_world_casters', 1), ('model_caster', 0)]:
+    for name, world in [('world_casters_clipped', 1), ('model_caster', 0)]:
         body = function(text, name)
         anchor = '\tint lightmap, index;' if world else '\tint node, region;'
         updated = replace_once(body, anchor, anchor + f'\n\tlighting_shadow_geometry({world});')
@@ -25,7 +25,7 @@ def install(root):
 
     path = root / 'port/linux/src/modern_shadows_gl.c'
     text = path.read_text()
-    text = replace_once(text, 'int mesh, nodes, views, faces;', 'int mesh, nodes, views, faces, profile_kind;')
+    text = replace_once(text, '} draws[SHADOW_DRAWS];', '\tint profile_kind;\n} draws[SHADOW_DRAWS];')
     text = replace_once(text, '\tdraws[draw_count].mesh = mesh - 1;',
                         '\tdraws[draw_count].profile_kind = lighting_shadow_world ? 7 : views == MODERN_SHADOW_VIEW ? 9 : 8;\n'
                         '\tdraws[draw_count].mesh = mesh - 1;')
@@ -49,12 +49,11 @@ def install(root):
     updated = replace_once(updated, anchor, pad + 'lighting_gpu_depth_draw(meshes[mesh].count / 3);\n' + anchor)
     anchor = anchor + '\n' + pad[:-1] + '}'
     updated = replace_once(updated, anchor, anchor + '\n' + pad[:-1] + 'lighting_gpu_shadow_end();')
-    copy = re.search(r'(?m)^([ \t]*)if \(shared && pass == 1\)\n[ \t]*glCopyImageSubData[^;]+;', updated)
+    copy = re.search(r'(?m)^([ \t]*)glCopyImageSubData\([^;]+;', updated)
     if copy:
         pad = copy[1]
-        call = copy[0].split('\n', 1)[1]
-        updated = replace_once(updated, copy[0], pad + 'if (shared && pass == 1)\n' + pad +
-            '{\n' + pad + '\tlighting_gpu_depth_begin(6);\n' + call + '\n' + pad +
+        updated = replace_once(updated, copy[0], pad + '{\n' + pad +
+            '\tlighting_gpu_depth_begin(6);\n\t' + copy[0] + '\n' + pad +
             '\tlighting_gpu_shadow_end();\n' + pad + '}')
     elif '/* finite copy begin */' in updated:
         updated = replace_once(updated, '/* finite copy begin */', 'lighting_gpu_depth_begin(6);')
