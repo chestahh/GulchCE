@@ -25,7 +25,7 @@ static real_point3d connected_position;
 int lighting_config_boolean(const char *name) { return strcmp(name, "display.muzzle_lighting") ? enabled : muzzle_on; }
 static struct object_datum *object_try_and_get(long index) { return present ? &grenade.base : NULL; }
 static const char *tag_get_name(long index) { return tag_name; }
-struct light_datum { long object_index, parent_light_index; int flags; float radius; long definition_index; real_point3d position; real_vector3d forward; };
+struct light_datum { long object_index, parent_light_index; short rasterizer_light_index; int flags; float radius; long definition_index; real_point3d position; real_vector3d forward; };
 struct rasterizer_light_submit_parameters { real_point3d position; real_vector3d forward; real radius; };
 static struct { long light_count; struct rasterizer_light_submit_parameters lights[32]; } rasterizer_lights;
 static struct { int valid; } storage = { 1 }, *light_data = &storage;
@@ -37,7 +37,9 @@ static struct light_datum *datum_try_and_get(void *data, long index)
 	light.parent_light_index = NONE;
 	return &light;
 }
-enum { _light_definition_no_specular_bit = 1 };
+enum { _light_definition_no_specular_bit = 1, _light_definition_is_first_person_flashlight_bit };
+static int flashlight_slot = NONE;
+static int modern_spot_is_flashlight(long index) { return flashlight_slot != NONE && index == flashlight_slot; }
 #define _pi 3.14159265f
 struct point_light_definition { real radius_modifier_upper_bound, radius, specular_radius_multiplier, lens_flare_radius, cutoff_angle, runtime_cosine_cutoff_angle, runtime_sine_cutoff_angle; int flags; };
 static struct point_light_definition light_definition = {1,1,2,0,2,1,1,0};
@@ -111,11 +113,13 @@ int covenant_lighting_selected(long i) { return 0; }
 int covenant_lighting_owns(long l,long o) { return l == 21; }
 float covenant_lighting_radius(long l,long o,float r) { return r; }
 int shield_glow_enabled(void) { return shield_on; }
+long shield_glow_shadow_owner(long i) { return shield_on && i == 23 ? 0x10042 : NONE; }
 int shield_glow_selected(long i) { return shield_on && i == 23; }
 void shield_glow_frame_end(void) {}
 void shield_glow_window_begin(void) {}
 void shield_glow_submitted(long l,long r) {}
 float shield_glow_radius(long l,float r) { return r; }
+void authored_emitter_wing_position(long light, long object, real_point3d *position) {}
 int authored_emitter_lighting_enabled(void) { return authored_on && enabled; }
 int authored_emitter_lighting_profile(long o,long d,float *s,float *offset,int *owner_unshadowed) { *owner_unshadowed=0; if(!authored_on) return 0; if(authored_on==3) return AUTHORED_EMITTER_PLASMA_GRENADE; *s=2.2f; *offset=.02f; *owner_unshadowed=1; return 2; }
 long covenant_emitter_lighting_shadow_owner(long light, long *emitter_object) { *emitter_object = NONE; return NONE; }
@@ -194,6 +198,8 @@ int main(int argc, char **argv)
     else if (!strcmp(test, "shield"))
 	{
 		enabled = muzzle_on = emitter_on = 0; shield_on = 1;
+        CHECK(plasma_lighting_shadow_owner(23,&source)==0x10042 && plasma_lighting_shadow_owner(24,&source)==NONE,
+              "shield exception follows only the wearer's live light");
 		CHECK(plasma_lighting_selected(23), "shield-only selection");
 		plasma_model_lighting_slot(23, 0);
 		CHECK(plasma_model_lighting_mask() == 1, "shield-only model lighting");

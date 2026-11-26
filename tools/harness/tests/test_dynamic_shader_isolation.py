@@ -39,8 +39,8 @@ def test_isolation(case, android):
     (('failed = &program->plasma_lighting_failed;', 'failed = &program->lighting_failed;'), 'failure'),
     (('if (plasma_model)\n\t{\n\t\tentry->plasma_model_slots', 'if (TRUE)\n\t{\n\t\tentry->plasma_model_slots'), 'gpu'),
     (('if (plasma_mask && entry->plasma_model_slots >= 0)', 'if (entry->plasma_model_slots >= 0)'), 'gpu'),
-    (('if (plasma_model && modern_shadows_model_mask())',
-      'if (plasma_model && program->lighting.lights == 2 && modern_shadows_model_mask())'), 'unmarked_shadow'),
+    (('(modern_shadows_model_mask() || modern_environment_model_active())',
+      '((plasma_model && modern_shadows_model_mask()) || modern_environment_model_active())'), 'unmarked_shadow'),
 ])
 def test_negative_control(fault, case):
     status, output = run(executable(fault=fault), case)

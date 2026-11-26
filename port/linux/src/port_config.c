@@ -130,6 +130,8 @@ static const struct config_setting config_settings[] =
 	{ "display.max_fps", _config_integer, "0", "HALO_MAX_FPS", _environment_value, _platform_all,
 		"With vsync off, the most frames a second: 0 for twice the display's\n"
 		"refresh rate, -1 for no limit (which can hang some Intel graphics)." },
+	{ "display.performance_cores_only", _config_boolean, "false", "HALO_PERFORMANCE_CORES_ONLY", _environment_value,
+		_platform_windows, "Use only available performance cores on a supported hybrid CPU. Takes effect at next launch." },
 	{ "display.frames_in_flight", _config_integer, "3", "HALO_FRAMES_IN_FLIGHT", _environment_value,
 		_platform_desktop,
 		"The most frames the GPU has queued (1 to 8): a frame waits for the GPU\n"
@@ -686,9 +688,17 @@ static const struct config_setting config_settings[] =
 	{ "display.dynamic_lighting_reset", _config_boolean, "true", "HALO_DYNAMIC_LIGHTING_RESET", _environment_value, _platform_all,
 		"Migration marker: old saved dynamic-lighting preferences were reset to off.\n"
 		"Leave true to retain lighting choices made after that one-time reset." },
+	{ "display.environment_fixtures", _config_boolean, "false", "HALO_ENVIRONMENT_FIXTURES", _environment_value, _platform_desktop,
+		"Independent Modern shadows from up to two nearby baked indoor emitters." },
+	{ "display.flashlight_shadows", _config_boolean, "false", "HALO_FLASHLIGHT_SHADOWS", _environment_value, _platform_desktop,
+		"Shadow the direct beam of the active flashlight with its own depth map." },
+	{ "display.flashlight_extra_slot", _config_boolean, "false", "HALO_FLASHLIGHT_EXTRA_SLOT", _environment_value, _platform_desktop,
+		"Give an active shadowed flashlight an extra slot alongside all eight other local lights." },
+	{ "display.environment_sun", _config_boolean, "false", "HALO_ENVIRONMENT_SUN", _environment_value, _platform_desktop,
+		"Directional sun shadows on eligible nearby map geometry and objects in Modern Hard and Soft." },
 	{ "display.modern_shadows", _config_string, "\"off\"", "HALO_MODERN_SHADOWS", _environment_value, _platform_desktop,
-		"Rendered shadows for up to two enabled dynamic lights: \"off\",\n"
-		"\"hard\" or \"soft\". Classic shadows remain unchanged. Desktop only." },
+		"Rendered shadows for up to eight enabled dynamic lights: \"off\",\n"
+		"\"hard\" or \"soft\". Changes apply on the next map load. Desktop only." },
 	{ "display.plasma_occlusion", _config_boolean, "false", "HALO_PLASMA_OCCLUSION", _environment_value, _platform_desktop,
 		"Collision-filtered projectile, Covenant emitter and Shield Glow visibility.\n"
 		"Off preserves unoccluded plasma lighting. At most eight occluded lights." },
@@ -697,9 +707,6 @@ static const struct config_setting config_settings[] =
 		"Stock shield effects remain intact. Optional occlusion uses plasma_occlusion." },
 	{ "display.weapon_glow", _config_boolean, "false", "HALO_WEAPON_GLOW", _environment_value, _platform_desktop,
 		"Held energy weapons cast soft light. Disabled by default." },
-	{ "display.plasma_prong_lighting", _config_boolean, "false", "HALO_PLASMA_PRONG_LIGHTING", _environment_value, _platform_desktop,
-		"Short, soft forward spill from plasma-weapon prongs. Separate from Weapon Glow.\n"
-		"Off by default; uses the shared eight-light occlusion budget when enabled." },
 	{ "display.vehicle_lighting", _config_boolean, "false", "HALO_VEHICLE_LIGHTING", _environment_value, _platform_desktop,
 		"Vehicle engines and headlights illuminate nearby surfaces. Disabled by default." },
 	{ "display.world_lighting", _config_boolean, "false", "HALO_WORLD_LIGHTING", _environment_value, _platform_desktop,

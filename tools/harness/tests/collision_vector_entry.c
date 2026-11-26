@@ -28,10 +28,18 @@ static boolean collision_bsp_test_vector_recursive(struct collision_bsp_test_vec
 #define collision_bsp_test_vector_short(vector,t) (abort(), FALSE)
 #define collision_bsp_test_vector_in_one_leaf(b,p,v,t,r) (abort(), FALSE)
 #define collision_bsp_test_vector_descend(c,t) (abort(), FALSE)
+static int batch_calls;
+static boolean collision_bsp_test_vector_batch(struct collision_bsp_test_vector_context *c,
+ long node,real t0,real t1,short depth)
+{
+ batch_calls++;
+ return collision_bsp_test_vector_recursive(c,node,t0,t1,depth);
+}
 #include "under_test.inc"
 int main(int argc,char **argv)
 {
  struct collision_bsp bsp;
+ struct collision_bsp_vector_cache cache;
  struct collision_bsp_test_vector_result result;
  real_point3d point={0,0,0};real_vector3d vector={1,0,0};
  bsp.bsp3d.nodes.count=100;
@@ -44,5 +52,9 @@ int main(int argc,char **argv)
  CHECK(seen_node==18 && seen_depth==6 && seen_budget==94 && seen_t==.7f,
   "skipped prefix consumes its node and depth budgets");
  CHECK(logs==3 && calls==3,"one traversal and diagnostic accounting per query");
+ collision_bsp_test_vector_from_node(3,&bsp,0,NULL,&point,&vector,.7f,&result,18,6,&cache);
+ CHECK(batch_calls==1 && seen_node==18 && seen_depth==6,"valid render entry uses bounded traversal");
+ collision_bsp_test_vector_from_node(3,&bsp,0,NULL,&point,&vector,.7f,&result,18,-1,&cache);
+ CHECK(batch_calls==1,"negative entry depth cannot enter bounded traversal");
  return 0;
 }

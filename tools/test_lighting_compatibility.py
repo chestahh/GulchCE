@@ -1,7 +1,8 @@
 """Do not confuse HSC player ordering or requested events with observed coverage."""
 from copy import deepcopy
+import csv
 import pytest
-from lighting_compatibility_run import report_passed, policy_samples
+from lighting_compatibility_run import CYCLE_SCENARIOS, cycle_rounds, report_passed, policy_samples
 
 
 def report(player):
@@ -50,3 +51,27 @@ def test_late_policy_checks_receipt_instead_of_global_game_age():
     applied['policy']=0
     assert not policy_samples([applied],1,-1,1)[1]
     assert not policy_samples([pending],1,-1,1)[0]
+
+
+@pytest.mark.parametrize('fault', [None, 'wrong_level', 'missing_sun', 'wrong_mode', 'early_policy', 'no_peer'])
+def test_family_cycle_requires_observed_maps_and_render_state(tmp_path, fault):
+    path = tmp_path / 'shadow-state.csv'
+    with path.open('w', newline='') as stream:
+        writer = csv.DictWriter(stream, fieldnames=(
+            'family', 'scenario', 'connection', 'players', 'mode', 'maps', 'sun', 'spots',
+            'received', 'policy', 'shield'))
+        writer.writeheader()
+        for index, (family, scenario) in enumerate(CYCLE_SCENARIOS):
+            for sample in range(9):
+                row = dict(family=family, scenario=scenario, connection=1, players=2,
+                           mode=2, maps=1, sun=int(index>0), spots=int(index==0), received=1, policy=4, shield=1)
+                if index == 2:
+                    if fault == 'wrong_level': row['scenario'] = 'another MCC map'
+                    if fault == 'missing_sun': row['sun'] = 0
+                    if fault == 'wrong_mode': row['mode'] = 1
+                    if fault == 'early_policy' and sample == 0: row['received'] = 0
+                    if fault == 'no_peer': row['players'] = 1
+                writer.writerow(row)
+    failures = []
+    cycle_rounds(path, 1, 2, failures)
+    assert bool(failures) == bool(fault)

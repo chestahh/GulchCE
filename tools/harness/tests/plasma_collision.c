@@ -29,6 +29,7 @@ static struct collision_bsp bsp;
 static struct bsp3d_node nodes[4];
 static real_plane3d planes[4];
 static long queried_node;
+static int single_leaf_queries;
 static short queried_depth;
 static real plane3d_distance_to_point(const real_plane3d *p,const real_point3d *v)
 { return p->n.i*v->x+p->n.j*v->y+p->n.k*v->z-p->d; }
@@ -46,9 +47,11 @@ static struct object_datum *object_get(long index) { reads++; return &objects[in
 static struct structure_bsp *global_structure_bsp_get(void) { return &structure; }
 static struct collision_bsp *global_collision_bsp_get(void) { return &bsp; }
 static void *breakable_surface_flags_get(void) { return NULL; }
-static int collision_bsp_test_vector_from_node(unsigned long flags,const struct collision_bsp *bsp,int breaks,void *bits,
+static int collision_bsp_test_vector_from_node(unsigned long flags,const struct collision_bsp *bsp,int breaks,const byte *bits,
  const real_point3d *p,const real_vector3d *v,float limit,struct collision_bsp_test_vector_result *r,long start,short depth,struct collision_bsp_vector_cache *cache)
-{ queried_node=start;queried_depth=depth;r->t=structure_depth;r->leaf_count=2;r->leaf_indices[0]=bad_leaf?9:0;r->leaf_indices[1]=1;return structure_depth<1; }
+{ queried_node=start;queried_depth=depth;
+  if (start & LONG_MIN) { single_leaf_queries++; r->leaf_count=start!=NONE; r->leaf_indices[0]=0; return 0; }
+  r->t=structure_depth;r->leaf_count=2;r->leaf_indices[0]=bad_leaf?9:0;r->leaf_indices[1]=1;return structure_depth<1; }
 static long cluster_get_first_collideable_object(long *reference,short cluster)
 { cluster_reads++;*reference=0;return root_count?roots[0]:NONE; }
 static long cluster_get_next_collideable_object(long *reference)
@@ -64,6 +67,8 @@ static void plasma_collision_model_depths(const struct collision_model_instance 
  const real_vector3d *v,int count,const unsigned int *mask,float *depths)
 { int i;for(i=0;i<count;i++)if(mask[i/32]&(1U<<(i%32))) { float d=object_depth[m->object_index];if(d>=0&&d<1&&d<depths[i])depths[i]=d; } }
 void plasma_collision_end(void);
+static long const *object_bounds_cache_cluster_objects(short cluster, unsigned long flags, long *count) { return NULL; }
+static boolean object_bounds_cache_missed_by_vector(long object, unsigned long flags, real_point3d const *point, real_vector3d const *vector) { return FALSE; }
 #include "under_test.inc"
 static void setup(void)
 {
@@ -119,6 +124,13 @@ int main(int argc,char **argv)
  plasma_collision_begin(flags,&p,NONE);
  CHECK(plasma_collision_depth(flags,&p,&v,NONE)==.8f&&model_builds==2,"disjoint sphere is excluded before per-ray model work");
  plasma_collision_end();
+ setup();planes[0].d=-10;nodes[0].children[1]=LONG_MIN;root_count=1;
+ objects[0].object.bounding_sphere_center.x=1;objects[0].object.bounding_sphere_radius=.25f;object_depth[0]=.4f;
+ plasma_collision_begin(flags,&p,NONE);v.i=1;v.j=v.k=0;
+ CHECK(plasma_collision_depth(flags,&p,&v,NONE)==.4f,"first ray hits object in a proven leaf");
+ v.i=0;v.j=1;
+ CHECK(plasma_collision_depth(flags,&p,&v,NONE)==2 && single_leaf_queries==1,"same leaf still checks different object rays");
+ plasma_collision_end();v.i=1;v.j=0;
  /* A whole ray cube follows two planes, but straddles the third. */
  setup();planes[0].d=-10;nodes[0].children[1]=1;planes[1].d=10;nodes[1].children[0]=2;
  plasma_collision_begin(flags,&p,NONE);plasma_collision_depth(flags,&p,&v,NONE);
@@ -142,6 +154,24 @@ int main(int argc,char **argv)
  CHECK(queried_node==0 && queried_depth==0,"invalid descendant falls back");plasma_collision_end();
  nodes[0].children[1]=NONE;plasma_collision_begin(flags,&p,NONE);plasma_collision_depth(flags,&p,&v,NONE);
  CHECK(queried_node==NONE && queried_depth==1,"contained solid leaf preserves entry depth");plasma_collision_end();
+ /* The root first divides positive X at .5. The Y plane below it is
+    reached even when exactly on its front boundary. */
+ {
+  real_vector3d rays[5]={{1,1,0},{0,1,0},{0,0,0},{0,-1,0},{.5f,-1,0}};
+  long expected_node[5]={0,1,LONG_MIN,LONG_MIN,0};
+  short expected_depth[5]={0,1,2,2,0};
+  setup();planes[0].d=.5f;nodes[0].children[0]=1;
+  planes[1].n.i=0;planes[1].n.j=1;planes[1].d=.25f;nodes[1].children[0]=LONG_MIN;
+  plasma_collision_begin(flags,&p,NONE);trace_batch_starts(rays,5,1.f);
+  CHECK(batch.starts_ready,"valid origin path");
+  for(i=0;i<5;i++){
+   struct trace_start_node node=batch.origin_nodes[batch.starts[i]];
+   CHECK(node.index==expected_node[i] && node.depth==expected_depth[i],"first crossed plane in tree order");
+  }
+  plasma_collision_end();nodes[1].children[0]=0;
+  plasma_collision_begin(flags,&p,NONE);trace_batch_starts(rays,5,1.f);
+  CHECK(!batch.starts_ready,"cyclic origin path uses guarded traversal");plasma_collision_end();
+ }
  /* Compare the moved invariant arithmetic against the engine predicate,
     including inside starts, zero vectors, tangencies and large origins. */
  for(i=0;i<10000;i++)
@@ -164,6 +194,9 @@ int main(int argc,char **argv)
   real_vector3d vectors[PLASMA_COLLISION_RAYS+1];
   real expected[PLASMA_COLLISION_RAYS+1],actual[PLASMA_COLLISION_RAYS+1];
   setup();p.x=p.y=p.z=0;root_count=2;object_depth[0]=-1;
+  /* Each positive X ray crosses the synthetic partition. The stub below
+     that partition supplies both test clusters. */
+  planes[0].d=.5f;
   objects[0].object.first_child_object_index=1;objects[1].object.next_object_index=2;
   object_depth[1]=.4f;object_depth[2]=.2f;objects[2].object.bounding_sphere_center.y=.8f;
   objects[2].object.bounding_sphere_radius=.3f;

@@ -99,7 +99,12 @@ static void plasma_falloff_bind(long rasterizer_index, int stage, int stock_filt
 {
 	D3DBaseTexture *occlusion;
 	if (!plasma_lighting_selected(rasterizer_index))
+	{
+		/* Authored device lights keep their stock attenuation texture. */
+		if (modern_shadows_selected(rasterizer_index))
+			modern_shadows_world_begin(rasterizer_index, stage);
 		return;
+	}
 	if (!plasma_falloff_texture && !plasma_falloff_create())
 		return; /* allocation failure leaves the stock pass intact */
 	occlusion = plasma_occlusion_texture(rasterizer_index, stage == 1);

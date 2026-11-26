@@ -221,6 +221,7 @@ context has the extension, never required (gl_functions.c). On ES 3.0 and
 	X(glBindBuffer) \
 	X(glBufferData) \
 	X(glBufferSubData) \
+	X(glGetBufferParameteriv) \
 	X(glBufferStorage) \
 	X(glMapBufferRange) \
 	X(glBindBufferBase) \
@@ -235,6 +236,7 @@ context has the extension, never required (gl_functions.c). On ES 3.0 and
 	X(glVertexAttribIFormat) \
 	X(glVertexAttribBinding) \
 	X(glBindVertexBuffer) \
+	X(glFramebufferTextureLayer) \
 	X(glBindTextures) \
 	X(glVertexAttrib4fv) \
 	X(glVertexAttribI4ui) \
@@ -473,6 +475,7 @@ pointers, sees the declarations without these aliases */
 #define glBindBuffer halo_glBindBuffer
 #define glBufferData halo_glBufferData
 #define glBufferSubData halo_glBufferSubData
+#define glGetBufferParameteriv halo_glGetBufferParameteriv
 #define glBufferStorage halo_glBufferStorage
 #define glMapBufferRange halo_glMapBufferRange
 #define glBindBufferBase halo_glBindBufferBase
@@ -487,6 +490,7 @@ pointers, sees the declarations without these aliases */
 #define glVertexAttribIFormat halo_glVertexAttribIFormat
 #define glVertexAttribBinding halo_glVertexAttribBinding
 #define glBindVertexBuffer halo_glBindVertexBuffer
+#define glFramebufferTextureLayer halo_glFramebufferTextureLayer
 #define glBindTextures halo_glBindTextures
 #define glVertexAttrib4fv halo_glVertexAttrib4fv
 #define glVertexAttribI4ui halo_glVertexAttribI4ui

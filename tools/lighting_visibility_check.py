@@ -7,6 +7,7 @@ def instrument(text):
     packed = body.replace('reconstruct_visibility(', 'reconstruct_packed(', 1)
     scalar = body.replace('reconstruct_visibility(', 'reconstruct_scalar(', 1)
     scalar = scalar.replace('depth_visibility_row(', 'depth_visibility_scalar_row(')
+    scalar = scalar.replace('#if defined(__SSE2__)', '#if 0')
     row = '''
 static void depth_visibility_scalar_row(real depths[6][OCC_SIZE * OCC_SIZE], const real xs[OCC_SIZE],
     real y, real z, real extent, int resolution, real *output)

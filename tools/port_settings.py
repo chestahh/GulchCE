@@ -94,6 +94,9 @@ SCREENS = {
              [("AUTO", "0"), ("30", "30"), ("60", "60"), ("120", "120"), ("NONE", "-1")],
              "With V-Sync off, the most frames a second. Auto:\ntwice the display's refresh rate.", "android",
              "max_fps_android"),
+            ("CPU SCHEDULING:", "display.performance_cores_only",
+             [("AUTO", "false"), ("P-CORES ONLY", "true")],
+             "Auto lets Windows choose the cores.\nRestart the game to apply your choice.", "hybrid"),
             ("SMOOTH MOTION:", "display.interpolation", ON_OFF,
              "Draw a frame for every display refresh, blending\nbetween the game's 30 ticks a second.", None),
             ("INSTANT AIM:", "display.direct_camera", ON_OFF,
@@ -387,6 +390,7 @@ SCREENS["video_settings/hdr_calibration"] = {
 }
 _video["rows"] = [row for row in _video["rows"] if row[1] not in _graphics | _extra_effects | _shield_lighting]
 _video["spacing"] = 23
+_video["platform_spacing"] = {"hybrid": 21}
 _video["categories"] = [
     ("GRAPHICS:", "video_settings/graphics", "The HUD, text, anti-aliasing, lighting\nand model detail."),
     ("FOV AND VIEWMODELS:", "video_settings/fov_viewmodels",
@@ -402,10 +406,19 @@ SCREENS["video_settings/shadows"] = {
     "rows": [
         ("SHADOW MODE:", "display.modern_shadows",
          [("CLASSIC", "off"), ("MODERN HARD", "hard"), ("MODERN SOFT", "soft")],
-         "Choose classic shadows or modern shadows\nwith hard or soft edges.", "desktop"),
+         "Choose Classic, Hard or Soft shadows.\nApplies on next map load.", "desktop"),
         ("SHADOW RESOLUTION:", "display.shadow_resolution",
          [(str(size), str(size)) for size in (128, 256, 512, 1024, 2048, 4096)],
          "Shadow map size for both systems.\n1024 is recommended for modern shadows.", None),
+        ("SUN SHADOWS:", "display.environment_sun", ON_OFF,
+         "Use the outdoor sky light to cast shadows\nwith the selected Modern shadow mode.", "desktop"),
+        ("FIXTURE SHADOWS:", "display.environment_fixtures", ON_OFF,
+         "Let nearby indoor lamps cast independent\nshadows with either Modern shadow mode.", "desktop"),
+        ("FLASHLIGHT:", "display.flashlight_shadows", ON_OFF,
+         "Let objects and scenery cast shadows\nin the stock flashlight beam.", "desktop"),
+        ("FLASHLIGHT BUDGET:", "display.flashlight_extra_slot",
+         [("SHARED", "false"), ("EXTRA SLOT", "true")],
+         "Shared uses one of eight slots while lit.\nExtra allows eight other shadowed lights.", "desktop"),
     ],
 }
 SCREENS["video_settings/dynamic_lighting"] = {
@@ -418,8 +431,6 @@ SCREENS["video_settings/dynamic_lighting"] = {
          "Weapon flashes light nearby surfaces, including\nWarthog and Scorpion guns. Stock effects remain.", None),
         ("WEAPON GLOW:", "lighting.weapon_glow", ON_OFF,
          "Swords, plasma charge, fuel rods, Needler and AR\nscreens cast light on nearby surfaces.", None),
-        ("PLASMA PRONG LIGHTING:", "display.plasma_prong_lighting", ON_OFF,
-         "Short, soft spill from plasma-weapon prongs.\nUses the shared eight-light occlusion budget.", None),
         ("SHIELD EMITTERS:", "lighting.shield_emitters", ON_OFF,
          "Jackal and stationary shields cast light\non nearby surfaces.", None),
         ("VEHICLE LIGHTS:", "display.vehicle_lighting", ON_OFF,
@@ -829,9 +840,12 @@ def _screen(folder: str, spec: dict, rows: list, list_inputs: list, list_handler
     for index, (row, platform, *place) in enumerate(rows):
         position = place[0] if place else index
         if spec.get("platform_spacing"):
-            # Extra Android controls must not move desktop/web settings.
             groups = {}
-            for name in platform.split() if platform else ("desktop", "android", "web"):
+            members = platform.split() if platform else ["desktop", "android", "web"]
+            if "hybrid" in spec["platform_spacing"] and "desktop" in members:
+                members = [name for member in members for name in
+                           (("ordinary", "hybrid") if member == "desktop" else (member,))]
+            for name in members:
                 spacing = spec["platform_spacing"].get(name, spec["spacing"])
                 groups.setdefault(spec.get("rows_top", 73) + position * spacing, []).append(name)
             for y, names in groups.items():
@@ -874,12 +888,22 @@ def _setting_screen(folder: str, spec: dict) -> list:
     # no gap where the others' are; a row in one place for all its
     # platforms, else a child for each place)
     places = {"desktop": -1, "android": -1, "web": -1}
+    if any(row[4] == "hybrid" for row in spec["rows"]):
+        places = {"ordinary": -1, "hybrid": -1, "android": -1, "web": -1}
+
+    def members_for(platform):
+        if not platform:
+            return list(places)
+        if "hybrid" in places:
+            platform = platform.replace("desktop", "ordinary hybrid")
+        return platform.split()
+
     for index, (label, setting, choices, _, platform, *named) in enumerate(spec["rows"]):
         key = named[0] if named else setting.split(".", 1)[1]
         row = f"{base}/op_{key}"
         shares = setting in spec.get("same_place", ()) or key in spec.get("same_place", ())
         if spec.get("platform_places"):
-            members = platform.split() if platform else list(places)
+            members = members_for(platform)
             for name in members:
                 if not shares:
                     places[name] += 1
@@ -943,7 +967,7 @@ def _setting_screen(folder: str, spec: dict) -> list:
         target = f"{PE}/{category_folder}/{(SCREENS.get(category_folder) or CUSTOM_SCREENS[category_folder])['screen']}"
         platform = category_platform[0] if category_platform else None
         if spec.get("platform_places"):
-            members = platform.split() if platform else list(places)
+            members = members_for(platform)
             for name in members:
                 places[name] += 1
             rows += _placed(row, platform, members, places)

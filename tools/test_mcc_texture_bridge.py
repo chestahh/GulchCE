@@ -51,7 +51,7 @@ void glGenTextures(int,GLuint *);
 void glDeleteTextures(int,GLuint const *);
 void xgpu_gl_state_invalidate(void);
 void xgpu_mcc_texture_unbind(DWORD const *);
-BOOL xgpu_mcc_texture_upload(GLuint,GLenum,struct xgpu_texture_description const *,void const *,unsigned long,D3DCOLOR const *);
+BOOL xgpu_mcc_texture_upload(GLuint,GLenum,struct xgpu_texture_description *,void const *,unsigned long,D3DCOLOR const *);
 #endif
 '''
     (work / "xgpu.h").write_text(header)
@@ -100,9 +100,10 @@ static unsigned lookup_changes;
 void xgpu_texture_lookups_changed(void) {lookup_changes++;}
 void xgpu_gl_state_invalidate(void) {invalidated++;}
 void xgpu_mcc_texture_unbind(DWORD const *p) {if(!p)exit(81);unbound++;}
-BOOL xgpu_mcc_texture_upload(GLuint texture,GLenum target,struct xgpu_texture_description const *d,
+BOOL xgpu_mcc_texture_upload(GLuint texture,GLenum target,struct xgpu_texture_description *d,
     void const *pixels,unsigned long bytes,D3DCOLOR const *palette) {
-    (void)texture;(void)target;(void)d;(void)palette;
+    (void)texture;(void)target;(void)palette;
+    d->base_opaque=!fail_upload && d->format!=0x0b;
     uploads++;last_pixels=pixels;last_bytes=bytes;return !fail_upload;
 }
 ''' + helpers + r'''
@@ -144,12 +145,12 @@ int main(int argc,char **argv) {
         header=mcc_texture_bridge_register(&owner,format(8,8,0,1,0),0,data,262144);
         if(!header || !get(header,&texture,&target) || texture>=900 || uploads!=1)return 40;
         hud_enabled=1;
-        if(!xgpu_mcc_texture_get(header,NULL,&texture,&target,&d) || texture!=900 || !d.hires ||
+        if(!xgpu_mcc_texture_get(header,NULL,&texture,&target,&d) || texture!=900 || !d.hires || d.base_opaque ||
             d.width!=256 || d.height!=256 || d.levels!=10 || uploads!=1)return 41;
         hud_enabled=0;
         if(!get(header,&texture,&target) || texture>=900 || uploads!=1)return 42;
         hud_enabled=1;fail_replacement=1;
-        if(!xgpu_mcc_texture_get(header,NULL,&texture,&target,&d) || texture>=900 || d.hires || d.levels!=1)return 43;
+        if(!xgpu_mcc_texture_get(header,NULL,&texture,&target,&d) || texture>=900 || d.hires || !d.base_opaque || d.levels!=1)return 43;
         fail_replacement=0;mock_crc++;
         original=mcc_texture_bridge_register(&other,format(8,8,0,1,0),0,data,262144);
         if(!original || !get(original,&texture,&target) || texture>=900)return 44;
@@ -326,7 +327,10 @@ def upload_tool(request, tmp_path_factory):
     header = (ROOT / "port/linux/src/xgpu.h").read_text()
     source = (ROOT / "tools/tests/mcc_texture_upload.c").read_text()
     source = source.replace("/* DESCRIPTION */", structure(header, "xgpu_texture_description"))
-    source = source.replace("/* UPLOAD */", function(native, "xgpu_mcc_texture_upload"))
+    channels = re.search(r"static const unsigned char custom_edition_channel_sources\[.*?\n\};", native, re.S)[0]
+    desktop = "\n".join((channels, function(native, "base_level_opaque"), function(native, "upload")))
+    source = source.replace("/* UPLOAD */", "#ifndef HALO_GLES\n" + desktop + "\n#endif\n" +
+                            function(native, "xgpu_mcc_texture_upload"))
     path = work / "upload.c"
     path.write_text(source)
     binary = work / ("upload.exe" if sys.platform == "win32" else "upload")
@@ -342,6 +346,12 @@ def upload_tool(request, tmp_path_factory):
     result = subprocess.run(command, capture_output=True, text=True)
     assert result.returncode == 0, result.stderr
     return binary
+
+
+def test_desktop_base_opacity(upload_tool, request):
+    if request.node.callspec.params["upload_tool"] != "desktop":
+        pytest.skip("desktop local shadow shader")
+    subprocess.run([str(upload_tool), "opacity"], check=True, timeout=10)
 
 
 @pytest.mark.parametrize("case", ["rgba", "rgba_cube", "rgba_volume", "dxt", "dxt_cube",

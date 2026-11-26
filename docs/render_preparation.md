@@ -65,7 +65,9 @@ changes can therefore leave unused entries consuming some of its capacity.
 initialization, before gameplay. It asks the existing model and transparent
 renderers to select shaders for loaded environment, model, generic and Chicago
 materials, using supported vertex formats and fog/lighting variants. It does
-not simulate a scene or submit geometry. Limits are 512 materials, 8,192 draw
+not simulate a scene. The general material pass selects programs. An active
+Modern shadow mode also exercises model programs on a private 1×1 target.
+Limits are 512 materials, 8,192 draw
 variants and 4,096 temporary bitmap descriptors. These are admission limits,
 not a promise to cover every map or setting combination.
 
@@ -73,7 +75,9 @@ The draw interception in `rasterizer_draw` and
 `rasterizer_transparent_geometry_group_draw__internal` is necessary because
 the existing material selectors combine state selection with geometry
 submission. The feature-owned pass supplies dummy geometry metadata and the
-hooks call the backend's ordinary shader selection without drawing it. Extra
+hooks call the backend's shader selection. For an active Modern mode,
+`prepare_shadow_models` issues one offscreen draw per distinct selected
+shadow program. Shared renderer caches own the programs. Extra
 transparent layers needing real geometry, such as water, glass and plasma,
 are skipped during preparation and retain their normal gameplay paths.
 
@@ -92,6 +96,14 @@ existing source-keyed renderer cache, as programs encountered in gameplay do.
 Material variants do not fill the observed-recipe file unless actually used
 in gameplay. This trades additional loading time and program residency for
 fewer first-use links; it does not change shader math or drop gameplay draws.
+
+The saved shadow mode takes effect on the next gameplay map load. The shadow
+pass also runs on a first visit and when `shader_prepare` is off. A cached map
+can skip its copy progress screen. In that case the port presents a stock
+loading frame before doing this work. Reverting a checkpoint or crossing a BSP
+boundary does not start another loading screen. See the
+[E5 walkthrough](reading/environment_shadow_e5.md) for resource limits and
+measured first appearance costs.
 
 ## Xbox/CE texture preparation and Windows allocation costs
 

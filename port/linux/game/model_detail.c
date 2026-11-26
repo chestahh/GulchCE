@@ -34,6 +34,17 @@ enum
 
 /* ---------- public code */
 
+short model_detail_level(struct model const *model, real pixel_diameter)
+{
+	short level = NUMBEROF(model->detail_cutoff_pixels)-1;
+	real pixels = pixel_diameter*halo_model_detail_scale(TRUE);
+	if (rasterizer_debug_options.debug_model_lod!=NONE)
+		return PIN(rasterizer_debug_options.debug_model_lod, 0, level);
+	while (level>0 && pixels<model->detail_cutoff_pixels[level])
+		level--;
+	return level;
+}
+
 short model_detail_rules(struct model const *model, real_point3d const *centroid, real radius)
 {
 	if (halo_model_detail_stock() || rasterizer_debug_options.debug_model_lod!=NONE)

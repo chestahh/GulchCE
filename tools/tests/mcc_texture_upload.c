@@ -36,6 +36,12 @@ typedef int BOOL,GLint,GLsizei;
 #endif
 #define GL_UNSIGNED_BYTE 63
 #define _texel_unknown 0
+#ifndef HALO_GLES
+enum { _texel_dxt1=0x0c, _texel_dxt3=0x0e, _texel_dxt5=0x0f, _texel_p8=0x0b };
+enum { _custom_edition_channels_xbox, NUMBER_OF_CUSTOM_EDITION_CHANNEL_ORDERS=4 };
+static int shadows_enabled=1;
+static int modern_shadows_enabled(void) {return shadows_enabled;}
+#endif
 /* DESCRIPTION */
 struct format_information {unsigned char kind;};
 struct {int s3tc;} xgpu_capabilities;
@@ -101,10 +107,51 @@ static void glCompressedTexImage3D(GLenum t,GLint l,GLenum f,GLsizei w,GLsizei h
 }
 static void glCompressedTexImage2D(GLenum t,GLint l,GLenum f,GLsizei w,GLsizei h,GLint b,GLsizei n,const void *p) {glCompressedTexImage3D(t,l,f,w,h,1,b,n,p);}
 /* UPLOAD */
+#ifndef HALO_GLES
+static int check_opacity(void) {
+    struct xgpu_texture_description d={0};
+    unsigned char pixels[32]={0};
+    unsigned long colors[]={0xffffffffUL,0xff000000UL};
+    d.width=d.height=4;d.depth=d.levels=1;d.compressed=1;d.format=_texel_dxt1;
+    if(!xgpu_mcc_texture_upload(1,GL_TEXTURE_2D,&d,pixels,sizeof(pixels),NULL) || !d.base_opaque)return 1;
+    pixels[7]=0xc0;
+    if(!xgpu_mcc_texture_upload(1,GL_TEXTURE_2D,&d,pixels,sizeof(pixels),NULL) || d.base_opaque)return 2;
+    pixels[0]=1;
+    if(!base_level_opaque(_texel_dxt1,pixels,NULL,4,4))return 3;
+    memset(pixels,255,sizeof(pixels));
+    if(!base_level_opaque(_texel_dxt3,pixels,NULL,4,4))return 4;
+    pixels[7]=0x0f;
+    if(base_level_opaque(_texel_dxt3,pixels,NULL,4,4))return 5;
+    memset(pixels,255,sizeof(pixels));
+    if(!base_level_opaque(_texel_dxt5,pixels,NULL,4,4))return 6;
+    pixels[2]=0xfe;
+    if(base_level_opaque(_texel_dxt5,pixels,NULL,4,4))return 7;
+    if(!base_level_opaque(0,NULL,colors,2,1))return 8;
+    colors[1]=0x7fffffffUL;
+    if(base_level_opaque(0,NULL,colors,2,1))return 9;
+    d.base_opaque=TRUE;
+    if(xgpu_mcc_texture_upload(1,GL_TEXTURE_2D,&d,NULL,0,NULL) || d.base_opaque)return 10;
+    memset(pixels,0,sizeof(pixels));
+    d.format=_texel_dxt1;
+    upload(1,GL_TEXTURE_2D,&d,pixels,NULL,_custom_edition_channels_xbox);
+    if(!d.base_opaque)return 11;
+    /* CE model masks can move red into the sampled alpha channel. */
+    d.base_opaque=FALSE;
+    upload(1,GL_TEXTURE_2D,&d,pixels,NULL,1);
+    if(d.base_opaque)return 12;
+    shadows_enabled=0;
+    upload(1,GL_TEXTURE_2D,&d,pixels,NULL,_custom_edition_channels_xbox);
+    if(d.base_opaque)return 13;
+    return 0;
+}
+#endif
 int main(int argc,char **argv) {
     struct xgpu_texture_description d;
     unsigned char pixels[4096];GLenum target=GL_TEXTURE_2D;unsigned count;
     if(argc!=2)return 90;
+#ifndef HALO_GLES
+    if(!strcmp(argv[1],"opacity"))return check_opacity();
+#endif
     memset(&d,0,sizeof(d));memset(pixels,0x55,sizeof(pixels));
     d.width=d.height=8;d.depth=1;d.levels=4;d.format=1;
     d.compressed=strstr(argv[1],"dxt")!=NULL;xgpu_capabilities.s3tc=strstr(argv[1],"fallback")==NULL;

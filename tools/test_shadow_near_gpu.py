@@ -24,6 +24,7 @@ def test_close_caster_depth_and_visibility(radius, distance, cutout, soft):
         body = re.search(r'static const char '+name+r'\[\]\s*=\s*((?:"(?:[^"\\]|\\.)*"\s*)+);', source)[1]
         return ''.join(ast.literal_eval(s) for s in re.findall(r'"(?:[^"\\]|\\.)*"', body))
     emitted = source.split('void modern_shadow_emit(', 1)[1].split('void modern_shadow_uniforms_initialize', 1)[0]
+    emitted = (ROOT/'port/linux/src/modern_sun_shader.inl').read_text() + emitted
     visibility = ''.join(ast.literal_eval(s) for s in re.findall(r'"(?:[^"\\]|\\.)*"', emitted))
     c = Context(); r = None
     try:

@@ -114,7 +114,7 @@ static void model_bind_textures(const GLuint textures[2], GLuint sampler)
 	model_bindings_known = 1;
 }
 
-void plasma_occlusion_bind_model(struct plasma_occlusion_uniforms *uniforms)
+void plasma_occlusion_bind_model(struct plasma_occlusion_uniforms *uniforms, unsigned int light_mask)
 {
 	GLenum active;
 	GLuint texture, textures[2];
@@ -140,7 +140,9 @@ void plasma_occlusion_bind_model(struct plasma_occlusion_uniforms *uniforms)
 	}
 	for (slot = 0; slot < 2; slot++)
 	{
-		resource = plasma_occlusion_model_texture(slot, transform);
+		/* The shader samples collision visibility only for selected lights.
+		   A stock light in the other slot must not request a ray field. */
+		resource = (light_mask & (1u << slot)) ? plasma_occlusion_model_texture(slot, transform) : NULL;
 		texture = 0;
 		if (resource)
 			texture = model_texture_get(resource);

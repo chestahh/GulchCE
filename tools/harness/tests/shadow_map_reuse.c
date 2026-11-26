@@ -96,6 +96,9 @@ static void process_rendered_objects(struct object_render_data *data);
 /* the slot of the projection begun */
 static long projecting_slot;
 
+/* Separate environmental passes follow the per-object map draws. */
+static void modern_shadows_sun_project(void) {}
+static void modern_spots_project(void) {}
 #include "under_test.inc"
 
 static long rasterizer_environment_shadow_port_batch_size(void)

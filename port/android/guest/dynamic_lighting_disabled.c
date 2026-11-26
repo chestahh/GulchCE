@@ -19,7 +19,7 @@ void plasma_lighting_prepare(long light, long object, long definition) {}
 void plasma_lighting_attachment_position(long light, long object,
 	real_point3d *position, real_vector3d const *forward, float scale) {}
 float plasma_lighting_radius(long light, long object, float radius) { return radius; }
-int plasma_lighting_vehicle_occlusion(long light) { return FALSE; }
+int plasma_lighting_vehicle_occlusion(long light, long *ignore) { return FALSE; }
 long plasma_lighting_shadow_owner(long light, struct plasma_shadow_source *grenade)
 {
 	grenade->grounded = FALSE;
@@ -31,7 +31,6 @@ void plasma_lighting_reset(void) {}
 void plasma_lighting_window_begin(void) {}
 void plasma_lighting_submitted(long light, long rasterizer) {}
 int plasma_lighting_selected(long rasterizer) { return FALSE; }
-int plasma_lighting_prong_cone(long rasterizer, float axis[3], float origin[3], float *radius) { return FALSE; }
 void plasma_model_lighting_reset(void) {}
 void plasma_model_lighting_slot(long light, short slot) {}
 unsigned int plasma_model_lighting_mask(void) { return 0; }

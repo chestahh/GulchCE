@@ -18,16 +18,20 @@ MAX_NOTES = 4096
 MAX_BUILD_NUMBER = 2147483647
 SHA = re.compile(r"[0-9a-fA-F]{40}\Z")
 CATEGORY = re.compile(r"[A-Z][A-Z0-9]*(?: [A-Z0-9]+)*\Z")
-# Repair the published testing merge's category spelling without rewriting
-# history. Only this immutable commit gets the correction; new notes stay strict.
+# Repair published category spellings without rewriting
+# history. Only these immutable commits receive corrections.
 HISTORICAL_NOTE_PREFIXES = {
+    "6018255048732d52eb631d615bfd3672e5a870de":
+        ("Player-Note: [Graphics] ", "Player-Note: [GRAPHICS] "),
     "4f3eec76a1165a111bff83047b064a55c156f3bc":
         ("Player-Note: [Android] ", "Player-Note: [ANDROID] "),
 }
-# A published main promotion was corrected before release. Suppress its withdrawn
-# note only where the explicit withdrawal is in history; testing keeps its note.
+# Some features were withdrawn before release. Suppress their original
+# notes only where the corresponding withdrawal is in history.
 # A future restoration must carry its own reviewed Player-Note annotation.
 HISTORICAL_NOTE_WITHDRAWALS = {
+    "4b7d29e43d770df644099845dbf88b02541c0ee4":
+        "6018255048732d52eb631d615bfd3672e5a870de",
     "192ba0b5c0c1549b76bc7b21de786c9fd7202711":
         "9bf9554aa86dbeba9fa49f5d8ff1b99f2ba82c1b",
 }

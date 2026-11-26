@@ -8,6 +8,9 @@ struct model { real detail_cutoff_pixels[5]; };
 struct model_region_permutation { short geometry_indices[5]; };
 static struct { short debug_model_lod; } rasterizer_debug_options = {NONE};
 static struct { struct { real_point3d position; } camera; } render;
+#define PIN(x,lo,hi) ((x)<(lo)?(lo):((x)>(hi)?(hi):(x)))
+static real scale = 1.f;
+static real halo_model_detail_scale(int choosing) { CHECK(choosing,"geometry detail scale");return scale; }
 static int stock;
 static int halo_model_detail_stock(void) { return stock; }
 #include "under_test.inc"
@@ -22,6 +25,14 @@ static short level_of(struct model const *model, struct model_region_permutation
 int main(int argc, char **argv)
 {
     char const *case_name = argc > 1 ? argv[1] : "";
+    CASE("level") {
+        struct model model = {{0,50,100,200,300}};
+        CHECK(model_detail_level(&model,199)==2 && model_detail_level(&model,200)==3,"authored detail cutoff");
+        scale=2;
+        CHECK(model_detail_level(&model,150)==4,"display detail scaling");
+        rasterizer_debug_options.debug_model_lod=0;
+        CHECK(model_detail_level(&model,150)==0,"debug override shared by visible and beam passes");
+    }
     CASE("interior") {
         struct model model = {{0, 0, 0, 0, 3000}};
         struct model_region_permutation permutation = {{10, 11, 12, 13, 14}};

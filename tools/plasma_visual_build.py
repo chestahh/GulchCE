@@ -82,7 +82,15 @@ for path in [ROOT/'port/linux/game/plasma_collision_scene.c', ROOT/'port/linux/g
              occlusion, ROOT/'port/linux/src/plasma_occlusion_gl.c', ROOT/'source/objects/object_lights.c', ROOT/'source/rasterizer/xbox/rasterizer_xbox.c',
              ROOT/'port/linux/src/plasma_model_shader.c', ROOT/'port/linux/src/nv2a_vsh.c', ROOT/'port/linux/src/nv2a_psh.c', ROOT/'source/rasterizer/xbox/rasterizer_xbox_environment.c']:
     manifest['source_hashes'][path.relative_to(ROOT).as_posix()] = hashlib.sha256(path.read_bytes()).hexdigest()
+game = ROOT/'source/game/game.c'
+game_original = game.read_bytes()
 try:
+    load_draw = 'material_prepare_map();'
+    game_text = game.read_text()
+    assert game_text.count(load_draw) == 1
+    game.write_text('void platform_log(const char *, ...);\n' + game_text.replace(load_draw,
+        '{ unsigned long start = GetTickCount(); material_prepare_map(); '
+        'platform_log("SHADOW LOAD materials %lu ms", GetTickCount() - start); }'))
     manifest['attachment_diagnostics'] = args.attachment_diagnostics
     if args.attachment_diagnostics:
         manifest['source_hashes'][network_source.relative_to(ROOT).as_posix()] = hashlib.sha256(network_original).hexdigest()
@@ -101,6 +109,15 @@ try:
                 d->color_lower_bound.rgb.red,d->color_lower_bound.rgb.green,d->color_lower_bound.rgb.blue,
                 d->color_upper_bound.rgb.red,d->color_upper_bound.rgb.green,d->color_upper_bound.rgb.blue);
         }
+''')
+        submit = 'plasma_lighting_submitted(scene_light_handle, light->rasterizer_light_index);'
+        assert text.count(submit) == 1
+        text = text.replace(submit, submit + r'''
+                    if (object && object->object.type == _object_type_vehicle &&
+                        light->rasterizer_light_index != NONE && !(game_time_get() % 30))
+                        platform_log("SHADOW VEHICLE tick %ld owner %ld handle %ld position %.5f %.5f %.5f tag %s",
+                            game_time_get(), light->object_index, scene_light_handle, light_parameters.position.x,
+                            light_parameters.position.y, light_parameters.position.z, tag_get_name(light->definition_index));
 ''')
         light_source.write_text(text)
         text = network_original.decode().replace('\r\n', '\n')
@@ -216,6 +233,16 @@ try:
     marker = '\tplasma_capture_model_draw(plasma_mask);'
     text = 'void modern_capture_shader(unsigned long, int, int, int, int, unsigned int);\n' + text.replace(marker,
         marker + '\n\tmodern_capture_shader(program->id, program->plasma_model, program->lighting.lights, key.per_pixel_lighting, key.modern_shadow, plasma_mask);')
+    # Sample cumulative renderer counters after the real Ghost draws. The capture
+    # fixture requests them only around the turn from cover.
+    text += '''
+void plasma_capture_reveal_activity(long tick)
+{
+    platform_log("SHADOW REVEAL activity %ld %lu %lu %lu %lu %lu %lu",
+        tick, program_cache.linked, program_cache.loaded, stats.texture_uploads,
+        stats.texture_upload_bytes, stats.streamed_bytes, stats.draws + stats.immediate_draws);
+}
+'''
     backend.write_text(text)
     text = environment_original.decode().replace('\r\n', '\n')
     text = 'void plasma_capture_specular_begin(long index);\nvoid plasma_capture_specular_draw(void);\n' + text
@@ -290,9 +317,13 @@ try:
             '\t\tif(j==count && count<512) { seen[count++]=iterator.index; platform_log("SHADOW OBJECT %ld model %p tag %s",iterator.index,(void *)model,tag_get_name(object->definition_index)); } }\n'+marker)
         marker = '\t\t\tif (part == NONE || !modern_shadow_draw('
         text = text.replace(marker, '\t\t\t{ static int seen[2048]; if(part>=0 && part<2048 && !seen[part]) { seen[part]=1; platform_log("SHADOW PART model %p part %d mesh %d region %d geometry %d shader %s",(void *)model,part,parts[part].mesh,region,geometry_index,tag_get_name(reference->shader.index)); } }\n'+marker)
-    marker = '\t\tif (modern_shadow_end() && complete) active |= 1 << slot;'
+    marker = 'active |= 1 << slot;'
     assert text.count(marker) == 1
-    text = 'void platform_log(const char *, ...);\n' + text.replace(marker, marker + '\n\t{ static int frames[MODERN_SHADOW_LIGHTS]; if (!(frames[slot]++ % 30)) platform_log("SHADOW selected %ld complete %d active %d parts %d view_weapon %ld view_hands %ld slot %d", index, complete, (active >> slot) & 1, part_count, owners[0], owners[1], slot); }')
+    text = 'void platform_log(const char *, ...);\n' + text.replace(marker, marker +
+        '\n\t\t\t{ static int frames[MODERN_SHADOW_LIGHTS]; if (!(frames[slot]++ % 30)) platform_log("SHADOW selected %ld complete %d active %d parts %d view_weapon %ld view_hands %ld slot %d", index, complete, (active >> slot) & 1, part_count, owners[0], owners[1], slot); }')
+    marker = 'prepare_pending = map_mode != 0;'
+    assert text.count(marker) == 1
+    text = text.replace(marker, marker + '\n\tif (getenv("HALO_CAPTURE_SKIP_SHADOW_PREP")) prepare_pending = 0;')
     shadow.write_text(text)
     text = shadow_gl_original.decode().replace('\r\n', '\n')
     if args.shadow_geometry:
@@ -345,7 +376,7 @@ try:
         } }
 ''')
     body = function(text, 'modern_shadow_dispose')
-    logged = body.replace('int i;', 'int i, freed=0, remaining=0;\n\tfor(i=0;i<MODERN_SHADOW_LIGHTS;i++) freed+=!!maps[i].depth_cube[0]+!!maps[i].depth_cube[1];', 1)
+    logged = body.replace('{', '{\n\tint i, freed=0, remaining=0;\n\tfor(i=0;i<MODERN_SHADOW_LIGHTS;i++) freed+=!!maps[i].depth_cube[0]+!!maps[i].depth_cube[1];', 1)
     logged = logged.replace('framebuffer = program = vao = alpha_sampler = 0;', 'framebuffer = program = vao = alpha_sampler = 0;\n\tfor(i=0;i<MODERN_SHADOW_LIGHTS;i++) remaining+=!!maps[i].depth_cube[0]+!!maps[i].depth_cube[1];\n\tplatform_log("SHADOW FREE cubes %d remaining %d meshes %d", freed, remaining, mesh_count);')
     text = text.replace(body, logged)
     shadow_gl.write_text(text)
@@ -383,6 +414,7 @@ try:
     manifest['capture_sha256'] = hashlib.sha256((out/'halo-capture.exe').read_bytes()).hexdigest()
     (out/'build-manifest.json').write_text(json.dumps(manifest, indent=2))
 finally:
+    game.write_bytes(game_original)
     shadow_header.write_bytes(shadow_header_original)
     if args.attachment_diagnostics:
         light_source.write_bytes(light_original)

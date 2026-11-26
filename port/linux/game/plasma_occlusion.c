@@ -198,13 +198,16 @@ static real sample_history_rows(const real *rows, int x, int y, struct sample_ax
 static void trace_depths(real const extent, real_point3d const *from, long ignore, int vehicles, int resolution, long owner, real depths[6][OCC_SIZE * OCC_SIZE])
 {
 	real_vector3d vectors[PLASMA_COLLISION_RAYS];
-	real hits[PLASMA_COLLISION_RAYS];
+	real hits[PLASMA_COLLISION_RAYS], offsets[OCC_SIZE];
 	int face, x, y, axis, count = 0;
 	unsigned long flags =
 		FLAG(_collision_test_structure_bit) | FLAG(_collision_test_front_facing_surfaces_bit) |
 		FLAG(_collision_test_back_facing_surfaces_bit) | FLAG(_collision_test_objects_bit) |
 		FLAG(_collision_test_objects_scenery_bit) | FLAG(_collision_test_objects_machines_bit);
 	if (vehicles) flags |= FLAG(_collision_test_objects_vehicles_bit);
+	/* Each cube face uses the same texel-centre offsets on both axes. */
+	for (x = 0; x < resolution; x++)
+		offsets[x] = (2.0f * (x + 0.5f) / resolution - 1) * extent;
 	for (face = 0; face < 6; face++)
 		for (y = 0; y < resolution; y++)
 			for (x = 0; x < resolution; x++)
@@ -213,8 +216,8 @@ static void trace_depths(real const extent, real_point3d const *from, long ignor
 				real_vector3d ray;
 				axis = face / 2;
 				component[axis] = (face & 1) ? extent : -extent;
-				component[(axis + 1) % 3] = (2.0f * (x + 0.5f) / resolution - 1) * extent;
-				component[(axis + 2) % 3] = (2.0f * (y + 0.5f) / resolution - 1) * extent;
+				component[(axis + 1) % 3] = offsets[x];
+				component[(axis + 2) % 3] = offsets[y];
 				ray.i = component[0];
 				ray.j = component[1];
 				ray.k = component[2];
@@ -222,11 +225,13 @@ static void trace_depths(real const extent, real_point3d const *from, long ignor
 			}
 	if (owner != NONE) plasma_collision_object_depths(owner, from, vectors, count, hits);
 	else plasma_collision_depths(flags, from, vectors, count, ignore, hits);
-	count = 0;
-	for (face = 0; face < 6; face++)
-		for (y = 0; y < resolution; y++)
-			for (x = 0; x < resolution; x++)
-				depths[face][y * OCC_SIZE + x] = hits[count++];
+	if (resolution == OCC_SIZE)
+		memcpy(depths, hits, sizeof(hits));
+	else
+		for (face = 0; face < 6; face++)
+			for (y = 0; y < resolution; y++)
+				memcpy(depths[face] + y * OCC_SIZE, hits + (face * resolution + y) * resolution,
+					resolution * sizeof(*hits));
 }
 static real depth_visibility(real depths[6][OCC_SIZE * OCC_SIZE], real_vector3d const *ray, real extent, int resolution)
 {
@@ -278,7 +283,7 @@ static __m128 visibility_choose(__m128 mask, __m128 a, __m128 b)
 {
 	return _mm_or_ps(_mm_and_ps(mask, a), _mm_andnot_ps(mask, b));
 }
-static void depth_visibility_row(real depths[6][OCC_SIZE * OCC_SIZE], const real xs[OCC_SIZE], real y, real z,
+static void depth_visibility_row(const __m128 *neighbours, const real xs[OCC_SIZE], real y, real z,
 								 real extent, int resolution, real *output)
 {
 	__m128 zero = _mm_setzero_ps(), one = _mm_set1_ps(1), half = _mm_set1_ps(.5f);
@@ -286,7 +291,7 @@ static void depth_visibility_row(real depths[6][OCC_SIZE * OCC_SIZE], const real
 	__m128 ex = _mm_set1_ps(extent), size = _mm_set1_ps((real)resolution), limit = _mm_set1_ps((real)(resolution - 1));
 	__m128 facey = _mm_set1_ps((real)(2 + (y > 0))), facez = _mm_set1_ps((real)(4 + (z > 0)));
 	__m128 abs_mask = _mm_castsi128_ps(_mm_set1_epi32(0x7fffffff));
-	int x, i, j, lane;
+	int x, i, j;
 	for (x = 0; x < OCC_SIZE; x += 4)
 	{
 		__m128 px = _mm_loadu_ps(xs + x), magnitude = _mm_and_ps(px, abs_mask);
@@ -295,8 +300,8 @@ static void depth_visibility_row(real depths[6][OCC_SIZE * OCC_SIZE], const real
 		__m128 face = visibility_choose(mask, facey, _mm_and_ps(_mm_cmpgt_ps(px, zero), one));
 		__m128 near_origin, tx, ty, fraction, hits[4], length;
 		__m128 clear = _mm_castsi128_ps(_mm_set1_epi32(-1)), result = zero;
-		int faces[4], columns[4], rows[4];
-		real gather[4];
+		int indices[4];
+		__m128i index;
 		magnitude = visibility_choose(mask, ey, magnitude);
 		mask = _mm_cmpgt_ps(ez, magnitude);
 		magnitude = visibility_choose(mask, ez, magnitude);
@@ -309,21 +314,19 @@ static void depth_visibility_row(real depths[6][OCC_SIZE * OCC_SIZE], const real
 		v = _mm_sub_ps(_mm_mul_ps(_mm_mul_ps(_mm_add_ps(_mm_div_ps(v, magnitude), one), half), size), half);
 		u = _mm_max_ps(zero, _mm_min_ps(limit, u));
 		v = _mm_max_ps(zero, _mm_min_ps(limit, v));
-		_mm_storeu_si128((__m128i *)faces, _mm_cvttps_epi32(face));
-		_mm_storeu_si128((__m128i *)columns, _mm_cvttps_epi32(u));
-		_mm_storeu_si128((__m128i *)rows, _mm_cvttps_epi32(v));
+		index = _mm_add_epi32(_mm_mullo_epi16(_mm_cvttps_epi32(face), _mm_set1_epi32(OCC_SIZE * OCC_SIZE)),
+			_mm_add_epi32(_mm_mullo_epi16(_mm_cvttps_epi32(v), _mm_set1_epi32(OCC_SIZE)), _mm_cvttps_epi32(u)));
+		_mm_storeu_si128((__m128i *)indices, index);
 		tx = _mm_sub_ps(u, _mm_cvtepi32_ps(_mm_cvttps_epi32(u)));
 		ty = _mm_sub_ps(v, _mm_cvtepi32_ps(_mm_cvttps_epi32(v)));
 		fraction = _mm_div_ps(magnitude, ex);
-		for (j = 0; j < 2; j++)
-			for (i = 0; i < 2; i++)
-			{
-				for (lane = 0; lane < 4; lane++)
-					gather[lane] = depths[faces[lane]][MIN(rows[lane] + j, resolution - 1) * OCC_SIZE +
-													   MIN(columns[lane] + i, resolution - 1)];
-				hits[j * 2 + i] = _mm_loadu_ps(gather);
-				clear = _mm_and_ps(clear, _mm_cmpge_ps(hits[j * 2 + i], fraction));
-			}
+		hits[0] = neighbours[indices[0]];
+		hits[1] = neighbours[indices[1]];
+		hits[2] = neighbours[indices[2]];
+		hits[3] = neighbours[indices[3]];
+		_MM_TRANSPOSE4_PS(hits[0], hits[1], hits[2], hits[3]);
+		for (i = 0; i < 4; i++)
+			clear = _mm_and_ps(clear, _mm_cmpge_ps(hits[i], fraction));
 		if (_mm_movemask_ps(clear) == 15)
 		{
 			result =
@@ -366,11 +369,39 @@ static void depth_visibility_row(real depths[6][OCC_SIZE * OCC_SIZE], const real
 }
 #endif
 
+#if defined(__SSE2__)
+/* The four filtered depths are neighbours on the same cube face. Pack
+   them once so each four-cell comparison needs four contiguous loads.
+   Duplicate the last texel at each edge, as in the scalar lookup. */
+static void pack_depth_neighbours(real depths[6][OCC_SIZE * OCC_SIZE], int resolution, __m128 *neighbours)
+{
+	int face, y, x;
+	for (face = 0; face < 6; face++)
+		for (y = 0; y < resolution; y++)
+		{
+			const real *a = depths[face] + y * OCC_SIZE;
+			const real *b = depths[face] + MIN(y + 1, resolution - 1) * OCC_SIZE;
+			__m128 *row = neighbours + (face * OCC_SIZE + y) * OCC_SIZE;
+			for (x = 0; x < resolution; x++)
+			{
+				int next = MIN(x + 1, resolution - 1);
+				row[x] = _mm_setr_ps(a[x], a[next], b[x], b[next]);
+			}
+		}
+}
+#endif
+
 static void reconstruct_visibility(real depths[6][OCC_SIZE * OCC_SIZE], real extent, int resolution, real dx, real dy,
 								   real dz, real *output)
 {
 	real offsets[OCC_SIZE], xs[OCC_SIZE];
 	int x, y, z;
+#if defined(__SSE2__)
+	__m128 samples[6 * OCC_SIZE * OCC_SIZE];
+	pack_depth_neighbours(depths, resolution, samples);
+#else
+	real (*samples)[OCC_SIZE * OCC_SIZE] = depths;
+#endif
 	for (x = 0; x < OCC_SIZE; x++)
 	{
 		offsets[x] = (2.0f * (x + 0.5f) / OCC_SIZE - 1) * extent;
@@ -378,7 +409,7 @@ static void reconstruct_visibility(real depths[6][OCC_SIZE * OCC_SIZE], real ext
 	}
 	for (z = 0; z < OCC_SIZE; z++)
 		for (y = 0; y < OCC_SIZE; y++)
-			depth_visibility_row(depths, xs, offsets[y] + dy, offsets[z] + dz, extent, resolution,
+			depth_visibility_row(samples, xs, offsets[y] + dy, offsets[z] + dz, extent, resolution,
 								 output + (z * OCC_SIZE + y) * OCC_SIZE);
 }
 
@@ -410,6 +441,7 @@ static int upload(IDirect3DVolumeTexture8 **texture, unsigned long const *pixels
 static __attribute__((noinline)) struct occlusion_field *update_field(struct occlusion_field *field, long rasterizer_index, unsigned long now)
 {
 	struct rasterizer_light_submit_parameters *light;
+	long ignore = NONE;
 	int i, x, y, z, stationary, vehicles, resolution, retraced = FALSE;
 	unsigned long scene_revision;
 	long owner = modern_shadows_collision_owner(rasterizer_index);
@@ -418,7 +450,6 @@ static __attribute__((noinline)) struct occlusion_field *update_field(struct occ
 	real projected[OCC_COUNT];
 	struct sample_axis history_axes[3][OCC_SIZE];
 	real trace_dx, trace_dy, trace_dz;
-	real axis[3], origin[3], radius;
 	fields_dirty = 1;
 	field->used = now;
 	light = &rasterizer_lights.lights[rasterizer_index];
@@ -435,13 +466,10 @@ static __attribute__((noinline)) struct occlusion_field *update_field(struct occ
 	trace_dx = light->position.x - field->trace_center[0];
 	trace_dy = light->position.y - field->trace_center[1];
 	trace_dz = light->position.z - field->trace_center[2];
-	vehicles = muzzle_lighting_vehicle_occlusion(field->identity) || plasma_lighting_vehicle_occlusion(field->identity) ||
+	vehicles = muzzle_lighting_vehicle_occlusion(field->identity) || plasma_lighting_vehicle_occlusion(field->identity, &ignore) ||
 		covenant_emitter_lighting_vehicle_occlusion(field->identity);
 	scene_revision = plasma_collision_scene_revision(&field->scene, &light->position, extent, vehicles);
-	/* Only the deliberately short, soft prong glow uses a smaller ray grid.
-	   Keep the established shield/projectile/vehicle grids and 16^3 filtered
-	   output unchanged. A prong's 0.6-unit extent needs 96 rays, not 1536. */
-	resolution = plasma_lighting_prong_cone(rasterizer_index, axis, origin, &radius) ? 4 : OCC_SIZE;
+	resolution = OCC_SIZE;
 	/* Cache collision depths briefly, but project and fade at every rendered pose.
 	   Exact stationary poses can retain depths while all collision inputs are
 	   unchanged. Geometry changes follow the existing 12 ms trace cadence;
@@ -451,7 +479,8 @@ static __attribute__((noinline)) struct occlusion_field *update_field(struct occ
 		 trace_dx != 0 || trace_dy != 0 || trace_dz != 0)) || field->trace_extent != extent ||
 		trace_dx * trace_dx + trace_dy * trace_dy + trace_dz * trace_dz > extent * extent * 0.015625f)
 	{
-		trace_depths(extent, &light->position, covenant_emitter_lighting_occlusion_ignore(field->identity),
+		if (ignore == NONE) ignore = covenant_emitter_lighting_occlusion_ignore(field->identity);
+		trace_depths(extent, &light->position, ignore,
 			vehicles, resolution, owner, field->depths);
 		retraced = TRUE;
 		field->scene_revision = scene_revision;
@@ -610,8 +639,7 @@ static void texture_row(unsigned long *pixels, real const *a, real const *b, rea
 			length = _mm_sqrt_ps(_mm_add_ps(_mm_add_ps(xx, yy), zz));
 			dot = _mm_add_ps(_mm_add_ps(_mm_mul_ps(_mm_set1_ps(axis[0]), dx),
 				_mm_set1_ps(axis[1] * dy)), _mm_set1_ps(axis[2] * dz));
-			t = directional == 3 ? _mm_div_ps(_mm_add_ps(_mm_div_ps(dot, length), _mm_set1_ps(0.2f)), _mm_set1_ps(0.7f)) :
-				_mm_div_ps(dot, _mm_mul_ps(length, _mm_set1_ps(0.6f)));
+			t = _mm_div_ps(dot, _mm_mul_ps(length, _mm_set1_ps(0.6f)));
 			t = _mm_min_ps(_mm_max_ps(t, zero), one);
 			value = _mm_mul_ps(value, _mm_mul_ps(_mm_mul_ps(t, t), _mm_sub_ps(three, _mm_mul_ps(two, t))));
 		}
@@ -634,7 +662,7 @@ static void texture_row(unsigned long *pixels, real const *a, real const *b, rea
 		real remaining = MAX(0.0f, 1 - dx * dx - dy * dy - dz * dz);
 		value = 1 - admission + admission * value;
 		if (directional)
-			value *= directional == 3 ? plasma_prong_falloff_factor(axis, dx, dy, dz) : directional == 2 ?
+			value *= directional == 2 ?
 				needler_falloff_factor(dz * height_scale) : ammo_counter_falloff_factor(axis, dx, dy, dz);
 		if (radial) value *= remaining * remaining;
 		pixels[x] = (unsigned long)(255 * value + 0.5f) * 0x01010101UL;
@@ -705,7 +733,7 @@ static __attribute__((noinline)) void *prepare_field_texture(struct occlusion_fi
 								0.5f + dy * scale * 0.5f, 0.5f + dz * scale * 0.5f);
 					value = 1 - field->admission + field->admission * value;
 					if (directional)
-						value *= directional == 3 ? plasma_prong_falloff_factor(axis, dx, dy, dz) : directional == 2 ? needler_falloff_factor(dz *
+						value *= directional == 2 ? needler_falloff_factor(dz *
 							(pass == 0 ? field->extent / field->radius : pass == 2 ? field->specular : 1.0f)) :
 							ammo_counter_falloff_factor(axis, dx, dy, dz);
 					if (pass)
@@ -732,7 +760,6 @@ static void *field_texture(struct occlusion_field *field, int pass, long rasteri
 {
 	real axis[3], origin[3], radius;
 	int directional = covenant_emitter_lighting_cone(rasterizer, axis, origin, &radius);
-	if (!directional) directional = plasma_lighting_prong_cone(rasterizer, axis, origin, &radius);
 	if (!field)
 		return NULL;
 	/* Directional profiles can rotate without changing collision visibility.
@@ -790,7 +817,7 @@ unsigned long plasma_occlusion_view_serial(void)
 void plasma_occlusion_submit(long light, long rasterizer_index)
 {
 	if ((((lighting_config_boolean("display.plasma_lighting") || authored_emitter_lighting_enabled()) && lighting_config_boolean("display.plasma_occlusion")) ||
-		plasma_lighting_vehicle_occlusion(light) || covenant_emitter_lighting_vehicle_occlusion(light) ||
+		plasma_lighting_vehicle_occlusion(light, NULL) || covenant_emitter_lighting_vehicle_occlusion(light) ||
 		muzzle_lighting_selected(rasterizer_index) ||
 		((covenant_emitter_lighting_selected(rasterizer_index) || shield_glow_selected(rasterizer_index)) && lighting_config_boolean("display.plasma_occlusion"))) &&
 		submitted_count < OCC_SUBMITTED)

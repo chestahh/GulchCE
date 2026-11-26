@@ -513,6 +513,11 @@ char *nv2a_vertex_shader_to_glsl(const DWORD *instructions, unsigned long instru
 	if (plasma_model)
 		plasma_model_emit_uniform(&text);
 #endif
+#ifndef HALO_GLES
+	/* BSP lighting shaders receive world-space vertices in input zero. The
+	   linker discards this varying for materials without a beam receiver. */
+	xgpu_text_append(&text, "out vec3 beamWorldPosition;\n");
+#endif
 	/* (the pixel shader's model_lighting; the normal's length in w) */
 	if (lighting)
 		xgpu_text_append(&text, "out vec4 xWorldNormal;\n");
@@ -534,6 +539,9 @@ char *nv2a_vertex_shader_to_glsl(const DWORD *instructions, unsigned long instru
 		else
 			xgpu_text_append(&text, "\tvec4 v%lu = v%lu_in;\n", index, index);
 	}
+#ifndef HALO_GLES
+	xgpu_text_append(&text, "\tbeamWorldPosition = v0.xyz;\n");
+#endif
 	xgpu_text_append(&text,
 		"\tvec4 r0 = vec4(0.0), r1 = vec4(0.0), r2 = vec4(0.0), r3 = vec4(0.0);\n"
 		"\tvec4 r4 = vec4(0.0), r5 = vec4(0.0), r6 = vec4(0.0), r7 = vec4(0.0);\n"

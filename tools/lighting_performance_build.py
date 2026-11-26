@@ -34,6 +34,34 @@ def instrument_renderer_profile(text):
     return text
 
 
+def instrument_bsp_lights(source, cluster_lists=False):
+    # Light geometry can differ between passes. Measure them independently.
+    for index, kind in enumerate(('diffuse', 'specular')):
+        name = ('lights_render_' + kind if cluster_lists else 'structure_render_' + kind + '_light')
+        original = function(source, name)
+        body = original
+        phase = 28 + 4 * index
+        if cluster_lists:
+            spans = [(phase, 'cluster_count = light_build_cluster_array(', 'cluster_indices);')]
+        else:
+            spans = [
+                (phase + 1, 'environment_surface_count = structure_visibility_build_surfaces(', 'cluster_indices);'),
+                (phase + 2, 'environment_triangles_index = structure_render_build_dynamic_triangles(', 'NULL);'),
+                (phase + 3, f'profile_enter(render_structure_{kind}_lights_draw_section);',
+                 f'profile_exit(render_structure_{kind}_lights_draw_section);'),
+            ]
+        for timer, first, last in spans:
+            assert body.count(first) == 1, (name, first)
+            start = body.index(first)
+            end = body.index(last, start) + len(last)
+            indent = body[body.rindex('\n', 0, start) + 1:start]
+            timed = (f'lighting_profile_begin({timer});\n{indent}' + body[start:end] +
+                     f'\n{indent}lighting_profile_end({timer});')
+            body = body[:start] + timed + body[end:]
+        source = source.replace(original, body, 1)
+    return source
+
+
 def instrument_shader_stalls(text):
     # Desktop program_get links directly when its binary cache misses;
     # xgpu_link_program alone no longer covers gameplay shader links.
@@ -52,10 +80,28 @@ def instrument_shader_stalls(text):
     return text
 
 
+def instrument_present_stalls(text):
+    # Time the query copies together so the timer cost does not scale with
+    # visible objects. Preserve the order and frequency of all driver calls.
+    for phase, section in enumerate((
+        '\t\tfor (i = 0; i < batch->count; i++)\n'
+        '\t\t\tglGetQueryBufferObjectuiv(batch->queries[i], device.visibility_buffer, GL_QUERY_RESULT,\n'
+        '\t\t\t\t(GLintptr)((device.visibility_batch * VISIBILITY_TEST_SLOTS + i) * sizeof(GLuint)));',
+        '\t\tplatform_video_swap();',
+        '\t\tglClientWaitSync(*slot, GL_SYNC_FLUSH_COMMANDS_BIT, 1000000000ull);',
+        '\t\tvisibility_read_batch();',
+    )):
+        assert text.count(section) == 1, section
+        text = text.replace(section, f'\t\tlighting_stall_present_begin();\n{section}\n'
+                                     f'\t\tlighting_stall_present_end({phase});')
+    return 'void lighting_stall_present_begin(void);\nvoid lighting_stall_present_end(int);\n' + text
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--output-dir', type=Path, default=ROOT/'build/lighting-performance-build')
     parser.add_argument('--defer-restored-build', action='store_true', help='Outer builder restores and rebuilds ordinary sources')
+    parser.add_argument('--fixture-room', action='store_true', help='Include the fixed Rat Race camera, biped and per-source capture controls')
     parser.add_argument('--turret-prototype', action='store_true', help='Test-only finite-source turret shadow comparison')
     parser.add_argument('--profile', action='store_true', help='CPU phase timers and asynchronous sampled GPU draw queries')
     parser.add_argument('--depth-profile', action='store_true', help='Split local shadow GPU queries into setup, world, models and viewmodel; implies --profile')
@@ -63,11 +109,11 @@ def main():
     parser.add_argument('--campaign-control', action='store_true', help='Test-only expiring controller commands for recording a fresh checkpoint; not a timing variant')
     parser.add_argument('--diagnose', action='store_true', help='Collision phase timings and retained resource counts (not acceptance timings)')
     parser.add_argument('--resources', action='store_true', help='Retained resource counts without per-ray diagnostic clocks')
-    parser.add_argument('--stalls', action='store_true', help='Windows thread CPU and shader compile/link timings; diagnostic only')
+    parser.add_argument('--stalls', action='store_true', help='Windows processor, thread CPU, shader compile/link and present timings; diagnostic only')
+    parser.add_argument('--ray-reuse-survey', action='store_true', help='Count exact cross-update world rays and changes in the final object-clipped result')
     parser.add_argument('--verify-traces', action='store_true', help='Compare every lighting ray with the stock collision query; not a timing build')
     parser.add_argument('--verify-visibility', action='store_true', help='Compare packed and scalar CPU visibility reconstruction on identical fields')
     parser.add_argument('--verify-textures', action='store_true', help='Compare specialized visibility pixels against the generic loop; diagnostic only')
-    parser.add_argument('--without-prongs', action='store_true', help='Diagnostic A/B: leave plasma prong flare attachments stock, retaining charge/projectile lighting')
     parser.add_argument('--environment-model-control', action='store_true', help='Diagnostic A/B: HALO_BENCH_NO_ENV_MODEL disables only environmental model self-shadowing')
     args = parser.parse_args()
     if args.depth_profile: args.profile = True
@@ -81,15 +127,17 @@ def main():
     paths = ['source/main/main.c', 'port/linux/src/d3d8_gl.c',
              'port/linux/game/plasma_lighting.c', 'port/linux/game/plasma_occlusion.c',
              'port/linux/game/plasma_falloff.c', 'port/linux/game/plasma_collision.c',
-             'port/linux/game/authored_emitter_lighting.c', 'port/linux/src/xinput_sdl.c']
+             'port/linux/src/xinput_sdl.c']
     paths += ['port/linux/game/plasma_collision_models.c']
+    if args.fixture_room:
+        paths += ['source/render/render.c', 'port/linux/src/modern_spots_gl.inl']
     if args.turret_prototype:
         from turret_shadow_probe import PATHS
         paths += [p for p in PATHS if p not in paths]
     if args.profile:
         paths += ['source/objects/object_lights.c', 'port/linux/src/plasma_occlusion_gl.c',
                   'port/linux/game/modern_shadows.c', 'port/linux/src/modern_shadows_gl.c',
-                  'port/linux/src/modern_environment_gl.inl']
+                  'port/linux/src/modern_environment_gl.inl', 'source/structures/structure_render.c']
     if args.environment_model_control and 'port/linux/game/modern_shadows.c' not in paths:
         paths.append('port/linux/game/modern_shadows.c')
     if args.depth_reuse_control and 'port/linux/src/modern_shadows_gl.c' not in paths:
@@ -98,12 +146,12 @@ def main():
         paths += ['source/physics/collision_usage.c', 'port/linux/src/xbox_textures.c']
     originals = {p: (ROOT/p).read_bytes() for p in paths}
     saved = shlex.split(re.search(r'^configure_args = (.*)$', (ROOT/'build.ninja').read_text(), re.M)[1])
-    manifest = dict(commit=subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip(),
+    manifest = dict(shared_flashlight_budget=True, commit=subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip(),
                     configure_args=saved, production_hashes={p: hashlib.sha256(b).hexdigest() for p, b in originals.items()},
                     fixture_sha256=hashlib.sha256((ROOT/'tools/fixtures/lighting_performance.c').read_bytes()).hexdigest(),
                     profile=args.profile, depth_profile=args.depth_profile, depth_reuse_control=args.depth_reuse_control, diagnose=args.diagnose, resources=args.resources, stalls=args.stalls, verify_traces=args.verify_traces,
                     verify_textures=args.verify_textures, verify_visibility=args.verify_visibility,
-                    without_prongs=args.without_prongs, environment_model_control=args.environment_model_control)
+                    environment_model_control=args.environment_model_control)
     for path in ['port/linux/game/authored_emitter_lighting.c', 'port/linux/game/ambient_emitter_lighting.c',
                  'port/linux/game/covenant_emitter_lighting.c', 'port/linux/src/plasma_occlusion_gl.c', 'port/linux/include/plasma_occlusion.h',
                  'port/linux/include/plasma_collision.h', 'source/physics/collision_bsp.c',
@@ -114,8 +162,11 @@ def main():
                  'source/objects/object_lights.c', 'port/linux/game/plasma_lighting.h',
                  'port/linux/game/authored_emitter_lighting.h', 'port/android/guest/dynamic_lighting_disabled.c',
                  'port/linux/game/modern_shadows.c', 'port/linux/src/modern_shadows_gl.c',
-                 'port/linux/include/modern_shadows.h', 'source/render/render.c',
-                 'port/linux/src/modern_environment_gl.inl', 'port/linux/src/nv2a_psh.c', 'source/render/render_objects.c',
+                 'port/linux/include/modern_shadows.h', 'port/linux/game/modern_sun.inl', 'source/render/render.c',
+                 'source/render/render_sky.c', 'port/linux/src/port_config.c',
+        'port/linux/src/modern_environment_gl.inl', 'port/linux/src/modern_sun_shader.inl',
+        'port/linux/game/modern_spots.inl', 'port/linux/game/modern_fixture_patches.inl', 'port/linux/src/modern_spots_gl.inl',
+        'port/linux/src/nv2a_psh.c', 'port/linux/src/nv2a_vsh.c', 'source/render/render_objects.c',
                  'port/linux/game/modern_shadows_first_person.inl', 'source/interface/first_person_weapons.c',
                  'source/rasterizer/xbox/rasterizer_xbox_models.c']:
         manifest['production_hashes'][path]=hashlib.sha256((ROOT/path).read_bytes()).hexdigest()
@@ -131,6 +182,9 @@ def main():
         diagnostic_sources += ['tools/lighting_visibility_check.py']
     if args.stalls:
         diagnostic_sources += ['tools/fixtures/lighting_stall_diagnostics.inc']
+    if args.ray_reuse_survey:
+        diagnostic_sources.append('tools/fixtures/lighting_ray_reuse.inc')
+    manifest['ray_reuse_survey'] = args.ray_reuse_survey
     manifest['diagnostic_hashes']={p:hashlib.sha256((ROOT/p).read_bytes()).hexdigest() for p in diagnostic_sources}
 
     def edit(path, before, after, declaration):
@@ -141,15 +195,23 @@ def main():
     if args.depth_profile or args.depth_reuse_control:
         manifest['depth_profile_helper_sha256'] = hashlib.sha256((ROOT/'tools/shadow_depth_profile.py').read_bytes()).hexdigest()
     try:
-        if args.without_prongs:
-            authored = ROOT/'port/linux/game/authored_emitter_lighting.c'
-            rows = authored.read_text().splitlines(keepends=True)
-            kept = [row for row in rows if 'plasma pistol flare' not in row and 'plasma rifle flare' not in row]
-            assert len(rows)-len(kept) == 2
-            authored.write_text(''.join(kept))
         # A previous diagnostic variant may have a newer object file. Preserve
         # contents, not timestamps, so Ninja recompiles the selected fixture.
         shutil.copyfile(ROOT/'tools/fixtures/lighting_performance.c', fixture)
+        if args.fixture_room:
+            room = ROOT/'tools/fixtures/environment_shadow_room.inc'
+            manifest['fixture_room'] = hashlib.sha256(room.read_bytes()).hexdigest()
+            fixture.write_text(fixture.read_text()+room.read_text())
+            renderer = ROOT/'source/render/render.c'
+            source = renderer.read_text()
+            anchor = 'camera = &window->render_camera;'
+            assert source.count(anchor) == 1
+            renderer.write_text(source.replace(anchor, 'extern void bench_fixture_room(struct render_window *);\n\tbench_fixture_room(window);\n\t'+anchor))
+            gpu = ROOT/'port/linux/src/modern_spots_gl.inl'
+            source = gpu.read_text()
+            anchor = 'spots.mask |= 1<<slot;'
+            assert source.count(anchor) == 1
+            gpu.write_text(source.replace(anchor, 'extern int bench_spot_sources; extern void bench_spot_log(int,const float *,const float *); bench_spot_log(slot,origin,frame); if (bench_spot_sources & (1<<slot)) '+anchor))
         if args.campaign_control:
             text = fixture.read_text()
             control = (ROOT/'tools/fixtures/lighting_campaign_control.inc').read_text()
@@ -199,8 +261,9 @@ def main():
             if args.diagnose:
                 text=occlusion.read_text()
                 anchor='\tfor (face = 0; face < 6; face++)'
-                assert text.count(anchor)==2
-                text=text.replace(anchor,'\tlighting_trace_active = 1;\n'+anchor,1)
+                tracing = function(text, 'trace_depths')
+                assert anchor in tracing
+                text = text.replace(tracing, tracing.replace(anchor, '\tlighting_trace_active = 1;\n'+anchor, 1))
                 anchor='\n}\nstatic real depth_visibility'
                 assert text.count(anchor)==1
                 text=text.replace(anchor,'\n\tlighting_trace_active = 0;'+anchor)
@@ -223,7 +286,7 @@ def main():
             fixture.write_text(text)
         if args.stalls:
             backend = ROOT/paths[1]
-            text = instrument_shader_stalls(backend.read_text())
+            text = instrument_present_stalls(instrument_shader_stalls(backend.read_text()))
             backend.write_text('void lighting_stall_shader_begin(int);\nvoid lighting_stall_shader_end(int);\n'+text+'\n'+
                                (ROOT/'tools/fixtures/lighting_stall_diagnostics.inc').read_text())
             text = fixture.read_text()
@@ -262,6 +325,10 @@ def main():
                 if result != 'void': wrapper += '\treturn result;\n'
                 text = text.replace(body, timed+wrapper+'}\n', 1)
             shadow.write_text(declarations+text)
+            replace(shadow, 'if (render_shadows) sun_prepare();',
+                    'if (render_shadows) { lighting_profile_begin(20); sun_prepare(); lighting_profile_end(20); }')
+            replace(shadow, '\tprepare_spots(mode);',
+                    '\tlighting_profile_begin(21);\n\tprepare_spots(mode);\n\tlighting_profile_end(21);')
             replace(shadow, '\tselect_lights();', '\tlighting_profile_begin(18);\n\tselect_lights();')
             replace(shadow, '\tselect_lights();', '\tselect_lights();\n\tlighting_profile_end(18);')
             shadow_gl = ROOT/'port/linux/src/modern_shadows_gl.c'
@@ -275,7 +342,27 @@ def main():
             shadow_gl.write_text(declarations+'void lighting_gpu_shadow_begin(void);\nvoid lighting_gpu_shadow_end(void);\n'+
                                  text.replace(body, timed+wrapper, 1))
             environment = ROOT/'port/linux/src/modern_environment_gl.inl'
+            replace(environment, '    sun.ready = complete && sun.valid && sun_draw_batch();',
+                    '    lighting_profile_begin(22);\n    sun.ready = complete && sun.valid && sun_draw_batch();\n    lighting_profile_end(22);')
+            replace(environment, '        sun.object_checked = sun.ready = glGetError() == GL_NO_ERROR;',
+                    '    { lighting_profile_begin(23); sun.object_checked = sun.ready = glGetError() == GL_NO_ERROR; lighting_profile_end(23); }')
             text = environment.read_text()
+            projection = function(text, 'modern_environment_end')
+            timed = projection.replace('modern_environment_end(', 'lighting_timed_environment_end_projection(', 1)
+            wrapper = ('\nint modern_environment_end(int complete, const float camera[16], const float projection[16], '
+                       'const float color[3], int handoff)\n{\n'
+                       '    int result, phase = handoff ? 36 : 37;\n'
+                       '    if (!sun.projecting) lighting_profile_begin(phase);\n'
+                       '    result = lighting_timed_environment_end_projection(complete, camera, projection, color, handoff);\n'
+                       '    if (!sun.projecting) lighting_profile_end(phase);\n'
+                       '    return result;\n}\n')
+            text = text.replace(projection, timed + wrapper, 1)
+            for name, phase in [('environment_snapshot', 24), ('environment_draw_receiver', 25)]:
+                original = function(text, name)
+                assert 'glGetError()' in original
+                text = text.replace(original, original.replace('glGetError()', f'lighting_timed_gl_error({phase})'), 1)
+            text = ('static GLenum lighting_timed_gl_error(int phase) { GLenum error; lighting_profile_begin(phase); '
+                    'error = glGetError(); lighting_profile_end(phase); return error; }\n' + text)
             body = function(text, 'modern_environment_model_end')
             timed = body.replace('modern_environment_model_end(', 'lighting_timed_environment_end(', 1)
             wrapper = ('\nvoid modern_environment_model_end(int complete, int mask)\n{\n'
@@ -285,9 +372,17 @@ def main():
             environment.write_text('void lighting_gpu_environment_begin(void);\n'+text.replace(body, timed+wrapper, 1))
             # Phase 16 remains zero after removing synchronous GL state saves,
             # keeping older profile CSVs comparable by column name.
-            replace(shadow_gl, '\tfailed = !create_resources();',
-                    '\tlighting_profile_begin(17);\n\tfailed = !create_resources();\n\tlighting_profile_end(17);')
+            resource_call = '\tfailed = !create_resources() || !prepare_depth_cube(&map->depth_cube[0]);'
+            replace(shadow_gl, resource_call, '\tlighting_profile_begin(17);\n'+resource_call+'\n\tlighting_profile_end(17);')
             occlusion.write_text(declarations+occlusion.read_text())
+            collision = ROOT/'port/linux/game/plasma_collision.c'
+            collision.write_text(declarations + collision.read_text())
+            loop = '\t\tfor (ray = 0; ray < count && !batch.failed; ray++)'
+            replace(collision, loop, '\t\tlighting_profile_begin(26);\n' + loop)
+            call = '\t\t\tdepths[ray] = plasma_collision_depth(flags, point, &vectors[ray], ignore);'
+            replace(collision, call, call + '\n\t\tlighting_profile_end(26);\n\t\tlighting_profile_begin(27);')
+            tail = '\n\t}\n\telse batch.failed = 1;'
+            replace(collision, tail, '\n\t\tlighting_profile_end(27);' + tail)
             replace(occlusion, '\t\ttrace_depths(extent,', '\t\tlighting_profile_begin(0);\n\t\ttrace_depths(extent,')
             replace(occlusion, '\t\tfield->traced = now;', '\t\tlighting_profile_end(0);\n\t\tfield->traced = now;')
             replace(occlusion, '\tmemcpy(previous,', '\tlighting_profile_begin(1);\n\tmemcpy(previous,')
@@ -298,7 +393,7 @@ def main():
             replace(occlusion, scene_call, '\tlighting_profile_begin(10);\n'+scene_call+'\n\tlighting_profile_end(10);')
             model = ROOT/'port/linux/src/plasma_occlusion_gl.c'
             model.write_text(declarations+model.read_text())
-            call = '\t\tresource = plasma_occlusion_model_texture(slot, transform);'
+            call = '\t\tresource = (light_mask & (1u << slot)) ? plasma_occlusion_model_texture(slot, transform) : NULL;'
             replace(model, call, '\t\tlighting_profile_begin(8);\n'+call+'\n\t\tlighting_profile_end(8);')
             call = '\ttexture = xgpu_texture_get(resource, NULL, &target, &description);'
             replace(model, call, '\tlighting_profile_begin(9);\n'+call+'\n\tlighting_profile_end(9);')
@@ -312,8 +407,10 @@ def main():
             backend=ROOT/paths[1]
             backend.write_text(declarations+'int lighting_profile_model, lighting_profile_world;\n'+backend.read_text())
             backend.write_text(instrument_renderer_profile(backend.read_text()))
+            bsp = ROOT/'source/structures/structure_render.c'
+            bsp.write_text(declarations + instrument_bsp_lights(bsp.read_text()))
             scene = ROOT/'source/objects/object_lights.c'
-            text = scene.read_text()
+            text = instrument_bsp_lights(scene.read_text(), cluster_lists=True)
             anchor = 'void lights_preprocess_scene(\n\tvoid)'
             assert text.count(anchor) == 1
             text = text.replace(anchor, 'static void lighting_timed_preprocess_scene(void)', 1)
@@ -325,20 +422,35 @@ def main():
             render = 'main_game_render((double)main_globals.seconds_elapsed);'
             replace(main, render, 'lighting_profile_begin(7);\n\t\t\t\t\t'+render+'\n\t\t\t\t\tlighting_profile_end(7);')
             replace(backend, '\tif (plasma_mask && entry->plasma_model_slots >= 0)\n\t{', '\tlighting_profile_model = plasma_mask && entry->plasma_model_slots >= 0 ? 1 : 0;\n\tif (plasma_mask && entry->plasma_model_slots >= 0)\n\t{')
-            bind='\t\tplasma_occlusion_bind_model(&entry->plasma_occlusion);'
+            bind='\t\tplasma_occlusion_bind_model(&entry->plasma_occlusion, plasma_mask);'
             replace(backend, bind, '\t\tlighting_profile_begin(3);\n'+bind+'\n\t\tlighting_profile_end(3);')
             gpu=(ROOT/'tools/fixtures/lighting_gpu_profile.inc').read_text()
             manifest['gpu_fixture_sha256']=hashlib.sha256(gpu.encode()).hexdigest()
             replace(backend, 'static GLenum primitive_mode(', gpu+'\nstatic GLenum primitive_mode(')
             text=backend.read_text()
-            text,count=re.subn(r'(\bglDraw(?:ElementsBaseVertex|Elements|Arrays)\([^;]+;)',r'lighting_gpu_begin();\n\t\t\1\n\t\tlighting_gpu_end();',text)
+            # The offscreen loading draws precede the GPU timer definitions
+            # and are outside the steady-state workload being measured.
+            begin=text.index('static GLenum primitive_mode(')
+            gameplay,count=re.subn(r'(\bglDraw(?:ElementsBaseVertex|Elements|Arrays)\([^;]+;)',r'lighting_gpu_begin();\n\t\t\1\n\t\tlighting_gpu_end();',text[begin:])
             assert count==9, count
-            backend.write_text(text)
+            backend.write_text(text[:begin]+gameplay)
             replace(backend, '\tdevice.frame++;', '\tlighting_gpu_frame(device.frame);\n\tdevice.frame++;')
             falloff=ROOT/paths[4]
             falloff.write_text('extern int lighting_profile_world;\n'+falloff.read_text())
             replace(falloff, '\tplasma_falloff_bound = TRUE;', '\tlighting_profile_world = stage == 1 ? 3 : 2;\n\tplasma_falloff_bound = TRUE;')
             replace(falloff, '\tplasma_specular_tint = 0x00FFFFFFUL;\n\tif (!plasma_falloff_bound)', '\tlighting_profile_world = 0;\n\tplasma_specular_tint = 0x00FFFFFFUL;\n\tif (!plasma_falloff_bound)')
+        if args.ray_reuse_survey:
+            path = ROOT / 'port/linux/game/plasma_collision.c'
+            text = path.read_text()
+            def insert(anchor, before):
+                nonlocal text
+                assert text.count(anchor) == 1, anchor
+                text = text.replace(anchor, before + anchor)
+            insert('static int trace_side(', (ROOT / 'tools/fixtures/lighting_ray_reuse.inc').read_text() + '\n')
+            insert('\t\ttrace_batch_starts(vectors,', '\t\treuse_survey_begin();\n')
+            insert('\tif (hit) depth = result.t;', '\tif (batch.defer_models) reuse_survey_world(point, vector, hit, &result);\n')
+            insert('\tplasma_collision_end();\n}', '\tif (!batch.failed && batch.defer_models) reuse_survey_end(depths, count);\n')
+            path.write_text(text)
         if args.verify_traces:
             occlusion.write_text(instrument(occlusion.read_text()))
             collision = ROOT/'port/linux/game/plasma_collision.c'

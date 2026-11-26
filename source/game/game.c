@@ -175,6 +175,7 @@ struct game_options;
 #include "saved games/game_state.h"
 #include "saved games/saved_game_files.h"
 #include "scenario/scenario.h"
+#include "modern_shadows.h" /* port: latch desktop shadow mode at actual map boundaries */
 #include "shaders/shaders.h"
 #include "sound/game_sound.h"
 #include "sound/sound_classes.h"
@@ -646,6 +647,7 @@ boolean game_load(
 	if (scenario_load(options->map_name))
 	{
 		game_globals->map_loaded = TRUE;
+		modern_shadows_map_loaded(!game_time_menu_scene()); /* port: next-map shadow preference */
 		render_prepare_map(options->map_name); /* port: optional map-scoped shader preparation */
 		texture_prepare_map(); /* port: optional bounded Xbox/CE texture preparation */
 	}
@@ -776,6 +778,7 @@ void game_unload(
 
 	if (game_globals->map_loaded)
 	{
+		modern_shadows_map_loaded(FALSE); /* port: discard the map-scoped shadow preference */
 		scenario_unload();
 		random_seed_debug_log(FALSE);
 		game_globals->map_loaded = FALSE;

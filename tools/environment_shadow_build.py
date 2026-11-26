@@ -49,7 +49,9 @@ def main():
         }
     }
 """
-        s=s.replace('    if (success)\n    {\n        p=environment.receiver;',dump+'    if (success)\n    {\n        p=environment.receiver;',1)
+        anchor='    if (success)\n    {\n        p=sun.projecting ? sun.receiver : environment.receiver;'
+        assert s.count(anchor)==1
+        s=s.replace(anchor,dump+anchor,1)
         f.write_text(s)
         f=paths[2]; s=f.read_text()
         s=s.replace('\tif (render_shadows)\n', '\t{ static int calls; if(!(calls++%60)) platform_log("ENV PASS enabled %d count %d",render_shadows,render_object_globals.rendered_object_count); }\n\tif (render_shadows)\n',1)
@@ -57,9 +59,9 @@ def main():
         f.write_text(s)
         f=paths[1]; s=f.read_text()
         s=s.replace('    if (!mode || !cached_bsp || global_window_parameters', '    { static int calls; if(!(calls++%60)) platform_log("ENV GUARD mode %d bsp %p target %d debug %d radius %.4f", mode,(void *)cached_bsp,global_window_parameters.rasterizer_target,rasterizer_debug_options.draw_environment_shadows,radius); }\n    if (!mode || !cached_bsp || global_window_parameters',1)
-        a='return modern_environment_end(complete, camera, (float const *)global_window_parameters.frustum.projection_matrix, color);'
+        a='return modern_environment_end(complete, camera, (float const *)global_window_parameters.frustum.projection_matrix, color, handoff);'
         assert a in s
-        s=s.replace(a,'{ int result=modern_environment_end(complete, camera, (float const *)global_window_parameters.frustum.projection_matrix, color);\n      static int samples; if(!(samples++%60)) platform_log("ENV OWNER object %ld modern %d color %.4f %.4f %.4f",object,result,color[0],color[1],color[2]);\n      return result; }',1)
+        s=s.replace(a,'{ int result=modern_environment_end(complete, camera, (float const *)global_window_parameters.frustum.projection_matrix, color, handoff);\n      static int samples; if(!(samples++%60)) platform_log("ENV OWNER object %ld modern %d color %.4f %.4f %.4f",object,result,color[0],color[1],color[2]);\n      return result; }',1)
         f.write_text(s)
         subprocess.run([sys.executable,'tools/plasma_visual_build.py','--output-dir',str(out)],cwd=ROOT,check=True)
         mf=out/'build-manifest.json';manifest=json.loads(mf.read_text());manifest['environment_probe']=True

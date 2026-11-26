@@ -1,5 +1,224 @@
 # Modern dynamic shadows
 
+## Phase 2 1.0
+
+Phase 2 adds shadows from authored sunlight, identifiable map fixtures and
+the flashlight. The effects are opt-in on desktop and follow host visual
+policy. Classic remains the default. Android and web retain their existing
+exclusions. The sun and fixtures have their own shadow budgets. Shared gives
+an active flashlight one of the eight local slots. Extra Slot allows eight
+local shadows plus the flashlight.
+
+E5 closed on 25 November 2026 with fixed Hard and Soft 1024 as the sustained
+240 FPS baseline. E9 closed on 26 November 2026 with fixed shadow resolution and all eight local slots. E6 distant sunlight, E7 map authoring and E8 adaptive quality are deferred.
+
+### Established on modern-dynamic-shadows
+
+| Milestone | Result |
+| --- | --- |
+| E1 — Map sources and baselines | Verified active sky directions, fixture attachments and emissive BSP surfaces on representative Xbox, CE and MCC maps. Recorded the original 240 FPS baselines in the snowy Two Betrayals encounter and Rat Race lamp room. [Sources and measurements](environment_shadow_e1.md) |
+| E2 — Directional sunlight | Added a stabilized Hard sun map with its own budget. Off-camera casters qualify when their shadows can reach visible receivers. Covered objects hand off from their existing environmental shadow path. [Sunlight and ownership](environment_shadow_e2.md) |
+| E3 — Fixtures and flashlight | Added two independent fixture slots using map data, and a stock flashlight that shadows eligible objects and world geometry. Rat Race is the two-lamp reference scene. [Fixtures and flashlight](environment_shadow_e3.md) |
+| E4 — Outdoor geometry, Soft and menus | Eligible placed models and BSP geometry cast and receive near-camera sunlight. Hard and Soft share the selected resolution. Environmental controls are available in every desktop menu style. [Coverage, limits and measurements](environment_shadow_e4.md) |
+| E5 — Rendering performance | Hard and Soft 1024 sustained 240+ FPS in the final snowy combat benchmark with all eight local slots. Sustained 240 at fixed 2048 and the 360 FPS stretch goal are deferred. [E5 closeout measurements](environment_shadow_e5.md#matched-1024-and-2048-combat-dips) |
+
+The reference Windows release at `e4022bf04` averaged 271.1 FPS in Hard
+and 277.5 FPS in Soft in separate two-minute busy combat runs. Soft had
+three frames above 100 ms. Those runs established the starting point for E5.
+Keep these historical results separate from the current fixed-checkpoint comparison.
+
+### E5 — Rendering performance and hitch removal
+
+The Windows playtest at `2864bc026` is the accepted visual reference for
+the Mercury Rising II outdoor sun fade and the first-person player silhouette
+at Soft 1024. Keep the approach and retreat past the Covenant caches and the
+matched Death Island pose as regression checks. The [matched combat comparison](environment_shadow_e5.md#sun-fade-playtest-comparison)
+measured a sustained slowdown with Hard and Soft active. [Sun coverage and visual checks](environment_shadow_e4.md)
+
+Map-load preparation and next-map shadow-mode changes are implemented. On
+Xbox, CE and MCC maps, selection takes effect behind the existing gameplay-map
+loading screen. A checkpoint revert or mid-level BSP change keeps the active
+mode. Some first-use stalls remain. [Loading and driver measurements](environment_shadow_e5.md#loading-compatibility-and-driver-checks)
+
+The following procedure records the E5 reference setup for future regressions.
+
+1. **Keep the accepted comparison reproducible.** Alternate the previous playtest
+   (`9f114ec33`) and accepted playtest (`2864bc026`) in the same snowy
+   Two Betrayals encounter. Use the same exterior checkpoint, camera and
+   combat workload on the i7-14700K and RTX 5070 Ti. Run release PGO/LTO at
+   2560×1440, AA and VSync off, 25 seconds of warmup and 120 seconds uncapped.
+   Enable all dynamic lighting categories. Compare lighting alone and both shadow modes
+   at fixed 1024 and 2048. Optimise the shared path across resolutions and
+   measure gains at both tiers. Keep 4096 on that path without requiring a
+   separate performance baseline for the experimental tier. For both shadow runs, enable the sun, fixtures and Shared
+   flashlight with all eight local slots available.
+   Record actual light, beam and combat activity. Keep busy Rat Race with both lamps as the indoor control.
+2. **Windows CPU scheduling.** Four [fresh foreground launches](environment_shadow_e5.md#fresh-windows-launches)
+   completed on the i7-14700K. Each of the 480 measured seconds in Hard
+   and Soft exceeded 240 FPS. Both policies averaged 295 to 300 FPS when
+   rounded to whole frames. Auto used performance cores at every sampled
+   render-frame boundary on this workload. Keep Auto as the default.
+   **CPU scheduling** is beside **Frame Rate Limit** in all four
+   menu styles on supported Windows hybrid CPUs. **P-cores only** applies once at game startup to the client process
+   and its workers, independently of the shadow settings. Save/Apply takes
+   effect on the next game launch. Respect the process's existing CPU
+   restrictions and keep normal scheduling if a usable set cannot be identified.
+   Save, Cancel and Defaults passed in all four menu styles. Relaunching the packaged build restored Auto after selecting it.
+3. **Find where the frame time goes.** Retain matched stock OpenCE and
+   GulchCE controls. In the earlier heavier minute, stock GulchCE took
+   2.63 ms/frame, lighting alone 3.68 ms, Hard 4.21 ms and Soft 4.22 ms.
+   Start with the 1.05 ms stock-to-lighting gap. Time collision tracing and
+   visibility reconstruction separately from BSP surface selection, temporary
+   lighting triangles and model drawing. The [bounded exact-ray survey](environment_shadow_e5.md#exact-ray-reuse-and-receiver-state)
+   found 432 repeats across 82.8 million rays. Retain exact moving-object
+   intersections. If E5 reopens, profile foreground CPU world
+   traversal and BSP diffuse/specular draw submission alongside GPU local
+   and environmental depth. Continue timing local and environmental
+   shadow depth generation and reuse, receiver shading, draw submission and
+   driver waits. CPU and GPU measurements can overlap. Investigate the largest
+   repeatable costs on the critical path. Pursue larger savings alongside
+   smaller, measurable wins. Verify each with release timings and matched
+   images, then measure the combined changes on the same workload. [Stock controls and benchmark procedure](environment_shadow_e5.md#upstream-stock-control)
+4. **Recheck hitches independently.** Use Sidewinder's hidden Ghost reveal
+   on first visit and warm reload. Record map preparation time, peak memory,
+   worst reveal frame, 99th-percentile frame time and counts over 16.7, 33,
+   50 and 100 ms. The [Sidewinder reveal checks](environment_shadow_e5.md#sidewinder-reveal) still measured a 30 to 35 ms reveal with the default preparation settings. A warm shader-prepared visit eliminated first-frame program acquisition while texture uploads continued. Keep
+   preparation behind map loading and check Classic, host policy, failed
+   preparation, cleanup and map transitions after changes.
+5. **Qualify sustained FPS at fixed quality.** Use sustained 240+ FPS
+   (4.17 ms/frame) at fixed 1024 as the Phase 2 regression target for each mode.
+   If E5 reopens, use fixed 2048 to investigate longer dips and track the deferred
+   sustained 360 FPS target (2.78 ms/frame). Record how many seconds fall below target, how often it
+   happens and the longest continuous stretch.
+   Track the full two-minute and heavier-minute averages alongside these
+   sustained measurements. A repeatable gain in average FPS counts as progress
+   while the sustained target is open. Check that the gain preserves visual
+   quality and identify any increase in the frequency or length of slow stretches.
+   Investigate recurring slow stretches and report isolated hitches separately.
+   Occasional 1% lows are acceptable. Retain all eight local
+   slots and independent environmental budgets. The continuous distance fade
+   to stock shadows and the nearby player silhouette are required at every
+   performance tier. Keep the Mercury Rising 2 outdoor camera move in the
+   visual comparison so a faster result cannot hide the return of pop-in.
+   Check thin contacts, cutouts, self-shadowing and light spill against matched
+   captures.
+
+### E6 — Distant sunlight and smooth transitions
+
+**Deferred.** Phase 2 uses the signed-off near-camera sun fade. Revisit
+extended coverage when a gameplay capture shows a missing distant shadow
+that is noticeable during normal play. Use that scene to judge the benefit
+of the outer tile.
+
+The near sun map has a 12-world-unit half-width. Its visible strength already
+fades continuously between 7.2 and 11.1 units in the sun's projection plane,
+including the handoff to existing object shadows and baked BSP lighting.
+If E6 resumes, compare a cached outer tile starting at 36 units half-width against the
+accepted near-only build. The earlier prototype showed extra vehicle shadow
+on Sidewinder and added submission time. Use those captures and timings as
+the starting comparison. [Near coverage and outer-tile experiment](environment_shadow_e4.md#outdoor-coverage)
+
+Keep eligible BSP and object geometry, including off-camera casters whose
+shadows reach the view. Reuse valid static depth, refresh moving casters and
+invalidate on relevant sky, BSP, geometry or map changes. Blend overlapping
+tiles once per sun contribution and fade the outer coverage back to the
+authored scene. Check Sidewinder drives, turns and strafes in both directions
+and repeat the Mercury Rising II approach and retreat. Accept extended reach
+when it adds visible distant shadows, preserves near detail and continuous
+transitions, and meets the fixed-quality E5 performance target.
+
+### E7 — Optional map authoring
+
+**Deferred beyond Phase 2 1.0.** The current release uses automatic fixture
+detection from existing map data. Per-map emitter adjustments and authored
+direct-light contributions can be revisited in a future phase.
+
+### Banshee wing lights
+
+With vehicle lighting enabled, the campaign and multiplayer Banshee wing lights
+keep their authored colour, intensity and radius multiplier. The rear light uses
+the marker farthest from the front light when both rear markers exist. Each light
+excludes its Banshee from mesh shadows and collision blocking. Other sources can
+still cast the hull's silhouette.
+
+### E8 — Deferred
+
+Phase 2 1.0 uses the selected resolution and a fixed eight-slot local budget.
+Adaptive resolution, adaptive slot counts and their frame-time target remain an experiment
+in the earlier RC1 revision.
+
+### E9 — Compatibility and Phase 2 1.0 sign-off
+
+The Windows two-player pass covers mixed modes, shield policy, late join,
+reconnect, respawns and map changes. After the 4096 fix, the fixed Hard host
+and adaptive Soft client also passed the Xbox Rat Race → CE Death Island →
+MCC Albatross → Xbox Blood Gulch rotation (`e8-hitch-cycle`). E8 exercised
+save and restart in all four Windows menu styles. The project owner signed off E9 on 26 November 2026 at
+`82fa25809`, tagged `phase2-1.0`.
+
+The final Windows playtest used the same frozen Two Betrayals Grunt and camera
+for Hard and Soft 1024. Matching the flashlight caster to the visible mesh
+cleared the false shadow on the armour and preserved the silhouette on the
+floor. The final revision passed 62 focused checks, built for Windows, Android
+and web, and reached gameplay on CE Death Island and MCC Digsite on Windows.
+
+The last two-minute snowy combat runs preceded the flashlight mesh fix. With
+eight local slots available, Hard 1024 averaged 269.7 FPS with one second
+below 240. Soft 1024 averaged 268.7 FPS with zero seconds below 240. Sustained
+240 FPS on the exact tagged revision and physical AMD behavior are unverified.
+
+#### Two-player Windows compatibility
+
+E9 used two rendered Windows processes on loopback with separate data and
+save folders. The individual games exercised a normal lobby join, weapon
+pickup, damage and respawn. The 32-second late join entered an Xbox match
+already in progress. For reconnect, the client exited normally and started
+again with its saved preferences while the original host kept running.
+
+| Map and scenario | Host / client shadow modes | Observed result |
+| --- | --- | --- |
+| Xbox Blood Gulch, late join | Classic / Soft | 68 paired gameplay seconds. Only the Soft peer rendered local shadows. |
+| CE Death Island, host requires stock shields | Classic / Hard | 79 paired seconds. The client applied stock shields even with its local shield glow enabled and continued rendering eligible Hard shadows. |
+| MCC Albatross (Digsite Workshop package), player choice | Soft / Classic | 73 paired seconds. The peers retained their own lighting preferences and observed the same player's respawn. |
+| Xbox Blood Gulch, leave and rejoin | Soft / Classic | Host player counts went from two to one and back to two. The rejoined game had 62 paired seconds. The Classic client applied the host's forced shield effects. |
+
+In the continuous Hard-host / Soft-client rotation at 1024, the two peers
+played Xbox Rat Race, CE Death Island, MCC Albatross and Xbox Blood Gulch
+in that order with a single join. The comparator matched 33 seconds in each
+game, detected zero divergences and recorded zero ticks apart in 2,735
+on-foot drift samples. Both peers saw the same player die and respawn in
+every game. Both rendered fixture shadows indoors on Rat Race, sunlight
+on the three outdoor maps and local shadows on all four. The Soft client
+had local shield glow disabled and applied the host's forced glow in all
+180 two-player renderer samples. The recorded rotation is
+`e9-family-cycle-final`.
+
+The host setting tested here governs shield effects. A client waiting for
+its first policy message uses stock shields. Shadow mode is local to each
+peer. The probe records the mode the renderer used and the maps it actually
+prepared. It also checks networked gameplay state independently.
+
+To repeat the connected rotation, build the probe with
+[lighting_compatibility_build.py](../../tools/lighting_compatibility_build.py),
+then run [lighting_compatibility_run.py](../../tools/lighting_compatibility_run.py)
+with `--case cycle --host-shadows hard --client-shadows soft --fire`,
+`--data-root`, and the Digsite `--mcc-package` directory. Give repeat runs
+a fresh `--label`. The host picks each map through the ordinary postgame
+lobby. Each peer records the loaded scenario tag, map family, connection,
+player count, policy and active shadows. The test compares gameplay
+snapshots for each match and checks that both peers saw the same living
+player die and return. Evidence is written to
+`build/lighting-compatibility/<label>/report.json`.
+
+The two-process compatibility runs used a 60 FPS cap. The
+[E5 foreground combat measurements](environment_shadow_e5.md#fresh-windows-launches)
+established the original 1024 single-client baseline. The
+[final E5 comparison](environment_shadow_e5.md#matched-1024-and-2048-combat-dips) records the 1024 and 2048 results. These Windows loopback cases
+cover Slayer on the named maps. Internet transport, cross-platform pairs,
+campaign co-op and physical AMD rendering require separate evidence.
+
+CStencil remains a separate project after Phase 2.
+
 ## Current investigation
 
 Visual acceptance remains open after further player, Ghost and grenade

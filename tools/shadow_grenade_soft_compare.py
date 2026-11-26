@@ -184,6 +184,7 @@ def measure(cap, tick, settled, clip, output, width, height):
         valid=(rgba[:,:,3]>.5)&(np.linalg.norm(rgba[:,:,:3],axis=2)<light[3])
         source=receiver_experiment((sc.ROOT/'port/linux/src/modern_shadows_gl.c').read_text())
         body=source.split('void modern_shadow_emit(',1)[1].split('void modern_shadow_uniforms_initialize',1)[0]
+        body = (sc.ROOT/'port/linux/src/modern_sun_shader.inl').read_text() + body
         shader=''.join(ast.literal_eval(s) for s in re.findall(r'"(?:[^"\\]|\\.)*"',body))
         program=replay.program('#version 330 core\nlayout(location=0)in vec4 position;uniform mat4 mvp;out vec3 world;void main(){world=position.xyz;gl_Position=mvp*position;}',
             '#version 330 core\nin vec3 world;out vec4 color;\n'+shader+'\nvoid main(){float v=modern_visibility(world-modern_light.xyz);color=vec4(v,v,v,1);}')

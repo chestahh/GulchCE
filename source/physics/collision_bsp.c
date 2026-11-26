@@ -281,8 +281,16 @@ static long collision_leaf_test_vector(
 	long leaf_index,
 	long plane_index,
 	real t,
-	boolean test_surface);
+	boolean test_surface,
+	/* port: optional render batch */ struct collision_bsp_vector_cache *cache);
 static boolean collision_bsp_test_vector_recursive(
+	struct collision_bsp_test_vector_context *data,
+	long node_index,
+	real t0,
+	real t1,
+	short depth);
+/* port: bounded traversal for synchronous render batches */
+static boolean collision_bsp_test_vector_batch(
 	struct collision_bsp_test_vector_context *data,
 	long node_index,
 	real t0,
@@ -1382,7 +1390,12 @@ static boolean collision_bsp_test_vector_at_node(
 	}
 	else
 	{
-		return_value = collision_bsp_test_vector_recursive(&context, start_node, 0.f, t, start_depth);
+		/* port: a render batch starts at a validated, non-negative tree depth.
+		   Only such entries may use the bounded far-child stack. */
+		if (cache && start_depth >= 0)
+			return_value = collision_bsp_test_vector_batch(&context, start_node, 0.f, t, start_depth);
+		else
+			return_value = collision_bsp_test_vector_recursive(&context, start_node, 0.f, t, start_depth);
 	}
 	collision_log_end_time(
 		collision_function,
@@ -1993,16 +2006,37 @@ static long collision_leaf_test_vector(
 	long leaf_index,
 	long plane_index,
 	real t,
-	boolean test_surface)
+	boolean test_surface,
+	/* port: optional render batch */ struct collision_bsp_vector_cache *cache)
 {
 	struct collision_leaf const *leaf = TAG_BLOCK_GET_ELEMENT(
 		&bsp->leaves,
 		leaf_index,
 		struct collision_leaf);
 	long reference_index;
+	/* port: adjacent light rays often cross the same leaf boundary. Only
+	cache where its reference scan starts. Each ray still tests its own
+	projected point, surface and breakable flags, in original order. */
+	long first = leaf->first_bsp2d_reference_index;
+	unsigned long slot = 0;
+	boolean fill = FALSE;
+	if (cache && leaf->bsp2d_reference_count > 1)
+	{
+		slot = ((unsigned long)leaf_index * 33u + (unsigned long)plane_index) % 64u;
+		if (cache->references[slot].leaf_plus_one == leaf_index + 1 &&
+			cache->references[slot].plane == plane_index)
+			first = cache->references[slot].first;
+		else
+		{
+			cache->references[slot].leaf_plus_one = leaf_index + 1;
+			cache->references[slot].plane = plane_index;
+			cache->references[slot].first = first + leaf->bsp2d_reference_count;
+			fill = TRUE;
+		}
+	}
 
 	for (
-		reference_index = leaf->first_bsp2d_reference_index;
+		reference_index = first; /* port: verified first reference */
 		reference_index <
 			leaf->first_bsp2d_reference_index + leaf->bsp2d_reference_count;
 		reference_index++)
@@ -2027,6 +2061,12 @@ static long collision_leaf_test_vector(
 			real_point2d point2d;
 			long surface_index;
 
+			/* port: a later matching reference may still be needed. */
+			if (fill)
+			{
+				cache->references[slot].first = reference_index;
+				fill = FALSE;
+			}
 			if (absolute_k >= absolute_j && absolute_k >= absolute_i)
 				projection = _z;
 			else
@@ -2289,13 +2329,27 @@ static void bsp3d_test_sphere_recursive(
 	return;
 }
 
-static boolean collision_bsp_test_vector_recursive(
+/* port: render batches keep far children on a bounded stack. Every push
+   follows a validated BSP node and increases depth. Stock queries recurse at
+   split planes and need no stack allocation here. Both use the same leaves. */
+struct collision_vector_branch
+{
+	long node, plane;
+	real split, end;
+	short depth;
+};
+
+__forceinline boolean collision_bsp_test_vector_walk(
 	struct collision_bsp_test_vector_context *data,
 	long node_index,
 	real t0,
 	real t1,
-	short depth)
+	short depth,
+	struct collision_vector_branch *branches)
 {
+	int count = 0;
+
+next_node:
 	if (!(node_index & LONG_MIN))
 	{
 		struct bsp3d_node const *node;
@@ -2312,7 +2366,7 @@ static boolean collision_bsp_test_vector_recursive(
 		hits) */
 		if (!collision_bsp3d_enter_node(data->bsp, node_index, depth, &data->nodes_left))
 		{
-			return FALSE;
+			goto resume_branch;
 		}
 		/* port: identical BSP and origin throughout the batch. Keep the
 		original checked lookup and arithmetic on a miss or a stock query. */
@@ -2330,9 +2384,9 @@ static boolean collision_bsp_test_vector_recursive(
 				data->nodes_left >= data->cache->nodes[cache_slot].skip_count - 1)
 			{
 				data->nodes_left -= data->cache->nodes[cache_slot].skip_count - 1;
-				return collision_bsp_test_vector_recursive(data,
-					data->cache->nodes[cache_slot].skip_node, t0, t1,
-					depth + data->cache->nodes[cache_slot].skip_count);
+				node_index = data->cache->nodes[cache_slot].skip_node;
+				depth += data->cache->nodes[cache_slot].skip_count;
+				goto next_node;
 			}
 		}
 		else
@@ -2366,6 +2420,21 @@ static boolean collision_bsp_test_vector_recursive(
 			boolean front = dot > 0.f;
 			real t = -(distance/dot);
 
+			if (branches)
+			{
+				/* port: finish the near side before restoring this far side's plane. */
+				struct collision_vector_branch *far = &branches[count++];
+				far->node = node->children[front];
+				far->plane = node->plane_designator;
+				far->split = t;
+				far->end = t1;
+				far->depth = depth + 1;
+				node_index = node->children[!front];
+				t1 = t;
+				depth++;
+				goto next_node;
+			}
+
 			if (collision_bsp_test_vector_recursive(
 				data,
 				node->children[!front],
@@ -2390,14 +2459,11 @@ static boolean collision_bsp_test_vector_recursive(
 				return TRUE;
 			}
 		}
-		else if (collision_bsp_test_vector_recursive(
-			data,
-			node->children[reaches_front],
-			t0,
-			t1,
-			depth + 1))
+		else
 		{
-			return TRUE;
+			node_index = node->children[reaches_front];
+			depth++;
+			goto next_node;
 		}
 	}
 	else
@@ -2460,7 +2526,7 @@ static boolean collision_bsp_test_vector_recursive(
 				test_leaf_index,
 				data->last_plane_index,
 				t0,
-				test_surface);
+				test_surface, data->cache); /* port: render batch reference lookup */
 
 			if (surface_index != NONE)
 			{
@@ -2507,7 +2573,40 @@ static boolean collision_bsp_test_vector_recursive(
 		data->last_contents = contents;
 	}
 
+resume_branch:
+	while (count)
+	{
+		struct collision_vector_branch const *far = &branches[--count];
+		if (data->result->t <= far->split) continue;
+		node_index = far->node;
+		t0 = far->split;
+		t1 = far->end;
+		depth = far->depth;
+		data->last_plane_index = far->plane;
+		goto next_node;
+	}
 	return FALSE;
+}
+
+static boolean collision_bsp_test_vector_recursive(
+	struct collision_bsp_test_vector_context *data,
+	long node_index,
+	real t0,
+	real t1,
+	short depth)
+{
+	return collision_bsp_test_vector_walk(data, node_index, t0, t1, depth, NULL);
+}
+
+static boolean collision_bsp_test_vector_batch(
+	struct collision_bsp_test_vector_context *data,
+	long node_index,
+	real t0,
+	real t1,
+	short depth)
+{
+	struct collision_vector_branch far[MAXIMUM_BSP3D_TRAVERSAL_DEPTH];
+	return collision_bsp_test_vector_walk(data, node_index, t0, t1, depth, far);
 }
 
 static boolean collision_surface_test_pill(

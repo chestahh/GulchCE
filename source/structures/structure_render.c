@@ -100,6 +100,9 @@ symbols in this file:
 #include "structures/leaf_map.h"
 #include "structures/structure_bsp_definitions.h"
 #include "structures/structure_visibility.h"
+#ifdef HALO_WINDOWS
+#include "bsp_light_index_batch.h" /* port: per-light index uploads on Windows */
+#endif
 #include "tag_files/tag_groups.h"
 
 /* ---------- constants */
@@ -989,6 +992,10 @@ void structure_render_specular_light(
 		profile_enter(render_structure_specular_lights_draw_section);
 
 		rasterizer_environment_specular_light_begin(rasterizer_light_index);
+#ifdef HALO_WINDOWS
+		/* port: share this pass's immutable index list across its material draws. */
+		bsp_light_index_batch_begin(environment_triangles_index, rasterizer_light_index);
+#endif
 
 		structure_render_pass(
 			environment_surface_indices,
@@ -999,6 +1006,9 @@ void structure_render_specular_light(
 			NULL,
 			NULL);
 
+#ifdef HALO_WINDOWS
+		bsp_light_index_batch_set(NULL, 0); /* port: limit reuse to this light pass. */
+#endif
 		rasterizer_environment_specular_light_end();
 
 		if (cluster_indices)
@@ -1057,6 +1067,10 @@ void structure_render_diffuse_light(
 		profile_enter(render_structure_diffuse_lights_draw_section);
 
 		rasterizer_environment_diffuse_light_begin(rasterizer_light_index);
+#ifdef HALO_WINDOWS
+		/* port: share this pass's immutable index list across its material draws. */
+		bsp_light_index_batch_begin(environment_triangles_index, rasterizer_light_index);
+#endif
 
 		structure_render_pass(
 			environment_surface_indices,
@@ -1066,6 +1080,10 @@ void structure_render_diffuse_light(
 			rasterizer_environment_diffuse_light_draw,
 			NULL,
 			NULL);
+
+#ifdef HALO_WINDOWS
+		bsp_light_index_batch_set(NULL, 0); /* port: limit reuse to this light pass. */
+#endif
 
 		if (cluster_indices)
 		{

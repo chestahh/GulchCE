@@ -95,10 +95,11 @@ int main(void)
  shield_glow_reset();shield_glow_update();CHECK(allocations==1);
  light=shield_glows[0].light_index;CHECK(last_radius[light]>1&&close_to(last_position[light].z,.45f));
  shield_glow_submitted(light,3);CHECK(shield_glow_selected(3)&&submissions==1);
- shield_glow_frame_end();CHECK(disconnects==1&&!shield_glow_selected(3)&&last_radius[light]==0);
+ CHECK(shield_glow_shadow_owner(light)==0 && shield_glow_shadow_owner(light+1)==NONE);
+ shield_glow_frame_end();CHECK(disconnects==1&&!shield_glow_selected(3)&&last_radius[light]==0 && shield_glow_shadow_owner(light)==NONE);
  selected_look=1;clock_time+=.1f;shield_glow_update();CHECK(last_color[light].blue>last_color[light].red);
  os=1;shield_glow_update();CHECK(last_color[light].green>last_color[light].red);
- os=2;shield_glow_update();CHECK(last_color[light].red>last_color[light].green);
+ os=2;shield_glow_update();CHECK(last_color[light].red>last_color[light].green && shield_glow_shadow_owner(light)==0);
  coverage=.2f;CHECK(shield_glow_sample(0,&sample)&&close_to(sample.position.z,.09f));
  os=0;selected_look=0;original.plasma.color_source=1;units[0].object.outgoing_change_colors[0].green=.1f;
  CHECK(shield_glow_sample(0,&sample)&&sample.color.green<sample.color.red);

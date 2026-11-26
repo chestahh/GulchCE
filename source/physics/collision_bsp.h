@@ -33,6 +33,8 @@ struct collision_bsp_vector_cache
 		long skip_node;
 		short skip_count;
 	} nodes[COLLISION_VECTOR_CACHE_NODES];
+	/* port: first matching 2D reference on this immutable leaf/plane pair. */
+	struct { long leaf_plus_one, plane, first; } references[64];
 };
 
 struct collision_bsp_test_vector_result

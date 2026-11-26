@@ -1,4 +1,11 @@
 #include "harness.h"
+static struct { int model,soft; unsigned static_depth,object_depth; float tint[3],frame[16],radius,detail[4],region[8],eye[4],close[4]; } sun;
+static int sun_detail_caster, sun_detail_in_batch;
+static int flush_spot_batch(void) {return 0;}
+static int sun_draw_batch(void) {return 0;}
+static unsigned long long spot_window;
+struct modern_shadow_uniforms;
+static void spot_bind(const struct modern_shadow_uniforms *u) { (void)u; }
 static void modern_environment_dispose(void) {}
 #include <stddef.h>
 typedef unsigned int GLuint;
@@ -11,15 +18,15 @@ enum { GL_TEXTURE0,GL_TEXTURE_2D,GL_FRAMEBUFFER,GL_DEPTH_ATTACHMENT,
  GL_POLYGON_OFFSET_FILL,GL_FRONT_AND_BACK,GL_FILL,GL_DEPTH_BUFFER_BIT,
  GL_ARRAY_BUFFER,GL_ELEMENT_ARRAY_BUFFER,GL_FLOAT,GL_TRIANGLES,
  GL_UNSIGNED_SHORT,GL_UPPER_LEFT,GL_ZERO_TO_ONE,GL_TEXTURE_CUBE_MAP };
-struct xgpu_texture_description { int unused; };
+struct xgpu_texture_description { int base_opaque; };
 static struct { unsigned depth[2]; int enabled; float frames[32], radius; int soft; } environment_model;
 static int fbo,allocated,handoffs,receiver,texture,element,draw_counts[16][4],fail_fbo,deleted_textures,delete_calls;
 static unsigned int bound[2];
-static int copy_count, submitted[4];
+static int copy_count, copied_faces, submitted[4];
 static int map_slots[2]={0,1};
 static long resolution_scale=8;
-static int viewport_size;
 long halo_shadow_resolution_scale(void) { return resolution_scale; }
+static int viewport_size;
 static void glViewport(int x,int y,int width,int height) {
  CHECK(width==height && width==128*resolution_scale,"viewport follows selected shadow resolution");viewport_size=width;
 }
@@ -36,17 +43,21 @@ static void glDepthFunc(int comparison) { CHECK(comparison==GL_GREATER,"nearest 
 static int offset_calls;
 static void glPolygonOffset(float factor,float units) { CHECK(factor==-.5f/256 && units==0,"accepted ground slope");offset_calls++; }
 #define glPolygonMode(...) ((void)0)
-#define glUseProgram(...) ((void)0)
-#define glBindVertexArray(...) ((void)0)
+static GLuint active_program;
+static int opaque_draws;
+#define glUseProgram(value) (active_program=(value))
+#define glBindVertexArray(array) (element=(int)(array))
 #define glActiveTexture(...) ((void)0)
 #define glBindSampler(...) ((void)0)
-#define glClear(...) ((void)0)
+static int face_clears;
+#define glClear(...) ((void)++face_clears)
 #define glUniform1i(...) ((void)0)
 #define glEnableVertexAttribArray(...) ((void)0)
 #define glVertexAttribPointer(...) ((void)0)
 #define glUniformMatrix4fv(...) ((void)0)
 #define glBindTexture(...) ((void)0)
-#define glUniform2f(...) ((void)0)
+static int slot_writes;
+#define glUniform2f(...) ((void)++slot_writes)
 #define glUniform1f(...) ((void)0)
 #define glDeleteBuffers(...) ((void)0)
 #define glDeleteFramebuffers(...) ((void)0)
@@ -55,10 +66,10 @@ static void glPolygonOffset(float factor,float units) { CHECK(factor==-.5f/256 &
 #define glDeleteSamplers(...) ((void)0)
 static void glDeleteTextures(int n,const GLuint *textures) {
  delete_calls++;
- CHECK(n==2,"dispose owns world/view pair");deleted_textures+=!!textures[0]+!!textures[1];
+ CHECK(n==1 || n==2,"release failed cube or owned pair");deleted_textures+=!!textures[0]+(n==2 && !!textures[1]);
 }
 static void glBindFramebuffer(int target,int value) { fbo=value; }
-static void create_depth_cube(GLuint *value) { allocated++;*value=90+allocated; }
+static void create_depth_cube(GLuint *value) {allocated++;*value=90+allocated; }
 static void glFramebufferTexture2D(int t,int a,int face,int value,int l) {
  CHECK(fbo==9,"depth attachment uses owned framebuffer, including lazy allocation");texture=value;
 }
@@ -69,18 +80,22 @@ static void glUniform4fv(int location,int count,const float *v) {
 }
 static void glBindBuffer(int target,int buffer) { if(target==GL_ELEMENT_ARRAY_BUFFER) element=buffer; }
 static void glDrawElements(int mode,int count,int type,void *p) {
+ if(active_program==77)opaque_draws++;
  CHECK(texture>=91 && texture<=106,"known world/view depth target");draw_counts[texture-91][element-10]++;submitted[element-10]++;
 }
 static void glCopyImageSubData(GLuint source,GLenum source_target,int sl,int sx,int sy,int sz,
  GLuint destination,GLenum target,int dl,int dx,int dy,int dz,int w,int h,int depth) {
- CHECK(source_target==GL_TEXTURE_CUBE_MAP && target==GL_TEXTURE_CUBE_MAP && depth==6 &&
-       !sl && !dl && !sx && !sy && !sz && !dx && !dy && !dz,"copy exactly six complete depth faces");
+ CHECK(source_target==GL_TEXTURE_CUBE_MAP && target==GL_TEXTURE_CUBE_MAP && depth>=1 && sz>=0 && sz+depth<=6 && dz==sz &&
+       !sl && !dl && !sx && !sy && !dx && !dy,"copy aligned whole depth faces within each cube");
  CHECK(w==128*resolution_scale && h==w,"copy follows selected shadow resolution");
  if (!copy_count) CHECK(!draw_counts[source-91][1] && !draw_counts[source-91][2],"copy precedes receiver-private casters");
+ copied_faces = ((1U << depth)-1) << sz;
  memcpy(draw_counts[destination-91],draw_counts[source-91],sizeof(draw_counts[0]));copy_count++;
 }
 static void xgpu_gl_end_external_pass(void) { handoffs++; }
-static GLuint xgpu_texture_get(const void *p,void *u,GLenum *target,struct xgpu_texture_description *d) { *target=GL_TEXTURE_2D;return 5; }
+static unsigned long lookup_serial=7;
+static unsigned long xgpu_texture_lookup_serial(void) { return lookup_serial; }
+static GLuint xgpu_texture_get(const void *p,void *u,GLenum *target,struct xgpu_texture_description *d) { *target=GL_TEXTURE_2D;d->base_opaque=*(const int *)p;return 5; }
 static void glBindTextures(int unit,int n,const GLuint *p) { bound[unit==10]=*p; }
 static int modern_shadows_map(int slot) { return map_slots[slot]; }
 static int xgpu_gl_ready(void) { return 1; }
@@ -142,11 +157,14 @@ int main(int argc,char **argv) {
  modern_shadow_dispose();modern_shadow_dispose();
  CHECK(!delete_calls && !handoffs,"unused shadow feature never calls the driver during cleanup");
  ground_slope=-.5f/256;framebuffer=9;mesh_count=3;
- for(i=0;i<3;i++) { meshes[i].indices=10+i;meshes[i].count=3; }
+ for(i=0;i<3;i++) { meshes[i].array=meshes[i].indices=10+i;meshes[i].count=3; }
  CHECK(!modern_shadow_begin(-1,origin,2,0,0) && !modern_shadow_begin(MODERN_SHADOW_LIGHTS,origin,2,0,0),"invalid slot never allocates");
  CHECK(modern_shadow_begin(0,origin,2,0,1),"first light begins");
  CHECK(!modern_shadow_begin(1,origin,2,0,0),"cannot overwrite an unfinished submission");
+ sun_detail_caster=1;
  CHECK(modern_shadow_draw(1,matrix,1,NULL,uv,MODERN_SHADOW_BOTH),"shared caster");
+ CHECK(sun_detail_in_batch==1,"batch retains the detail flag of a submitted caster");
+ sun_detail_caster=0;
  CHECK(modern_shadow_draw(2,matrix,1,NULL,uv,MODERN_SHADOW_WORLD),"world body/weapon");
  CHECK(modern_shadow_draw(3,matrix,1,NULL,uv,MODERN_SHADOW_VIEW),"viewmodel arms/weapon");
  CHECK(modern_shadow_end(),"complete depth maps");
@@ -156,6 +174,10 @@ int main(int argc,char **argv) {
  CHECK(draw_counts[0][0]==6 && draw_counts[0][1]==6 && !draw_counts[0][2],"world retains full body, excludes viewmodel");
  CHECK(draw_counts[1][0]==6 && !draw_counts[1][1] && draw_counts[1][2]==6,"view sees environment and own pose without hidden body");
  modern_shadow_bind(&uniforms);CHECK(bound[0]==91 && !bound[1],"only valid map binds");
+ CHECK(slot_writes==1,"first receiver gets slot values");
+ modern_shadow_bind(&uniforms);CHECK(slot_writes==1,"identical receiver retains slot uniforms");
+ { struct modern_shadow_uniforms other={0}; modern_shadow_bind(&other);
+   CHECK(slot_writes==2,"a second program receives its own slot values"); }
  CHECK(modern_shadow_begin(1,origin,2,1,1),"second independent light");
  modern_shadow_draw(1,matrix,1,NULL,uv,MODERN_SHADOW_BOTH);
  modern_shadow_draw(3,matrix,1,NULL,uv,MODERN_SHADOW_VIEW);
@@ -262,6 +284,47 @@ int main(int argc,char **argv) {
   CHECK(modern_shadow_begin(0,origin,2,0,0),"near light begins");
   CHECK(modern_shadow_draw(1,bones,2,NULL,uv,MODERN_SHADOW_VIEW),"near viewmodel remains a caster");
   CHECK(modern_shadow_end() && maps[0].view_map && allocated==2,"near light retains the independent first-person cube");
+  CHECK(copied_faces==63, "a new view cube is fully initialised");
+  {
+   unsigned int previous_dirty = 63 & ~maps[0].view_clear_faces;
+   CHECK(previous_dirty && previous_dirty != 63, "near caster covers a subset of faces");
+   modern_shadow_begin(0,origin,2,0,0);
+   modern_shadow_draw(1,bones,2,NULL,uv,MODERN_SHADOW_VIEW);
+   modern_shadow_end();
+   CHECK((copied_faces & previous_dirty)==previous_dirty && copied_faces!=63,
+         "view cube clears every previous private caster without copying known empty faces");
+  }
+  modern_shadow_begin(0,origin,4,0,0); modern_shadow_end();
+  CHECK(maps[0].clear_faces==63,"an empty world cube clears previous private casters");
+  face_clears=0;
+  modern_shadow_begin(0,origin,4,0,0); modern_shadow_end();
+  CHECK(!face_clears,"previously empty depth faces need no attachment clear");
+  {
+   int full=1, cutout=0;
+   opaque_program=77;
+   meshes[0].model=1;meshes[0].bounded=0;meshes[0].array=10;
+   modern_shadow_begin(0,origin,4,0,0);
+   modern_shadow_draw(1,bones,2,&full,uv,MODERN_SHADOW_WORLD);
+   lookup_serial++;
+   modern_shadow_draw(1,bones,2,&cutout,uv,MODERN_SHADOW_WORLD);
+   modern_shadow_end();
+   CHECK(!opaque_draws,"a reupload before rendering invalidates an earlier opaque draw");
+   modern_shadow_begin(0,origin,4,0,0);
+   modern_shadow_draw(1,bones,2,&full,uv,MODERN_SHADOW_WORLD);
+   modern_shadow_draw(1,bones,2,&cutout,uv,MODERN_SHADOW_WORLD);
+   modern_shadow_end();
+   CHECK(opaque_draws==6,"only the opaque model uses depth-only on all six faces");
+   meshes[0].model=0;
+   modern_shadow_begin(0,origin,4,0,0);
+   modern_shadow_draw(1,bones,2,&full,uv,MODERN_SHADOW_WORLD);
+   modern_shadow_end();
+   CHECK(opaque_draws==6,"textured world geometry keeps its material shader");
+   modern_shadow_begin(0,origin,4,0,0);
+   modern_shadow_draw(1,bones,2,NULL,uv,MODERN_SHADOW_WORLD);
+   modern_shadow_draw(1,bones,2,&cutout,uv,MODERN_SHADOW_WORLD);
+   modern_shadow_end();
+   CHECK(opaque_draws==12,"only untextured world geometry uses the opaque depth program");
+  }
   modern_shadow_dispose();
  }
  return 0;

@@ -37,6 +37,8 @@ void progress_bar_eachframe(
 	void);
 void progress_bar_display(
 	real progress);
+/* port: synchronous pre-game presentation on the backbuffer */
+int progress_bar_present_standalone(real progress);
 boolean progress_bar_is_stuff_ready(
 	void);
 

@@ -2,7 +2,7 @@
    balance cache warming. Compare outputs outside the measured intervals. */
 #include <stdio.h>
 int lighting_trace_uncached, lighting_trace_unprepared;
-static void trace_depths(real extent, real_point3d const *from, long ignore, int vehicles, int resolution,
+static void trace_depths(real extent, real_point3d const *from, long ignore, int vehicles, int resolution, long owner,
 	real depths[6][OCC_SIZE * OCC_SIZE])
 {
 	static FILE *file;
@@ -21,16 +21,16 @@ static void trace_depths(real extent, real_point3d const *from, long ignore, int
 		QueryPerformanceCounter(&begin);
 		switch (phase)
 		{
-		case 0: trace_depths_actual(extent, from, ignore, vehicles, resolution, depths); break;
-		case 1: trace_depths_reference(extent, from, ignore, vehicles, resolution, reference); break;
+		case 0: trace_depths_actual(extent, from, ignore, vehicles, resolution, owner, depths); break;
+		case 1: trace_depths_reference(extent, from, ignore, vehicles, resolution, owner, reference); break;
 		case 2:
 			lighting_trace_uncached = 1;
-			trace_depths_actual(extent, from, ignore, vehicles, resolution, uncached);
+			trace_depths_actual(extent, from, ignore, vehicles, resolution, owner, uncached);
 			lighting_trace_uncached = 0;
 			break;
 		case 3:
 			lighting_trace_unprepared = 1;
-			trace_depths_actual(extent, from, ignore, vehicles, resolution, unprepared);
+			trace_depths_actual(extent, from, ignore, vehicles, resolution, owner, unprepared);
 			lighting_trace_unprepared = 0;
 			break;
 		}
