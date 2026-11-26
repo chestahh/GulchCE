@@ -701,6 +701,8 @@ static const struct config_setting config_settings[] =
 		"Give an active shadowed flashlight an extra slot alongside all eight other local lights." },
 	{ "display.environment_sun", _config_boolean, "false", "HALO_ENVIRONMENT_SUN", _environment_value, _platform_desktop,
 		"Directional sun shadows on eligible nearby map geometry and objects in Modern Hard and Soft." },
+	{ "display.environment_distant_sun", _config_boolean, "false", "HALO_ENVIRONMENT_DISTANT_SUN", _environment_value, _platform_desktop,
+		"Extend Sun Shadows into the distance and toward scoped targets. Applies on the next map load." },
 	{ "display.modern_shadows", _config_string, "\"off\"", "HALO_MODERN_SHADOWS", _environment_value, _platform_desktop,
 		"Rendered shadows for up to eight enabled dynamic lights: \"off\",\n"
 		"\"hard\" or \"soft\". Changes apply on the next map load. Desktop only." },

@@ -90,16 +90,22 @@ enum { MESH_BUCKETS = 2 * SHADOW_PARTS };
 static unsigned short mesh_index[MESH_BUCKETS];
 static int patches_ready;
 static unsigned char *sun_surface_sky;
+struct sun_scope_view { long unit, tick; float previous, distance; };
+static struct sun_scope_view sun_scope_views[MAXIMUM_LOCAL_PLAYERS];
 static int sun_count;
 static short prepared_sky = NONE;
 enum { SUN_CUTOUTS = 64 };
-static struct
+struct sun_cutout
 {
     struct structure_material const *material;
     const void *texture;
     float uv[8];
-} sun_cutouts[SUN_CUTOUTS];
-static int sun_cutout_count;
+};
+static struct sun_cutout_list
+{
+    struct sun_cutout items[SUN_CUTOUTS];
+    int count;
+} sun_cutouts[2];
 static int part_count;
 static int map_mode, prepare_pending;
 static struct structure_bsp const *cached_bsp;
@@ -145,8 +151,9 @@ static void forget_shadow_geometry(void)
 	int i;
 	if (sun_surface_sky) free(sun_surface_sky);
 	sun_surface_sky = NULL;
+	memset(sun_scope_views, 0, sizeof(sun_scope_views));
 	patches_ready = 0;
-	sun_cutout_count = sun_count = 0;
+	sun_cutouts[0].count = sun_cutouts[1].count = sun_count = 0;
 	prepared_sky = NONE;
 	memset(parts, 0, sizeof(parts));
 	memset(mesh_index, 0, sizeof(mesh_index));
@@ -531,7 +538,38 @@ static int spot_sphere_visible(real_point3d const *c,float radius)
     return 1;
 }
 
-static int world_casters_clipped(struct structure_bsp const *bsp, real_point3d const *origin, real radius, const float *sun_frame)
+struct sun_bsp_clip
+{
+	const float *frame;
+	const float *far_origin;
+	float far_radius;
+	int tiles;
+};
+
+/* Test the mesh bounds in each dirty light-space square. Retain the full
+   BSP depth along the sun ray, including casters outside the camera view. */
+static int sun_mesh_tiles(int part, const struct sun_bsp_clip *clip, float near_radius)
+{
+	int axis, k, tiles = clip->tiles;
+	for (axis = 0; tiles && axis < 2; axis++)
+	{
+		const float *direction = clip->frame + 4 * axis;
+		float near_offset = 0.f, far_offset = 0.f, extent = 0.f;
+		for (k = 0; k < 3; k++)
+		{
+			float lo = parts[part].minimum[k], hi = parts[part].maximum[k];
+			float center = (lo + hi) * .5f;
+			if (tiles & SUN_TILE_NEAR) near_offset += direction[k] * (center - clip->frame[12+k]);
+			if (tiles & SUN_TILE_FAR) far_offset += direction[k] * (center - clip->far_origin[k]);
+			extent += fabsf(direction[k]) * (hi-lo) * .5f;
+		}
+		if (fabsf(near_offset) > near_radius + extent) tiles &= ~SUN_TILE_NEAR;
+		if (fabsf(far_offset) > clip->far_radius + extent) tiles &= ~SUN_TILE_FAR;
+	}
+	return tiles;
+}
+
+static int world_casters_clipped(struct structure_bsp const *bsp, real_point3d const *origin, real radius, const struct sun_bsp_clip *sun_clip)
 {
 	int lightmap, index;
 	for (lightmap = 0; lightmap < bsp->lightmaps.count; lightmap++)
@@ -543,7 +581,7 @@ static int world_casters_clipped(struct structure_bsp const *bsp, real_point3d c
 			struct structure_surface const *surfaces;
 			void const *alpha;
 			float scale[2] = {1,1}, uv[8], distance = 0;
-			int part, axis, type;
+			int part, axis, type, tiles = 0;
 			if (m->surface_count == 0 || m->shader.index == NONE) continue;
 			if (m->breakable_surface_index != NONE && !breakable_surface_extant(m->breakable_surface_index)) continue;
 			type = material(shader_definition_get(m->shader.index), m->permutation_index, &alpha, scale, NULL, uv);
@@ -553,42 +591,40 @@ static int world_casters_clipped(struct structure_bsp const *bsp, real_point3d c
 			surfaces = (struct structure_surface const *)bsp->surfaces.address + m->first_surface_index;
 			part = mesh_get(&m->vertices, m, NULL, surfaces->vertex_indices, m->surface_count * 3, 1);
 			if (part == NONE) return 0;
-			for (axis = 0; axis < 3; axis++)
+			if (sun_clip)
 			{
-				float p = ((float const *)origin)[axis];
-				float d = MAX(parts[part].minimum[axis] - p, MAX(p - parts[part].maximum[axis], 0.f));
-				distance += d * d;
+				tiles = sun_mesh_tiles(part, sun_clip, radius);
+				if (!tiles) continue;
 			}
-			if (sun_frame)
+			else
 			{
-				int outside = 0;
-				for (axis = 0; axis < 2; axis++)
+				for (axis = 0; axis < 3; axis++)
 				{
-					const float *basis = sun_frame + 4 * axis;
-					float offset = 0.f, extent = 0.f;
-					for (int k = 0; k < 3; k++)
-					{
-						float lo = parts[part].minimum[k], hi = parts[part].maximum[k];
-						offset += basis[k] * ((lo + hi) * .5f - sun_frame[12+k]);
-						extent += fabsf(basis[k]) * (hi-lo) * .5f;
-					}
-					if (fabsf(offset) > radius + extent) outside = 1;
+					float p = ((float const *)origin)[axis];
+					float d = MAX(parts[part].minimum[axis] - p, MAX(p - parts[part].maximum[axis], 0.f));
+					distance += d * d;
 				}
-				if (outside) continue;
+				if (distance > radius * radius) continue;
 			}
-			else if (distance > radius * radius) continue;
 			if (clipping_spot && !spot_box_visible(parts[part].minimum,parts[part].maximum)) continue;
 			if (!modern_shadow_draw(parts[part].mesh, identity, 1, alpha, uv, MODERN_SHADOW_BOTH)) return 0;
-			if (sun_frame)
+			if (sun_clip)
 			{
-				modern_environment_sun_surfaces(sun_surface_sky + m->first_surface_index);
-				if (alpha && sun_cutout_count < SUN_CUTOUTS)
+				int tile;
+				modern_environment_sun_surfaces(sun_surface_sky + m->first_surface_index, tiles);
+				for (tile = 0; alpha && tile < 2; tile++)
 				{
-					sun_cutouts[sun_cutout_count].material = m;
-					sun_cutouts[sun_cutout_count].texture = alpha;
-					memcpy(sun_cutouts[sun_cutout_count++].uv,uv,sizeof(uv));
+					struct sun_cutout_list *list = &sun_cutouts[tile];
+					if (!(tiles & (1 << tile))) continue;
+					if (list->count < SUN_CUTOUTS)
+					{
+						struct sun_cutout *item = &list->items[list->count++];
+						item->material = m;
+						item->texture = alpha;
+						memcpy(item->uv, uv, sizeof(uv));
+					}
+					else list->count = SUN_CUTOUTS + 1;
 				}
-				else if (alpha) sun_cutout_count = SUN_CUTOUTS + 1;
 			}
 		}
 	}
@@ -884,7 +920,8 @@ int modern_shadows_prepare_loaded_map(void)
     fixtures = config_boolean("display.environment_fixtures");
     if (sunlight) sun_classify_surfaces();
     if (fixtures) prepare_fixture_patches();
-    modern_shadow_preload(sunlight, fixtures, config_boolean("display.flashlight_shadows"));
+    modern_shadow_preload(sunlight, config_boolean("display.environment_distant_sun"),
+        fixtures, config_boolean("display.flashlight_shadows"));
     return TRUE;
 }
 

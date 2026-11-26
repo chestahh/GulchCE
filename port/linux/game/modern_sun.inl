@@ -33,17 +33,18 @@ static int sun_reaches_view(real_point3d const *center, real radius, real_vector
 
 /* A fixed grate stays in the cached visibility map. A change to its evaluated
    UV transform or texture invalidates it before any receiver can use it. */
-static int sun_static_unchanged(void)
+static int sun_static_unchanged(const struct sun_cutout_list *list)
 {
     int i;
-    if (sun_cutout_count > SUN_CUTOUTS) return 0;
-    for (i=0; i<sun_cutout_count; i++)
+    if (list->count > SUN_CUTOUTS) return 0;
+    for (i=0; i<list->count; i++)
     {
-        const struct structure_material *m = sun_cutouts[i].material;
+        const struct sun_cutout *item = &list->items[i];
+        const struct structure_material *m = item->material;
         const void *alpha;
         float scale[2]={1,1}, uv[8];
         if (material(shader_definition_get(m->shader.index),m->permutation_index,&alpha,scale,NULL,uv)!=1 ||
-            alpha!=sun_cutouts[i].texture || memcmp(uv,sun_cutouts[i].uv,sizeof(uv))) return 0;
+            alpha!=item->texture || memcmp(uv,item->uv,sizeof(uv))) return 0;
     }
     return 1;
 }
@@ -83,6 +84,60 @@ static int sun_classify_surfaces(void)
     return 1;
 }
 
+/* A scope changes the receiver footprint in this view only. Keep the wide
+   map centred on the camera, even while the two finer projections follow aim. */
+#include "physics/collisions.h"
+#include "game/game.h"
+#include "cutscene/cinematics.h"
+
+static float sun_scope_distance(void)
+{
+    short player = render.local_player_index;
+    long tick = game_time_get(), unit;
+    float target = 0.f, magnification;
+    struct sun_scope_view *state;
+    if (!VALID_INDEX(player,MAXIMUM_LOCAL_PLAYERS)) return 0.f;
+    state = &sun_scope_views[player];
+    unit = player_control_get_unit_index(player);
+    if (unit == NONE || !object_try_and_get(unit) || cinematic_in_progress() ||
+        director_get_perspective(player) != _director_perspective_first_person)
+    {
+        state->unit = NONE;
+        return 0.f;
+    }
+    if (state->unit != unit || tick < state->tick || tick-state->tick > TICKS_PER_SECOND)
+    {
+        state->unit = unit;
+        state->tick = tick-1;
+        state->previous = state->distance = 0.f;
+    }
+    if (state->tick != tick)
+    {
+        long elapsed = tick-state->tick;
+        short zoom = unit_get_zoom_level(unit);
+        magnification = zoom >= 0 ? unit_get_zoom_magnification(unit,zoom) : 1.f;
+        if (magnification > 1.f)
+        {
+            struct collision_result hit;
+            real_vector3d ray;
+            float limit = MIN(96.f,36.f*magnification);
+            unsigned long flags = FLAG(_collision_test_front_facing_surfaces_bit) |
+                FLAG(_collision_test_ignore_invisible_surfaces_bit) | FLAG(_collision_test_structure_bit) |
+                FLAG(_collision_test_objects_bit) | _collision_test_objects_all_types_flags;
+            scale_vector3d(&render.camera.forward,limit,&ray);
+            if (collision_test_vector(flags,&render.camera.position,&ray,unit,&hit))
+                target = PIN(hit.t,0.f,1.f)*limit;
+        }
+        float catchup = 4.f*(elapsed-1);
+        state->previous = state->distance + PIN(target-state->distance,-catchup,catchup);
+        /* Bound a sudden change of depth when the reticle crosses a ridge.
+           Interpolate between simulation ticks independently of render FPS. */
+        state->distance = state->previous + PIN(target-state->previous,-4.f,4.f);
+        state->tick = tick;
+    }
+    return state->previous+(state->distance-state->previous)*render_interpolation_fraction();
+}
+
 static float sun_detail_focus(real_point3d *focus, float radius, float *strength)
 {
     long unit;
@@ -107,15 +162,16 @@ static void sun_prepare(void)
 {
     const float radius = 12.f;
     const float detail_radius = 4.f;
-    float detail[2], close[4]={0}, region[8];
+    float detail[2], close[4]={0}, region[16]={0};
+    float reach, aim_distance = 0.f;
     real_matrix4x3 basis;
     real_vector3d toward;
     real_rgb_color tint;
-    real_point3d focus, player_focus;
+    real_point3d focus, wide_focus, detail_focus, player_focus, far_origin;
     struct object_iterator it;
     struct object_datum *obj;
     float frame[16], color[3], depth_extent = 1.f;
-    int ok = 1, reuse, i;
+    int ok = 1, reuse, reusable, i;
     short sky;
     prepared_families = 0;
     prepared_sky = NONE;
@@ -132,11 +188,16 @@ static void sun_prepare(void)
     cross_product3d(&basis.up,&basis.forward,&basis.left);
     /* Keep the camera and close peripheral receivers inside both full-strength
        regions. Quantization and the outer handoff still use the same grids. */
-    point_from_line3d(&render.camera.position,&render.camera.forward,radius*.25f,&focus);
+    reach = modern_environment_sun_outer_radius(radius);
+    if (reach>radius) aim_distance = sun_scope_distance();
+    point_from_line3d(&render.camera.position,&render.camera.forward,radius*.25f,&wide_focus);
+    point_from_line3d(&render.camera.position,&render.camera.forward,aim_distance,&detail_focus);
+    point_from_line3d(&render.camera.position,&render.camera.forward,MAX(radius*.25f,aim_distance),&focus);
     point_from_line3d(&render.camera.position,&render.camera.forward,4.f,&player_focus);
     close[2] = sun_detail_focus(&player_focus,3.f,&close[3]);
     if (close[2] >= 3.f) close[2] = 0.f;
     basis.position = *global_origin3d;
+    far_origin = *global_origin3d;
     /* World-anchored tile steps are integral texels at all supported tiers.
        Quantize translation in the shadow plane only. Depth stays BSP-fixed. */
     for (i = 0; i < 2; i++)
@@ -144,9 +205,17 @@ static void sun_prepare(void)
         real_vector3d const *axis = i ? &basis.left : &basis.forward;
         float along = dot_product3d(axis,(real_vector3d const *)&focus);
         float snapped = floorf(along / 1.5f + .5f) * 1.5f;
-        float near_along = dot_product3d(axis,(real_vector3d const *)&render.camera.position);
+        float near_along = dot_product3d(axis,(real_vector3d const *)&detail_focus);
         /* Express the finer tile in the wide tile's light plane. Both share
            the same BSP-fixed depth, including blockers far above the camera. */
+        if (reach > radius)
+        {
+            float wide_along = dot_product3d(axis,(real_vector3d const *)&wide_focus);
+            float wide_snapped = floorf(wide_along / 4.5f + .5f) * 4.5f;
+            region[8+i] = wide_snapped - snapped;
+            point_from_line3d(&far_origin,axis,wide_snapped,&far_origin);
+            region[12+i] = (along-wide_along)/radius;
+        }
         float detail_step = detail_radius/64.f;
         detail[i] = floorf(near_along/detail_step+.5f)*detail_step - snapped;
         if (close[2] > 0.f)
@@ -169,15 +238,20 @@ static void sun_prepare(void)
         depth_extent += fabsf(basis.up.n[i]) * (bounds->n[2*i+1]-bounds->n[2*i])*.5f;
     }
     point_from_line3d(&basis.position,&basis.up,mid,&basis.position);
+    point_from_line3d(&far_origin,&basis.up,mid,&far_origin);
     matrix_to_gl(&basis,frame);
     for (i = 0; i < 3; i++) frame[8+i] *= radius/depth_extent;
     if (!sun_classify_surfaces()) return;
-    reuse = modern_environment_sun_begin(frame,radius,region,detail,detail_radius,render.camera.position.n,close,sun_static_unchanged(),sky,mode == 2);
+    reusable = sun_static_unchanged(&sun_cutouts[0]) ? SUN_TILE_NEAR : 0;
+    if (sun_static_unchanged(&sun_cutouts[1])) reusable |= SUN_TILE_FAR;
+    reuse = modern_environment_sun_begin(frame,far_origin.n,radius,region,detail,detail_radius,detail_focus.n,close,reusable,sky,mode == 2);
     if (!reuse) return;
-    if (reuse == 1)
+    reach = modern_environment_sun_outer_radius(radius);
+    if (reuse != SUN_TILES_CACHED)
     {
-        sun_cutout_count=0;
-        ok = modern_environment_sun_static(world_casters_clipped(cached_bsp,&basis.position,radius,frame));
+        struct sun_bsp_clip clip = {frame, far_origin.n, reach, reuse};
+        for (i=0; i<2; i++) if (reuse & (1<<i)) sun_cutouts[i].count = 0;
+        ok = modern_environment_sun_static(world_casters_clipped(cached_bsp,&basis.position,radius,&clip));
     }
     /* Intersect the caster with the tile. A large or offscreen mesh may
        shadow a visible receiver even when its origin lies outside the tile. */
@@ -200,16 +274,19 @@ static void sun_prepare(void)
         float x = dot_product3d(&basis.forward,&delta);
         float y = dot_product3d(&basis.left,&delta);
         float z = fabsf(dot_product3d(&basis.up,&delta));
-        if (fabsf(x) > radius+extent || fabsf(y) > radius+extent || z > depth_extent+extent ||
+        float outer_x = x - (reach>radius ? region[8] : 0.f);
+        float outer_y = y - (reach>radius ? region[9] : 0.f);
+        int outside_near = fabsf(x)>radius+extent || fabsf(y)>radius+extent;
+        if ((outside_near && (fabsf(outer_x)>reach+extent || fabsf(outer_y)>reach+extent)) || z>depth_extent+extent ||
             !sun_reaches_view(&center,extent,&toward)) continue;
         remaining = 128;
         /* Projected distance is a lower bound along the entire shadow ray.
            A distant caster behind the view may still overlap the near disk. */
         float dx=x-detail[0], dy=y-detail[1];
-        float reach=detail_radius+extent+detail_radius/64.f;
-        int radial = dx*dx+dy*dy <= reach*reach;
+        float radial_reach=detail_radius+extent+detail_radius/64.f;
+        int radial = dx*dx+dy*dy <= radial_reach*radial_reach;
         int player = close[2]>0.f && fabsf(x-close[0])<=close[2]+extent && fabsf(y-close[1])<=close[2]+extent;
-        modern_environment_sun_detail_caster(radial | (player<<1));
+        modern_environment_sun_detail_caster(radial | (player<<1) | (outside_near ? 4 : 0));
         ok = environmental_casters(it.index,&remaining);
         if (z+extent < depth_extent &&
             sun_cluster_sky(obj->object.location.cluster_index) == sky)

@@ -5,7 +5,8 @@ static void sun_prepare(void) {}
 static int patches_ready, sun_count;
 static void prepare_spots(int mode) { (void)mode; }
 static unsigned char *sun_surface_sky;
-static int sun_cutout_count;
+static struct { int count; } sun_cutouts[2];
+static struct { long unit, tick; float previous, distance; } sun_scope_views[1];
 static void modern_environment_window(void) {}
 #define MIN(a,b) ((a)<(b)?(a):(b))
 #define MAX(a,b) ((a)>(b)?(a):(b))
@@ -90,7 +91,9 @@ static int selection_stability(void)
 {
  int fps, frame, switches, map_zero, map_one;
  for (fps=30; fps<=120; fps*=2) {
+  sun_scope_views[0].distance=36.f;
   modern_shadows_reset(); modern_shadows_window();
+  CHECK(!sun_scope_views[0].distance,"map reset clears the scoped aim distance");
   modern_shadows_submitted(100,0); modern_shadows_submitted(101,1); modern_shadows_submitted(102,2);
   allowed=7; mode="hard"; modern_shadows_map_loaded(1);
   rasterizer_lights.lights[0].color.red=2;
@@ -98,7 +101,7 @@ static int selection_stability(void)
   rasterizer_lights.lights[2].color.red=.7f;
   global_frame_parameters.game_time_sec=0;
   sun_count=1;modern_shadows_prepare(1);
-  CHECK(!sun_count && !sun_cutout_count,"new view clears previous ownership and map reset clears cutouts");
+  CHECK(!sun_count && !sun_cutouts[0].count && !sun_cutouts[1].count,"new view clears previous ownership and map reset clears both cutout lists");
   map_zero=map_for(0);map_one=map_for(1);switches=0;
   CHECK(map_zero!=NONE && map_one!=NONE && map_zero!=map_one,"two strongest lights receive independent maps");
   for(frame=1;frame<=fps;frame++) {

@@ -1,5 +1,5 @@
 """Actual environmental owner/attachment and failure policy, independent of GL."""
-from tools.harness import build, function, read, run
+from tools.harness import build, enum_with, function, read, run
 
 
 def test_environmental_replacement_and_fallback():
@@ -67,12 +67,15 @@ def test_environmental_model_family_and_lifecycle():
 
 def test_environmental_model_gpu_resource_lifecycle():
     source = read('port/linux/src/modern_environment_gl.inl')
-    code = source[source.index('struct environment_receiver_uniforms'):source.index('static GLuint environment_program')]
+    code = enum_with(read('port/linux/include/modern_shadows.h'), 'SUN_TILE_NEAR') + '\n'
+    code += source[source.index('struct environment_receiver_uniforms'):source.index('static GLuint environment_program')]
     code += '\n'.join(function(source, n) for n in (
-        'modern_environment_window', 'modern_environment_dispose',
+        'modern_environment_window', 'sun_release_far', 'modern_environment_dispose',
+        'environment_resize_texture', 'sun_prepare_far', 'modern_environment_sun_outer_radius',
         'modern_environment_model_clear', 'modern_environment_model_active',
         'modern_environment_model_reuse', 'environment_model_resources', 'modern_environment_model_begin',
-        'modern_environment_model_end', 'sun_draw_batch', 'modern_environment_sun_static',
+        'modern_environment_model_end', 'sun_fit_tile', 'modern_environment_sun_begin',
+        'sun_draw_batch', 'modern_environment_sun_static',
         'modern_environment_sun_finish', 'modern_environment_sun_model'))
     spots = read('port/linux/src/modern_spots_gl.inl')
     code += function(spots, 'flush_spot_batch') + function(spots, 'modern_spot_end')

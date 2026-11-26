@@ -173,8 +173,10 @@ def document():
             row=w(f"row_{key}",width=336,height=26,bitmap="modern/row",platform=platform,flags="pass_unhandled_to_focused_child nifty_fx")
             wide_value = setting == "display.shield_look"
             value_width = 198 if wide_value else 140
+            # Long captions can use the gap up to the spinner at x=180.
+            label_width = 94 if wide_value else (168 if text_width(label, 10) > 152 else 152)
             c(row,f"label_{key}",12,3); c(row,f"spinner_{key}",122 if wide_value else 180,3)
-            w(f"label_{key}",type="text",controller=1,width=94 if wide_value else 152,height=24,string_list=base+"/labels",string_index=index,font="ui\\large_ui",color="#FF2896FF")
+            w(f"label_{key}",type="text",controller=1,width=label_width,height=24,string_list=base+"/labels",string_index=index,font="ui\\large_ui",color="#FF2896FF")
 
             if choices is None:
                 row.remove(row.findall("child")[1])
