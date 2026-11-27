@@ -138,6 +138,44 @@ def test_model_conversion_and_dispose(geometry_tool, tmp_path):
     assert fields["created_buffers"] == "2"
 
 
+@pytest.mark.parametrize("group,layers,lit,expected", [
+    ("sotr", 0, False, 2), ("schi", 0, False, 2), ("sgla", 0, False, 0),
+    ("sotr", 1, False, 0), ("sotr", 0, True, 0),
+])
+def test_bsp_group_without_baked_uvs(geometry_tool, tmp_path, group, layers, lit, expected):
+    data = geometry_map()
+    # Reuse the model's slot for a shader. Append a BSP with two distinct
+    # material ranges so one baked stream must preserve the whole group.
+    shader = 0xE1760002
+    data[0xC00+0x68:0xC00+0x6C] = group[::-1].encode("ascii")
+    struct.pack_into("<I", data, 0xC00+0x800+0x48, layers)
+    offset, size = len(data), 0x600
+    address = 0x54000000 - size
+    vertex_start = offset + size
+    data.extend(bytes(size + 2 * 3 * 56 + 3 * 20))
+    struct.pack_into("<I", data, 8, len(data))
+    struct.pack_into("<3I", data, 0xC00+0x7B0, offset, size, address)
+    struct.pack_into("<3I", data, offset, address+0x18, len(data)-vertex_start, vertex_start)
+    data[offset+0x14:offset+0x18] = b"psbs"
+    root = offset + 0x18
+    struct.pack_into("<2I", data, root+0xF8, 2, address+0x2A0)
+    struct.pack_into("<6H", data, offset+0x2A0, 0, 1, 2, 0, 1, 2)
+    struct.pack_into("<2I", data, root+0x104, 1, address+0x2C0)
+    struct.pack_into("<2I", data, offset+0x2C0+0x14, 2, address+0x300)
+    for i in range(2):
+        material = offset + 0x300 + 0x100*i
+        struct.pack_into("<I", data, material+12, shader)
+        struct.pack_into("<2I", data, material+20, i, 1)
+        struct.pack_into("<2I", data, material+0xB4, 3, i*3*56)
+    if lit:
+        struct.pack_into("<2I", data, material+0xC8, 3, 2*3*56)
+    path = tmp_path/"unrelated.map"
+    path.write_bytes(data)
+    code, fields = run(geometry_tool, path)
+    assert code == 0
+    assert int(fields["unlightmapped_surfaces"]) == expected
+
+
 @pytest.mark.parametrize("failure_at", [0, 1])
 def test_partial_gpu_failure_cleanup(geometry_tool, tmp_path, failure_at):
     path = tmp_path/"geometry.map"

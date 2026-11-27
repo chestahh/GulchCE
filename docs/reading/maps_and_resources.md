@@ -440,6 +440,27 @@ This is a summary of stages, not the complete list of operations or failure
 sites. The `problem` string and `failed` label in `mcc_cache_tags_load` make
 the exact failure path especially readable.
 
+## BSP lights without baked texture coordinates
+
+A BSP material owns a range of triangles. Each triangle indexes that material's
+render vertices. Baked lighting has a second vertex stream with coordinates
+for sampling the lightmap bitmap.
+
+An MCC lightmap group can name a bitmap while containing only standalone
+generic or Chicago transparent passes with base geometry and no baked stream.
+`mcc_geometry_bsp_load` marks that group unlightmapped in the loaded BSP.
+For example, a ceiling strip then draws from its own vertices and texture,
+and object lighting skips the absent baked coordinates. Groups with baked
+vertices, extra shader layers or other drawable shader types retain their
+bitmap for ordinary validation. [MCC geometry conversion](../../port/linux/game/mcc_geometry.c)
+
+`structure_material_check` validates triangle indices against their owning
+material. If a material is disabled, the visibility list can still include its
+surfaces. `structure_render_pass` skips those entries and keeps each later
+draw's original offset into the triangle buffer.
+[Material validation](../../port/linux/game/tag_schema_collision.c) and
+[BSP rendering](../../source/structures/structure_render.c).
+
 ## MCC model strips
 
 A compiled model triangle strip is an ordered stream of vertex indices. Its
