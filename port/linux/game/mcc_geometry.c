@@ -453,6 +453,31 @@ static int mg_material_run_compare(void const *a,void const *b) {
     return x<y ? -1 : x>y;
 }
 
+/* Generic and Chicago BSP passes use the base vertex stream. Extra shader
+ * layers can select a different pass, so only classify standalone shaders. */
+static int mg_unlightmapped_materials(struct mcc_runtime *r,
+    struct structure_material const *materials, long count) {
+    long i;
+    int drawable = 0;
+    for (i = 0; i < count; i++) {
+        struct structure_material const *m = &materials[i];
+        uint32_t handle = (uint32_t)m->shader.index;
+        uint32_t index = handle & 0xffffu;
+        unsigned char const *entry, *shader;
+        if (m->lightmap_vertices.count) return 0;
+        if (!m->surface_count) continue;
+        if (m->surface_count < 0 || m->vertices.count <= 0 || index >= r->report.tag_count) return 0;
+        entry = r->tag_index + index * 0x20;
+        if (mg_u32(entry + 12) != handle ||
+            (mg_u32(entry) != 'sotr' && mg_u32(entry) != 'schi')) return 0;
+        shader = mcc_runtime_pointer(r, mg_u32(entry + 0x14), 0x54);
+        /* Both tags have the extra_layers block at 0x48. */
+        if (!shader || mg_u32(shader + 0x48)) return 0;
+        drawable = 1;
+    }
+    return drawable;
+}
+
 int mcc_geometry_bsp_load(struct mcc_runtime *r,uint32_t handle,uint32_t offset,
     uint32_t size,void *address,void **result) {
     struct mcc_cache_bsp const *b=NULL;
@@ -489,6 +514,10 @@ int mcc_geometry_bsp_load(struct mcc_runtime *r,uint32_t handle,uint32_t offset,
         materials=mg_bsp_pointer(address,size,(uint32_t)(uintptr_t)block->address,
             (uint32_t)block->count*sizeof(*materials));
         if (block->count && !materials) {mg_error(r,"material block address is outside the loaded BSP");goto fail;}
+        /* An MCC group can name a bitmap even when none of its passes has
+         * baked UVs. CPU lighting and validation use NONE for that layout. */
+        if (lightmaps[l].bitmap_index >= 0 && mg_unlightmapped_materials(r, materials, block->count))
+            lightmaps[l].bitmap_index = NONE;
         if (block->count) { runs[run_count].lightmap=l; runs[run_count].materials=materials; runs[run_count++].count=block->count; }
     }
     if (run_count) qsort(runs,run_count,sizeof(*runs),mg_material_run_compare);

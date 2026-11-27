@@ -3,6 +3,7 @@
 #include "cseries.h"
 #include "errors.h"
 #include "rasterizer/rasterizer_geometry.h"
+#include "structures/structure_bsp_definitions.h"
 #include "mcc_runtime.h"
 #include <stdarg.h>
 #include <stdio.h>
@@ -109,6 +110,7 @@ int main(int argc,char **argv) {
     uint32_t i;
     int success, palette_parts=0, palette_sum=0, shader_sum=0;
     long maximum_triangles=0;
+    long long unlightmapped_surfaces=0;
     if (!legacy_model_limits_check()) return 13;
     if (argc<2 || argc>4) return 2;
     if (argc>=3) fail_at=atoi(argv[2]);
@@ -189,12 +191,24 @@ int main(int argc,char **argv) {
         success=mcc_geometry_bsp_load(&r,b->tag_handle,b->file_offset,b->size,
             (void *)(uintptr_t)b->address,&structure);
         if (success && !structure) return 7;
+        if (success) {
+            struct structure_bsp *bsp=structure;
+            struct structure_lightmap *groups=bsp->lightmaps.address;
+            long l,m;
+            for (l=0;l<bsp->lightmaps.count;l++) {
+                struct structure_material *materials=groups[l].materials.address;
+                if (groups[l].bitmap_index!=NONE) continue;
+                for (m=0;m<groups[l].materials.count;m++)
+                    unlightmapped_surfaces+=materials[m].surface_count;
+            }
+        }
         mcc_geometry_bsp_unload(&r);
     }
     mcc_geometry_dispose(&r);
     printf("converted=%d\ncreated_buffers=%d\nactive_buffers=%d\npalette_parts=%d\npalette_sum=%d\n",
         success,created_buffers,active_buffers,palette_parts,palette_sum);
     printf("shader_sum=%d\nmaximum_triangles=%ld\n",shader_sum,maximum_triangles);
+    printf("unlightmapped_surfaces=%lld\n",unlightmapped_surfaces);
     if (mcc_geometry_part_valid(&r,r.tags)) return 11;
     if (active_buffers || r.geometry) return 8;
 #ifdef _WIN32

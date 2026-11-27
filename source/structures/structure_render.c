@@ -507,7 +507,6 @@ static void structure_render_pass(
 	struct structure_bsp *structure_bsp = global_structure_bsp_get();
 	long *surface_index_cursor = surface_indices;
 	long *surface_index_end = surface_indices + surface_count;
-	long first_triangle_index = 0;
 	short lightmap_index;
 
 	for (lightmap_index = 0;
@@ -528,12 +527,16 @@ static void structure_render_pass(
 			&structure_bsp->lightmaps,
 			lightmap_index,
 			struct structure_lightmap);
+		if (!lightmap->materials.count) /* port: an empty lightmap owns no surfaces */
+			continue;
 		last_material = TAG_BLOCK_GET_ELEMENT(
 			&lightmap->materials,
 			lightmap->materials.count - 1,
 			struct structure_material);
 
-		if (*surface_index_cursor >= last_material->first_surface_index + last_material->surface_count)
+		/* port: validation can empty the last range without preserving its start. */
+		if (last_material->surface_count > 0 &&
+			*surface_index_cursor >= last_material->first_surface_index + last_material->surface_count)
 		{
 			continue;
 		}
@@ -562,6 +565,7 @@ static void structure_render_pass(
 			struct shader *shader;
 			long *chunk_start;
 			long chunk_count;
+			long first_triangle_index; /* port: offset in the original visible triangle list */
 
 			if (surface_index_cursor >= surface_index_end)
 			{
@@ -573,12 +577,20 @@ static void structure_render_pass(
 				material_index,
 				struct structure_material);
 
-			if (*surface_index_cursor >= material->first_surface_index + material->surface_count)
+			if (!material->surface_count) /* port: never draw gaps with an empty material */
+				continue;
+			/* port: visible surfaces in a gap have no vertex buffer. Skip them
+			while retaining their positions in the dynamic triangle buffer. */
+			while (surface_index_cursor < surface_index_end && *surface_index_cursor < material->first_surface_index)
+				surface_index_cursor++;
+			if (surface_index_cursor == surface_index_end ||
+				*surface_index_cursor >= material->first_surface_index + material->surface_count)
 			{
 				continue;
 			}
 
 			chunk_start = surface_index_cursor;
+			first_triangle_index = chunk_start - surface_indices; /* port: includes skipped triangles */
 			shader = shader_definition_get(material->shader.index);
 
 			do
@@ -626,8 +638,6 @@ static void structure_render_pass(
 						0);
 				}
 			}
-
-			first_triangle_index += chunk_count;
 		}
 
 		if (end_lightmap)
@@ -636,12 +646,7 @@ static void structure_render_pass(
 		}
 	}
 
-	match_vassert(
-		"c:\\halo\\SOURCE\\structures\\structure_render.c",
-		599,
-		surface_index_cursor >= surface_index_end,
-		"there are more surfaces than materials that reference them, stupid.");
-
+	/* port: any remaining visible surfaces follow the last owned range. */
 	return;
 }
 

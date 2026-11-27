@@ -1314,15 +1314,13 @@ static void structure_vertex_buffer_check(
 /* a material's surfaces and vertices: its surfaces the bsp's, its vertices
 in its compressed data (each vertex, then each lightmap vertex: structures.c,
 object_lights.c, structure_visibility.c read them there) and its buffers,
-and every vertex its surfaces name its (as are those of the surfaces before
-it that no material has, which structure_render_pass draws with it) */
+and every vertex its own surfaces name */
 static void structure_material_check(
 	struct tag_validation *validation,
 	struct structure_bsp *structure_bsp,
 	struct structure_material *material,
 	short lightmap_index,
-	short material_index,
-	long *previous_surface_end)
+	short material_index)
 {
 	struct structure_surface *surfaces = structure_bsp->surfaces.address;
 	struct structure_lightmap const *lightmap = (struct structure_lightmap const *)structure_bsp->lightmaps.address +
@@ -1419,7 +1417,7 @@ static void structure_material_check(
 		material->surface_count = 0;
 		return;
 	}
-	for (surface_index = MIN(*previous_surface_end, material->first_surface_index); surface_index < end; surface_index++)
+	for (surface_index = material->first_surface_index; surface_index < end; surface_index++)
 	{
 		struct structure_surface *surface = &surfaces[surface_index];
 		short vertex_index;
@@ -1434,8 +1432,6 @@ static void structure_material_check(
 			}
 		}
 	}
-	if (end > *previous_surface_end)
-		*previous_surface_end = end;
 
 	return;
 }
@@ -1589,7 +1585,6 @@ static boolean structure_bsp_check(
 	struct structure_bsp *structure_bsp = base;
 	struct collision_bsp *collision_bsp = structure_collision_bsp_get(structure_bsp);
 	long surface_count = collision_bsp ? collision_bsp->surfaces.count : 0;
-	long previous_surface_end = 0;
 	long index;
 
 	/* (bsp3d_test_point walks it from node 0, which must be one. A bsp
@@ -1700,7 +1695,7 @@ static boolean structure_bsp_check(
 			{
 				structure_material_check(validation, structure_bsp,
 					(struct structure_material *)lightmap->materials.address + material_index,
-					(short)index, (short)material_index, &previous_surface_end);
+					(short)index, (short)material_index);
 			}
 		}
 	}
