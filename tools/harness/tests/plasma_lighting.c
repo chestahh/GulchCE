@@ -349,7 +349,7 @@ int main(int argc, char **argv)
 		CHECK(datum_try_and_get(light_data, 1)->flags == 1, "lens-flare attachment promoted only for rendering");
 		enabled = 0;
 		render_interpolation_frame_end();
-		CHECK(!rendered_pose && refreshes == 2, "disable still restores simulation pose");
+		CHECK(!rendered_pose && !interpolation_drawing && refreshes == 2, "disable still restores simulation pose");
 		CHECK(datum_try_and_get(light_data, 1)->flags == 0, "original dynamic flag restored");
 		plasma_lighting_frame_end();
 		CHECK(refreshes == 2, "restoration happens once");

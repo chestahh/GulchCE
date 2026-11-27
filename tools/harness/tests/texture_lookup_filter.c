@@ -42,9 +42,13 @@ static unsigned int hud_hires_pixels_texture(unsigned char *pixels, unsigned lon
 	*levels = 1;
 	return next_texture++;
 }
+#ifdef _WIN32
 typedef int pthread_mutex_t, pthread_cond_t, pthread_t;
 #define PTHREAD_MUTEX_INITIALIZER 0
 #define PTHREAD_COND_INITIALIZER 0
+#else
+#include <pthread.h>
+#endif
 static void pthread_ignored(void *object) { (void)object; }
 #define pthread_mutex_lock(mutex) pthread_ignored(mutex)
 #define pthread_mutex_unlock(mutex) pthread_ignored(mutex)
