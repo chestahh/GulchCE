@@ -9,6 +9,8 @@ correction goes to its riders too. One node each, no turn. */
 #include "config.inc"
 
 #define MAXIMUM_LOCAL_PLAYERS 4
+#define TICKS_PER_SECOND 30
+#define MAX(a, b) ((a) > (b) ? (a) : (b))
 #define MAXIMUM_OBJECTS_PER_MAP 8
 #define HALO_PORT_MAXIMUM_OBJECTS_PER_MAP 8
 #define HALO_PORT_MAXIMUM_NETWORK_PLAYERS 2
@@ -46,7 +48,7 @@ struct player_datum { long unit_index; };
 struct observer_result
 {
 	real_point3d position;
-	real_vector3d forward, up;
+	real_vector3d forward, up, velocity;
 	real field_of_view;
 };
 
@@ -132,6 +134,11 @@ static void biped_get_physics_pill(long index, real_point3d *base, real *height,
 static real game_time_get_tick_fraction(void) { return 1.0f; }
 static boolean cinematic_in_progress(void) { return in_cinematic; }
 
+static boolean interpolation_cut_pending;
+static long interpolation_cut_tick = NONE;
+static void plasma_lighting_frame_end(void) {}
+static boolean scripted_camera_moving_to_point(void) { return FALSE; }
+static void third_person_reticle_view(short index, struct observer_result const *view) {}
 #include "under_test.inc"
 
 static void place(long index, short type, real x, real z)

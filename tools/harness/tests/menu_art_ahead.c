@@ -23,6 +23,7 @@ void mcc_memory_log_startup(void) { }
 /* what the code calls */
 #define MAXIMUM_ART 1024
 #define platform_log(...) ((void)0)
+#define xgpu_texture_lookups_changed() ((void)0)
 #define xgpu_gl_ready() 1
 #define xgpu_gl_texture_deleted(texture) ((void)0)
 #define glDeleteTextures(count, textures) ((void)0)

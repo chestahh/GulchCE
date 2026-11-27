@@ -184,10 +184,10 @@ int main(int argc, char **argv)
 		CHECK(p2p_lobby_sort_parse("players", &reverse) == P2P_LOBBY_SORT_PLAYERS && !reverse, "players");
 		CHECK(p2p_lobby_sort_parse("-map", &reverse) == P2P_LOBBY_SORT_MAP && reverse, "-map: reversed");
 		CHECK(p2p_lobby_sort_parse("dedicated", &reverse) == P2P_LOBBY_SORT_DEDICATED && !reverse, "dedicated");
-		CHECK(p2p_lobby_sort_parse("servers", &reverse) == P2P_LOBBY_SORT_PLAYERS && !reverse,
-			"servers, the old default's name: players");
-		CHECK(p2p_lobby_sort_parse("-servers", &reverse) == P2P_LOBBY_SORT_PLAYERS && !reverse,
-			"-servers: players, not reversed");
+		CHECK(p2p_lobby_sort_parse("servers", &reverse) == P2P_LOBBY_SORT_DEDICATED && !reverse,
+			"saved dedicated-first order");
+		CHECK(p2p_lobby_sort_parse("-servers", &reverse) == P2P_LOBBY_SORT_DEDICATED && reverse,
+			"reversed saved dedicated-first order");
 		CHECK(p2p_lobby_sort_parse("nonsense", &reverse) == P2P_LOBBY_SORT_PLAYERS && !reverse, "unknown: players");
 		CHECK(p2p_lobby_sort_parse("-", &reverse) == P2P_LOBBY_SORT_PLAYERS && !reverse, "a lone -: players");
 		CHECK(p2p_lobby_sort_parse(NULL, &reverse) == P2P_LOBBY_SORT_PLAYERS && !reverse, "none: players");

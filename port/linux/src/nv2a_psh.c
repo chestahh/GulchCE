@@ -692,6 +692,10 @@ void nv2a_pixel_shader_key_canonicalize(struct nv2a_pixel_shader_key *key)
 		}
 	}
 
+	/* The HUD coverage pass reads t0.g after the final combiner. */
+	if (key->coverage_alpha)
+		live |= LIVE_RGB(_register_t0);
+
 	/* ---- the general combiners, last to first */
 	for (stage = 7; stage >= (int)combiner_count; stage--)
 	{

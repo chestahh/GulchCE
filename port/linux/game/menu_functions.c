@@ -385,6 +385,13 @@ static boolean setting_text(char const *name, char *text, unsigned int size, boo
 	{
 		if (!(default_value ? config_default(name, text, size) : config_text(name, text, size)))
 			return FALSE;
+		if (!strcmp(name, "network.browser_sort"))
+		{
+			int reverse;
+			int order = p2p_lobby_sort_parse(text, &reverse);
+
+			p2p_lobby_sort_text(order, reverse, text, size);
+		}
 		/* (display.mode empty: display.fullscreen's, as the window has it:
 		sdl_platform.c) */
 		if (!strcmp(name, "display.mode") && !text[0])

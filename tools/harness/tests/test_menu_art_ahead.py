@@ -24,7 +24,7 @@ CASES = ["ahead", "forgotten", "bounded", "drawn-queued", "broken"]
 NEGATIVE_CONTROLS = {
     "forget-does-not-wait": ("void halo_menus_art_forget(void)\n{\n\tlong index;\n\n\tahead_stop();\n",
                              "void halo_menus_art_forget(void)\n{\n\tlong index;\n\n", "forgotten"),
-    "no-bound": ("\tif (ahead_bytes + width * height * 4 > MAXIMUM_AHEAD_BYTES)\n", "\tif (0)\n", "bounded"),
+    "no-bound": ("\tif (art[index].ahead != _ahead_none || ahead_bytes + width * height * 4 > MAXIMUM_AHEAD_BYTES)\n", "\tif (art[index].ahead != _ahead_none)\n", "bounded"),
     "queued-left-queued": ("\t/* (one still queued is decoded here instead) */\n\tahead_free(index);\n",
                            "\tif (art[index].ahead != _ahead_queued)\n\t\tahead_free(index);\n", "drawn-queued"),
     "texels-not-used": ("\tif (!decoded)\n\t{\n\t\tunsigned long size = 0;",

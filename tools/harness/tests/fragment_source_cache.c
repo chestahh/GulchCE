@@ -5,6 +5,13 @@ typedef int BOOL;
 #define GL_FRAGMENT_SHADER 1
 struct nv2a_pixel_shader_key { DWORD source, unused; };
 static struct { const char *dump_shaders; } debug_settings;
+static int debug_texture;
+static const char *config_string(const char *name) { (void)name; return ""; }
+static BOOL config_boolean(const char *name) { (void)name; return debug_texture; }
+static void nv2a_pixel_shader_key_canonicalize(struct nv2a_pixel_shader_key *key)
+{
+	key->unused &= ~0x80UL;
+}
 static const char *sources[] = {"shader A", "shader B", "failed shader", "shader A extra"};
 static unsigned int compiles, translations, freed;
 static int fail_allocation;
@@ -42,6 +49,16 @@ int main(int argc, char **argv)
 	if (!strcmp(argv[1], "prefix")) b.source = 3;
 	if (!strcmp(argv[1], "failure")) a.source = b.source = 2;
 	if (!strcmp(argv[1], "allocation")) fail_allocation = 1;
+	if (!strcmp(argv[1], "alias") || !strcmp(argv[1], "debug"))
+	{
+		debug_texture = !strcmp(argv[1], "debug");
+		b.unused = a.unused | 0x80;
+		first = fragment_shader_get(&b);
+		CHECK(fragment_shader_get(&a) == first && translations == (debug_texture ? 2U : 1U),
+			"canonical alias or diagnostic translation lost");
+		CHECK(shader_compiled(first) && compiles == 1, "source compiled twice");
+		return 0;
+	}
 	first = fragment_shader_get(&a);
 	second = fragment_shader_get(&b);
 	if (first)

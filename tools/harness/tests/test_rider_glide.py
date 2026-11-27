@@ -60,12 +60,12 @@ def generated(fault=None):
         [function(render, name) for name in
          ['lerp', 'point_lerp', 'vector_length', 'vector_nlerp', 'basis_is_rotation', 'quaternion_from_basis',
           'basis_from_quaternion', 'rotation_from_matrix', 'matrix_blend_rotations', 'correction_significant', 'correction_advance',
-          'correction_drawn', 'correction_add', 'distance_squared', 'render_interpolation_tick',
+          'correction_drawn', 'correction_add', 'distance_squared', 'pose_jumps', 'render_interpolation_tick',
           'render_interpolation_frame_begin', 'render_interpolation_frame_end',
           'render_interpolation_carry_family', 'render_interpolation_carried_nodes',
           'render_interpolation_object_node_matrices', 'render_interpolation_object_point',
           'render_interpolation_correct_object',
-          'render_interpolation_camera_unmoved', 'observer_blend', 'observer_cut',
+          'render_interpolation_camera_unmoved', 'observer_blend', 'observer_cut', 'camera_snapshot_carried', 'camera_snapshot_blend',
           'render_interpolation_blended_camera', 'render_interpolation_carried_camera',
           'render_interpolation_direct_camera', 'render_interpolation_camera']] +
         [function(read(RIDING), name) for name in

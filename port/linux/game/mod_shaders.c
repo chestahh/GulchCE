@@ -154,6 +154,7 @@ struct mod_shader
 /* a map's shader tag: its own definition while a mod's is played */
 struct mod_shader_override
 {
+	struct mod_shader_override *next;
 	struct mod_shader *shader;
 	byte map_definition[MAXIMUM_SHADER_SIZE];
 };
@@ -224,7 +225,7 @@ static struct shader_group const shader_groups[] =
 static struct
 {
 	struct mod_shader *shaders;
-	struct mod_shader_override *overrides;
+	struct mod_shader_override *overrides[64];
 	long override_count;
 } mod_shaders_globals;
 
@@ -448,40 +449,15 @@ static boolean shader_make(
 	return TRUE;
 }
 
-static struct mod_shader_override *override_get(
-	long tag_index)
+/* Only shaders actually replaced have a saved definition. */
+static struct mod_shader_override **override_slot(long tag_index)
 {
-	long absolute_index = DATUM_INDEX_TO_ABSOLUTE_INDEX(tag_index);
+	struct mod_shader_override **slot = &mod_shaders_globals.overrides[
+		DATUM_INDEX_TO_ABSOLUTE_INDEX(tag_index) % NUMBEROF(mod_shaders_globals.overrides)];
 
-	return absolute_index >= 0 && absolute_index < mod_shaders_globals.override_count ?
-		&mod_shaders_globals.overrides[absolute_index] : NULL;
-}
-
-/* Makes the table of overrides, one for each of the map's tags up to its
-last shader of the groups read; FALSE when it cannot be. */
-static boolean overrides_new(
-	void)
-{
-	long count = 0;
-	long group;
-
-	if (mod_shaders_globals.overrides)
-		return TRUE;
-	for (group = 0; group < (long)NUMBEROF(shader_groups); group++)
-	{
-		struct tag_iterator iterator;
-		long tag_index;
-
-		tag_iterator_new(&iterator, shader_groups[group].group_tag);
-		while ((tag_index = tag_iterator_next(&iterator)) != NONE)
-			count = MAX(count, DATUM_INDEX_TO_ABSOLUTE_INDEX(tag_index) + 1);
-	}
-	if (count <= 0 || !(mod_shaders_globals.overrides = malloc((size_t)count * sizeof(struct mod_shader_override))))
-		return FALSE;
-	memset(mod_shaders_globals.overrides, 0, (size_t)count * sizeof(struct mod_shader_override));
-	mod_shaders_globals.override_count = count;
-
-	return TRUE;
+	while (*slot && (*slot)->shader->tag_index != tag_index)
+		slot = &(*slot)->next;
+	return slot;
 }
 
 /* Gives the map's shader tag its own definition back. */
@@ -589,12 +565,10 @@ long mod_shaders_update(
 	long loaded_count = 0;
 	long removed_count = 0;
 	long refused_count = 0;
-	long played_count = 0;
 	boolean changed = FALSE;
 	long group;
-	long index;
 
-	if (!mods_map_loaded() || !overrides_new())
+	if (!mods_map_loaded())
 		return 0;
 	for (group = 0; group < (long)NUMBEROF(shader_groups); group++)
 	{
@@ -605,13 +579,14 @@ long mod_shaders_update(
 		tag_iterator_new(&iterator, shader_group->group_tag);
 		while ((tag_index = tag_iterator_next(&iterator)) != NONE)
 		{
-			struct mod_shader_override *override = override_get(tag_index);
+			struct mod_shader_override **slot = override_slot(tag_index);
+			struct mod_shader_override *override = *slot;
 			byte *definition = tag_get(shader_group->group_tag, tag_index);
 			struct mod_shader *made = NULL;
 			long file = remove_all ? NONE : mods_tag_file_find(tag_index, shader_group->extension);
 			char const *reason = NULL;
 
-			if (!override || !definition)
+			if (!definition)
 				continue;
 			if (file != NONE)
 			{
@@ -624,13 +599,13 @@ long mod_shaders_update(
 					made = shader_kept(tag_index, port_mods_file_path(file), size, stamp);
 				if (made)
 					made->file = file;
-				if (made && made == override->shader)
+				if (made && override && made == override->shader)
 					continue;
 			}
 			if (file != NONE && !made)
 			{
 				made = mod_shader_new(shader_group, tag_index, file,
-					override->shader ? override->map_definition : definition, &reason);
+					override ? override->map_definition : definition, &reason);
 				if (made && !mods_memory_take(sizeof(*made)))
 				{
 					reason = "the mods' tags already hold too much memory";
@@ -651,23 +626,35 @@ long mod_shaders_update(
 				mod_shaders_globals.shaders = made;
 				loaded_count++;
 			}
-			if (!made && !override->shader)
+			if (!override && !made)
 				continue;
-			if (override->shader)
-			{
+			if (override)
 				shader_unplug(tag_index, override);
-				if (!made)
-					removed_count++;
+			else
+			{
+				if (mods_memory_left() < sizeof(*override) || !(override = malloc(sizeof(*override))))
+				{
+					console_warning("mods: no memory for the original shader %s", tag_get_name(tag_index));
+					refused_count++;
+					continue;
+				}
+				mods_memory_take(sizeof(*override));
+				override->next = NULL;
+				*slot = override;
+				mod_shaders_globals.override_count++;
 			}
 			if (made)
 				shader_plug(tag_index, override, made);
+			else
+			{
+				*slot = override->next;
+				free(override);
+				mods_memory_give(sizeof(*override));
+				mod_shaders_globals.override_count--;
+				removed_count++;
+			}
 			changed = TRUE;
 		}
-	}
-	for (index = 0; index < mod_shaders_globals.override_count; index++)
-	{
-		if (mod_shaders_globals.overrides[index].shader)
-			played_count++;
 	}
 	/* (a model's parts are linked by their shaders' transparency as its render
 	starts: render_initialize_for_new_map) */
@@ -676,15 +663,15 @@ long mod_shaders_update(
 	if (!at_load || loaded_count || refused_count)
 	{
 		error(_error_silent, "mods: %ld shaders from their files (%ld new), %ld given back, %ld left out",
-			played_count, loaded_count, removed_count, refused_count);
+			mod_shaders_globals.override_count, loaded_count, removed_count, refused_count);
 		if (!at_load && mods_say())
 		{
 			console_printf(FALSE, "mods: %ld shaders from their files (%ld new), %ld given back, %ld left out",
-				played_count, loaded_count, removed_count, refused_count);
+				mod_shaders_globals.override_count, loaded_count, removed_count, refused_count);
 		}
 	}
 
-	return played_count;
+	return mod_shaders_globals.override_count;
 }
 
 /* (before the tags go: the map's shaders get their own definitions back,
@@ -695,22 +682,29 @@ void mod_shaders_tags_unloaded(
 	struct mod_shader *made = mod_shaders_globals.shaders;
 	long index;
 
-	for (index = 0; give_back && index < mod_shaders_globals.override_count; index++)
+	for (index = 0; index < (long)NUMBEROF(mod_shaders_globals.overrides); index++)
 	{
-		struct mod_shader_override *override = &mod_shaders_globals.overrides[index];
+		struct mod_shader_override *override = mod_shaders_globals.overrides[index];
 
-		if (override->shader)
-			shader_unplug(override->shader->tag_index, override);
+		while (override)
+		{
+			struct mod_shader_override *next = override->next;
+
+			if (give_back)
+				shader_unplug(override->shader->tag_index, override);
+			free(override);
+			mods_memory_give(sizeof(*override));
+			override = next;
+		}
 	}
 	while (made)
 	{
 		struct mod_shader *next = made->next;
 
 		free(made);
+		mods_memory_give(sizeof(*made));
 		made = next;
 	}
-	if (mod_shaders_globals.overrides)
-		free(mod_shaders_globals.overrides);
 	memset(&mod_shaders_globals, 0, sizeof(mod_shaders_globals));
 
 	return;

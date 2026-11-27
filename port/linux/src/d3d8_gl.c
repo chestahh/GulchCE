@@ -4703,7 +4703,10 @@ static GLuint fragment_shader_get(const struct nv2a_pixel_shader_key *key)
 	the key with those bits cleared, so that each shader is compiled once
 	(nv2a_pixel_shader_key_canonicalize) */
 	canonical = *key;
-	nv2a_pixel_shader_key_canonicalize(&canonical);
+	/* Diagnostics may read a combiner register that final color does not use. */
+	if (!debug_settings.dump_shaders && !*config_string("debug.gpu_debug_expression") &&
+		!config_boolean("debug.gpu_debug_texture0"))
+		nv2a_pixel_shader_key_canonicalize(&canonical);
 	if (!words_equal(&canonical, key, sizeof(*key)))
 	{
 		entry->shader = fragment_shader_get(&canonical);

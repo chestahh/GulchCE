@@ -138,7 +138,7 @@ def build(work, source):
     (work / "main.c").write_text(MAIN)
     executable = work / "upscale.exe"
     # (the game's float settings: no fused multiply-add)
-    subprocess.run([compiler, "-O2", "-ffp-contract=off", "-Wall", "-Werror", "-Wno-deprecated-declarations",
+    subprocess.run([compiler, *(["-m32"] if sys.platform == "win32" else []), "-O2", "-ffp-contract=off", "-Wall", "-Werror", "-Wno-deprecated-declarations",
                     str(work / "main.c"), str(work / "upscale.c"), "-o", str(executable)], check=True)
     return executable
 

@@ -1414,6 +1414,8 @@ int p2p_lobby_sort_parse(const char *text, int *reverse)
 	int order;
 
 	*reverse = text && *text == '-';
+	if (text && !strcmp(text + *reverse, "servers"))
+		return P2P_LOBBY_SORT_DEDICATED;
 	for (order = 0; text && order < NUMBER_OF_P2P_LOBBY_SORTS; order++)
 	{
 		if (!strcmp(text + *reverse, sort_names[order]))

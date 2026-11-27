@@ -20,13 +20,13 @@ BEGIN
 	BEGIN
 		BLOCK "040904B0"
 		BEGIN
-			VALUE "CompanyName", "OpenCE (Open Community Edition)"
-			VALUE "FileDescription", "OpenCE"
+			VALUE "CompanyName", "GulchCE"
+			VALUE "FileDescription", "GulchCE"
 			VALUE "FileVersion", "build-@BUILD_NUMBER@"
 			VALUE "InternalName", "halo"
-			VALUE "LegalCopyright", "OpenCE contributors. AGPL-3.0-or-later."
+			VALUE "LegalCopyright", "OpenCE and GulchCE contributors. AGPL-3.0-or-later."
 			VALUE "OriginalFilename", "halo.exe"
-			VALUE "ProductName", "OpenCE"
+			VALUE "ProductName", "GulchCE"
 			VALUE "ProductVersion", "build-@BUILD_NUMBER@"
 		END
 	END

@@ -243,7 +243,10 @@ It is a state-contract test; current visual/platform evidence belongs in the
 [validation ledger](../mcc_refactor_validation.md).
 
 `fragment_shader_get` first caches the complete pixel-shader state key, so a
-repeat draw does not translate GLSL again. GulchCE's `fragment_source_get`
+repeat draw does not translate GLSL again. On a miss, the backend aliases
+keys that differ only in unused combiner state. HUD coverage keeps the final
+green channel of texture register zero live. Shader dumps and register debug
+views retain the complete key. GulchCE's `fragment_source_get`
 then reuses a compiled fragment shader only when the generated source matches
 byte for byte. A hash narrows the search; `strcmp` decides equality. For
 example, two different state keys that emit identical GLSL keep separate key
