@@ -727,7 +727,7 @@ the setting for one start of the game. It has priority over the file.
 | `network.browser_show_empty`, `network.browser_show_full` | `true` | `HALO_NET_BROWSER_SHOW_EMPTY`, `HALO_NET_BROWSER_SHOW_FULL` | `false`: the server browser does not list the games with no player, the full games. The server browser's Filters screen sets them. |
 | `network.browser_maps` | `"yes"` | `HALO_NET_BROWSER_MAPS` | `"yes"`: the server browser lists the games on maps this computer does not have. `"no"`: it does not. `"downloadable"`: only those of a Custom Edition map that the host shares. |
 | `network.browser_gametype` | `"any"` | `HALO_NET_BROWSER_GAMETYPE` | The server browser lists the games of one kind only: `"any"`, `"ctf"`, `"slayer"`, `"oddball"`, `"king"` or `"race"` (the Filters screen). |
-| `network.browser_sort` | `"servers"` | `HALO_NET_BROWSER_SORT` | The server browser's order. `"servers"`: dedicated servers first, then by players. `"players"`, `"name"`, `"map"`, `"type"` or `"locked"` (games with a password first). A `-` before one reverses it (`"-players"`). A column's title sorts by it, and again the other way. |
+| `network.browser_sort` | `"players"` | `HALO_NET_BROWSER_SORT` | The server browser's order. `"players"`: the games with the most players first. `"dedicated"`: dedicated servers first, then by players. `"name"`, `"map"`, `"type"` or `"locked"` (games with a password first). `"servers"`, the former name for dedicated-first, retains its saved order. A `-` before one reverses it (`"-players"`). A column's title sorts by it, and again the other way. |
 | `server.enabled` | `false` | `HALO_SERVER` | `true`: run as a dedicated server, as `halo --server` does. Refer to "Dedicated server". The `server.*` settings are written to `config.toml` only by a dedicated server. |
 | `server.name` | `"OpenCE Server"` | `HALO_SERVER_NAME` | The game's name in the lobby and the server browser: 15 characters of printable ASCII. |
 | `server.max_players` | `16` | `HALO_SERVER_MAX_PLAYERS` | The most players (2 to 127). |
@@ -1367,16 +1367,16 @@ master servers, or only the brokers.
   The titles are: server name, map, game, players, the lock (the games
   with a password first) and the dedicated icon (dedicated servers first).
   A second choice of the same title reverses the order, and an arrow on
-  the title shows the direction. The default order is dedicated servers
-  first, then the games with the most players, then by name. The browser
-  keeps the order in `network.browser_sort`.
+  the title shows the direction. The default order is the games with the
+  most players first, then by name, dedicated or not. The browser keeps the
+  order in `network.browser_sort`.
 - FILTERS opens the Filters screen of Custom Edition. It has SHOW EMPTY
   SERVERS, SHOW FULL SERVERS, GAME TYPE (ANY or one game engine) and SHOW
   MISSING MAPS (NO, YES, or IF DOWNLOADABLE, for a Custom Edition map that
   Map Sharing can download when you join). OK writes the
   `network.browser_*` settings. Settings > Network Setup > SERVER BROWSER
-  writes the same settings, and also shows LISTS, SORT BY (DEDICATED FIRST,
-  PLAYERS, NAME, MAP, GAME TYPE or LOCKED FIRST; an order that a title reversed
+  writes the same settings, and also shows LISTS, SORT BY (PLAYERS,
+  DEDICATED FIRST, NAME, MAP, GAME TYPE or LOCKED FIRST; an order that a title reversed
   shows as the same choice) and MASTER SERVERS
   (the number of master servers that answered the last request of the
   browser, for example `2 OF 2`). The PING and TEAMPLAY OPTIONS rows of
@@ -2143,7 +2143,7 @@ Other changes:
 | `ai/action_vehicle.c` | On Custom Edition maps, AI can take a seat in any unit a script sends it to, bipeds included, as on Halo PC (`ai_scripting_go_to_vehicle_internal` accepts any unit). On Xbox maps, only vehicle seats. |
 | `hs/hs_runtime.c`, `hs/object_lists.c`, `units/units.c`, `objects/scenery.c` | A script that holds an object or a list that no longer exists gets none, not a crash: a global, a function's result or an argument with a deleted object's index is none, and walking a list passes over the objects that are gone. `list_count` still counts them. |
 | `ai/actors.c` | The actors a unit spawns as it dies (`unit_test_spawning`) join the encounter and squad of the actor that drove it, the swarm's for a unit of a swarm, as was meant: the game read the unit's own actor, which a unit of a swarm has none of, and crashed as a Custom Edition map's unit of a swarm that spawns actors died. |
-| `interface/ui_widget.c`, `interface/ui_widget_event_handler_functions.c`, `interface/ui_widget_game_data_input_functions.c` | The main menu is the PC version's from `port/assets/menus` (`display.menus`); the menus' widgets can call the port's functions (`game/menu_functions.c`) and send the PC version's custom activation event; the widgets' memory is 256 KB, not 16 KB; the main menu and Multiplayer clear co-op's controllers, so that a gamepad going back to controller 1 is not a controller unplugged; the lobby's split screen players leave alone, and one who quits in game is not joined to the next game (`interface/player_ui.c`). |
+| `interface/ui_widget.c`, `interface/ui_widget_event_handler_functions.c`, `interface/ui_widget_game_data_input_functions.c` | The main menu is the PC version's from `port/assets/menus` (`display.menus`); the menus' widgets can call the port's functions (`game/menu_functions.c`) and send the PC version's custom activation event; a screen of the menus' has the pictures of the screens it can open decoded ahead as it opens (`game/menu_tags.c`); the widgets' memory is 256 KB, not 16 KB; the main menu and Multiplayer clear co-op's controllers, so that a gamepad going back to controller 1 is not a controller unplugged; the lobby's split screen players leave alone, and one who quits in game is not joined to the next game (`interface/player_ui.c`). |
 | `interface/player_ui.c` | Fast setup opens the pregame screen through the port's menus (the lobby), as `interface/ui_widget.c` does. |
 | `interface/ui_widget.c` | After a won network co-op level, the host gets the same pregame screen as a client. Its START NOW starts the next level, which `network_game_server_port_cooperative_won` has already set up. The original shows the host the map select, which pauses the countdown and lists multiplayer maps. |
 | `game/game_engine.c`, `game/game_engine.h`, `game/game_engine_slayer.c`, `game/game.c`, `game/aim_assist.c`, `game/players.c`, `objects/damage.c`, `objects/objects.c`, `units/units.c`, `items/weapons.c`, `saved games/playlist_profile.c`, `saved games/saved_game_files.c` | OpenCE's gametypes (`game/game_modes.c`, "OpenCE gametypes"): the gametype's PC options carry a mode and Hardcore with their options; the built-in ones are written after the Xbox's default gametypes; Infection's and Gun Game's game engines are Slayer's with their rules; SWAT's headshots, Hardcore's motion sensor, aim assist and restore of the killer; Infection's zombies' skulls, grenades, powerups, seats and melee. |
@@ -2203,6 +2203,7 @@ Other changes:
 | `physics/collision_models.c` | A vector tested against a model (a body's parts, a vehicle's) passes over a part whose collision geometry's bounding sphere (`object_bounds_cache.c`, worked out once from its vertices) the vector misses, without turning the vector into the part's space. Weapons falling among many bodies tested each body's parts one by one. |
 | `memory/lruv_cache.c` | Making or deleting a block of a cache (the decals', of 2048) checks that block's links with its neighbours, not every block of the cache, before and after: in a big fight each new bullet hole or scorch mark deleted the oldest and walked the whole cache several times, about 6% of a joined co-op player's slow frames. The whole cache is still checked when it is made, flushed or resized. |
 | `main/main.c` | The talking timer (`game/talking_timer.c`) runs each frame. |
+| `math/real_math.h` | `square_root` takes the root in single precision, one instruction on every port (`__builtin_elementwise_sqrt`; the double root, as before, where the compiler lacks it), not of the float as a double rounded back: the same bits for every float (a double carries more than twice a float's precision), without two conversions and the slower double root. `sqrtf` would not do: on 32-bit Windows it can be a call into the C runtime. |
 
 The x86 inline assembly of the game is replaced by C. Thus the compiler
 can optimize that code for each processor:

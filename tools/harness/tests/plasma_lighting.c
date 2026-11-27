@@ -16,7 +16,7 @@ struct projectile_datum { struct object_datum base; struct { unsigned long flags
 static struct projectile_datum grenade = { { 1, { _object_type_projectile, NONE } } };
 static const char *tag_name = "weapons\\plasma rifle\\bolt";
 static int muzzle_on, emitter_on, shield_on;
-static int enabled = 1, refreshes, present = 1, interpolation_rendering = 1;
+static int enabled = 1, refreshes, present = 1, interpolation_rendering = 1, interpolation_drawing = 1;
 static int rendered_pose, authored_on;
 static float marker_scale = 1;
 void plasma_lighting_attachment_position(long, long, real_point3d *, real_vector3d const *, float);
@@ -349,7 +349,7 @@ int main(int argc, char **argv)
 		CHECK(datum_try_and_get(light_data, 1)->flags == 1, "lens-flare attachment promoted only for rendering");
 		enabled = 0;
 		render_interpolation_frame_end();
-		CHECK(!rendered_pose && refreshes == 2, "disable still restores simulation pose");
+		CHECK(!rendered_pose && !interpolation_drawing && refreshes == 2, "disable still restores simulation pose");
 		CHECK(datum_try_and_get(light_data, 1)->flags == 0, "original dynamic flag restored");
 		plasma_lighting_frame_end();
 		CHECK(refreshes == 2, "restoration happens once");

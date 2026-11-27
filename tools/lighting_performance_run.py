@@ -106,6 +106,7 @@ def summarize(rows, warmup, seconds, cap, captures=True):
                   selected_mean=statistics.mean(r['selected'] for r in measured),
                   selected_frame_percent=100*sum(r['selected']>0 for r in measured)/len(measured),
                   scene_lights_max=max(r['scene_lights'] for r in measured),
+                  scene_lights_mean=statistics.mean(r['scene_lights'] for r in measured),
                   occlusion_updates_max=max(r['occlusion_updates'] for r in measured),
                   occlusion_mean_ms=statistics.mean(r.get('occlusion_ms',0) for r in clean),
                   occlusion_max_ms=max(r.get('occlusion_ms',0) for r in clean),
@@ -122,6 +123,7 @@ def summarize(rows, warmup, seconds, cap, captures=True):
     if all('sun_casters' in r for r in measured):
         result['sun_frame_percent'] = 100*sum(r['sun_casters']>0 for r in measured)/len(measured)
         result['sun_families_max'] = max(r['sun_casters'] for r in measured)
+        result['sun_families_mean'] = statistics.mean(r['sun_casters'] for r in measured)
         result['sun_and_eight_local_percent'] = 100*sum(r['sun_casters']>0 and r['shadowed']==8 for r in measured)/len(measured)
     if all('spot_mask' in r for r in measured):
         masks = [int(r['spot_mask']) for r in measured]

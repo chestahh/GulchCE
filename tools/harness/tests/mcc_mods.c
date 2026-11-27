@@ -21,6 +21,9 @@ static long update(boolean remove_all, boolean at_load)
 #define mod_bitmaps_update update
 #define mod_sounds_update update
 #define mod_models_update update
+#define mod_shaders_update update
+static long shader_releases;
+static void mod_shaders_tags_unloaded(boolean give_back) { ++shader_releases; }
 static void mod_sounds_tags_unloaded(void) { ++releases; }
 static void mod_bitmaps_tags_unloaded(void) {}
 static void mod_models_tags_unloaded(boolean give_back) {}
@@ -31,10 +34,10 @@ int main(int argc, char **argv)
 {
     long before;
     mods_tags_loaded("bloodgulch");
-    CHECK(mods_map_loaded() && updates == 4, "Xbox mods apply");
+    CHECK(mods_map_loaded() && updates == 5, "Xbox mods apply");
     /* A load that never reached normal unload must still drop old overrides. */
     mods_tags_loaded("mcc_maps\\package\\bloodgulch");
-    CHECK(!mods_map_loaded() && releases == 1 && closed == 1, "MCC clears previous mods and readers");
+    CHECK(!mods_map_loaded() && releases == 1 && shader_releases == 1 && closed == 1, "MCC clears previous mods and readers");
     before = updates;
     mods_enable(TRUE);
     mods_reload();
@@ -42,7 +45,7 @@ int main(int argc, char **argv)
     CHECK(updates == before, "console and menu cannot enable MCC mods");
     mods_tags_unloaded();
     mods_tags_loaded("custom_maps\\deathisland");
-    CHECK(mods_map_loaded() && updates == before + 4, "CE mods resume");
+    CHECK(mods_map_loaded() && updates == before + 5, "CE mods resume");
     mods_enable(FALSE);
     CHECK(closed == 3, "disabling mods releases readers");
     before = updates;
@@ -53,7 +56,7 @@ int main(int argc, char **argv)
     mods_enable(TRUE);
     CHECK(updates == before, "disabled CE to MCC stays inactive");
     mods_tags_loaded("a10");
-    CHECK(mods_map_loaded() && updates == before + 4, "Xbox mods resume without settings reset");
+    CHECK(mods_map_loaded() && updates == before + 5, "Xbox mods resume without settings reset");
     mods_tags_unloaded();
     CHECK(!mods_map_loaded(), "unload clears eligibility");
     return 0;

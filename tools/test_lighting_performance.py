@@ -1,5 +1,6 @@
 """Check that benchmark reports retain real stalls and separate capture overhead."""
 import re
+from unittest.mock import MagicMock, Mock
 import pytest
 from lighting_performance_run import distribution, summarize, sustained_pacing, memory_window_mib, runtime_errors
 from lighting_performance_build import ROOT, instrument_present_stalls, instrument_shader_stalls, instrument_renderer_profile, instrument_bsp_lights
@@ -109,15 +110,18 @@ def test_missing_frame_samples_are_not_a_pass():
 
 def test_shadow_coverage_distinguishes_fallback_from_active_maps():
     rows=[dict(seconds=t, frame_ms=4, selected=2, scene_lights=4,
-               occlusion_updates=1, capture_excluded=0, tick=t*30, shadowed=t%2) for t in range(60)]
-    rows[31]['shadowed'] = 2
+               occlusion_updates=1, capture_excluded=0, tick=t*30, shadowed=t%2, sun_casters=t) for t in range(60)]
+    rows[31].update(shadowed=2, scene_lights=7)
     result = summarize(rows, 30, 30, 240)
     assert result['shadowed_frame_percent'] == 50
     assert result['shadowed_max'] == 2
     assert result['shadowed_mean'] == pytest.approx(16/30)
     assert result['multiple_shadow_frame_percent'] == pytest.approx(100/30)
+    assert result['scene_lights_mean'] == pytest.approx(4.1)
+    assert result['sun_families_mean'] == 44.5
     for row in rows:
         del row['shadowed']
+        del row['sun_casters']
     assert 'shadowed_frame_percent' not in summarize(rows, 30, 30, 240)
 
 
@@ -258,6 +262,28 @@ def test_combat_core_requires_the_saved_fight(tmp_path, acknowledged, occupancy,
     else:
         with pytest.raises(ValueError):
             verify(tmp_path, log, 25, 30, (0, 899))
+
+def test_combat_stages_camera_only_after_checkpoint_acknowledgement(tmp_path, monkeypatch):
+    import lighting_combat_core as combat
+
+    (tmp_path/'frames.csv').touch()
+    console = MagicMock()
+    monkeypatch.setattr(combat.socket, 'create_connection', lambda *args: console)
+    load = b'(begin (sleep_until (= (game_time) 62) 1) (core_load_name canyon.bin))\r\n'
+    camera = b'(begin (sleep_until (= (game_time) 540) 1) (debug_camera_load))\r\n'
+
+    def replies():
+        assert [call.args[0] for call in console.sendall.call_args_list] == [load]
+        yield b"loaded 'can"
+        assert console.sendall.call_count == 1
+        yield b"yon.bin'"
+        assert [call.args[0] for call in console.sendall.call_args_list] == [load, camera]
+        yield b''
+
+    console.recv.side_effect = replies()
+    combat.play(tmp_path, Mock(poll=lambda: None), 0)
+    assert (tmp_path/'stage.log').read_bytes() == b"loaded 'canyon.bin'"
+
 
 # GulchCE graphics contributions by chestahh: AGPL-3.0-or-later OR GPL-3.0-or-later.
 # This grant covers chestahh's lighting, shadow and renderer changes in this file.

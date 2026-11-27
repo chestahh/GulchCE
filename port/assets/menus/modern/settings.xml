@@ -2504,7 +2504,7 @@
 		<child widget="modern/browser/spinner_network_browser_sort4" x="180" y="3" />
 	</widget>
 	<widget name="modern/browser/label_network_browser_sort4" type="text" controller="1" width="152" height="24" string_list="modern/browser/labels" string_index="4" font="ui\large_ui" color="#FF2896FF" />
-	<widget name="modern/browser/spinner_network_browser_sort4" type="spinner" width="140" height="20" flags="pass_unhandled_to_focused_child left_right_tabs_items" strings="DEDICATED FIRST|PLAYERS|NAME|MAP|GAME TYPE|LOCKED FIRST" values="servers|players|name|map|type|locked" setting="network.browser_sort" font="ui\large_ui" color="#FF2896FF" align="center" header_bitmap="bitmaps/arrow_sm_left" footer_bitmap="bitmaps/arrow_sm_right" header_bounds="4 -10 16 -4" footer_bounds="4 144 16 150">
+	<widget name="modern/browser/spinner_network_browser_sort4" type="spinner" width="140" height="20" flags="pass_unhandled_to_focused_child left_right_tabs_items" strings="PLAYERS|DEDICATED FIRST|NAME|MAP|GAME TYPE|LOCKED FIRST" values="players|dedicated|name|map|type|locked" setting="network.browser_sort" font="ui\large_ui" color="#FF2896FF" align="center" header_bitmap="bitmaps/arrow_sm_left" footer_bitmap="bitmaps/arrow_sm_right" header_bounds="4 -10 16 -4" footer_bounds="4 144 16 150">
 		<on event="created" run="port setting load" />
 	</widget>
 	<widget name="modern/browser/row_network_masters_file5" width="336" height="26" bitmap="modern/row" flags="pass_unhandled_to_focused_child nifty_fx">

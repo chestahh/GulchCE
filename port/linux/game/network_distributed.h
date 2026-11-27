@@ -298,6 +298,8 @@ byte distributed_player_to_byte(long player_index);
 long distributed_player_from_byte(byte player_index);
 /* whether the player is one of this machine's */
 boolean distributed_player_is_local(long player_index);
+/* whether this tick's host rider pass will attempt the unit's pending prediction */
+boolean distributed_rider_prediction_pending(short player_index, long unit_index);
 /* the player's living unit, or NONE */
 long distributed_living_unit(struct player_datum const *player);
 /* whether the player is one of that client machine's (the host) */
@@ -512,6 +514,9 @@ moves); TRUE when it was put there */
 boolean network_objects_reconcile(long object_index, real_point3d const *position, real_vector3d const *forward,
 	real_vector3d const *up, real_vector3d const *velocity, real_vector3d const *angular_velocity,
 	real blend_distance, short kind);
+/* object_set_position, and the object's children moved with it at once */
+void network_objects_set_position(long object_index, real_point3d const *position, real_vector3d const *forward,
+	real_vector3d const *up);
 /* a vehicle's pose the netcode wrote (from before), not its own motion:
 every such write calls it */
 enum network_vehicle_write
