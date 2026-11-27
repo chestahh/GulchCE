@@ -357,7 +357,9 @@ mods: 12 shaders from their files (12 new), 0 given back, 0 left out
   caches let go of what they hold.
 - The mods' tags keep at most 512 MB in memory (192 MB on Android and the
   web): their files, their sounds' samples, their bitmaps' tags and their
-  models' geometry.
+  models' geometry. Shader replacements and the original definitions saved for
+  active overrides share that budget. Removing an override restores its original
+  bytes and releases its backup. Unloading the map releases the retained shaders.
 - A Custom Edition map takes mods as an Xbox map does.
 
 ### Retained file readers

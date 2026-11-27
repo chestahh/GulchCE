@@ -360,7 +360,7 @@ static boolean shader_make(
 	byte *definition,
 	char const **reason)
 {
-	byte const *bytes = file + MOD_TAG_FILE_HEADER_SIZE;
+	byte const *bytes;
 	unsigned long cursor = MOD_TAG_FILE_HEADER_SIZE + group->size;
 	long index;
 
@@ -370,6 +370,7 @@ static boolean shader_make(
 	*reason = "it ends before its shader does";
 	if (!mods_in_file(MOD_TAG_FILE_HEADER_SIZE, group->size, size))
 		return FALSE;
+	bytes = file + MOD_TAG_FILE_HEADER_SIZE;
 	memcpy(definition, map_definition, group->size);
 	for (index = 0; index < group->field_count; index++)
 	{
@@ -583,6 +584,7 @@ long mod_shaders_update(
 			struct mod_shader_override *override = *slot;
 			byte *definition = tag_get(shader_group->group_tag, tag_index);
 			struct mod_shader *made = NULL;
+			struct mod_shader *new_shader = NULL;
 			long file = remove_all ? NONE : mods_tag_file_find(tag_index, shader_group->extension);
 			char const *reason = NULL;
 
@@ -622,9 +624,7 @@ long mod_shaders_update(
 					refused_count++;
 					continue;
 				}
-				made->next = mod_shaders_globals.shaders;
-				mod_shaders_globals.shaders = made;
-				loaded_count++;
+				new_shader = made;
 			}
 			if (!override && !made)
 				continue;
@@ -632,16 +632,28 @@ long mod_shaders_update(
 				shader_unplug(tag_index, override);
 			else
 			{
-				if (mods_memory_left() < sizeof(*override) || !(override = malloc(sizeof(*override))))
+				override = malloc(sizeof(*override));
+				if (!override || !mods_memory_take(sizeof(*override)))
 				{
+					free(override);
+					if (new_shader)
+					{
+						mods_memory_give(sizeof(*new_shader));
+						free(new_shader);
+					}
 					console_warning("mods: no memory for the original shader %s", tag_get_name(tag_index));
 					refused_count++;
 					continue;
 				}
-				mods_memory_take(sizeof(*override));
 				override->next = NULL;
 				*slot = override;
 				mod_shaders_globals.override_count++;
+			}
+			if (new_shader)
+			{
+				new_shader->next = mod_shaders_globals.shaders;
+				mod_shaders_globals.shaders = new_shader;
+				loaded_count++;
 			}
 			if (made)
 				shader_plug(tag_index, override, made);

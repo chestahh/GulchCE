@@ -64,3 +64,15 @@ def test_case(case):
 def test_negative_control(fault, case):
     status, output = run(build('mod_shaders', generated(fault)), case)
     assert status == CHECK_FAILED, output
+
+
+def test_override_lifecycle():
+    source = read(MOD_SHADERS)
+    records = block(source, r"struct mod_shader\n") + block(source, r"struct mod_shader_override\n")
+    records += re.search(r"static struct\n\{\n\tstruct mod_shader \*shaders;.*?\} mod_shaders_globals;",
+                         source, re.S).group(0)
+    code = '\n'.join(function(source, name) for name in ('override_slot', 'shader_unplug', 'shader_plug', 'shader_kept',
+                                                          'mod_shaders_update', 'mod_shaders_tags_unloaded'))
+    files = (('records.inc', records), ('under_test.inc', code))
+    status, output = run(build('mod_shader_lifecycle', files), 'reload')
+    assert status == 0, output
