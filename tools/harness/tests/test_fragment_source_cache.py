@@ -28,7 +28,7 @@ def executable(collision=False, fault=None):
 
 
 @pytest.mark.parametrize('collision', [False, True])
-@pytest.mark.parametrize('case', ['reuse', 'distinct', 'failure', 'allocation', 'recent', 'prefix'])
+@pytest.mark.parametrize('case', ['reuse', 'distinct', 'failure', 'allocation', 'recent', 'prefix', 'alias', 'debug'])
 def test_cache(case, collision):
     status, output = run(executable(collision), case)
     assert status == 0, output

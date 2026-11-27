@@ -85,6 +85,12 @@ unsigned int hud_hires_override_texture(long asset, unsigned long *levels);
 /* a GL texture drawn from an 8-bit RGBA PNG (as the tools write them), with
 all its mip levels, and their number; 0 if it could not be */
 unsigned int hud_hires_png_texture(const void *png, unsigned long size, unsigned long *levels);
+/* the same in two steps: the PNG's texels (RGBA, rows top first; NULL if it
+could not be decoded), which any thread may decode, and then on the GL
+thread their texture, which frees them (0 if none) */
+unsigned char *hud_hires_png_pixels(const void *png, unsigned long size, unsigned long *width, unsigned long *height);
+unsigned int hud_hires_pixels_texture(unsigned char *pixels, unsigned long width, unsigned long height,
+	unsigned long *levels);
 /* the HUD's textures for a map's bitmaps (port/linux/game/hud_hires_tags.c),
 decoded from their PNGs as it loads, on a thread of their own, so that they
 are only uploaded when first drawn; and, as it is unloaded, that stopped and
@@ -110,5 +116,8 @@ unsigned int hud_hires_upscale_texture(const unsigned char *bgra, unsigned long 
 /* a texture hud_hires_upscale_texture gave no longer used by its texture
 (kept for the same pixels again: hud_hires.c) */
 void hud_hires_upscale_release(unsigned int texture);
+/* the GPU's upscale program built with the GL context (d3d8_gl.c,
+ * gl_initialize): built at a sheet's first draw, it held that frame up */
+void hud_hires_gl_initialize(void);
 
 #endif

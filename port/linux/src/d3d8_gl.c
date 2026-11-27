@@ -30,6 +30,7 @@ Conventions carried over from the Xbox:
 #include "bsp_light_index_batch.h"
 #endif
 #include "plasma_occlusion.h"
+#include "hud_hires.h"
 #include "mcc_environment_shader.h"
 #include "sdl_platform.h"
 #include "halo_ui_pointer.h"
@@ -3341,6 +3342,7 @@ static void gl_initialize(void)
 		if (renderbuffer_size < maximum_target_size)
 			maximum_target_size = renderbuffer_size;
 	}
+	hud_hires_gl_initialize();
 	xgpu_gl_state_invalidate();
 	device.gl_ready = TRUE;
 	/* display.stats_log's line: the driver's own text for the renderer */
@@ -4675,6 +4677,7 @@ static GLuint fragment_shader_get(const struct nv2a_pixel_shader_key *key)
 	unsigned long hash, index;
 	struct fragment_entry **bucket;
 	struct fragment_entry *entry;
+	struct nv2a_pixel_shader_key canonical;
 	char *source;
 
 	for (index = 0; index < RECENT_FRAGMENT_COUNT; index++)
@@ -4695,6 +4698,23 @@ static GLuint fragment_shader_get(const struct nv2a_pixel_shader_key *key)
 	entry = device_record_new(sizeof(*entry));
 	entry->hash = hash;
 	entry->key = *key;
+	/* port: a key whose GLSL does not depend on all of its bits (state the
+	game left set from an earlier draw) is another name for the shader of
+	the key with those bits cleared, so that each shader is compiled once
+	(nv2a_pixel_shader_key_canonicalize) */
+	canonical = *key;
+	/* Diagnostics may read a combiner register that final color does not use. */
+	if (!debug_settings.dump_shaders && !*config_string("debug.gpu_debug_expression") &&
+		!config_boolean("debug.gpu_debug_texture0"))
+		nv2a_pixel_shader_key_canonicalize(&canonical);
+	if (!words_equal(&canonical, key, sizeof(*key)))
+	{
+		entry->shader = fragment_shader_get(&canonical);
+		entry->next = *bucket;
+		*bucket = entry;
+		recent[recent_next++ % RECENT_FRAGMENT_COUNT] = entry;
+		return entry->shader;
+	}
 	source = nv2a_pixel_shader_to_glsl(key);
 	if (debug_settings.dump_shaders)
 	{

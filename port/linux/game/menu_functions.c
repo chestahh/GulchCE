@@ -385,6 +385,13 @@ static boolean setting_text(char const *name, char *text, unsigned int size, boo
 	{
 		if (!(default_value ? config_default(name, text, size) : config_text(name, text, size)))
 			return FALSE;
+		if (!strcmp(name, "network.browser_sort"))
+		{
+			int reverse;
+			int order = p2p_lobby_sort_parse(text, &reverse);
+
+			p2p_lobby_sort_text(order, reverse, text, size);
+		}
 		/* (display.mode empty: display.fullscreen's, as the window has it:
 		sdl_platform.c) */
 		if (!strcmp(name, "display.mode") && !text[0])
@@ -5106,7 +5113,7 @@ static struct
 	{ "op_sort_header_type", P2P_LOBBY_SORT_TYPE },
 	{ "op_sort_header_players", P2P_LOBBY_SORT_PLAYERS },
 	{ "op_sort_header_locked", P2P_LOBBY_SORT_LOCKED },
-	{ "op_sort_header_dedicated", P2P_LOBBY_SORT_SERVERS },
+	{ "op_sort_header_dedicated", P2P_LOBBY_SORT_DEDICATED },
 	{ "op_sort_header_classic", NONE },
 	{ "op_sort_header_ping", NONE },
 };
