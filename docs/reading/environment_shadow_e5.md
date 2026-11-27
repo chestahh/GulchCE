@@ -1984,9 +1984,15 @@ file's display section for parity with the existing E5 tests. Also run both
 Classic controls at 128 to measure the default per-object shadow resolution.
 Use a new label for each run. For the lighting/Hard/Soft rows, use the regular
 GulchCE performance build that records actual shadow and lighting counters.
-The [combat fixture](../../tools/lighting_combat_core.py) checks the engine's
-checkpoint acknowledgement, starting squad count and fixed camera. A rejected
-save cannot supply a matched result. Keep the map and checkpoint local.
+The [combat fixture](../../tools/lighting_combat_core.py) queues the checkpoint
+load when the simulation reaches tick 62. The E5 core restores tick 480 and its
+script threads, so the fixture waits for the engine's load acknowledgement
+before queuing the saved camera at tick 540. Earlier runs sent both commands
+after wall-clock delays from the first rendered frame. Changing when that frame
+appears can change the combat workload even with the same core and 19 Covenant.
+The runner checks the starting squad count and the measured camera positions.
+Compare the mean scene-light and sun-caster counts alongside frame times.
+Keep the map and checkpoint local.
 
 #### First matched Windows controls
 
